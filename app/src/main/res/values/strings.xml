@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Appacadabra</string>
+    <string name="title_activity_chat">Chat</string>
+    <string name="title_activity_runner">App Runner</string>
+</resources>

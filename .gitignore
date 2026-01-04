@@ -1,0 +1,176 @@
+# =====================
+# Android
+# =====================
+
+# Gradle
+.gradle/
+build/
+!gradle-wrapper.jar
+
+# Local configuration
+local.properties
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+captures/
+
+# Keystore files (credentials)
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Proguard
+proguard/
+
+# Generated files
+*.hprof
+*.dex
+*.class
+*.ap_
+*.apk
+*.aab
+
+# Google Services (may contain API keys)
+google-services.json
+
+# =====================
+# React Native
+# =====================
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Metro bundler
+.metro-health-check*
+
+# React Native iOS
+ios/Pods/
+ios/.xcode.env.local
+ios/build/
+*.xcworkspace
+!*.xcworkspace/contents.xcworkspacedata
+*.xcuserstate
+
+# React Native Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+
+# Bundle outputs
+*.bundle
+*.jsbundle
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# =====================
+# Environment & Credentials
+# =====================
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.env
+
+# AWS
+.aws/
+aws.json
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+.firebaserc
+
+# =====================
+# IDE & Editors
+# =====================
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Vim
+*.swp
+*.swo
+
+# =====================
+# OS Generated Files
+# =====================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# =====================
+# Logs & Debugging
+# =====================
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Crash reports
+crash-*.json
+hs_err_pid*
+
+# =====================
+# Testing
+# =====================
+
+# Jest / Testing
+coverage/
+
+# =====================
+# Package Manager
+# =====================
+
+# npm
+package-lock.json
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+yarn.lock
+
+# =====================
+# Build Outputs
+# =====================
+
+# TypeScript
+*.tsbuildinfo
+
+# General
+out/
+tmp/
+temp/
