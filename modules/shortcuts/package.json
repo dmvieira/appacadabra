@@ -1,0 +1,17 @@
+{
+    "name": "shortcuts",
+    "version": "1.0.0",
+    "description": "Appacadabra Shortcuts Module",
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "keywords": [
+        "react-native",
+        "expo",
+        "shortcuts"
+    ],
+    "peerDependencies": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+    }
+}

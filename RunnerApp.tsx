@@ -1,0 +1,346 @@
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ActivityIndicator,
+    BackHandler,
+    Platform,
+} from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import * as Calendar from 'expo-calendar';
+import * as Notifications from 'expo-notifications';
+import * as Linking from 'expo-linking';
+import * as Location from 'expo-location';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from './lib/bridges/injectedJS';
+import * as gemini from './lib/api/gemini';
+import * as db from './lib/database/db';
+import { colors } from './lib/theme';
+import { GeneratedApp } from './lib/database/types';
+
+// Configure notifications
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+    }),
+});
+
+interface Props {
+    appId: number;
+}
+
+function RunnerContent({ appId }: Props) {
+    const webViewRef = useRef<WebView>(null);
+    const [app, setApp] = useState<GeneratedApp | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
+
+    // Load app data
+    useEffect(() => {
+        async function loadApp() {
+            if (!appId) return;
+            const appData = await db.getAppById(appId);
+            if (appData) {
+                setApp(appData);
+                const storage = await db.getStorageForApp(appData.id);
+                setSavedStorage(storage.map(s => ({ key: s.key, value: s.value })));
+            }
+            setIsLoading(false);
+        }
+        loadApp();
+    }, [appId]);
+
+    // Handle Android back button
+    useEffect(() => {
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+            // Close the activity when back is pressed
+            BackHandler.exitApp();
+            return true;
+        });
+        return () => backHandler.remove();
+    }, []);
+
+    // Handle messages from WebView
+    const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
+        try {
+            const message = JSON.parse(event.nativeEvent.data);
+            const { type, data, callbackName } = message;
+
+            let success = true;
+            let result = '';
+
+            switch (type) {
+                case 'AI_GENERATE_TEXT':
+                    try {
+                        result = await gemini.aiGenerateText(data.prompt);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'AI_DESCRIBE_IMAGE':
+                    try {
+                        result = await gemini.aiDescribeImage(data.base64, data.prompt);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'AI_EXTRACT_STRUCTURED':
+                    try {
+                        result = await gemini.aiExtractStructuredData(data.text, data.schema);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'CALENDAR_CREATE_EVENT':
+                case 'CALENDAR_CREATE_EVENT_REMINDER':
+                    try {
+                        if (Platform.OS === 'android') {
+                            await Linking.openURL(`content://com.android.calendar/events`);
+                        } else {
+                            const { status } = await Calendar.requestCalendarPermissionsAsync();
+                            if (status === 'granted') {
+                                const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+                                const defaultCalendar = calendars.find(c => c.allowsModifications);
+                                if (defaultCalendar) {
+                                    await Calendar.createEventAsync(defaultCalendar.id, {
+                                        title: data.title,
+                                        notes: data.description,
+                                        startDate: new Date(data.startTimeMs),
+                                        endDate: new Date(data.endTimeMs),
+                                        alarms: type === 'CALENDAR_CREATE_EVENT_REMINDER'
+                                            ? [{ relativeOffset: -data.reminderMinutes }]
+                                            : undefined,
+                                    });
+                                    result = 'Event created successfully';
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'CALENDAR_HAS_PERMISSION':
+                    const calPerm = await Calendar.getCalendarPermissionsAsync();
+                    result = (calPerm.status === 'granted').toString();
+                    break;
+
+                case 'CALENDAR_REQUEST_PERMISSION':
+                    await Calendar.requestCalendarPermissionsAsync();
+                    break;
+
+                case 'NOTIFY_SHOW_NOW':
+                    try {
+                        await Notifications.scheduleNotificationAsync({
+                            content: { title: data.title, body: data.message },
+                            trigger: null,
+                        });
+                        result = 'Notification sent';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'NOTIFY_SCHEDULE':
+                    try {
+                        const id1 = await Notifications.scheduleNotificationAsync({
+                            content: { title: data.title, body: data.message },
+                            trigger: {
+                                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                                seconds: data.delayMinutes * 60,
+                            },
+                        });
+                        result = id1;
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'NOTIFY_SCHEDULE_AT':
+                    try {
+                        const id2 = await Notifications.scheduleNotificationAsync({
+                            content: { title: data.title, body: data.message },
+                            trigger: {
+                                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                                date: new Date(data.timeMs),
+                            },
+                        });
+                        result = id2;
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'NOTIFY_HAS_PERMISSION':
+                    const notifPerm = await Notifications.getPermissionsAsync();
+                    result = (notifPerm.status === 'granted').toString();
+                    break;
+
+                case 'NOTIFY_REQUEST_PERMISSION':
+                    await Notifications.requestPermissionsAsync();
+                    break;
+
+                case 'STORAGE_SET':
+                    if (app) await db.setStorageItem(app.id, data.key, data.value);
+                    break;
+
+                case 'STORAGE_REMOVE':
+                    if (app) await db.removeStorageItem(app.id, data.key);
+                    break;
+
+                case 'STORAGE_CLEAR':
+                    if (app) await db.clearStorageForApp(app.id);
+                    break;
+
+                case 'CONSOLE_LOG':
+                case 'NETWORK_LOG':
+                    // Silently ignore in run-only mode
+                    break;
+
+                default:
+                    console.log('Unknown message type:', type);
+            }
+
+            if (callbackName && webViewRef.current) {
+                const script = createCallbackScript(callbackName, success, result);
+                webViewRef.current.injectJavaScript(script);
+            }
+        } catch (e) {
+            console.error('Error handling WebView message:', e);
+        }
+    }, [app]);
+
+    if (isLoading || !app) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
+
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; }
+      </style>
+    </head>
+    <body>
+      ${app.code}
+    </body>
+    </html>
+  `;
+
+    const storageScript = createStorageRestoreScript(savedStorage);
+    const combinedScript = `
+        ${getInjectedJavaScript(app.id)}
+        ${storageScript}
+    `;
+
+    return (
+        <WebView
+            ref={webViewRef}
+            source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }}
+            style={styles.webview}
+            originWhitelist={['*']}
+            javaScriptEnabled
+            domStorageEnabled
+            mediaPlaybackRequiresUserAction={false}
+            allowsInlineMediaPlayback
+            allowFileAccess
+            allowFileAccessFromFileURLs
+            allowUniversalAccessFromFileURLs
+            mixedContentMode="always"
+            geolocationEnabled
+            injectedJavaScriptBeforeContentLoaded={combinedScript}
+            onMessage={handleMessage}
+            onError={(e) => console.error('WebView error:', e.nativeEvent)}
+            onShouldStartLoadWithRequest={(request) => {
+                const { url } = request;
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    if (!url.includes('localhost')) {
+                        Linking.openURL(url);
+                        return false;
+                    }
+                }
+                return true;
+            }}
+            // @ts-ignore
+            androidOnGeolocationPermissionsShowPrompt={async (origin: string, callback: (origin: string, allow: boolean, retain: boolean) => void) => {
+                try {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    callback(origin, status === 'granted', true);
+                } catch (e) {
+                    callback(origin, false, false);
+                }
+            }}
+        />
+    );
+}
+
+// Main component that receives appId from native props (no expo-linking)
+interface RunnerAppProps {
+    appId?: number;
+}
+
+export default function RunnerApp(props: RunnerAppProps) {
+    const appId = props.appId ?? null;
+
+    if (appId === null || appId < 0) {
+        return (
+            <SafeAreaProvider>
+                <SafeAreaView style={styles.container}>
+                    <View style={styles.loadingContainer}>
+                        <Text style={{ color: colors.primary, textAlign: 'center' }}>
+                            Não foi possível carregar o app
+                        </Text>
+                    </View>
+                </SafeAreaView>
+            </SafeAreaProvider>
+        );
+    }
+
+    return (
+        <SafeAreaProvider>
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <RunnerContent appId={appId} />
+            </SafeAreaView>
+        </SafeAreaProvider>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.background,
+    },
+    webview: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+});
+

@@ -1,0 +1,17 @@
+{
+    "platforms": [
+        "android",
+        "ios"
+    ],
+    "android": {
+        "package": "expo.modules.shortcuts",
+        "modules": [
+            "expo.modules.shortcuts.ShortcutsModule"
+        ]
+    },
+    "ios": {
+        "modules": [
+            "ShortcutsModule"
+        ]
+    }
+}
