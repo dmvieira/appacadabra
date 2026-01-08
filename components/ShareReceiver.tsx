@@ -9,7 +9,7 @@ import { colors, spacing, borderRadius } from '../lib/theme';
 export default function ShareReceiver() {
     const [sharedContent, setSharedContent] = useState<ShareIntent.SharedContent | null>(null);
     const router = useRouter();
-    const { apps } = useAppStore();
+    const { apps, setSharedContent: storeSharedContent, clearSharedContent: storeClearSharedContent } = useAppStore();
 
     useEffect(() => {
         // Check for initial shared content
@@ -28,16 +28,29 @@ export default function ShareReceiver() {
         };
     }, []);
 
-    const handleSelectApp = (app: GeneratedApp) => {
+    const handleSelectApp = async (app: GeneratedApp) => {
         if (!sharedContent) return;
 
-        // Navigate to the runner with the app ID
+        console.log('ShareReceiver: Storing shared content:', JSON.stringify(sharedContent));
+
+        // Store the shared content in global state
+        storeSharedContent({
+            mimeType: sharedContent.mimeType || 'text/plain',
+            text: sharedContent.text,
+            uri: sharedContent.uri,
+        });
+
+        console.log('ShareReceiver: Navigating to runner with share=true');
+
+        // Navigate to the runner with share indicator
         setSharedContent(null); // Close modal
-        router.push(`/runner/${app.id}`);
+        ShareIntent.clearSharedContent();
+        router.push({ pathname: '/runner/[id]', params: { id: app.id, share: 'true' } });
     };
 
     const handleClose = () => {
         ShareIntent.clearSharedContent();
+        storeClearSharedContent();
         setSharedContent(null);
     };
 

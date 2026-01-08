@@ -15,6 +15,14 @@ interface AppState {
     runningInstances: { id: number; mode: 'run' | 'edit' }[];
     activeAppId: number | null;
 
+    // Shared Content (for share-to-webapp feature)
+    sharedContent: {
+        mimeType: string;
+        text?: string;
+        uri?: string;
+        base64?: string;
+    } | null;
+
     // Actions
     loadApps: () => Promise<void>;
     openApp: (id: number, mode?: 'run' | 'edit') => void;
@@ -30,6 +38,8 @@ interface AppState {
     importBackup: () => Promise<void>;
     clearError: () => void;
     clearBackupStatus: () => void;
+    setSharedContent: (content: AppState['sharedContent']) => void;
+    clearSharedContent: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -40,6 +50,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     backupStatus: null,
     runningInstances: [],
     activeAppId: null,
+    sharedContent: null,
 
     loadApps: async () => {
         try {
@@ -294,4 +305,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     clearError: () => set({ error: null }),
     clearBackupStatus: () => set({ backupStatus: null }),
+    setSharedContent: (content) => set({ sharedContent: content }),
+    clearSharedContent: () => set({ sharedContent: null }),
 }));

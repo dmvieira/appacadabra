@@ -331,3 +331,152 @@ export function createStorageRestoreScript(items: { key: string; value: string }
     })();
     `;
 }
+
+// Interface for shared content
+interface SharedContent {
+  mimeType: string;
+  text?: string;
+  uri?: string;
+  base64?: string;
+}
+
+// Generate script to inject shared content into the first compatible form field
+export function createSharedContentInjectionScript(content: SharedContent): string {
+  const isImage = content.mimeType?.startsWith('image/');
+  const isText = content.mimeType?.startsWith('text/') || !content.mimeType;
+  const hasUri = !!content.uri;
+
+  // Escape content for injection
+  const escapedText = (content.text || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+  const escapedUri = (content.uri || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const escapedMime = (content.mimeType || 'text/plain').replace(/"/g, '\\"');
+
+  return `
+    (function() {
+      console.log('Injecting shared content:', '${escapedMime}');
+      
+      const sharedContent = {
+        mimeType: "${escapedMime}",
+        text: "${escapedText}",
+        uri: "${escapedUri}",
+        isImage: ${isImage},
+        isText: ${isText},
+        hasUri: ${hasUri}
+      };
+
+      // Make shared content available globally
+      window.__sharedContent = sharedContent;
+
+      // Function to show a toast notification
+      function showToast(message) {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:8px;z-index:99999;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+
+      // Helper function to inject file into input[type=file]
+      async function injectFileIntoInput(fileInput, uri, mimeType) {
+        try {
+          console.log('Attempting to fetch file from URI:', uri);
+          const response = await fetch(uri);
+          const blob = await response.blob();
+          
+          // Get filename from URI
+          const fileName = uri.split('/').pop() || 'shared_file';
+          
+          // Create a File from the blob
+          const file = new File([blob], fileName, { type: mimeType || blob.type });
+          
+          // Create a DataTransfer and add the file
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          
+          // Set the files property
+          fileInput.files = dataTransfer.files;
+          
+          // Dispatch change event
+          fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+          fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+          
+          console.log('File injected into input:', fileName);
+          return true;
+        } catch (error) {
+          console.error('Failed to inject file:', error);
+          return false;
+        }
+      }
+
+      // Function to inject into first compatible field
+      async function injectIntoFirstField() {
+        let injected = false;
+
+        // For text content, inject into text fields
+        if (sharedContent.isText && sharedContent.text) {
+          const textField = document.querySelector('textarea, input[type="text"], input:not([type])');
+          if (textField) {
+            textField.value = sharedContent.text;
+            textField.dispatchEvent(new Event('input', { bubbles: true }));
+            textField.dispatchEvent(new Event('change', { bubbles: true }));
+            textField.focus();
+            console.log('Shared text injected into:', textField.tagName);
+            showToast('Texto compartilhado inserido!');
+            injected = true;
+          }
+        }
+
+        // For files with URI (images, PDFs, etc.)
+        if (!injected && sharedContent.hasUri) {
+          // First try to find a file input and inject the file
+          const fileInput = document.querySelector('input[type="file"]');
+          if (fileInput) {
+            const success = await injectFileIntoInput(fileInput, sharedContent.uri, sharedContent.mimeType);
+            if (success) {
+              showToast('Arquivo anexado!');
+              injected = true;
+            }
+          }
+
+          // If no file input or injection failed, try image src
+          if (!injected && sharedContent.isImage) {
+            const imgField = document.querySelector('img:not([src]), img[src=""]');
+            if (imgField) {
+              imgField.src = sharedContent.uri;
+              console.log('Shared image set to img element');
+              showToast('Imagem compartilhada anexada!');
+              injected = true;
+            }
+          }
+
+          // For any file, dispatch sharedFile event
+          if (!injected) {
+            console.log('Dispatching sharedFile event with URI:', sharedContent.uri);
+            window.dispatchEvent(new CustomEvent('sharedFile', { 
+              detail: { 
+                uri: sharedContent.uri, 
+                mimeType: sharedContent.mimeType,
+                text: sharedContent.text
+              } 
+            }));
+            showToast('Arquivo recebido: ' + sharedContent.mimeType);
+            injected = true;
+          }
+        }
+
+        // Fallback: always dispatch sharedContent event
+        window.dispatchEvent(new CustomEvent('sharedContent', { detail: sharedContent }));
+        console.log('sharedContent event dispatched');
+        
+        return injected;
+      }
+
+      // Wait for DOM to be ready
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(injectIntoFirstField, 100);
+      } else {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(injectIntoFirstField, 100));
+      }
+    })();
+  `;
+}

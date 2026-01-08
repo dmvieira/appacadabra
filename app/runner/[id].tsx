@@ -20,7 +20,7 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import { useAppStore } from '../../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from '../../lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentInjectionScript } from '../../lib/bridges/injectedJS';
 import * as gemini from '../../lib/api/gemini';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -38,7 +38,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function RunnerScreen() {
-    const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
+    const { id, edit, share } = useLocalSearchParams<{ id: string; edit?: string; share?: string }>();
     const router = useRouter();
     const webViewRef = useRef<WebView>(null);
 
@@ -48,6 +48,7 @@ export default function RunnerScreen() {
 
     // Edit mode states
     const isEditMode = edit === 'true';
+    const isShareMode = share === 'true';
     const [showEditSheet, setShowEditSheet] = useState(false);
     const [editPrompt, setEditPrompt] = useState('');
     const [isEditing, setIsEditing] = useState(false);
@@ -63,7 +64,7 @@ export default function RunnerScreen() {
     const [showHistory, setShowHistory] = useState(false);
     const [versions, setVersions] = useState<AppVersion[]>([]);
 
-    const { updateAppCode, updateAppWithAI } = useAppStore();
+    const { updateAppCode, updateAppWithAI, sharedContent, clearSharedContent } = useAppStore();
 
     // Saved localStorage items
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
@@ -88,13 +89,28 @@ export default function RunnerScreen() {
         loadApp();
     }, [id]);
 
-    // Inject saved localStorage when WebView loads
+    // Inject saved localStorage and shared content when WebView loads
     const handleLoadEnd = useCallback(() => {
-        if (webViewRef.current && savedStorage.length > 0) {
-            const script = createStorageRestoreScript(savedStorage);
-            webViewRef.current.injectJavaScript(script);
+        console.log('Runner: handleLoadEnd called, isShareMode:', isShareMode, 'sharedContent:', JSON.stringify(sharedContent));
+
+        if (webViewRef.current) {
+            // Inject saved storage
+            if (savedStorage.length > 0) {
+                const script = createStorageRestoreScript(savedStorage);
+                webViewRef.current.injectJavaScript(script);
+            }
+
+            // Inject shared content if in share mode
+            if (isShareMode && sharedContent) {
+                console.log('Runner: Injecting shared content');
+                const injectScript = createSharedContentInjectionScript(sharedContent);
+                webViewRef.current.injectJavaScript(injectScript);
+                clearSharedContent(); // Clear after injecting
+            } else {
+                console.log('Runner: NOT injecting - isShareMode:', isShareMode, 'hasContent:', !!sharedContent);
+            }
         }
-    }, [savedStorage]);
+    }, [savedStorage, isShareMode, sharedContent, clearSharedContent]);
 
     // Load version history
     const loadVersions = useCallback(async () => {
@@ -471,6 +487,7 @@ export default function RunnerScreen() {
                 mixedContentMode="always"
                 geolocationEnabled
                 injectedJavaScriptBeforeContentLoaded={combinedScript}
+                onLoadEnd={handleLoadEnd}
                 onMessage={handleMessage}
                 onError={(e) => console.error('WebView error:', e.nativeEvent)}
                 onShouldStartLoadWithRequest={(request) => {

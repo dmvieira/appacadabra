@@ -1,22 +1,23 @@
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useGlobalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '../lib/theme';
 import ShareReceiver from '../components/ShareReceiver';
 
 export default function RootLayout() {
     const router = useRouter();
-    const segments = useSegments();
+    const params = useGlobalSearchParams<{ edit?: string }>();
     const appState = useRef(AppState.currentState);
 
-    // Reset to index when app becomes active (prevents corrupted state)
+    // Reset to index when app becomes active (prevents corrupted state from Play button)
+    // But ONLY if not in edit mode
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
             // When coming back from background to active
             if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-                // If we're somehow on a runner route, go back to index
-                if (segments[0] === 'runner') {
+                // Only reset if NOT in edit mode
+                if (params.edit !== 'true') {
                     router.replace('/');
                 }
             }
@@ -24,7 +25,7 @@ export default function RootLayout() {
         });
 
         return () => subscription.remove();
-    }, [segments, router]);
+    }, [params.edit, router]);
 
     return (
         <>
@@ -61,3 +62,4 @@ export default function RootLayout() {
         </>
     );
 }
+
