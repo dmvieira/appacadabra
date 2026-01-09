@@ -104,8 +104,7 @@ export default function HomeScreen() {
             setRenameTarget(null);
         }
     };
-
-    const handlePickIcon = async () => {
+    const handleSelectIconFromGallery = async () => {
         if (!iconTarget) return;
 
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -118,6 +117,18 @@ export default function HomeScreen() {
         if (!result.canceled && result.assets[0]) {
             await updateAppIcon(iconTarget.id, result.assets[0].uri);
         }
+        setIconTarget(null);
+    };
+
+    const handleSearchIconOnGoogle = async () => {
+        if (!iconTarget) return;
+
+        // Open Google Images search for app icon
+        const searchQuery = encodeURIComponent(`${iconTarget.name} app icon`);
+        const googleImageUrl = `https://www.google.com/search?tbm=isch&q=${searchQuery}`;
+        await Linking.openURL(googleImageUrl);
+
+        // Close modal - user will download image, then select from gallery
         setIconTarget(null);
     };
 
@@ -220,9 +231,13 @@ export default function HomeScreen() {
                     <View style={styles.iconSheet}>
                         <Text style={styles.iconSheetTitle}>Escolher Ícone</Text>
                         <Text style={styles.iconSheetSubtitle}>{iconTarget?.name}</Text>
-                        <TouchableOpacity style={styles.iconBtn} onPress={handlePickIcon}>
+                        <TouchableOpacity style={styles.iconBtn} onPress={handleSelectIconFromGallery}>
                             <Text style={styles.iconBtnIcon}>🖼️</Text>
                             <Text style={styles.iconBtnText}>Escolher da Galeria</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.iconBtn} onPress={handleSearchIconOnGoogle}>
+                            <Text style={styles.iconBtnIcon}>🔍</Text>
+                            <Text style={styles.iconBtnText}>Buscar no Google</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={styles.cancelBtn}
@@ -433,5 +448,44 @@ const styles = StyleSheet.create({
     statusText: {
         color: colors.onSurface,
         textAlign: 'center',
+    },
+    iconSourceModal: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+        width: '80%',
+        alignItems: 'center',
+    },
+    iconSourceTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: colors.onSurface,
+        marginBottom: spacing.xs,
+    },
+    iconSourceSubtitle: {
+        fontSize: 14,
+        color: colors.onSurfaceVariant,
+        marginBottom: spacing.lg,
+    },
+    iconSourceOption: {
+        width: '100%',
+        padding: spacing.md,
+        backgroundColor: colors.primaryContainer,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.sm,
+        alignItems: 'center',
+    },
+    iconSourceOptionText: {
+        fontSize: 16,
+        color: colors.onPrimaryContainer,
+        fontWeight: '500',
+    },
+    iconSourceCancel: {
+        marginTop: spacing.sm,
+        padding: spacing.md,
+    },
+    iconSourceCancelText: {
+        fontSize: 14,
+        color: colors.onSurfaceVariant,
     },
 });
