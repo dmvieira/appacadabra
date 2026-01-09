@@ -17,6 +17,17 @@ const searchModel = genAI.getGenerativeModel({
     tools: [{ googleSearch: {} }],
 });
 
+// JSON models for structured output
+const primaryJsonModel = genAI.getGenerativeModel({
+    model: 'gemini-3-flash-preview',
+    generationConfig: { responseMimeType: 'application/json' },
+});
+
+const fallbackJsonModel = genAI.getGenerativeModel({
+    model: 'gemma-3-27b-it',
+    generationConfig: { responseMimeType: 'application/json' },
+});
+
 const SYSTEM_INSTRUCTIONS = `
 IMPORTANT: The app will run in a WebView. For data persistence:
 - Use localStorage to save any user data, settings, or state
@@ -226,24 +237,24 @@ export async function aiDescribeImage(base64Image: string, prompt: string): Prom
 }
 
 export async function aiExtractStructuredData(text: string, schemaJson: string): Promise<string> {
-    const jsonModel = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
-        generationConfig: {
-            responseMimeType: 'application/json',
-        },
-    });
-
-    const prompt = `Extract structured data from this text according to the JSON schema.
-
-Text: "${text}"
+    const prompt = `Extract structured data from this text: "${text}"
 
 Expected JSON schema: ${schemaJson}
 
 Return only the extracted data as valid JSON matching the schema.
 If information is missing, use null or empty string.`;
 
-    const result = await jsonModel.generateContent(prompt);
-    return result.response.text();
+    try {
+        const result = await primaryJsonModel.generateContent(prompt);
+        return result.response.text();
+    } catch (error) {
+        if (isRateLimitError(error)) {
+            console.log('Rate limit hit, trying fallback model for structured data...');
+            const result = await fallbackJsonModel.generateContent(prompt);
+            return result.response.text();
+        }
+        throw error;
+    }
 }
 
 export async function aiGenerateTextWithSearch(prompt: string): Promise<string> {

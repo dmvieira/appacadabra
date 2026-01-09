@@ -49,253 +49,234 @@ export function getInjectedJavaScript(appId: number): string {
     }
   }
 
-  // Boot message
-  sendMessage('CONSOLE_LOG', { type: 'system', message: 'Bridge initialized (v2)' }, null);
-
-  // ============= AppacadabraAI =============
+  // Expose bridges matching Gemini system prompt
   window.AppacadabraAI = {
     generateText: function(prompt, callbackName) {
-      sendMessage('AI_GENERATE_TEXT', { prompt: prompt }, callbackName);
+        sendMessage('AI_GENERATE_TEXT', { prompt }, callbackName);
     },
-    
     generateTextWithSearch: function(prompt, callbackName) {
-      sendMessage('AI_GENERATE_TEXT_SEARCH', { prompt: prompt }, callbackName);
+        sendMessage('AI_GENERATE_TEXT_WITH_SEARCH', { prompt }, callbackName);
     },
-    
-    describeImage: function(base64Image, prompt, callbackName) {
-      sendMessage('AI_DESCRIBE_IMAGE', { base64: base64Image, prompt: prompt }, callbackName);
+    describeImage: function(base64, prompt, callbackName) {
+        sendMessage('AI_DESCRIBE_IMAGE', { base64, prompt }, callbackName);
     },
-    
-    transcribeAudio: function(base64Audio, callbackName) {
-      sendMessage('AI_TRANSCRIBE_AUDIO', { base64: base64Audio }, callbackName);
+    transcribeAudio: function(base64, callbackName) {
+        sendMessage('AI_TRANSCRIBE_AUDIO', { base64 }, callbackName);
     },
-    
-    extractStructuredData: function(text, schemaJson, callbackName) {
-      sendMessage('AI_EXTRACT_STRUCTURED', { text: text, schema: schemaJson }, callbackName);
+    extractStructuredData: function(text, schema, callbackName) {
+        sendMessage('AI_EXTRACT_STRUCTURED', { text, schema }, callbackName);
     }
   };
 
-  // ============= AppacadabraCalendar =============
   window.AppacadabraCalendar = {
     createEvent: function(title, description, startTimeMs, endTimeMs, callbackName) {
-      sendMessage('CALENDAR_CREATE_EVENT', {
-        title: title,
-        description: description,
-        startTimeMs: startTimeMs,
-        endTimeMs: endTimeMs
-      }, callbackName);
+        sendMessage('CALENDAR_CREATE_EVENT', { title, description, startTimeMs, endTimeMs }, callbackName);
     },
-    
     createEventWithReminder: function(title, description, startTimeMs, endTimeMs, reminderMinutes, callbackName) {
-      sendMessage('CALENDAR_CREATE_EVENT_REMINDER', {
-        title: title,
-        description: description,
-        startTimeMs: startTimeMs,
-        endTimeMs: endTimeMs,
-        reminderMinutes: reminderMinutes
-      }, callbackName);
-    },
-    
-    hasCalendarPermission: function(callbackName) {
-      sendMessage('CALENDAR_HAS_PERMISSION', {}, callbackName);
-    },
-    
-    requestCalendarPermission: function() {
-      sendMessage('CALENDAR_REQUEST_PERMISSION', {}, null);
+        sendMessage('CALENDAR_CREATE_EVENT_REMINDER', { title, description, startTimeMs, endTimeMs, reminderMinutes }, callbackName);
     }
   };
 
-  // ============= AppacadabraNotify =============
   window.AppacadabraNotify = {
     showNow: function(title, message, callbackName) {
-      sendMessage('NOTIFY_SHOW_NOW', { title: title, message: message }, callbackName);
+        sendMessage('NOTIFY_SHOW_NOW', { title, message }, callbackName);
     },
-    
     scheduleNotification: function(title, message, delayMinutes, callbackName) {
-      sendMessage('NOTIFY_SCHEDULE', {
-        title: title,
-        message: message,
-        delayMinutes: delayMinutes
-      }, callbackName);
-    },
-    
-    scheduleNotificationAt: function(title, message, timeMs, callbackName) {
-      sendMessage('NOTIFY_SCHEDULE_AT', {
-        title: title,
-        message: message,
-        timeMs: timeMs
-      }, callbackName);
-    },
-    
-    hasNotificationPermission: function(callbackName) {
-      sendMessage('NOTIFY_HAS_PERMISSION', {}, callbackName);
-    },
-    
-    requestNotificationPermission: function() {
-      sendMessage('NOTIFY_REQUEST_PERMISSION', {}, null);
+        sendMessage('NOTIFY_SCHEDULE', { title, message, delayMinutes }, callbackName);
     }
   };
 
-  // ============= localStorage bridge =============
-  const originalSetItem = localStorage.setItem.bind(localStorage);
-  const originalRemoveItem = localStorage.removeItem.bind(localStorage);
-  const originalClear = localStorage.clear.bind(localStorage);
-
+  window.AppacadabraLocation = {
+    getCurrentPosition: function(callbackName) {
+        sendMessage('LOCATION_GET_CURRENT_POSITION', {}, callbackName);
+    }
+  };
+  
+  // Storage (localStorage wrapper to sync with native DB)
+  // We hook into localStorage.setItem to persist data
+  const originalSetItem = localStorage.setItem;
   localStorage.setItem = function(key, value) {
-    originalSetItem(key, value);
-    sendMessage('STORAGE_SET', { key: key, value: value }, null);
+      originalSetItem.apply(this, arguments);
+      sendMessage('STORAGE_SET', { key, value });
   };
 
+  const originalRemoveItem = localStorage.removeItem;
   localStorage.removeItem = function(key) {
-    originalRemoveItem(key);
-    sendMessage('STORAGE_REMOVE', { key: key }, null);
+      originalRemoveItem.apply(this, arguments);
+      sendMessage('STORAGE_REMOVE', { key });
   };
 
+  const originalClear = localStorage.clear;
   localStorage.clear = function() {
-    originalClear();
-    sendMessage('STORAGE_CLEAR', {}, null);
+      originalClear.apply(this, arguments);
+      sendMessage('STORAGE_CLEAR', {});
   };
-
-  // ============= Console log capture =============
-  const originalLog = console.log;
-  const originalError = console.error;
-  const originalWarn = console.warn;
-
-  function captureLog(type, args) {
-    const message = Array.from(args).map(arg => {
-      try {
-        return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
-      } catch {
-        return String(arg);
+  
+  // Selection mode for editing
+  window.toggleSelectionMode = function(enabled) {
+      if (enabled) {
+          document.body.classList.add('selection-mode');
+          document.addEventListener('click', handleElementClick, true);
+      } else {
+          document.body.classList.remove('selection-mode');
+          document.removeEventListener('click', handleElementClick, true);
       }
-    }).join(' ');
-    
-    sendMessage('CONSOLE_LOG', { type: type, message: message }, null);
-  }
-
-  console.log = function(...args) {
-    captureLog('log', args);
-    originalLog.apply(console, args);
-  };
-
-  console.error = function(...args) {
-    captureLog('error', args);
-    originalError.apply(console, args);
-  };
-
-  console.warn = function(...args) {
-    captureLog('warn', args);
-    originalWarn.apply(console, args);
-  };
-
-  // Capture uncaught errors
-  window.onerror = function(message, source, lineno, colno, error) {
-    captureLog('error', ['Uncaught error:', message, 'at', source, lineno + ':' + colno]);
-  };
-
-  // ============= Network request capture =============
-  const originalFetch = window.fetch;
-  window.fetch = function(url, options) {
-    const method = (options && options.method) || 'GET';
-    const urlStr = typeof url === 'string' ? url : url.url || url.toString();
-    
-    sendMessage('NETWORK_LOG', { url: urlStr, method: method, status: null }, null);
-    
-    return originalFetch.apply(this, arguments).then(function(response) {
-      sendMessage('NETWORK_LOG', { url: urlStr, method: method, status: response.status }, null);
-      return response;
-    }).catch(function(error) {
-      sendMessage('NETWORK_LOG', { url: urlStr, method: method, status: 0 }, null);
-      throw error;
-    });
-  };
-
-  // Also capture XMLHttpRequest
-  const originalOpen = XMLHttpRequest.prototype.open;
-  const originalSend = XMLHttpRequest.prototype.send;
-  
-  XMLHttpRequest.prototype.open = function(method, url) {
-    this._networkMethod = method;
-    this._networkUrl = url;
-    return originalOpen.apply(this, arguments);
   };
   
-  XMLHttpRequest.prototype.send = function() {
-    const xhr = this;
-    sendMessage('NETWORK_LOG', { url: xhr._networkUrl, method: xhr._networkMethod, status: null }, null);
-    
-    xhr.addEventListener('load', function() {
-      sendMessage('NETWORK_LOG', { url: xhr._networkUrl, method: xhr._networkMethod, status: xhr.status }, null);
-    });
-    
-    xhr.addEventListener('error', function() {
-      sendMessage('NETWORK_LOG', { url: xhr._networkUrl, method: xhr._networkMethod, status: 0 }, null);
-    });
-    
-    return originalSend.apply(this, arguments);
-  };
-
-  console.log('Appacadabra bridges initialized v3 (Selection Mode Ready)');
-
-  // ============= Selection Monitor =============
-  window._lastSelection = "";
-  document.addEventListener("selectionchange", function() {
-      var sel = window.getSelection().toString();
-      window._lastSelection = sel;
-  });
-
-  // ============= DOM Selection Mode =============
-  window._appacadabraSelectionMode = false;
-  window._selectionHandler = function(e) {
-      if (!window._appacadabraSelectionMode) return;
+  function handleElementClick(e) {
+      if (!document.body.classList.contains('selection-mode')) return;
+      
       e.preventDefault();
       e.stopPropagation();
-      var target = e.target;
       
-      // Highlight
-      if (window._lastHighlighted) window._lastHighlighted.style.outline = '';
-      target.style.outline = '4px solid #FF0055'; // Vibrant color
-      window._lastHighlighted = target;
-
-      // Send target info
-      // Truncate preview for performance/UI, but generally we want structure
-      var preview = target.outerHTML;
-      if (preview.length > 500) preview = preview.substring(0, 500) + '...';
-
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-         type: 'ELEMENT_SELECTED',
-         data: { 
-             html: target.outerHTML, 
-             tagName: target.tagName,
-             preview: preview 
-         }
-      }));
-  };
-
-  window.toggleSelectionMode = function(active) {
-      window._appacadabraSelectionMode = active;
-      if (active) {
-          document.addEventListener('click', window._selectionHandler, true); // Capture phase
-          document.body.style.cursor = 'crosshair';
-          // Disable selection of text to avoid confusion?
-          document.body.style.userSelect = 'none';
-          document.body.style.webkitUserSelect = 'none';
-      } else {
-          document.removeEventListener('click', window._selectionHandler, true);
-          document.body.style.cursor = '';
-          document.body.style.userSelect = '';
-          document.body.style.webkitUserSelect = '';
-          if (window._lastHighlighted) {
-             window._lastHighlighted.style.outline = '';
-             window._lastHighlighted = null;
-          }
+      const target = e.target;
+      // Get element info
+      const info = {
+          tagName: target.tagName,
+          id: target.id,
+          className: target.className,
+          innerHTML: target.innerHTML,
+          outerHTML: target.outerHTML
+      };
+      
+      // Send to RN
+      sendMessage('ELEMENT_SELECTED', info);
+  }
+  
+  // Inject CSS for selection mode
+  // Inject CSS for selection mode
+  const style = document.createElement('style');
+  style.textContent = \`
+      .selection-mode * {
+          cursor: crosshair !important;
       }
+      .selection-mode *:hover {
+          outline: 2px solid #00f !important;
+          background-color: rgba(0, 0, 255, 0.1) !important;
+      }
+  \`;
+  document.head.appendChild(style);
+
+  // ============= Console Log Interception =============
+  const originalConsole = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error,
+    info: console.info
   };
+
+  function interceptConsole(type) {
+    return function(...args) {
+      originalConsole[type].apply(console, args);
+      try {
+        const message = args.map(arg => {
+          if (typeof arg === 'object') {
+            try { return JSON.stringify(arg); } catch { return String(arg); }
+          }
+          return String(arg);
+        }).join(' ');
+        sendMessage('CONSOLE_LOG', { type, message });
+      } catch (e) {}
+    };
+  }
+
+  console.log = interceptConsole('log');
+  console.warn = interceptConsole('warn');
+  console.error = interceptConsole('error');
+  console.info = interceptConsole('info');
+
+  // ============= Network Request Interception =============
+  const originalFetch = window.fetch;
+  window.fetch = function(input, init) {
+    const url = typeof input === 'string' ? input : input.url;
+    const method = init?.method || 'GET';
+    const startTime = Date.now();
+    
+    return originalFetch.apply(this, arguments)
+      .then(response => {
+        // Clone response to read body without consuming it
+        const clonedResponse = response.clone();
+        clonedResponse.text().then(body => {
+          const truncatedBody = body.length > 500 ? body.substring(0, 500) + '...' : body;
+          sendMessage('NETWORK_LOG', {
+            url,
+            method,
+            status: response.status,
+            statusText: response.statusText,
+            duration: Date.now() - startTime,
+            responseBody: truncatedBody
+          });
+        }).catch(() => {
+          sendMessage('NETWORK_LOG', {
+            url,
+            method,
+            status: response.status,
+            statusText: response.statusText,
+            duration: Date.now() - startTime,
+            responseBody: '[Unable to read body]'
+          });
+        });
+        return response;
+      })
+      .catch(error => {
+        sendMessage('NETWORK_LOG', {
+          url,
+          method,
+          status: 0,
+          statusText: 'Error',
+          duration: Date.now() - startTime,
+          error: error.message
+        });
+        throw error;
+      });
+  };
+
+  // Also intercept XMLHttpRequest
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  const originalXHRSend = XMLHttpRequest.prototype.send;
+  
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this._networkInfo = { method, url, startTime: Date.now() };
+    return originalXHROpen.apply(this, arguments);
+  };
+  
+  XMLHttpRequest.prototype.send = function(body) {
+    const xhr = this;
+    const info = this._networkInfo || { method: 'GET', url: 'unknown', startTime: Date.now() };
+    
+    this.addEventListener('load', function() {
+      const truncatedBody = xhr.responseText?.length > 500 
+        ? xhr.responseText.substring(0, 500) + '...' 
+        : xhr.responseText;
+      sendMessage('NETWORK_LOG', {
+        url: info.url,
+        method: info.method,
+        status: xhr.status,
+        statusText: xhr.statusText,
+        duration: Date.now() - info.startTime,
+        responseBody: truncatedBody
+      });
+    });
+    
+    this.addEventListener('error', function() {
+      sendMessage('NETWORK_LOG', {
+        url: info.url,
+        method: info.method,
+        status: 0,
+        statusText: 'Error',
+        duration: Date.now() - info.startTime,
+        error: 'Network Error'
+      });
+    });
+    
+    return originalXHRSend.apply(this, arguments);
+  };
+
 })();
-true;
-`;
+  `;
 }
 
+// Helper to generate callback script for native-to-JS calls
 export function createCallbackScript(callbackName: string, success: boolean, data: string): string {
   const escapedData = data
     .replace(/\\/g, '\\\\')
@@ -338,56 +319,61 @@ interface SharedContent {
   text?: string;
   uri?: string;
   base64?: string;
+  hasBase64?: boolean;
 }
 
-// Generate script to inject shared content into the first compatible form field
-export function createSharedContentInjectionScript(content: SharedContent): string {
-  const isImage = content.mimeType?.startsWith('image/');
-  const isText = content.mimeType?.startsWith('text/') || !content.mimeType;
-  const hasUri = !!content.uri;
-
-  // Escape content for injection
-  const escapedText = (content.text || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-  const escapedUri = (content.uri || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  const escapedMime = (content.mimeType || 'text/plain').replace(/"/g, '\\"');
-
+// Generate script to setup listener for shared content
+export function createSharedContentSetupScript(): string {
   return `
     (function() {
-      console.log('Injecting shared content:', '${escapedMime}');
+      console.log('Setting up Shared Content Listener');
       
-      const sharedContent = {
-        mimeType: "${escapedMime}",
-        text: "${escapedText}",
-        uri: "${escapedUri}",
-        isImage: ${isImage},
-        isText: ${isText},
-        hasUri: ${hasUri}
-      };
-
-      // Make shared content available globally
-      window.__sharedContent = sharedContent;
-
-      // Function to show a toast notification
+      // Helper function to show a toast notification
       function showToast(message) {
+        // Remove existing toast if any
+        const existing = document.getElementById('share-toast');
+        if (existing) existing.remove();
+
         const toast = document.createElement('div');
+        toast.id = 'share-toast';
         toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:8px;z-index:99999;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
         toast.textContent = message;
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        setTimeout(() => toast.remove(), 4000);
+      }
+
+      // Helper function to convert base64 to Blob
+      function base64ToBlob(base64, mimeType) {
+        try {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: mimeType });
+        } catch (e) {
+            console.error('Base64 conversion failed:', e);
+            throw e;
+        }
       }
 
       // Helper function to inject file into input[type=file]
-      async function injectFileIntoInput(fileInput, uri, mimeType) {
+      function injectFileIntoInput(fileInput, base64, mimeType, fileName) {
         try {
-          console.log('Attempting to fetch file from URI:', uri);
-          const response = await fetch(uri);
-          const blob = await response.blob();
+          if (!base64) {
+            showToast('Erro: Conteúdo do arquivo vazio');
+            return false;
+          }
           
-          // Get filename from URI
-          const fileName = uri.split('/').pop() || 'shared_file';
+          console.log('Creating file from base64, size:', base64.length, 'name:', fileName);
+          const blob = base64ToBlob(base64, mimeType);
+          
+          // Use provided filename or fallback
+          const finalFileName = fileName || 'shared_file';
           
           // Create a File from the blob
-          const file = new File([blob], fileName, { type: mimeType || blob.type });
+          const file = new File([blob], finalFileName, { type: mimeType || 'application/octet-stream' });
           
           // Create a DataTransfer and add the file
           const dataTransfer = new DataTransfer();
@@ -400,83 +386,107 @@ export function createSharedContentInjectionScript(content: SharedContent): stri
           fileInput.dispatchEvent(new Event('change', { bubbles: true }));
           fileInput.dispatchEvent(new Event('input', { bubbles: true }));
           
-          console.log('File injected into input:', fileName);
+          console.log('File injected into input:', finalFileName, 'size:', file.size);
           return true;
         } catch (error) {
           console.error('Failed to inject file:', error);
+          showToast('Erro ao processar arquivo: ' + error.message);
           return false;
         }
       }
 
-      // Function to inject into first compatible field
-      async function injectIntoFirstField() {
+      function handleSharedContent(sharedContent) {
+        console.log('Handling shared content:', sharedContent.mimeType);
+        window.__sharedContent = sharedContent;
+        
+        const isImage = sharedContent.mimeType && sharedContent.mimeType.startsWith('image/');
+        const isText = sharedContent.mimeType && (sharedContent.mimeType.startsWith('text/') || !sharedContent.mimeType);
+        
+        // Ensure hasBase64 is accurate
+        if (sharedContent.base64 && !sharedContent.hasBase64) {
+             sharedContent.hasBase64 = true;
+        }
+        
         let injected = false;
 
-        // For text content, inject into text fields
-        if (sharedContent.isText && sharedContent.text) {
+        // 1. Try Text Injection
+        if (isText && sharedContent.text) {
           const textField = document.querySelector('textarea, input[type="text"], input:not([type])');
           if (textField) {
             textField.value = sharedContent.text;
             textField.dispatchEvent(new Event('input', { bubbles: true }));
             textField.dispatchEvent(new Event('change', { bubbles: true }));
             textField.focus();
-            console.log('Shared text injected into:', textField.tagName);
             showToast('Texto compartilhado inserido!');
             injected = true;
           }
         }
 
-        // For files with URI (images, PDFs, etc.)
-        if (!injected && sharedContent.hasUri) {
-          // First try to find a file input and inject the file
-          const fileInput = document.querySelector('input[type="file"]');
-          if (fileInput) {
-            const success = await injectFileIntoInput(fileInput, sharedContent.uri, sharedContent.mimeType);
-            if (success) {
-              showToast('Arquivo anexado!');
-              injected = true;
-            }
-          }
-
-          // If no file input or injection failed, try image src
-          if (!injected && sharedContent.isImage) {
-            const imgField = document.querySelector('img:not([src]), img[src=""]');
-            if (imgField) {
-              imgField.src = sharedContent.uri;
-              console.log('Shared image set to img element');
-              showToast('Imagem compartilhada anexada!');
-              injected = true;
-            }
-          }
-
-          // For any file, dispatch sharedFile event
-          if (!injected) {
-            console.log('Dispatching sharedFile event with URI:', sharedContent.uri);
-            window.dispatchEvent(new CustomEvent('sharedFile', { 
-              detail: { 
-                uri: sharedContent.uri, 
-                mimeType: sharedContent.mimeType,
-                text: sharedContent.text
-              } 
-            }));
-            showToast('Arquivo recebido: ' + sharedContent.mimeType);
-            injected = true;
-          }
+        // 2. Try File Injection (Input)
+        if (!injected && (sharedContent.hasBase64 || sharedContent.base64)) {
+           const fileInput = document.querySelector('input[type="file"]');
+           if (fileInput) {
+             if (injectFileIntoInput(fileInput, sharedContent.base64, sharedContent.mimeType, sharedContent.fileName)) {
+               showToast('Arquivo anexado com sucesso!');
+               injected = true;
+             }
+           } else {
+             console.log('No file input found');
+           }
         }
 
-        // Fallback: always dispatch sharedContent event
-        window.dispatchEvent(new CustomEvent('sharedContent', { detail: sharedContent }));
-        console.log('sharedContent event dispatched');
+        // 3. Try Image Injection (Img src)
+        if (!injected && isImage && sharedContent.base64) {
+           const imgField = document.querySelector('img:not([src]), img[src=""]');
+           if (imgField) {
+             imgField.src = 'data:' + sharedContent.mimeType + ';base64,' + sharedContent.base64;
+             showToast('Imagem carregada!');
+             injected = true;
+           }
+        }
         
-        return injected;
+        // 4. Dispatch Event
+        if (!injected) {
+            // Check if we failed because of missing input
+            const fileInput = document.querySelector('input[type="file"]');
+            if (sharedContent.base64 && !fileInput) {
+                showToast('Arquivo recebido (sem campo de upload)');
+            } else if (!sharedContent.base64 && !sharedContent.text) {
+                showToast('Erro: Conteúdo vazio');
+            }
+            
+            window.dispatchEvent(new CustomEvent('sharedFile', { 
+              detail: sharedContent
+            }));
+            window.dispatchEvent(new CustomEvent('sharedContent', { detail: sharedContent }));
+        }
       }
 
-      // Wait for DOM to be ready
-      if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(injectIntoFirstField, 100);
-      } else {
-        document.addEventListener('DOMContentLoaded', () => setTimeout(injectIntoFirstField, 100));
-      }
+      // Listen for messages from React Native
+      const messageHandler = function(event) {
+        try {
+            if (!event.data) return;
+            // Parse data if it's a string (Android sometimes handles this differently)
+            const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+            
+            if (data && data.type === 'SET_SHARED_CONTENT') {
+                console.log('Received SET_SHARED_CONTENT event');
+                handleSharedContent(data.payload);
+            }
+        } catch (e) {
+            console.error('Error handling message:', e);
+        }
+      };
+
+      // Remove existing listener if any to avoid duplicates
+      document.removeEventListener('message', messageHandler);
+      window.removeEventListener('message', messageHandler);
+
+      document.addEventListener('message', messageHandler);
+      window.addEventListener('message', messageHandler);
+      
+      // Notify ready
+      console.log('Shared Content Listener Ready');
     })();
   `;
 }

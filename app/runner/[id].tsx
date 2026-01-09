@@ -13,6 +13,7 @@ import {
     KeyboardAvoidingView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Calendar from 'expo-calendar';
@@ -20,7 +21,7 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import { useAppStore } from '../../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentInjectionScript } from '../../lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript } from '../../lib/bridges/injectedJS';
 import * as gemini from '../../lib/api/gemini';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -39,6 +40,7 @@ Notifications.setNotificationHandler({
 
 export default function RunnerScreen() {
     const { id, edit, share } = useLocalSearchParams<{ id: string; edit?: string; share?: string }>();
+    const isFocused = useIsFocused();
     const router = useRouter();
     const webViewRef = useRef<WebView>(null);
 
@@ -71,7 +73,7 @@ export default function RunnerScreen() {
 
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);
-    const [networkLogs, setNetworkLogs] = useState<{ url: string; method: string; status?: number; time: number }[]>([]);
+    const [networkLogs, setNetworkLogs] = useState<{ url: string; method: string; status?: number; time: number; duration?: number; responseBody?: string }[]>([]);
 
     // Load app data
     useEffect(() => {
@@ -91,7 +93,7 @@ export default function RunnerScreen() {
 
     // Inject saved localStorage and shared content when WebView loads
     const handleLoadEnd = useCallback(() => {
-        console.log('Runner: handleLoadEnd called, isShareMode:', isShareMode, 'sharedContent:', JSON.stringify(sharedContent));
+        console.log('Runner: handleLoadEnd called');
 
         if (webViewRef.current) {
             // Inject saved storage
@@ -100,17 +102,58 @@ export default function RunnerScreen() {
                 webViewRef.current.injectJavaScript(script);
             }
 
-            // Inject shared content if in share mode
-            if (isShareMode && sharedContent) {
-                console.log('Runner: Injecting shared content');
-                const injectScript = createSharedContentInjectionScript(sharedContent);
-                webViewRef.current.injectJavaScript(injectScript);
-                clearSharedContent(); // Clear after injecting
-            } else {
-                console.log('Runner: NOT injecting - isShareMode:', isShareMode, 'hasContent:', !!sharedContent);
+            // Inject shared content if focused and content exists
+            const shouldInject = isShareMode && sharedContent && isFocused;
+
+            console.log('Runner: Checking injection. isShareMode:', isShareMode, 'hasContent:', !!sharedContent, 'isFocused:', isFocused);
+
+            if (shouldInject) {
+                console.log('Runner: Injecting shared content setup (onLoadEnd)');
+                const setupScript = createSharedContentSetupScript();
+                webViewRef.current.injectJavaScript(setupScript);
+
+                setTimeout(() => {
+                    if (webViewRef.current && sharedContent) {
+                        console.log('Runner: Posting shared content message (onLoadEnd)');
+                        webViewRef.current.postMessage(JSON.stringify({
+                            type: 'SET_SHARED_CONTENT',
+                            payload: sharedContent
+                        }));
+
+                        console.log('Runner: Clearing shared content');
+                        clearSharedContent();
+                    }
+                }, 500);
             }
         }
-    }, [savedStorage, isShareMode, sharedContent, clearSharedContent]);
+    }, [savedStorage, isShareMode, sharedContent, clearSharedContent, isFocused]);
+
+    // Handle incoming share when already loaded (hot update)
+    useEffect(() => {
+        const shouldInject = isShareMode && sharedContent && webViewRef.current && isFocused;
+
+        if (shouldInject) {
+            console.log('Runner: Shared content updated while running (focused)');
+
+            const setupScript = createSharedContentSetupScript();
+            webViewRef.current?.injectJavaScript(setupScript);
+
+            setTimeout(() => {
+                if (webViewRef.current) {
+                    console.log('Runner: Posting shared content message (useEffect)');
+                    webViewRef.current.postMessage(JSON.stringify({
+                        type: 'SET_SHARED_CONTENT',
+                        payload: sharedContent
+                    }));
+
+                    console.log('Runner: Clearing shared content (useEffect)');
+                    clearSharedContent();
+                }
+            }, 500);
+        } else if (sharedContent && !isFocused) {
+            console.log('Runner: Ignoring update - not focused. ShareMode:', isShareMode);
+        }
+    }, [isShareMode, sharedContent, clearSharedContent, isFocused]);
 
     // Load version history
     const loadVersions = useCallback(async () => {
@@ -332,6 +375,8 @@ export default function RunnerScreen() {
                         method: data.method,
                         status: data.status,
                         time: Date.now(),
+                        duration: data.duration,
+                        responseBody: data.responseBody || data.error,
                     }]);
                     break;
 
@@ -403,6 +448,30 @@ export default function RunnerScreen() {
             setApp(updatedApp);
         }
         setShowHistory(false);
+    };
+
+    // Delete version with confirmation
+    const handleDeleteVersion = async (version: AppVersion) => {
+        if (!app) return;
+        // Don't allow deleting current version
+        if (version.version === app.currentVersion) return;
+
+        Alert.alert(
+            'Excluir Versão',
+            `Tem certeza que deseja excluir a versão ${version.version}?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Excluir',
+                    style: 'destructive',
+                    onPress: async () => {
+                        await db.deleteVersion(version.id);
+                        const updatedVersions = await db.getVersionsForApp(app.id);
+                        setVersions(updatedVersions);
+                    }
+                }
+            ]
+        );
     };
 
     if (isLoading || !app) {
@@ -655,25 +724,36 @@ export default function RunnerScreen() {
 
                         <ScrollView style={styles.versionList}>
                             {versions.map((version) => (
-                                <TouchableOpacity
-                                    key={version.id}
-                                    style={[
-                                        styles.versionItem,
-                                        version.version === app.currentVersion && styles.versionItemActive
-                                    ]}
-                                    onPress={() => handleRestoreVersion(version)}
-                                    disabled={version.version === app.currentVersion}
-                                >
-                                    <Text style={styles.versionNumber}>v{version.version}</Text>
-                                    <Text style={styles.versionDate}>
-                                        {new Date(version.createdAt).toLocaleDateString('pt-BR')}
-                                    </Text>
-                                    {version.instruction && (
-                                        <Text style={styles.versionInstruction} numberOfLines={1}>
-                                            {version.instruction}
-                                        </Text>
+                                <View key={version.id} style={[
+                                    styles.versionItem,
+                                    version.version === app.currentVersion && styles.versionItemActive
+                                ]}>
+                                    <TouchableOpacity
+                                        style={{ flex: 1 }}
+                                        onPress={() => handleRestoreVersion(version)}
+                                        disabled={version.version === app.currentVersion}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Text style={styles.versionNumber}>v{version.version}</Text>
+                                            <Text style={styles.versionDate}>
+                                                {new Date(version.createdAt).toLocaleDateString('pt-BR')}
+                                            </Text>
+                                        </View>
+                                        {version.instruction && (
+                                            <Text style={styles.versionInstruction} numberOfLines={1}>
+                                                {version.instruction}
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
+                                    {version.version !== app.currentVersion && (
+                                        <TouchableOpacity
+                                            style={{ padding: 8 }}
+                                            onPress={() => handleDeleteVersion(version)}
+                                        >
+                                            <Text style={{ color: colors.error, fontSize: 16 }}>🗑️</Text>
+                                        </TouchableOpacity>
                                     )}
-                                </TouchableOpacity>
+                                </View>
                             ))}
                         </ScrollView>
 
@@ -720,14 +800,26 @@ export default function RunnerScreen() {
                             ) : (
                                 networkLogs.map((req, idx) => (
                                     <View key={idx} style={styles.networkLogItem}>
-                                        <Text style={styles.networkMethod}>{req.method}</Text>
-                                        <Text style={styles.networkUrl} numberOfLines={1}>{req.url}</Text>
-                                        {req.status !== undefined && req.status !== null && (
-                                            <Text style={[
-                                                styles.networkStatus,
-                                                req.status >= 400 && styles.networkStatusError
-                                            ]}>
-                                                {req.status}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                            <Text style={styles.networkMethod}>{req.method}</Text>
+                                            <Text style={styles.networkUrl} numberOfLines={1}>{req.url}</Text>
+                                            {req.status !== undefined && req.status !== null && (
+                                                <Text style={[
+                                                    styles.networkStatus,
+                                                    req.status >= 400 && styles.networkStatusError
+                                                ]}>
+                                                    {req.status}
+                                                </Text>
+                                            )}
+                                            {req.duration && (
+                                                <Text style={{ color: colors.onSurfaceVariant, fontSize: 10, marginLeft: 4 }}>
+                                                    {req.duration}ms
+                                                </Text>
+                                            )}
+                                        </View>
+                                        {req.responseBody && (
+                                            <Text style={{ color: colors.onSurfaceVariant, fontSize: 10, marginTop: 2 }} numberOfLines={3}>
+                                                {req.responseBody}
                                             </Text>
                                         )}
                                     </View>
@@ -983,13 +1075,11 @@ const styles = StyleSheet.create({
         color: '#FFA500',
     },
     networkLogItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: 'column',
         backgroundColor: colors.surfaceVariant,
         borderRadius: borderRadius.sm,
         padding: spacing.sm,
         marginBottom: 4,
-        gap: spacing.sm,
     },
     networkMethod: {
         color: colors.primary,

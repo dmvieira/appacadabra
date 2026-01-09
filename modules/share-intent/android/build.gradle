@@ -1,0 +1,32 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'maven-publish'
+
+group = 'expo.modules.shareintent'
+version = '1.0.0'
+
+buildscript {
+  def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+  if (expoModulesCorePlugin.exists()) {
+    apply from: expoModulesCorePlugin
+    applyKotlinExpoModulesCorePlugin()
+  } else {
+    apply from: new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+    applyKotlinExpoModulesCorePlugin()
+  }
+}
+
+android {
+  namespace "expo.modules.shareintent"
+  compileSdk 36
+
+  defaultConfig {
+    minSdk 24
+    targetSdk 36
+  }
+}
+
+dependencies {
+  implementation project(":expo-modules-core")
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.22"
+}

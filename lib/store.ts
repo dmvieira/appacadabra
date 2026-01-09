@@ -3,6 +3,7 @@ import { GeneratedApp, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import * as gemini from './api/gemini';
 import * as backup from './backup';
+import SharingShortcuts from './bridges/SharingShortcuts';
 
 interface AppState {
     apps: GeneratedApp[];
@@ -21,6 +22,8 @@ interface AppState {
         text?: string;
         uri?: string;
         base64?: string;
+        fileName?: string;
+        shareId?: string; // Unique ID for each share session
     } | null;
 
     // Actions
@@ -57,6 +60,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             set({ isLoading: true, error: null });
             const apps = await db.getAllApps();
             set({ apps, isLoading: false });
+
+            // Publish Direct Share shortcuts for all apps
+            apps.forEach(app => {
+                SharingShortcuts.publishShortcut(app.id.toString(), app.name, app.iconPath);
+            });
         } catch (error) {
             console.error('Failed to load apps:', error);
             set({ error: 'Erro ao carregar apps', isLoading: false });
@@ -129,6 +137,9 @@ export const useAppStore = create<AppState>((set, get) => ({
                 isGenerating: false
             }));
 
+            // Publish as Direct Share shortcut
+            SharingShortcuts.publishShortcut(id.toString(), createdApp.name, createdApp.iconPath);
+
             return createdApp;
         } catch (error) {
             console.error('Failed to create app:', error);
@@ -198,6 +209,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             set(state => ({
                 apps: state.apps.filter(a => a.id !== id),
             }));
+
+            // Remove from Direct Share shortcuts
+            SharingShortcuts.removeShortcut(id.toString());
         } catch (error) {
             console.error('Failed to delete app:', error);
             set({ error: 'Erro ao deletar app' });

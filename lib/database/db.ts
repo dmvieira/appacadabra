@@ -109,6 +109,11 @@ export async function insertVersion(version: NewAppVersion): Promise<number> {
     return result.lastInsertRowId;
 }
 
+export async function deleteVersion(versionId: number): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync('DELETE FROM app_versions WHERE id = ?', [versionId]);
+}
+
 // ============= Storage Operations =============
 
 export async function getStorageForApp(appId: number): Promise<AppStorage[]> {

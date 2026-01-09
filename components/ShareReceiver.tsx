@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAppStore } from '../lib/store';
 import { GeneratedApp } from '../lib/database/types';
 import * as ShareIntent from 'share-intent';
+import * as FileSystem from 'expo-file-system/legacy';
 import { colors, spacing, borderRadius } from '../lib/theme';
 
 export default function ShareReceiver() {
@@ -15,12 +16,20 @@ export default function ShareReceiver() {
         // Check for initial shared content
         const initialContent = ShareIntent.getSharedContent();
         if (initialContent) {
+            console.log('ShareReceiver: Initial content found:', JSON.stringify(initialContent));
             setSharedContent(initialContent);
+            // We DO NOT clear immediately here anymore in this simplified logic,
+            // or we do? If we clear here, and component remounts...
+            // Actually for Initial Content, we SHOULD clear it so it doesn't persist on reload without intent.
+            // But if we clear it, and user rotates device... on Android config change handles it.
+            // Let's clear it ONLY when handled.
         }
 
-        // Listen for new shared content
+        // Listen for new shared content (when app is already open)
         const subscription = ShareIntent.addShareListener((event) => {
+            console.log('ShareReceiver: Event received:', JSON.stringify(event));
             setSharedContent(event);
+            // DO NOT clear here. Wait for user action.
         });
 
         return () => {
@@ -31,25 +40,76 @@ export default function ShareReceiver() {
     const handleSelectApp = async (app: GeneratedApp) => {
         if (!sharedContent) return;
 
-        console.log('ShareReceiver: Storing shared content:', JSON.stringify(sharedContent));
+        console.log('ShareReceiver: Processing shared content:', JSON.stringify(sharedContent));
 
-        // Store the shared content in global state
-        storeSharedContent({
+        let base64Data: string | undefined;
+
+        // If there's a URI, read it as base64
+        if (sharedContent.uri) {
+            try {
+                console.log('ShareReceiver: Reading file from URI:', sharedContent.uri);
+
+                // content:// URIs need to be copied to local cache first
+                const fileName = sharedContent.uri.split('/').pop() || 'shared_file';
+                const cacheUri = FileSystem.cacheDirectory + fileName;
+
+                // Copy to cache
+                await FileSystem.copyAsync({
+                    from: sharedContent.uri,
+                    to: cacheUri,
+                });
+                console.log('ShareReceiver: File copied to:', cacheUri);
+
+                // Now read from cache
+                const fileContent = await FileSystem.readAsStringAsync(cacheUri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                base64Data = fileContent;
+                console.log('ShareReceiver: File read successfully, base64 length:', base64Data?.length || 0);
+
+                // Clean up cache file
+                await FileSystem.deleteAsync(cacheUri, { idempotent: true });
+            } catch (error) {
+                console.error('ShareReceiver: Failed to read file:', error);
+            }
+        }
+
+        const shareId = Date.now().toString();
+        const contentToStore = {
             mimeType: sharedContent.mimeType || 'text/plain',
             text: sharedContent.text,
             uri: sharedContent.uri,
-        });
+            base64: base64Data,
+            fileName: sharedContent.fileName || sharedContent.uri?.split('/').pop() || 'shared_file',
+            shareId: shareId,
+        };
 
-        console.log('ShareReceiver: Navigating to runner with share=true');
+        console.log('ShareReceiver: Storing content for app:', app.id, 'shareId:', shareId, 'size:', contentToStore.base64?.length || 0);
 
-        // Navigate to the runner with share indicator
-        setSharedContent(null); // Close modal
+        // Store the shared content in global state
+        storeSharedContent(contentToStore);
+
+        console.log('ShareReceiver: Clearing native content and closing modal');
+        // Close modal and clear native
+        setSharedContent(null);
         ShareIntent.clearSharedContent();
-        router.push({ pathname: '/runner/[id]', params: { id: app.id, share: 'true' } });
+
+        console.log('ShareReceiver: Navigating to runner', app.id, 'shareId:', shareId);
+
+        router.push({
+            pathname: '/runner/[id]',
+            params: {
+                id: app.id,
+                share: 'true',
+                shareId: shareId
+            }
+        });
     };
 
     const handleClose = () => {
+        // Clear everything to prevent the modal from coming back
         ShareIntent.clearSharedContent();
+
         storeClearSharedContent();
         setSharedContent(null);
     };

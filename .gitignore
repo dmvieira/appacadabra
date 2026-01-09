@@ -47,7 +47,10 @@ xcuserdata/
 # =====================
 # Android
 # =====================
-android/
+# android/
+android/app/build/
+android/build/
+modules/share-intent/android/build
 *.iml
 .gradle/
 local.properties

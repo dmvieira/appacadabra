@@ -24,6 +24,11 @@ export function clearSharedContent(): void {
     ShareIntentModule.clearSharedContent();
 }
 
+export function markAsProcessed(): void {
+    ShareIntentModule.markAsProcessed();
+}
+
 export function addShareListener(listener: (event: SharedContent) => void) {
     return emitter.addListener('onShareReceived', listener);
 }
+
