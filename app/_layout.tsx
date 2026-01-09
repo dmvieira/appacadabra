@@ -1,9 +1,25 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import * as Linking from 'expo-linking';
 import { colors } from '../lib/theme';
 import ShareReceiver from '../components/ShareReceiver';
 
 export default function RootLayout() {
+    const segments = useSegments();
+
+    // Block runapp:// URLs from being processed internally by expo-router
+    // They should only be handled by the external RunnerActivity
+    useEffect(() => {
+        const subscription = Linking.addEventListener('url', ({ url }) => {
+            if (url.startsWith('runapp://')) {
+                console.log('_layout: Blocking runapp:// URL from expo-router:', url);
+                // Do nothing - let Android handle it externally
+                return;
+            }
+        });
+        return () => subscription.remove();
+    }, []);
 
     return (
         <>

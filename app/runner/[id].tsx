@@ -20,6 +20,7 @@ import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useAppStore } from '../../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript } from '../../lib/bridges/injectedJS';
 import * as gemini from '../../lib/api/gemini';
@@ -39,10 +40,12 @@ Notifications.setNotificationHandler({
 });
 
 export default function RunnerScreen() {
-    const { id, edit, share } = useLocalSearchParams<{ id: string; edit?: string; share?: string }>();
+    const { id, edit, share, payload } = useLocalSearchParams<{ id: string; edit?: string; share?: string; payload?: string }>();
     const isFocused = useIsFocused();
     const router = useRouter();
     const webViewRef = useRef<WebView>(null);
+    const [localSharedContent, setLocalSharedContent] = useState<any>(null);
+    const [lastProcessedPayload, setLastProcessedPayload] = useState<string | null>(null);
 
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +53,7 @@ export default function RunnerScreen() {
 
     // Edit mode states
     const isEditMode = edit === 'true';
-    const isShareMode = share === 'true';
+    const isShareMode = share === 'true'; // Keep for other logic, but injection uses payload presence
     const [showEditSheet, setShowEditSheet] = useState(false);
     const [editPrompt, setEditPrompt] = useState('');
     const [isEditing, setIsEditing] = useState(false);
@@ -67,6 +70,54 @@ export default function RunnerScreen() {
     const [versions, setVersions] = useState<AppVersion[]>([]);
 
     const { updateAppCode, updateAppWithAI, sharedContent, clearSharedContent } = useAppStore();
+
+    console.log('RunnerScreen: RENDER id:', id, 'isFocused:', isFocused, 'appId:', app?.id);
+
+    // CHECK DROP-BOX FILE on mount and on focus
+    const checkDropBox = useCallback(async () => {
+        const dropBoxPath = FileSystem.cacheDirectory + 'pending_share.json';
+        console.log('Runner: Checking drop-box at:', dropBoxPath);
+        try {
+            const info = await FileSystem.getInfoAsync(dropBoxPath);
+            if (info.exists) {
+                const contentStr = await FileSystem.readAsStringAsync(dropBoxPath);
+                const content = JSON.parse(contentStr);
+
+                // Only consume if this drop-box is for THIS app
+                if (content.targetAppId === parseInt(id)) {
+                    console.log('Runner: Drop-box found, loading content for app', id);
+                    setLocalSharedContent(content);
+
+                    // Delete immediately to prevent reuse
+                    await FileSystem.deleteAsync(dropBoxPath, { idempotent: true });
+                } else {
+                    console.log('Runner: Drop-box is for different app', content.targetAppId, 'vs', id);
+                }
+            }
+        } catch (e) {
+            // File doesn't exist or parse error - this is normal
+            console.log('Runner: No drop-box or read error:', e);
+        }
+    }, [id]);
+
+    // Check on mount
+    useEffect(() => {
+        checkDropBox();
+    }, [checkDropBox]);
+
+    // Check on focus
+    useEffect(() => {
+        if (isFocused) {
+            console.log('Runner: Focused, checking drop-box');
+            checkDropBox();
+        }
+    }, [isFocused, checkDropBox]);
+
+    useEffect(() => {
+        useAppStore.subscribe((state) => {
+            console.log('RunnerScreen: Direct Store Update Substription:', state.sharedContent?.uri);
+        });
+    }, []);
 
     // Saved localStorage items
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
@@ -91,7 +142,7 @@ export default function RunnerScreen() {
         loadApp();
     }, [id]);
 
-    // Inject saved localStorage and shared content when WebView loads
+    // Inject saved localStorage and shared content (File or Store)
     const handleLoadEnd = useCallback(() => {
         console.log('Runner: handleLoadEnd called');
 
@@ -102,10 +153,11 @@ export default function RunnerScreen() {
                 webViewRef.current.injectJavaScript(script);
             }
 
-            // Inject shared content if focused and content exists
-            const shouldInject = isShareMode && sharedContent && isFocused;
+            // CHECK BOTH SOURCES: Local File Payload OR Global Store
+            const contentToInject = localSharedContent || sharedContent;
+            const shouldInject = !!contentToInject && isFocused;
 
-            console.log('Runner: Checking injection. isShareMode:', isShareMode, 'hasContent:', !!sharedContent, 'isFocused:', isFocused);
+            console.log('Runner: Checking injection. hasContent:', !!contentToInject, 'isFocused:', isFocused);
 
             if (shouldInject) {
                 console.log('Runner: Injecting shared content setup (onLoadEnd)');
@@ -113,24 +165,26 @@ export default function RunnerScreen() {
                 webViewRef.current.injectJavaScript(setupScript);
 
                 setTimeout(() => {
-                    if (webViewRef.current && sharedContent) {
+                    if (webViewRef.current) {
                         console.log('Runner: Posting shared content message (onLoadEnd)');
                         webViewRef.current.postMessage(JSON.stringify({
                             type: 'SET_SHARED_CONTENT',
-                            payload: sharedContent
+                            payload: contentToInject
                         }));
 
                         console.log('Runner: Clearing shared content');
+                        if (localSharedContent) setLocalSharedContent(null);
                         clearSharedContent();
                     }
                 }, 500);
             }
         }
-    }, [savedStorage, isShareMode, sharedContent, clearSharedContent, isFocused]);
+    }, [savedStorage, localSharedContent, sharedContent, clearSharedContent, isFocused]);
 
     // Handle incoming share when already loaded (hot update)
     useEffect(() => {
-        const shouldInject = isShareMode && sharedContent && webViewRef.current && isFocused;
+        const contentToInject = localSharedContent || sharedContent;
+        const shouldInject = !!contentToInject && webViewRef.current && isFocused;
 
         if (shouldInject) {
             console.log('Runner: Shared content updated while running (focused)');
@@ -143,17 +197,16 @@ export default function RunnerScreen() {
                     console.log('Runner: Posting shared content message (useEffect)');
                     webViewRef.current.postMessage(JSON.stringify({
                         type: 'SET_SHARED_CONTENT',
-                        payload: sharedContent
+                        payload: contentToInject
                     }));
 
                     console.log('Runner: Clearing shared content (useEffect)');
+                    if (localSharedContent) setLocalSharedContent(null);
                     clearSharedContent();
                 }
             }, 500);
-        } else if (sharedContent && !isFocused) {
-            console.log('Runner: Ignoring update - not focused. ShareMode:', isShareMode);
         }
-    }, [isShareMode, sharedContent, clearSharedContent, isFocused]);
+    }, [localSharedContent, sharedContent, clearSharedContent, isFocused]);
 
     // Load version history
     const loadVersions = useCallback(async () => {

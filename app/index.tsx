@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
-import * as IntentLauncher from 'expo-intent-launcher';
+import * as ShareIntent from 'share-intent';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
@@ -76,16 +76,13 @@ export default function HomeScreen() {
     };
 
     const handleRunApp = async (app: GeneratedApp) => {
-        // Use runapp:// scheme - expo-router doesn't know about it, so it won't interfere
-        const deepLink = `runapp://runner/${app.id}`;
-        try {
-            await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-                data: deepLink,
-                flags: 0x10000000 | 0x00080000, // FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_NEW_DOCUMENT
-            });
-        } catch (e) {
-            console.log('IntentLauncher failed, using router:', e);
-            router.push(`/runner/${app.id}`);
+        // Use openRunnerWindow which creates separate windows per app
+        // This uses FLAG_ACTIVITY_NEW_DOCUMENT for document-based tasks
+        console.log('handleRunApp: Opening app window via native', app.id);
+        const success = await ShareIntent.openRunnerWindow(app.id);
+        if (!success) {
+            console.error('Native openRunnerWindow failed');
+            alert('Não foi possível iniciar o app em nova janela.');
         }
     };
 

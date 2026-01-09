@@ -1,44 +1,121 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
+import { View, Text, Modal, StyleSheet, TouchableOpacity, FlatList, Image, AppState } from 'react-native';
+
 import { useRouter } from 'expo-router';
 import { useAppStore } from '../lib/store';
 import { GeneratedApp } from '../lib/database/types';
 import * as ShareIntent from 'share-intent';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Linking from 'expo-linking';
 import { colors, spacing, borderRadius } from '../lib/theme';
+
+// Module-level variables to sync across all instances
+let globalLastProcessedContentId: string | null = null;
+let globalLastProcessedTimestamp: number = 0;
+const DEBOUNCE_TIME_MS = 2000; // 2 seconds debounce
+let appSelectionInProgress = false; // Stop polling when app is selected
 
 export default function ShareReceiver() {
     const [sharedContent, setSharedContent] = useState<ShareIntent.SharedContent | null>(null);
     const router = useRouter();
     const { apps, setSharedContent: storeSharedContent, clearSharedContent: storeClearSharedContent } = useAppStore();
 
-    useEffect(() => {
-        // Check for initial shared content
-        const initialContent = ShareIntent.getSharedContent();
-        if (initialContent) {
-            console.log('ShareReceiver: Initial content found:', JSON.stringify(initialContent));
-            setSharedContent(initialContent);
-            // We DO NOT clear immediately here anymore in this simplified logic,
-            // or we do? If we clear here, and component remounts...
-            // Actually for Initial Content, we SHOULD clear it so it doesn't persist on reload without intent.
-            // But if we clear it, and user rotates device... on Android config change handles it.
-            // Let's clear it ONLY when handled.
+    // Helper to check and lock content
+    const tryLockContent = (content: ShareIntent.SharedContent): boolean => {
+        const contentId = JSON.stringify(content);
+        const now = Date.now();
+
+        // Check if this same content was processed recently
+        if (contentId === globalLastProcessedContentId && (now - globalLastProcessedTimestamp < DEBOUNCE_TIME_MS)) {
+            console.log('ShareReceiver: Content locked (recently processed), skipping:', content.uri);
+            return false;
         }
+
+        // Lock immediate to prevent race conditions from other instances
+        globalLastProcessedContentId = contentId;
+        globalLastProcessedTimestamp = now;
+        return true;
+    };
+
+    useEffect(() => {
+        console.log('ShareReceiver: MOUNTED ----------------------------');
+
+        // ... rest of logic
+        const checkContent = () => {
+            // Skip if user already selected an app (prevents modal from returning)
+            if (appSelectionInProgress) {
+                console.log('ShareReceiver: Skipping check - app selection in progress');
+                return;
+            }
+
+            const content = ShareIntent.getSharedContent();
+            if (content) {
+                if (!tryLockContent(content)) {
+                    return;
+                }
+                console.log('ShareReceiver: Content found (initial/resume) and locked:', content.uri);
+                setSharedContent(content);
+            }
+        };
+
+        checkContent();
 
         // Listen for new shared content (when app is already open)
         const subscription = ShareIntent.addShareListener((event) => {
-            console.log('ShareReceiver: Event received:', JSON.stringify(event));
+            if (!tryLockContent(event)) {
+                return;
+            }
+            console.log('ShareReceiver: Event received and locked:', JSON.stringify(event));
             setSharedContent(event);
-            // DO NOT clear here. Wait for user action.
+        });
+
+        // Safety Monitor: Poll every 600ms
+        // This guarantees we catch shares even if specific events/state-changes are missed
+        const safetyInterval = setInterval(() => {
+            ShareIntent.checkShareIntent();
+            checkContent();
+        }, 600);
+
+
+
+        // Listen for AppState changes to catch missed events
+        const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+            if (nextAppState === 'active') {
+                console.log('ShareReceiver: App active, checking immediately');
+
+                // Immediate check to remove delay
+                ShareIntent.checkShareIntent();
+                checkContent();
+
+                // Burst poll: Check every 500ms for 3 seconds
+                // This covers race conditions without draining battery forever
+                let checks = 0;
+                const burstInterval = setInterval(() => {
+                    if (checks >= 6) { // 3 seconds total
+                        clearInterval(burstInterval);
+                        return;
+                    }
+                    console.log('ShareReceiver: Burst check', checks + 1);
+                    ShareIntent.checkShareIntent();
+                    checkContent();
+                    checks++;
+                }, 500);
+            }
         });
 
         return () => {
+            console.log('ShareReceiver: UNMOUNTED --------------------------');
             subscription.remove();
+            appStateSubscription.remove();
+            clearInterval(safetyInterval);
         };
     }, []);
 
     const handleSelectApp = async (app: GeneratedApp) => {
         if (!sharedContent) return;
+
+        // Set flag to stop all polling immediately
+        appSelectionInProgress = true;
 
         console.log('ShareReceiver: Processing shared content:', JSON.stringify(sharedContent));
 
@@ -82,26 +159,37 @@ export default function ShareReceiver() {
             base64: base64Data,
             fileName: sharedContent.fileName || sharedContent.uri?.split('/').pop() || 'shared_file',
             shareId: shareId,
+            targetAppId: app.id, // Include target app for routing
         };
 
-        console.log('ShareReceiver: Storing content for app:', app.id, 'shareId:', shareId, 'size:', contentToStore.base64?.length || 0);
+        // FIXED DROP-BOX: Always use the same file name
+        const payloadPath = FileSystem.cacheDirectory + 'pending_share.json';
 
-        // Store the shared content in global state
-        storeSharedContent(contentToStore);
+        try {
+            await FileSystem.writeAsStringAsync(payloadPath, JSON.stringify(contentToStore));
+            console.log('ShareReceiver: Payload written to drop-box:', payloadPath);
+        } catch (e) {
+            console.error('ShareReceiver: Failed to write payload:', e);
+            return;
+        }
 
-        console.log('ShareReceiver: Clearing native content and closing modal');
-        // Close modal and clear native
+        // Close modal and clear native BEFORE navigating
         setSharedContent(null);
         ShareIntent.clearSharedContent();
 
-        console.log('ShareReceiver: Navigating to runner', app.id, 'shareId:', shareId);
+        // Close only the RunnerActivity for THIS specific app (if open)
+        console.log('ShareReceiver: Closing runner window for app', app.id);
+        await ShareIntent.finishRunnerActivity(app.id);
 
+        console.log('ShareReceiver: Navigating to runner via expo-router', app.id);
+
+        // Use internal navigation for reliable file delivery
+        // The app/runner/[id].tsx will read the drop-box file on mount
         router.push({
             pathname: '/runner/[id]',
             params: {
-                id: app.id,
-                share: 'true',
-                shareId: shareId
+                id: app.id.toString(),
+                share: 'true'
             }
         });
     };

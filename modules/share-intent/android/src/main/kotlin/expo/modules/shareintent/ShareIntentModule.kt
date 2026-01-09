@@ -10,6 +10,9 @@ class ShareIntentModule : Module() {
     // Stores content only until it's consumed by JS
     private var pendingSharedContent: Map<String, Any?>? = null
     private val TAG = "ShareIntentModule"
+    
+    private var lastProcessedIntent: Intent? = null
+    private var consumedIntent: Intent? = null
 
     override fun definition() = ModuleDefinition {
         Name("ShareIntent")
@@ -21,34 +24,110 @@ class ShareIntentModule : Module() {
         }
 
         Function("clearSharedContent") {
-            Log.d(TAG, "Clearing pending content")
+            Log.d(TAG, "Clearing pending content and marking intent as consumed")
             pendingSharedContent = null
+            // Mark the last processed intent as fully consumed so checking it again won't re-trigger
+            consumedIntent = lastProcessedIntent
         }
         
-        // No-op for compatibility if JS still calls it
-        Function("markAsProcessed") {}
-
+        Function("checkShareIntent") {
+            Log.d(TAG, "Manual checkShareIntent triggered")
+            processIntent(null, true) // Force re-processing (unless consumed)
+        }
+        
+        // Native function to start RunnerActivity bypassing React Native linking
+        // Used by SHARE - reuses existing window for same app
+        Function("startRunnerActivity") { appId: Int ->
+            Log.d(TAG, "startRunnerActivity called with appId: $appId")
+            val currentActivity = appContext.currentActivity ?: return@Function false
+            
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("runapp://runner/$appId"))
+                intent.setPackage(currentActivity.packageName)
+                // FLAG_ACTIVITY_NEW_TASK: Start in a new task
+                // FLAG_ACTIVITY_CLEAR_TOP: If activity exists, destroy all on top and deliver to it
+                // FLAG_ACTIVITY_SINGLE_TOP: Don't recreate if already at top
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                               Intent.FLAG_ACTIVITY_CLEAR_TOP or 
+                               Intent.FLAG_ACTIVITY_SINGLE_TOP
+                currentActivity.startActivity(intent)
+                Log.d(TAG, "startRunnerActivity succeeded")
+                return@Function true
+            } catch (e: Exception) {
+                Log.e(TAG, "startRunnerActivity failed: ${e.message}")
+                return@Function false
+            }
+        }
+        
+        // Native function to open app in NEW window - used by PLAY button
+        // Creates separate windows per app using explicit class intent (no URI to intercept)
+        Function("openRunnerWindow") { appId: Int ->
+            Log.d(TAG, "openRunnerWindow called with appId: $appId")
+            val currentActivity = appContext.currentActivity ?: return@Function false
+            
+            try {
+                // Use explicit class intent to avoid any URI-based interception
+                val intent = Intent()
+                intent.setClassName(currentActivity.packageName, "com.dmvieira.appacadabra.RunnerActivity")
+                intent.putExtra("appId", appId)
+                // Use document ID to create separate tasks per app
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+                // Set the data URI for the document identity (allows window reuse per app)
+                intent.data = Uri.parse("runapp://runner/$appId")
+                currentActivity.startActivity(intent)
+                Log.d(TAG, "openRunnerWindow succeeded")
+                return@Function true
+            } catch (e: Exception) {
+                Log.e(TAG, "openRunnerWindow failed: ${e.message}")
+                return@Function false
+            }
+        }
+        
+        // Close specific RunnerActivity to prevent duplicates when sharing
+        Function("finishRunnerActivity") { appId: Int ->
+            Log.d(TAG, "finishRunnerActivity called for appId: $appId")
+            try {
+                val context = appContext.reactContext ?: return@Function false
+                val intent = Intent("com.dmvieira.appacadabra.FINISH_RUNNER")
+                intent.putExtra("appId", appId)
+                intent.setPackage(context.packageName)
+                context.sendBroadcast(intent)
+                Log.d(TAG, "finishRunnerActivity broadcast sent for appId: $appId")
+                return@Function true
+            } catch (e: Exception) {
+                Log.e(TAG, "finishRunnerActivity failed: ${e.message}")
+                return@Function false
+            }
+        }
+        
         OnNewIntent {
-            Log.d(TAG, "OnNewIntent: " + it?.action)
-            // Just update content and emit. 
-            // We rely on React Native to handle the event.
-            // We rely on 'clearSharedContent' to prevent stale data on reload.
-            processIntent(it)
+            Log.d(TAG, "OnNewIntent received")
+            consumedIntent = null
+            
+            // Restore delay to fix race condition where JS isn't ready for the event
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                processIntent(it, true) 
+            }, 150)
         }
 
         OnCreate {
-            Log.d(TAG, "OnCreate")
-            processIntent(null)
+            processIntent(null, false)
         }
     }
 
-    private fun processIntent(intent: Intent?) {
+    private fun processIntent(intent: Intent?, force: Boolean) {
         val currentActivity = appContext.currentActivity
         val targetIntent = intent ?: currentActivity?.intent
         
-        Log.d(TAG, "Processing intent: action=" + targetIntent?.action + " type=" + targetIntent?.type)
-
         if (targetIntent?.action != Intent.ACTION_SEND) {
+            return
+        }
+
+        if (targetIntent === consumedIntent) {
+            return
+        }
+
+        if (!force && targetIntent === lastProcessedIntent) {
             return
         }
         
@@ -65,9 +144,8 @@ class ShareIntentModule : Module() {
 
         if (sharedData.isNotEmpty()) {
             pendingSharedContent = sharedData
-            Log.d(TAG, "Emitting event onShareReceived")
-            // Always emit. React side handles duplicates/state if needed, 
-            // but usually a user sharing implies they want action.
+            lastProcessedIntent = targetIntent
+            Log.d(TAG, "Emitting onShareReceived")
             sendEvent("onShareReceived", sharedData)
         }
     }

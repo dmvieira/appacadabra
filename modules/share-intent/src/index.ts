@@ -24,8 +24,25 @@ export function clearSharedContent(): void {
     ShareIntentModule.clearSharedContent();
 }
 
+export function checkShareIntent(): void {
+    ShareIntentModule.checkShareIntent();
+}
+
 export function markAsProcessed(): void {
     ShareIntentModule.markAsProcessed();
+}
+
+export async function startRunnerActivity(appId: number): Promise<boolean> {
+    return ShareIntentModule.startRunnerActivity(appId);
+}
+
+// Open app in NEW window - used by Play button
+export async function openRunnerWindow(appId: number): Promise<boolean> {
+    return ShareIntentModule.openRunnerWindow(appId);
+}
+
+export async function finishRunnerActivity(appId: number): Promise<boolean> {
+    return ShareIntentModule.finishRunnerActivity(appId);
 }
 
 export function addShareListener(listener: (event: SharedContent) => void) {

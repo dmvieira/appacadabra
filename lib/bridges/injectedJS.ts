@@ -131,12 +131,15 @@ export function getInjectedJavaScript(appId: number): string {
       
       const target = e.target;
       // Get element info
+      const outerHTML = target.outerHTML;
+      const preview = outerHTML.length > 200 ? outerHTML.substring(0, 200) + '...' : outerHTML;
+      
       const info = {
-          tagName: target.tagName,
+          tagName: target.tagName.toLowerCase(),
           id: target.id,
           className: target.className,
-          innerHTML: target.innerHTML,
-          outerHTML: target.outerHTML
+          html: outerHTML,
+          preview: preview
       };
       
       // Send to RN

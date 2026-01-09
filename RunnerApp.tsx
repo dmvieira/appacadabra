@@ -13,7 +13,8 @@ import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from './lib/bridges/injectedJS';
+import * as FileSystem from 'expo-file-system/legacy';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript } from './lib/bridges/injectedJS';
 import * as gemini from './lib/api/gemini';
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
@@ -39,6 +40,39 @@ function RunnerContent({ appId }: Props) {
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
+    const [sharedContent, setSharedContent] = useState<any>(null);
+    const [webViewReady, setWebViewReady] = useState(false);
+
+    // Check drop-box file for pending shared content
+    useEffect(() => {
+        async function checkDropBox() {
+            const dropBoxPath = FileSystem.cacheDirectory + 'pending_share.json';
+            console.log('RunnerApp: Checking drop-box at:', dropBoxPath);
+            try {
+                const info = await FileSystem.getInfoAsync(dropBoxPath);
+                if (info.exists) {
+                    const contentStr = await FileSystem.readAsStringAsync(dropBoxPath);
+                    const content = JSON.parse(contentStr);
+
+                    // Only consume if this drop-box is for THIS app
+                    if (content.targetAppId === appId) {
+                        console.log('RunnerApp: Drop-box found for app', appId, 'fileName:', content.fileName);
+                        setSharedContent(content);
+
+                        // Delete immediately to prevent reuse
+                        await FileSystem.deleteAsync(dropBoxPath, { idempotent: true });
+                    } else {
+                        console.log('RunnerApp: Drop-box is for different app', content.targetAppId, 'vs', appId);
+                    }
+                } else {
+                    console.log('RunnerApp: No drop-box file found');
+                }
+            } catch (e) {
+                console.log('RunnerApp: Drop-box read error:', e);
+            }
+        }
+        checkDropBox();
+    }, [appId]);
 
     // Load app data
     useEffect(() => {
@@ -348,6 +382,33 @@ function RunnerContent({ appId }: Props) {
             injectedJavaScriptBeforeContentLoaded={combinedScript}
             onMessage={handleMessage}
             onError={(e) => console.error('WebView error:', e.nativeEvent)}
+            onLoadEnd={() => {
+                console.log('RunnerApp: WebView loaded, checking for shared content');
+                setWebViewReady(true);
+
+                // Inject shared content if available
+                if (sharedContent && webViewRef.current) {
+                    console.log('RunnerApp: Injecting shared content, fileName:', sharedContent.fileName);
+
+                    // Setup the shared content handler in WebView
+                    const setupScript = createSharedContentSetupScript();
+                    webViewRef.current.injectJavaScript(setupScript);
+
+                    // Post the content after a short delay to ensure handler is ready
+                    setTimeout(() => {
+                        if (webViewRef.current && sharedContent) {
+                            console.log('RunnerApp: Posting shared content message');
+                            webViewRef.current.postMessage(JSON.stringify({
+                                type: 'SET_SHARED_CONTENT',
+                                payload: sharedContent
+                            }));
+
+                            // Clear after injection to prevent re-injection
+                            setSharedContent(null);
+                        }
+                    }, 500);
+                }
+            }}
             onShouldStartLoadWithRequest={(request) => {
                 const { url } = request;
                 if (url.startsWith('http://') || url.startsWith('https://')) {

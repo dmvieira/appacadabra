@@ -13,6 +13,7 @@ import expo.modules.ReactActivityDelegateWrapper
 
 class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
+    android.util.Log.d("MainActivity", "onCreate: " + (intent?.action ?: "null"))
     setTheme(R.style.AppTheme)
     super.onCreate(null)
   }
@@ -23,6 +24,8 @@ class MainActivity : ReactActivity() {
     super.onNewIntent(intent)
     setIntent(intent)
   }
+
+
 
   override fun createReactActivityDelegate(): ReactActivityDelegate {
     return ReactActivityDelegateWrapper(
