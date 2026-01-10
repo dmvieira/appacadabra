@@ -28,6 +28,7 @@
     "expo-speech-recognition": "^3.0.1",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "jszip": "^3.10.1",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",

@@ -277,47 +277,34 @@ export default function RunnerScreen() {
                     }
                     break;
 
+                case 'AI_TRANSCRIBE_AUDIO':
+                    try {
+                        result = await gemini.aiTranscribeAudio(data.base64);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
                 // ============= Calendar Handlers =============
                 case 'CALENDAR_CREATE_EVENT':
                 case 'CALENDAR_CREATE_EVENT_REMINDER':
                     try {
-                        // Try to open calendar with pre-filled event
-                        const url = Platform.select({
-                            ios: `calshow:${Math.floor(data.startTimeMs / 1000)}`,
-                            android: `content://com.android.calendar/time/${data.startTimeMs}`,
-                            default: '',
-                        });
+                        // Cross-platform: Use Google Calendar URL - works on both Android and iOS
+                        // Opens Google Calendar app (if installed) or browser with pre-filled event
+                        const startMs = data.startTimeMs;
+                        const endMs = data.endTimeMs;
+                        const eventTitle = encodeURIComponent(data.title || 'Novo Evento');
+                        const eventDesc = encodeURIComponent(data.description || '');
 
-                        // For better UX, use Linking to open calendar
-                        if (Platform.OS === 'android') {
-                            await Linking.openURL(`content://com.android.calendar/events`);
-                        } else {
-                            // On iOS, we need calendar permission first
-                            const { status } = await Calendar.requestCalendarPermissionsAsync();
-                            if (status === 'granted') {
-                                const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-                                const defaultCalendar = calendars.find(c => c.allowsModifications);
+                        // Format dates for Google Calendar URL (YYYYMMDDTHHmmssZ format)
+                        const startDate = new Date(startMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                        const endDate = new Date(endMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
-                                if (defaultCalendar) {
-                                    await Calendar.createEventAsync(defaultCalendar.id, {
-                                        title: data.title,
-                                        notes: data.description,
-                                        startDate: new Date(data.startTimeMs),
-                                        endDate: new Date(data.endTimeMs),
-                                        alarms: type === 'CALENDAR_CREATE_EVENT_REMINDER'
-                                            ? [{ relativeOffset: -data.reminderMinutes }]
-                                            : undefined,
-                                    });
-                                    result = 'Event created successfully';
-                                } else {
-                                    result = 'No writable calendar found';
-                                    success = false;
-                                }
-                            } else {
-                                result = 'Calendar permission denied';
-                                success = false;
-                            }
-                        }
+                        // Google Calendar URL - user can confirm before saving
+                        const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&details=${eventDesc}&dates=${startDate}/${endDate}`;
+                        await Linking.openURL(googleCalUrl);
+                        result = 'Calendar opened';
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';

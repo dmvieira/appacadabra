@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
 import * as ShareIntent from 'share-intent';
 import { useAppStore } from '../lib/store';
@@ -28,6 +29,7 @@ export default function HomeScreen() {
         apps,
         isLoading,
         isGenerating,
+        isImporting,
         error,
         backupStatus,
         loadApps,
@@ -38,6 +40,7 @@ export default function HomeScreen() {
         updateAppIcon,
         exportBackup,
         importBackup,
+        importProject,
         clearError,
         clearBackupStatus,
     } = useAppStore();
@@ -152,6 +155,25 @@ export default function HomeScreen() {
         await importBackup();
     };
 
+    const handleImportProject = async () => {
+        setShowMenu(false);
+
+        const result = await DocumentPicker.getDocumentAsync({
+            type: 'application/zip',
+            copyToCacheDirectory: true,
+        });
+
+        if (result.canceled || !result.assets?.[0]) {
+            return;
+        }
+
+        const app = await importProject(result.assets[0].uri);
+        if (app) {
+            openApp(app.id, 'edit');
+            router.push({ pathname: '/runner/[id]', params: { id: app.id, edit: 'true' } });
+        }
+    };
+
     if (isLoading) {
         return (
             <SafeAreaView style={styles.container}>
@@ -213,6 +235,11 @@ export default function HomeScreen() {
                     onPress={() => setShowMenu(false)}
                 >
                     <View style={styles.menuSheet}>
+                        <TouchableOpacity style={styles.menuItem} onPress={handleImportProject}>
+                            <Text style={styles.menuItemIcon}>📦</Text>
+                            <Text style={styles.menuItemText}>Importar Projeto ZIP</Text>
+                        </TouchableOpacity>
+                        <View style={styles.menuDivider} />
                         <TouchableOpacity style={styles.menuItem} onPress={handleExport}>
                             <Text style={styles.menuItemIcon}>📤</Text>
                             <Text style={styles.menuItemText}>Exportar Backup</Text>
@@ -273,6 +300,17 @@ export default function HomeScreen() {
                 onDismiss={() => setDeleteTarget(null)}
                 onConfirm={handleDeleteConfirm}
             />
+
+            {/* Import Progress Modal */}
+            <Modal visible={isImporting} transparent animationType="fade">
+                <View style={styles.menuOverlay}>
+                    <View style={styles.importingModal}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                        <Text style={styles.importingText}>Importando projeto...</Text>
+                        <Text style={styles.importingHint}>Convertendo para webapp HTML</Text>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Error Snackbar */}
             {error && (
@@ -381,6 +419,11 @@ const styles = StyleSheet.create({
         color: colors.onSurface,
         fontSize: 16,
     },
+    menuDivider: {
+        height: 1,
+        backgroundColor: colors.surfaceVariant,
+        marginVertical: spacing.sm,
+    },
     iconSheet: {
         backgroundColor: colors.surface,
         borderTopLeftRadius: borderRadius.xl,
@@ -487,5 +530,23 @@ const styles = StyleSheet.create({
     iconSourceCancelText: {
         fontSize: 14,
         color: colors.onSurfaceVariant,
+    },
+    importingModal: {
+        backgroundColor: colors.surface,
+        padding: spacing.xl,
+        borderRadius: borderRadius.lg,
+        alignItems: 'center',
+        margin: spacing.lg,
+    },
+    importingText: {
+        color: colors.onSurface,
+        fontSize: 18,
+        fontWeight: '600',
+        marginTop: spacing.md,
+    },
+    importingHint: {
+        color: colors.onSurfaceVariant,
+        fontSize: 14,
+        marginTop: spacing.sm,
     },
 });

@@ -3,12 +3,14 @@ import { GeneratedApp, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import * as gemini from './api/gemini';
 import * as backup from './backup';
+import * as projectConverter from './projectConverter';
 import SharingShortcuts from './bridges/SharingShortcuts';
 
 interface AppState {
     apps: GeneratedApp[];
     isLoading: boolean;
     isGenerating: boolean;
+    isImporting: boolean;
     error: string | null;
     backupStatus: string | null;
 
@@ -39,6 +41,7 @@ interface AppState {
     updateAppCode: (id: number, code: string, instruction?: string) => Promise<void>;
     exportBackup: () => Promise<void>;
     importBackup: () => Promise<void>;
+    importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
     clearBackupStatus: () => void;
     setSharedContent: (content: AppState['sharedContent']) => void;
@@ -49,6 +52,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     apps: [],
     isLoading: true,
     isGenerating: false,
+    isImporting: false,
     error: null,
     backupStatus: null,
     runningInstances: [],
@@ -314,6 +318,60 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to import backup:', error);
             set({ backupStatus: 'Erro ao importar backup' });
+        }
+    },
+
+    importProject: async (zipUri: string) => {
+        try {
+            set({ isImporting: true, error: null });
+
+            const result = await projectConverter.convertProject(zipUri);
+
+            if (!result.success || !result.html) {
+                set({
+                    error: result.error || 'Erro ao converter projeto',
+                    isImporting: false
+                });
+                return null;
+            }
+
+            const newApp: NewGeneratedApp = {
+                name: result.name || 'Projeto Importado',
+                code: result.html,
+                currentVersion: 1,
+                iconPath: null,
+                lastUpdated: Date.now(),
+                consoleLogs: '',
+            };
+
+            const id = await db.insertApp(newApp);
+
+            await db.insertVersion({
+                appId: id,
+                version: 1,
+                code: result.html,
+                instruction: 'Importado de projeto ZIP',
+                selectedContext: null,
+                createdAt: Date.now(),
+            });
+
+            const createdApp: GeneratedApp = { ...newApp, id };
+            set(state => ({
+                apps: [createdApp, ...state.apps],
+                isImporting: false,
+                backupStatus: `Projeto "${result.name}" importado com sucesso!`
+            }));
+
+            SharingShortcuts.publishShortcut(id.toString(), createdApp.name, createdApp.iconPath);
+
+            return createdApp;
+        } catch (error) {
+            console.error('Failed to import project:', error);
+            set({
+                error: `Erro ao importar: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+                isImporting: false
+            });
+            return null;
         }
     },
 

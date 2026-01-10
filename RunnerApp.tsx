@@ -136,30 +136,32 @@ function RunnerContent({ appId }: Props) {
                     }
                     break;
 
+                case 'AI_TRANSCRIBE_AUDIO':
+                    try {
+                        result = await gemini.aiTranscribeAudio(data.base64);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
                 case 'CALENDAR_CREATE_EVENT':
                 case 'CALENDAR_CREATE_EVENT_REMINDER':
                     try {
-                        if (Platform.OS === 'android') {
-                            await Linking.openURL(`content://com.android.calendar/events`);
-                        } else {
-                            const { status } = await Calendar.requestCalendarPermissionsAsync();
-                            if (status === 'granted') {
-                                const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-                                const defaultCalendar = calendars.find(c => c.allowsModifications);
-                                if (defaultCalendar) {
-                                    await Calendar.createEventAsync(defaultCalendar.id, {
-                                        title: data.title,
-                                        notes: data.description,
-                                        startDate: new Date(data.startTimeMs),
-                                        endDate: new Date(data.endTimeMs),
-                                        alarms: type === 'CALENDAR_CREATE_EVENT_REMINDER'
-                                            ? [{ relativeOffset: -data.reminderMinutes }]
-                                            : undefined,
-                                    });
-                                    result = 'Event created successfully';
-                                }
-                            }
-                        }
+                        // Cross-platform: Use Google Calendar URL - works on both Android and iOS
+                        const startMs = data.startTimeMs;
+                        const endMs = data.endTimeMs;
+                        const eventTitle = encodeURIComponent(data.title || 'Novo Evento');
+                        const eventDesc = encodeURIComponent(data.description || '');
+
+                        // Format dates for Google Calendar URL (YYYYMMDDTHHmmssZ format)
+                        const startDate = new Date(startMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                        const endDate = new Date(endMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+                        // Google Calendar URL - user can confirm before saving
+                        const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&details=${eventDesc}&dates=${startDate}/${endDate}`;
+                        await Linking.openURL(googleCalUrl);
+                        result = 'Calendar opened';
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
@@ -246,15 +248,11 @@ function RunnerContent({ appId }: Props) {
                     // Silently ignore in run-only mode
                     break;
 
-                case 'STORAGE_SET':
-                    if (app) await db.setStorageItem(app.id, data.key, data.value);
-                    break;
-
                 case 'LOCATION_GET_CURRENT_POSITION':
                     try {
                         console.log('RunnerApp: Handling LOCATION_GET_CURRENT_POSITION');
-                        const { status } = await Location.requestForegroundPermissionsAsync();
-                        if (status === 'granted') {
+                        const locStatus = await Location.requestForegroundPermissionsAsync();
+                        if (locStatus.status === 'granted') {
                             const loc = await Location.getCurrentPositionAsync({});
                             result = JSON.stringify(loc);
                         } else {
@@ -263,59 +261,6 @@ function RunnerContent({ appId }: Props) {
                         }
                     } catch (e) {
                         console.error('RunnerApp location error:', e);
-                        success = false;
-                        result = e instanceof Error ? e.message : 'Error';
-                    }
-                    break;
-
-                case 'CALENDAR_CREATE_EVENT':
-                    try {
-                        if (Platform.OS === 'android') {
-                            await Linking.openURL(`content://com.android.calendar/events`);
-                            result = 'Opened Calendar';
-                        } else {
-                            const { status } = await Calendar.requestCalendarPermissionsAsync();
-                            if (status === 'granted') {
-                                const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-                                const defaultCalendar = calendars.find(c => c.allowsModifications);
-                                if (defaultCalendar) {
-                                    await Calendar.createEventAsync(defaultCalendar.id, {
-                                        title: data.title,
-                                        notes: data.description,
-                                        startDate: new Date(data.startTimeMs),
-                                        endDate: new Date(data.endTimeMs),
-                                    });
-                                    result = 'Event created';
-                                } else {
-                                    success = false;
-                                    result = 'No writable calendar';
-                                }
-                            } else {
-                                success = false;
-                                result = 'Permission denied';
-                            }
-                        }
-                    } catch (e) {
-                        success = false;
-                        result = e instanceof Error ? e.message : 'Error';
-                    }
-                    break;
-
-                case 'NOTIFY_SCHEDULE':
-                    try {
-                        await Notifications.scheduleNotificationAsync({
-                            content: {
-                                title: data.title,
-                                body: data.message,
-                            },
-                            trigger: {
-                                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                                seconds: data.delayMinutes * 60,
-                                repeats: false,
-                            },
-                        });
-                        result = 'Notification scheduled';
-                    } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
                     }
