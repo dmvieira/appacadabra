@@ -66,8 +66,9 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
             onRequestClose={onDismiss}
         >
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior="padding"
                 style={styles.overlay}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 <View style={styles.dialog}>
                     <Text style={styles.title}>{title}</Text>
@@ -158,7 +159,11 @@ export function RenameDialog({ visible, currentName, onDismiss, onConfirm }: Ren
             animationType="fade"
             onRequestClose={onDismiss}
         >
-            <View style={styles.overlay}>
+            <KeyboardAvoidingView
+                behavior="padding"
+                style={styles.overlay}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
                 <View style={styles.dialog}>
                     <Text style={styles.title}>Renomear App</Text>
 
@@ -179,7 +184,7 @@ export function RenameDialog({ visible, currentName, onDismiss, onConfirm }: Ren
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }
