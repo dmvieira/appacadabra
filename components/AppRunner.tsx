@@ -237,7 +237,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     }
                     break;
 
-                case 'AI_GENERATE_TEXT_SEARCH':
+                case 'AI_GENERATE_TEXT_WITH_SEARCH':
                     try {
                         result = await gemini.aiGenerateTextWithSearch(data.prompt);
                     } catch (e) {
@@ -264,37 +264,32 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     }
                     break;
 
+                case 'AI_TRANSCRIBE_AUDIO':
+                    try {
+                        result = await gemini.aiTranscribeAudio(data.base64);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
                 // ============= Calendar Handlers =============
                 case 'CALENDAR_CREATE_EVENT':
                 case 'CALENDAR_CREATE_EVENT_REMINDER':
                     try {
-                        if (Platform.OS === 'android') {
-                            await Linking.openURL(`content://com.android.calendar/events`);
-                        } else {
-                            const { status } = await Calendar.requestCalendarPermissionsAsync();
-                            if (status === 'granted') {
-                                const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-                                const defaultCalendar = calendars.find(c => c.allowsModifications);
-                                if (defaultCalendar) {
-                                    await Calendar.createEventAsync(defaultCalendar.id, {
-                                        title: data.title,
-                                        notes: data.description,
-                                        startDate: new Date(data.startTimeMs),
-                                        endDate: new Date(data.endTimeMs),
-                                        alarms: type === 'CALENDAR_CREATE_EVENT_REMINDER'
-                                            ? [{ relativeOffset: -data.reminderMinutes }]
-                                            : undefined,
-                                    });
-                                    result = 'Event created successfully';
-                                } else {
-                                    result = 'No writable calendar found';
-                                    success = false;
-                                }
-                            } else {
-                                result = 'Calendar permission denied';
-                                success = false;
-                            }
-                        }
+                        // Cross-platform: Use Google Calendar URL
+                        const startMs = data.startTimeMs;
+                        const endMs = data.endTimeMs;
+                        const eventTitle = encodeURIComponent(data.title || 'Novo Evento');
+                        const eventDesc = encodeURIComponent(data.description || '');
+
+                        // Format dates for Google Calendar URL (YYYYMMDDTHHmmssZ format)
+                        const startDate = new Date(startMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                        const endDate = new Date(endMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+                        const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&details=${eventDesc}&dates=${startDate}/${endDate}`;
+                        await Linking.openURL(googleCalUrl);
+                        result = 'Calendar opened';
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
@@ -313,6 +308,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 // ============= Notification Handlers =============
                 case 'NOTIFY_SHOW_NOW':
                     try {
+                        // Request permission if not granted
+                        const showNowPerm = await Notifications.getPermissionsAsync();
+                        if (showNowPerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
                         await Notifications.scheduleNotificationAsync({
                             content: { title: data.title, body: data.message },
                             trigger: null,
@@ -326,6 +332,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
                 case 'NOTIFY_SCHEDULE':
                     try {
+                        // Request permission if not granted
+                        const schedulePerm = await Notifications.getPermissionsAsync();
+                        if (schedulePerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
                         await Notifications.scheduleNotificationAsync({
                             content: { title: data.title, body: data.message },
                             trigger: {
@@ -342,6 +359,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
                 case 'NOTIFY_SCHEDULE_AT':
                     try {
+                        // Request permission if not granted
+                        const scheduleAtPerm = await Notifications.getPermissionsAsync();
+                        if (scheduleAtPerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
                         await Notifications.scheduleNotificationAsync({
                             content: { title: data.title, body: data.message },
                             trigger: {

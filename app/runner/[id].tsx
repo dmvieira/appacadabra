@@ -56,6 +56,7 @@ export default function RunnerScreen() {
     const isShareMode = share === 'true'; // Keep for other logic, but injection uses payload presence
     const [showEditSheet, setShowEditSheet] = useState(false);
     const [editPrompt, setEditPrompt] = useState('');
+    const [selectedElement, setSelectedElement] = useState<{ html: string; tagName: string; preview: string } | null>(null);
     const [isEditing, setIsEditing] = useState(false);
 
     // Selection mode state
@@ -64,6 +65,13 @@ export default function RunnerScreen() {
     // Manual editor
     const [showManualEditor, setShowManualEditor] = useState(false);
     const [manualCode, setManualCode] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResultCount, setSearchResultCount] = useState(0);
+    const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+    const [searchMatches, setSearchMatches] = useState<{ start: number; end: number }[]>([]);
+    const [searchSelection, setSearchSelection] = useState<{ start: number; end: number } | null>(null);
+    const editorScrollRef = useRef<ScrollView>(null);
+    const codeInputRef = useRef<TextInput>(null);
 
     // Version history
     const [showHistory, setShowHistory] = useState(false);
@@ -246,13 +254,23 @@ export default function RunnerScreen() {
                     }
 
                     const { tagName, html, preview } = data;
-                    setEditPrompt(`Alterar este elemento ${tagName}:\n${preview}\n\n[Instrução aqui]`);
+                    setSelectedElement({ html, tagName, preview });
+                    setEditPrompt('');  // Clear prompt for new instruction
                     setShowEditSheet(true);
                     break;
 
                 case 'AI_GENERATE_TEXT':
                     try {
                         result = await gemini.aiGenerateText(data.prompt);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'AI_GENERATE_TEXT_WITH_SEARCH':
+                    try {
+                        result = await gemini.aiGenerateTextWithSearch(data.prompt);
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
@@ -323,6 +341,17 @@ export default function RunnerScreen() {
                 // ============= Notification Handlers =============
                 case 'NOTIFY_SHOW_NOW':
                     try {
+                        // Request permission if not granted
+                        const showNowPerm = await Notifications.getPermissionsAsync();
+                        if (showNowPerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
                         await Notifications.scheduleNotificationAsync({
                             content: {
                                 title: data.title,
@@ -339,6 +368,17 @@ export default function RunnerScreen() {
 
                 case 'NOTIFY_SCHEDULE':
                     try {
+                        // Request permission if not granted
+                        const schedulePerm = await Notifications.getPermissionsAsync();
+                        if (schedulePerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
                         const identifier = await Notifications.scheduleNotificationAsync({
                             content: {
                                 title: data.title,
@@ -358,7 +398,18 @@ export default function RunnerScreen() {
 
                 case 'NOTIFY_SCHEDULE_AT':
                     try {
-                        const identifier = await Notifications.scheduleNotificationAsync({
+                        // Request permission if not granted
+                        const scheduleAtPerm = await Notifications.getPermissionsAsync();
+                        if (scheduleAtPerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
+                        const identifierAt = await Notifications.scheduleNotificationAsync({
                             content: {
                                 title: data.title,
                                 body: data.message,
@@ -368,7 +419,7 @@ export default function RunnerScreen() {
                                 date: new Date(data.timeMs),
                             },
                         });
-                        result = identifier;
+                        result = identifierAt;
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
@@ -449,11 +500,25 @@ export default function RunnerScreen() {
 
         setIsEditing(true);
         try {
-            const updatedApp = await updateAppWithAI(app, editPrompt);
+            // Get fresh app data from database to ensure we have the current version
+            const freshApp = await db.getAppById(app.id);
+            if (!freshApp) {
+                console.error('App not found in database');
+                return;
+            }
+
+            // Build the full prompt with context from selected element
+            let fullPrompt = editPrompt;
+            if (selectedElement) {
+                fullPrompt = `Alterar o elemento <${selectedElement.tagName}>:\n${selectedElement.preview}\n\nInstrução: ${editPrompt}`;
+            }
+
+            const updatedApp = await updateAppWithAI(freshApp, fullPrompt);
             if (updatedApp) {
                 setApp(updatedApp);
                 setShowEditSheet(false);
                 setEditPrompt('');
+                setSelectedElement(null);
             }
         } finally {
             setIsEditing(false);
@@ -701,20 +766,47 @@ export default function RunnerScreen() {
                             </View>
                         ) : (
                             <>
+                                {/* Selected element preview (read-only) */}
+                                {selectedElement && (
+                                    <View style={styles.selectedElementBox}>
+                                        <View style={styles.selectedElementHeader}>
+                                            <Text style={styles.selectedElementLabel}>
+                                                Elemento selecionado: <Text style={styles.selectedElementTag}>&lt;{selectedElement.tagName}&gt;</Text>
+                                            </Text>
+                                            <TouchableOpacity onPress={() => setSelectedElement(null)}>
+                                                <Text style={styles.clearElementBtn}>✕</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        <ScrollView style={styles.selectedElementPreview} nestedScrollEnabled>
+                                            <Text style={styles.selectedElementCode}>{selectedElement.preview}</Text>
+                                        </ScrollView>
+                                    </View>
+                                )}
+
+                                {/* Instruction input */}
+                                <Text style={styles.instructionLabel}>
+                                    {selectedElement ? 'Instrução para o elemento:' : 'O que você quer alterar?'}
+                                </Text>
                                 <TextInput
                                     style={styles.editInput}
                                     value={editPrompt}
                                     onChangeText={setEditPrompt}
-                                    placeholder="Descreva as mudanças desejadas..."
+                                    placeholder={selectedElement
+                                        ? "Ex: mude a cor para azul, adicione um ícone..."
+                                        : "Descreva as mudanças desejadas..."
+                                    }
                                     placeholderTextColor={colors.onSurfaceVariant}
                                     multiline
-                                    numberOfLines={4}
+                                    numberOfLines={3}
                                 />
 
                                 <View style={styles.sheetButtons}>
                                     <TouchableOpacity
                                         style={styles.cancelBtn}
-                                        onPress={() => setShowEditSheet(false)}
+                                        onPress={() => {
+                                            setShowEditSheet(false);
+                                            setSelectedElement(null);
+                                        }}
                                     >
                                         <Text style={styles.cancelText}>Cancelar</Text>
                                     </TouchableOpacity>
@@ -744,15 +836,96 @@ export default function RunnerScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <TextInput
-                        style={styles.codeEditor}
-                        value={manualCode}
-                        onChangeText={setManualCode}
-                        multiline
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        spellCheck={false}
-                    />
+                    {/* Search Bar */}
+                    <View style={styles.searchBar}>
+                        <TextInput
+                            style={styles.searchInput}
+                            value={searchQuery}
+                            onChangeText={(text) => {
+                                setSearchQuery(text);
+                                if (text) {
+                                    const regex = new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                                    const matches: { start: number; end: number }[] = [];
+                                    let match;
+                                    while ((match = regex.exec(manualCode)) !== null) {
+                                        matches.push({ start: match.index, end: match.index + match[0].length });
+                                    }
+                                    setSearchMatches(matches);
+                                    setSearchResultCount(matches.length);
+                                    setCurrentSearchIndex(0);
+                                    // Don't auto-focus or select - wait for user to click nav buttons
+                                } else {
+                                    setSearchMatches([]);
+                                    setSearchResultCount(0);
+                                    setCurrentSearchIndex(0);
+                                    setSearchSelection(null);
+                                }
+                            }}
+                            placeholder="Pesquisar no código..."
+                            placeholderTextColor={colors.onSurfaceVariant}
+                        />
+                        {searchQuery !== '' && searchResultCount > 0 && (
+                            <View style={styles.searchNavigation}>
+                                <TouchableOpacity
+                                    style={styles.searchNavBtn}
+                                    onPress={() => {
+                                        const newIndex = currentSearchIndex > 0 ? currentSearchIndex - 1 : searchMatches.length - 1;
+                                        setCurrentSearchIndex(newIndex);
+                                        setSearchSelection(searchMatches[newIndex]);
+                                        codeInputRef.current?.focus();
+                                    }}
+                                >
+                                    <Text style={styles.searchNavText}>▲</Text>
+                                </TouchableOpacity>
+                                <Text style={styles.searchResultCount}>
+                                    {currentSearchIndex + 1}/{searchResultCount}
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.searchNavBtn}
+                                    onPress={() => {
+                                        const newIndex = currentSearchIndex < searchMatches.length - 1 ? currentSearchIndex + 1 : 0;
+                                        setCurrentSearchIndex(newIndex);
+                                        setSearchSelection(searchMatches[newIndex]);
+                                        codeInputRef.current?.focus();
+                                    }}
+                                >
+                                    <Text style={styles.searchNavText}>▼</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        {searchQuery !== '' && searchResultCount === 0 && (
+                            <Text style={styles.searchNoResults}>0 resultados</Text>
+                        )}
+                    </View>
+
+                    {/* Code Editor - Full Width */}
+                    <ScrollView
+                        ref={editorScrollRef}
+                        style={styles.editorBody}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <TextInput
+                            ref={codeInputRef}
+                            style={styles.codeEditor}
+                            value={manualCode}
+                            onChangeText={(text) => {
+                                setManualCode(text);
+                                setSearchSelection(null);
+                            }}
+                            onSelectionChange={() => {
+                                // Clear forced selection after user interacts
+                                if (searchSelection) {
+                                    setTimeout(() => setSearchSelection(null), 100);
+                                }
+                            }}
+                            multiline
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            spellCheck={false}
+                            textAlignVertical="top"
+                            selection={searchSelection || undefined}
+                        />
+                    </ScrollView>
                 </SafeAreaView>
             </Modal>
 
@@ -1037,15 +1210,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
-    codeEditor: {
-        flex: 1,
-        backgroundColor: colors.surfaceVariant,
-        color: colors.onSurface,
-        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-        fontSize: 14,
-        padding: spacing.md,
-        textAlignVertical: 'top',
-    },
     versionList: {
         maxHeight: 300,
     },
@@ -1151,5 +1315,97 @@ const styles = StyleSheet.create({
     debugClearText: {
         color: colors.error,
         fontSize: 16,
+    },
+    // Selected element styles
+    selectedElementBox: {
+        backgroundColor: colors.surfaceVariant,
+        borderRadius: borderRadius.md,
+        padding: spacing.sm,
+        marginBottom: spacing.md,
+        maxHeight: 120,
+    },
+    selectedElementHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.xs,
+    },
+    selectedElementLabel: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+    },
+    selectedElementTag: {
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    clearElementBtn: {
+        color: colors.onSurfaceVariant,
+        fontSize: 16,
+        padding: spacing.xs,
+    },
+    selectedElementPreview: {
+        maxHeight: 70,
+    },
+    selectedElementCode: {
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        fontSize: 11,
+        color: colors.onSurface,
+    },
+    instructionLabel: {
+        color: colors.onSurfaceVariant,
+        fontSize: 14,
+        marginBottom: spacing.xs,
+    },
+    // Editor search and line numbers styles
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.surfaceVariant,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        gap: spacing.sm,
+    },
+    searchInput: {
+        flex: 1,
+        color: colors.onSurface,
+        fontSize: 14,
+        padding: 0,
+    },
+    searchResultCount: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+    },
+    editorBody: {
+        flex: 1,
+        backgroundColor: colors.surfaceVariant,
+    },
+    codeEditor: {
+        flex: 1,
+        backgroundColor: colors.surfaceVariant,
+        color: colors.onSurface,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        fontSize: 13,
+        lineHeight: 18,
+        padding: spacing.md,
+        textAlignVertical: 'top',
+        minHeight: 500,
+    },
+    // Search navigation styles
+    searchNavigation: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs,
+    },
+    searchNavBtn: {
+        padding: spacing.xs,
+    },
+    searchNavText: {
+        color: colors.primary,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    searchNoResults: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
     },
 });

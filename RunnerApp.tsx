@@ -118,6 +118,15 @@ function RunnerContent({ appId }: Props) {
                     }
                     break;
 
+                case 'AI_GENERATE_TEXT_WITH_SEARCH':
+                    try {
+                        result = await gemini.aiGenerateTextWithSearch(data.prompt);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
                 case 'AI_DESCRIBE_IMAGE':
                     try {
                         result = await gemini.aiDescribeImage(data.base64, data.prompt);
@@ -179,6 +188,17 @@ function RunnerContent({ appId }: Props) {
 
                 case 'NOTIFY_SHOW_NOW':
                     try {
+                        // Request permission if not granted
+                        const showNowPerm = await Notifications.getPermissionsAsync();
+                        if (showNowPerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
                         await Notifications.scheduleNotificationAsync({
                             content: { title: data.title, body: data.message },
                             trigger: null,
@@ -192,6 +212,17 @@ function RunnerContent({ appId }: Props) {
 
                 case 'NOTIFY_SCHEDULE':
                     try {
+                        // Request permission if not granted
+                        const schedulePerm = await Notifications.getPermissionsAsync();
+                        if (schedulePerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
                         const id1 = await Notifications.scheduleNotificationAsync({
                             content: { title: data.title, body: data.message },
                             trigger: {
@@ -208,6 +239,17 @@ function RunnerContent({ appId }: Props) {
 
                 case 'NOTIFY_SCHEDULE_AT':
                     try {
+                        // Request permission if not granted
+                        const scheduleAtPerm = await Notifications.getPermissionsAsync();
+                        if (scheduleAtPerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
                         const id2 = await Notifications.scheduleNotificationAsync({
                             content: { title: data.title, body: data.message },
                             trigger: {

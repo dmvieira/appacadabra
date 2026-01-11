@@ -14,12 +14,14 @@ const fallbackModel = genAI.getGenerativeModel({ model: 'gemma-3-27b-it' });
 // Search model with Google Search and Maps
 const searchModel = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
+    // @ts-ignore - googleMaps exists in API but not in SDK types
     tools: [{ googleSearch: {} }, { googleMaps: {} }],
 });
 
 // Fallback search model
 const searchFallbackModel = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash-lite',
+    // @ts-ignore - googleMaps exists in API but not in SDK types
     tools: [{ googleSearch: {} }, { googleMaps: {} }],
 });
 
@@ -27,14 +29,14 @@ const searchFallbackModel = genAI.getGenerativeModel({
 const audioModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 const audioFallbackModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
-// JSON models for structured output
+// JSON models for structured output (must support JSON mode)
 const primaryJsonModel = genAI.getGenerativeModel({
     model: 'gemini-3-flash-preview',
     generationConfig: { responseMimeType: 'application/json' },
 });
 
 const fallbackJsonModel = genAI.getGenerativeModel({
-    model: 'gemma-3-27b-it',
+    model: 'gemini-2.5-flash-lite',
     generationConfig: { responseMimeType: 'application/json' },
 });
 
@@ -107,6 +109,8 @@ export async function generateApp(description: string): Promise<string> {
     const prompt = `Create a single-file HTML application (including CSS and JS inside <style> and <script> tags) that does the following: ${description}.
 
     Reflect about the app and try to elaborate de instructions to improve based on the user needs.
+    Choose a creative, small and original name for the app based on the description and your reflection.
+    
 
 ${SYSTEM_INSTRUCTIONS}
 
@@ -313,16 +317,37 @@ If information is missing, use null or empty string.`;
 }
 
 export async function aiGenerateTextWithSearch(prompt: string): Promise<string> {
+    // Add instruction to use Google Search for current/real-time information
+    const searchPrompt = `Use o Google Search para buscar informações atuais e relevantes para responder: ${prompt}`;
+
     try {
-        const result = await searchModel.generateContent(prompt);
-        return result.response.text();
+        console.log('Search: calling searchModel with prompt length:', searchPrompt.length);
+        const result = await searchModel.generateContent(searchPrompt);
+
+        // Debug: log response structure
+        console.log('Search: response received');
+        console.log('Search: candidates count:', result.response.candidates?.length || 0);
+        console.log('Search: finish reason:', result.response.candidates?.[0]?.finishReason);
+        console.log('Search: promptFeedback:', JSON.stringify(result.response.promptFeedback));
+
+        const text = result.response.text();
+        console.log('Search: result text length:', text.length);
+
+        if (!text || text.trim() === '') {
+            console.log('Search: Empty result, trying fallback model...');
+            const fallbackResult = await searchFallbackModel.generateContent(searchPrompt);
+            const fallbackText = fallbackResult.response.text();
+            console.log('Search fallback: result length:', fallbackText.length);
+            return fallbackText;
+        }
+        return text;
     } catch (error) {
+        console.error('AI Search Error:', error);
         if (isRateLimitError(error)) {
-            console.log('Rate limit hit on search, trying fallback search model...');
-            const result = await searchFallbackModel.generateContent(prompt);
+            console.log('Search: Rate limit hit, trying fallback search model...');
+            const result = await searchFallbackModel.generateContent(searchPrompt);
             return result.response.text();
         }
-        console.error('AI Search Error:', error);
         throw error;
     }
 }
