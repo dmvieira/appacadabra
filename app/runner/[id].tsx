@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
@@ -43,6 +43,7 @@ export default function RunnerScreen() {
     const { id, edit, share, payload } = useLocalSearchParams<{ id: string; edit?: string; share?: string; payload?: string }>();
     const isFocused = useIsFocused();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const webViewRef = useRef<WebView>(null);
     const [localSharedContent, setLocalSharedContent] = useState<any>(null);
     const [lastProcessedPayload, setLastProcessedPayload] = useState<string | null>(null);
@@ -86,7 +87,11 @@ export default function RunnerScreen() {
             // Scroll with some context (e.g. 5 lines above)
             const targetY = Math.max(0, y - (5 * lineHeight));
             
-            editorScrollRef.current.scrollTo({ y: targetY, animated: true });
+            if (Number.isFinite(targetY)) {
+                setTimeout(() => {
+                    editorScrollRef.current?.scrollTo({ y: targetY, animated: true });
+                }, 100);
+            }
         }
     }, [searchSelection, manualCode]);
 
@@ -842,7 +847,7 @@ export default function RunnerScreen() {
 
             {/* Manual Editor Modal */}
             <Modal visible={showManualEditor} animationType="slide">
-                <SafeAreaView style={styles.editorContainer}>
+                <View style={[styles.editorContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
                     <View style={styles.editorHeader}>
                         <TouchableOpacity onPress={() => setShowManualEditor(false)}>
                             <Text style={styles.cancelText}>Cancelar</Text>
@@ -937,12 +942,16 @@ export default function RunnerScreen() {
                                 setManualCode(text);
                                 setSearchSelection(null);
                             }}
-                            onSelectionChange={() => {
-                                // Clear forced selection after user interacts
+                            onSelectionChange={(e) => {
+                                // Only clear selection if it's user interaction (different from our search selection)
+                                const { selection } = e.nativeEvent;
                                 if (searchSelection) {
-                                    setTimeout(() => setSearchSelection(null), 100);
+                                    if (selection.start !== searchSelection.start || selection.end !== searchSelection.end) {
+                                        setSearchSelection(null);
+                                    }
                                 }
                             }}
+                            selectionColor={colors.tertiary}
                             multiline
                             autoCapitalize="none"
                             autoCorrect={false}
@@ -951,7 +960,7 @@ export default function RunnerScreen() {
                             selection={searchSelection || undefined}
                         />
                     </ScrollView>
-                </SafeAreaView>
+                </View>
             </Modal>
 
             {/* Version History Modal */}

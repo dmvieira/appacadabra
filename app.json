@@ -17,6 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.dmvieira.appacadabra",
       "infoPlist": {
+        "LSSupportsOpeningDocumentsInPlace": true,
         "CFBundleDocumentTypes": [
           {
             "CFBundleTypeName": "All Files",
