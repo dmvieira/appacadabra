@@ -73,6 +73,23 @@ export default function RunnerScreen() {
     const editorScrollRef = useRef<ScrollView>(null);
     const codeInputRef = useRef<TextInput>(null);
 
+    // Scroll to search result
+    useEffect(() => {
+        if (searchSelection && editorScrollRef.current) {
+            const codeBefore = manualCode.substring(0, searchSelection.start);
+            const lines = codeBefore.split('\n');
+            const lineNumber = lines.length - 1;
+            const lineHeight = 18; // Match styles.codeEditor
+            const padding = 16; // Match styles.codeEditor spacing.md
+            const y = padding + (lineNumber * lineHeight);
+            
+            // Scroll with some context (e.g. 5 lines above)
+            const targetY = Math.max(0, y - (5 * lineHeight));
+            
+            editorScrollRef.current.scrollTo({ y: targetY, animated: true });
+        }
+    }, [searchSelection, manualCode]);
+
     // Version history
     const [showHistory, setShowHistory] = useState(false);
     const [versions, setVersions] = useState<AppVersion[]>([]);
@@ -668,7 +685,7 @@ export default function RunnerScreen() {
                     const { url } = request;
                     // External URLs - open in browser
                     if (url.startsWith('http://') || url.startsWith('https://')) {
-                        if (!url.includes('localhost')) {
+                        if (!url.includes('localhost') && !url.includes('appacadabra.local')) {
                             Linking.openURL(url);
                             return false;
                         }
@@ -853,7 +870,13 @@ export default function RunnerScreen() {
                                     setSearchMatches(matches);
                                     setSearchResultCount(matches.length);
                                     setCurrentSearchIndex(0);
-                                    // Don't auto-focus or select - wait for user to click nav buttons
+                                    
+                                    // Auto-select first match to avoid invalid selection state and improve UX
+                                    if (matches.length > 0) {
+                                        setSearchSelection(matches[0]);
+                                    } else {
+                                        setSearchSelection(null);
+                                    }
                                 } else {
                                     setSearchMatches([]);
                                     setSearchResultCount(0);
@@ -902,11 +925,13 @@ export default function RunnerScreen() {
                     <ScrollView
                         ref={editorScrollRef}
                         style={styles.editorBody}
+                        contentContainerStyle={{ flexGrow: 1 }}
                         keyboardShouldPersistTaps="handled"
                     >
                         <TextInput
                             ref={codeInputRef}
                             style={styles.codeEditor}
+                            scrollEnabled={false}
                             value={manualCode}
                             onChangeText={(text) => {
                                 setManualCode(text);

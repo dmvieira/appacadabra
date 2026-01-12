@@ -10,6 +10,9 @@
         "share",
         "intent"
     ],
+    "author": "Diogo Vieira",
+    "license": "MIT",
+    "homepage": "https://github.com/dmvieira/appacadabra",
     "peerDependencies": {
         "expo": "*",
         "react": "*",

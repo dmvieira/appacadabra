@@ -12,8 +12,8 @@ export interface SharingShortcutsInterface {
 // Create a wrapper that handles platform differences
 const SharingShortcutsWrapper: SharingShortcutsInterface = {
     async publishShortcut(id: string, name: string, iconUri?: string | null): Promise<boolean> {
-        if (Platform.OS !== 'android' || !SharingShortcuts) {
-            console.log('SharingShortcuts: Not available on this platform');
+        if (!SharingShortcuts) {
+            console.log('SharingShortcuts: Not available');
             return false;
         }
         try {
@@ -25,7 +25,7 @@ const SharingShortcutsWrapper: SharingShortcutsInterface = {
     },
 
     async removeShortcut(id: string): Promise<boolean> {
-        if (Platform.OS !== 'android' || !SharingShortcuts) {
+        if (!SharingShortcuts) {
             return false;
         }
         try {
@@ -37,7 +37,7 @@ const SharingShortcutsWrapper: SharingShortcutsInterface = {
     },
 
     async removeAllShortcuts(): Promise<boolean> {
-        if (Platform.OS !== 'android' || !SharingShortcuts) {
+        if (!SharingShortcuts) {
             return false;
         }
         try {
@@ -49,7 +49,7 @@ const SharingShortcutsWrapper: SharingShortcutsInterface = {
     },
 
     async getMaxShortcutCount(): Promise<number> {
-        if (Platform.OS !== 'android' || !SharingShortcuts) {
+        if (!SharingShortcuts) {
             return 0;
         }
         try {

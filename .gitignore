@@ -43,6 +43,8 @@ ios/
 *.xcuserstate
 project.xcworkspace/
 xcuserdata/
+ios_build.log
+ios_launch.log
 
 # =====================
 # Android

@@ -7,6 +7,7 @@ import {
     StyleSheet,
     ActivityIndicator,
     Modal,
+    Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -79,6 +80,12 @@ export default function HomeScreen() {
     };
 
     const handleRunApp = async (app: GeneratedApp) => {
+        // On iOS, we just navigate to the runner screen within the same window
+        if (Platform.OS === 'ios') {
+            router.push({ pathname: '/runner/[id]', params: { id: app.id } });
+            return;
+        }
+
         // Use openRunnerWindow which creates separate windows per app
         // This uses FLAG_ACTIVITY_NEW_DOCUMENT for document-based tasks
         console.log('handleRunApp: Opening app window via native', app.id);
@@ -123,6 +130,24 @@ export default function HomeScreen() {
         setIconTarget(null);
     };
 
+    const handleSelectIconFromFile = async () => {
+        if (!iconTarget) return;
+
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['image/*'],
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets[0]) {
+                await updateAppIcon(iconTarget.id, result.assets[0].uri);
+            }
+        } catch (e) {
+            console.error('Error selecting icon from file:', e);
+        }
+        setIconTarget(null);
+    };
+
     const handleSearchIconOnGoogle = async () => {
         if (!iconTarget) return;
 
@@ -151,11 +176,13 @@ export default function HomeScreen() {
     };
 
     const handleImport = async () => {
+        if (isImporting) return;
         setShowMenu(false);
         await importBackup();
     };
 
     const handleImportProject = async () => {
+        if (isImporting) return;
         setShowMenu(false);
 
         const result = await DocumentPicker.getDocumentAsync({
@@ -261,6 +288,10 @@ export default function HomeScreen() {
                         <TouchableOpacity style={styles.iconBtn} onPress={handleSelectIconFromGallery}>
                             <Text style={styles.iconBtnIcon}>🖼️</Text>
                             <Text style={styles.iconBtnText}>Escolher da Galeria</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.iconBtn} onPress={handleSelectIconFromFile}>
+                            <Text style={styles.iconBtnIcon}>📁</Text>
+                            <Text style={styles.iconBtnText}>Escolher dos Arquivos</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.iconBtn} onPress={handleSearchIconOnGoogle}>
                             <Text style={styles.iconBtnIcon}>🔍</Text>
