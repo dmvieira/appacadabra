@@ -19,8 +19,9 @@ class ShortcutsModule : Module() {
       val context = appContext.reactContext ?: return@AsyncFunction false
 
       if (ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
-        val launchUri = Uri.parse("appacadabra://runner/$id?mode=run")
+        val launchUri = Uri.parse("runapp://runner/$id?mode=run")
         val intent = Intent(Intent.ACTION_VIEW, launchUri)
+        intent.setPackage(context.packageName)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
 
         val builder = ShortcutInfoCompat.Builder(context, "app_$id")
@@ -58,8 +59,9 @@ class ShortcutsModule : Module() {
             val name = item["name"] as String
             val iconPath = item["iconPath"] as? String
             
-            val launchUri = Uri.parse("appacadabra://runner/$id?mode=run")
+            val launchUri = Uri.parse("runapp://runner/$id?mode=run")
             val intent = Intent(Intent.ACTION_VIEW, launchUri)
+            intent.setPackage(context.packageName)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
 
             val builder = ShortcutInfoCompat.Builder(context, "dynamic_$id")
