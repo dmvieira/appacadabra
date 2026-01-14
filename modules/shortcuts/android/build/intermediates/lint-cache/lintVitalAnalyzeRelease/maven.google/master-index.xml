@@ -67,6 +67,7 @@
   <androidx.games/>
   <androidx.gaming/>
   <androidx.glance/>
+  <androidx.glance.wear/>
   <androidx.gradle/>
   <androidx.graphics/>
   <androidx.gridlayout/>

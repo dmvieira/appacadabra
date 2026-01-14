@@ -21,12 +21,18 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import * as Contacts from 'expo-contacts';
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as AuthSession from 'expo-auth-session';
+import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript } from '../../lib/bridges/injectedJS';
 import * as gemini from '../../lib/api/gemini';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { GeneratedApp, AppVersion } from '../../lib/database/types';
+import { useSpeechToText } from '../../lib/useSpeech';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -60,6 +66,10 @@ export default function RunnerScreen() {
     const [selectedElement, setSelectedElement] = useState<{ html: string; tagName: string; preview: string } | null>(null);
     const [isEditing, setIsEditing] = useState(false);
 
+    // Speech to text for edit prompt
+    const { isListening, transcript, startListening, stopListening } = useSpeechToText();
+    const [editPromptBeforeSpeech, setEditPromptBeforeSpeech] = useState('');
+
     // Selection mode state
     const [isSelectionMode, setIsSelectionMode] = useState(false);
 
@@ -74,26 +84,136 @@ export default function RunnerScreen() {
     const editorScrollRef = useRef<ScrollView>(null);
     const codeInputRef = useRef<TextInput>(null);
 
-    // Scroll to search result
-    useEffect(() => {
-        if (searchSelection && editorScrollRef.current) {
-            const codeBefore = manualCode.substring(0, searchSelection.start);
-            const lines = codeBefore.split('\n');
-            const lineNumber = lines.length - 1;
-            const lineHeight = 18; // Match styles.codeEditor
-            const padding = 16; // Match styles.codeEditor spacing.md
-            const y = padding + (lineNumber * lineHeight);
-            
-            // Scroll with some context (e.g. 5 lines above)
-            const targetY = Math.max(0, y - (5 * lineHeight));
-            
-            if (Number.isFinite(targetY)) {
-                setTimeout(() => {
-                    editorScrollRef.current?.scrollTo({ y: targetY, animated: true });
-                }, 100);
-            }
+    // Scroll to search result and set selection programmatically
+    const scrollToSearchResult = useCallback((match: { start: number; end: number }) => {
+        if (!editorScrollRef.current || !codeInputRef.current) return;
+
+        const codeBefore = manualCode.substring(0, match.start);
+        const lines = codeBefore.split('\n');
+        const lineNumber = lines.length - 1;
+        const lineHeight = 18;
+        const padding = 16;
+        const y = padding + (lineNumber * lineHeight);
+        // Better scroll target to center the line
+        const targetY = Math.max(0, y - (10 * lineHeight));
+
+        if (Number.isFinite(targetY)) {
+            editorScrollRef.current.scrollTo({ y: targetY, animated: true });
         }
-    }, [searchSelection, manualCode]);
+
+        // Set text selection after a small delay to ensure scroll completes
+        setTimeout(() => {
+            codeInputRef.current?.setNativeProps({ selection: match });
+        }, 150);
+    }, [manualCode]);
+
+    // Render code with search highlights - optimized
+    const renderHighlightedCode = useCallback(() => {
+        if (!searchQuery || searchMatches.length === 0) {
+            return <Text style={styles.codeHighlightText}>{manualCode}</Text>;
+        }
+
+        // Limit number of highlights to prevent performance issues
+        // If too many matches, only highlight current one + first 50
+        const MAX_HIGHLIGHTS = 50;
+        const visibleMatches = searchMatches.length > MAX_HIGHLIGHTS
+            ? searchMatches.filter((_, idx) => idx === currentSearchIndex || idx < MAX_HIGHLIGHTS)
+            : searchMatches;
+
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+
+        visibleMatches.forEach((match, idx) => {
+            // Text before match (only if gap)
+            if (match.start > lastIndex) {
+                // Optimization: don't render massive text chunks if we are skipping matches
+                // Just render the text between previous match and this one
+                parts.push(
+                    <Text key={`pre-${match.start}`} style={styles.codeHighlightText}>
+                        {manualCode.substring(lastIndex, match.start)}
+                    </Text>
+                );
+            }
+            // Highlighted match
+            const isCurrent = (searchMatches[currentSearchIndex] === match);
+            parts.push(
+                <Text
+                    key={`match-${match.start}`}
+                    style={[
+                        styles.codeHighlightText,
+                        styles.searchHighlight,
+                        isCurrent && styles.searchHighlightCurrent
+                    ]}
+                >
+                    {manualCode.substring(match.start, match.end)}
+                </Text>
+            );
+            lastIndex = match.end;
+        });
+
+        // Text after last visible match
+        if (lastIndex < manualCode.length) {
+            parts.push(
+                <Text key="post" style={styles.codeHighlightText}>
+                    {manualCode.substring(lastIndex)}
+                </Text>
+            );
+        }
+
+        return parts;
+    }, [manualCode, searchQuery, searchMatches, currentSearchIndex]);
+
+    // Debounced search effect
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery) {
+                const regex = new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                const matches: { start: number; end: number }[] = [];
+                let match;
+                while ((match = regex.exec(manualCode)) !== null) {
+                    matches.push({ start: match.index, end: match.index + match[0].length });
+                }
+                setSearchMatches(matches);
+                setSearchResultCount(matches.length);
+
+                if (matches.length > 0) {
+                    // If no current selection or invalid index, reset to 0
+                    if (currentSearchIndex >= matches.length) {
+                        setCurrentSearchIndex(0);
+                        scrollToSearchResult(matches[0]);
+                    } else {
+                        // Keep current index if valid
+                        scrollToSearchResult(matches[currentSearchIndex]);
+                    }
+                } else {
+                    setCurrentSearchIndex(0);
+                }
+            } else {
+                setSearchMatches([]);
+                setSearchResultCount(0);
+                setCurrentSearchIndex(0);
+            }
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, manualCode]);
+
+    // Update edit prompt when speech recognition gives results
+    useEffect(() => {
+        if (transcript && isListening) {
+            setEditPrompt(editPromptBeforeSpeech + (editPromptBeforeSpeech ? ' ' : '') + transcript);
+        }
+    }, [transcript, isListening, editPromptBeforeSpeech]);
+
+    // Toggle speech listening for edit prompt
+    const toggleEditListening = () => {
+        if (isListening) {
+            stopListening();
+        } else {
+            setEditPromptBeforeSpeech(editPrompt);
+            startListening();
+        }
+    };
 
     // Version history
     const [showHistory, setShowHistory] = useState(false);
@@ -281,45 +401,15 @@ export default function RunnerScreen() {
                     setShowEditSheet(true);
                     break;
 
-                case 'AI_GENERATE_TEXT':
+                case 'AI_GENERATE':
                     try {
-                        result = await gemini.aiGenerateText(data.prompt);
-                    } catch (e) {
-                        success = false;
-                        result = e instanceof Error ? e.message : 'Error';
-                    }
-                    break;
-
-                case 'AI_GENERATE_TEXT_WITH_SEARCH':
-                    try {
-                        result = await gemini.aiGenerateTextWithSearch(data.prompt);
-                    } catch (e) {
-                        success = false;
-                        result = e instanceof Error ? e.message : 'Error';
-                    }
-                    break;
-
-                case 'AI_DESCRIBE_IMAGE':
-                    try {
-                        result = await gemini.aiDescribeImage(data.base64, data.prompt);
-                    } catch (e) {
-                        success = false;
-                        result = e instanceof Error ? e.message : 'Error';
-                    }
-                    break;
-
-                case 'AI_EXTRACT_STRUCTURED':
-                    try {
-                        result = await gemini.aiExtractStructuredData(data.text, data.schema);
-                    } catch (e) {
-                        success = false;
-                        result = e instanceof Error ? e.message : 'Error';
-                    }
-                    break;
-
-                case 'AI_TRANSCRIBE_AUDIO':
-                    try {
-                        result = await gemini.aiTranscribeAudio(data.base64);
+                        result = await gemini.aiGenerate({
+                            prompt: data.prompt,
+                            search: data.search,
+                            schema: data.schema,
+                            image: data.image,
+                            audio: data.audio,
+                        });
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
@@ -491,6 +581,234 @@ export default function RunnerScreen() {
                         duration: data.duration,
                         responseBody: data.responseBody || data.error,
                     }]);
+                    break;
+
+                // ============= Share Handlers =============
+                case 'SHARE_CONTENT':
+                    try {
+                        if (await Sharing.isAvailableAsync()) {
+                            // For text/URL sharing, we need to create a temp file
+                            const content = data.text || data.url || '';
+                            const tempPath = FileSystem.cacheDirectory + 'share_temp.txt';
+                            await FileSystem.writeAsStringAsync(tempPath, content);
+                            await Sharing.shareAsync(tempPath, { mimeType: 'text/plain', dialogTitle: 'Compartilhar' });
+                            result = 'Shared';
+                        } else {
+                            // Fallback to Linking for URL
+                            if (data.url) {
+                                await Linking.openURL(`mailto:?body=${encodeURIComponent(data.text || '')} ${data.url}`);
+                            }
+                            result = 'Shared via fallback';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'SHARE_FILE':
+                    try {
+                        if (await Sharing.isAvailableAsync()) {
+                            const tempPath = FileSystem.cacheDirectory + (data.filename || 'shared_file');
+                            await FileSystem.writeAsStringAsync(tempPath, data.base64, { encoding: FileSystem.EncodingType.Base64 });
+                            await Sharing.shareAsync(tempPath, { mimeType: data.mimeType || 'application/octet-stream' });
+                            result = 'File shared';
+                        } else {
+                            success = false;
+                            result = 'Sharing not available';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Contacts Handlers =============
+                case 'CONTACTS_GET_ALL':
+                    try {
+                        const contactsPerm = await Contacts.requestPermissionsAsync();
+                        if (contactsPerm.status === 'granted') {
+                            const { data: contacts } = await Contacts.getContactsAsync({
+                                fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
+                            });
+                            result = JSON.stringify(contacts.slice(0, 100)); // Limit to 100
+                        } else {
+                            success = false;
+                            result = 'Contacts permission denied';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'CONTACTS_SEARCH':
+                    try {
+                        const searchPerm = await Contacts.requestPermissionsAsync();
+                        if (searchPerm.status === 'granted') {
+                            const { data: allContacts } = await Contacts.getContactsAsync({
+                                fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
+                            });
+                            const query = (data.query || '').toLowerCase();
+                            const filtered = allContacts.filter(c =>
+                                c.name?.toLowerCase().includes(query) ||
+                                c.phoneNumbers?.some(p => p.number?.includes(query)) ||
+                                c.emails?.some(e => e.email?.toLowerCase().includes(query))
+                            );
+                            result = JSON.stringify(filtered.slice(0, 50));
+                        } else {
+                            success = false;
+                            result = 'Contacts permission denied';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'CONTACTS_ADD':
+                    try {
+                        const addPerm = await Contacts.requestPermissionsAsync();
+                        if (addPerm.status === 'granted') {
+                            const contact = data.contact || {};
+                            const newContact: Contacts.Contact = {
+                                contactType: Contacts.ContactTypes.Person,
+                                name: contact.name || '',
+                                firstName: contact.firstName || contact.name?.split(' ')[0] || '',
+                                lastName: contact.lastName || contact.name?.split(' ').slice(1).join(' ') || '',
+                                phoneNumbers: contact.phone ? [{ number: contact.phone, label: 'mobile' }] : [],
+                                emails: contact.email ? [{ email: contact.email, label: 'work' }] : [],
+                            };
+                            const contactId = await Contacts.addContactAsync(newContact);
+                            result = contactId;
+                        } else {
+                            success = false;
+                            result = 'Contacts permission denied';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Biometrics Handlers =============
+                case 'BIOMETRICS_IS_AVAILABLE':
+                    try {
+                        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+                        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+                        result = JSON.stringify({ available: hasHardware && isEnrolled, types });
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'BIOMETRICS_AUTHENTICATE':
+                    try {
+                        const authResult = await LocalAuthentication.authenticateAsync({
+                            promptMessage: data.reason || 'Autenticar',
+                            fallbackLabel: 'Usar senha',
+                            disableDeviceFallback: false,
+                        });
+                        result = JSON.stringify(authResult);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Auth Handlers =============
+                case 'AUTH_OPEN_URL':
+                    try {
+                        // Open auth URL in browser and return the redirect result
+                        const redirectUri = data.redirectUrl || AuthSession.makeRedirectUri();
+                        const authUrl = data.authUrl.includes('redirect_uri=')
+                            ? data.authUrl
+                            : `${data.authUrl}${data.authUrl.includes('?') ? '&' : '?'}redirect_uri=${encodeURIComponent(redirectUri)}`;
+                        await Linking.openURL(authUrl);
+                        result = JSON.stringify({ type: 'opened', redirectUri });
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Sensors Handlers =============
+                case 'SENSORS_START_ACCELEROMETER':
+                    try {
+                        Accelerometer.setUpdateInterval(data.intervalMs || 100);
+                        const sub = Accelerometer.addListener(sensorData => {
+                            if (webViewRef.current && data.callbackName) {
+                                const script = createCallbackScript(data.callbackName, true, JSON.stringify(sensorData));
+                                webViewRef.current.injectJavaScript(script);
+                            }
+                        });
+                        // Store subscription for later cleanup - in real app would need ref
+                        result = 'Accelerometer started';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'SENSORS_START_GYROSCOPE':
+                    try {
+                        Gyroscope.setUpdateInterval(data.intervalMs || 100);
+                        const sub = Gyroscope.addListener(sensorData => {
+                            if (webViewRef.current && data.callbackName) {
+                                const script = createCallbackScript(data.callbackName, true, JSON.stringify(sensorData));
+                                webViewRef.current.injectJavaScript(script);
+                            }
+                        });
+                        result = 'Gyroscope started';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'SENSORS_START_MAGNETOMETER':
+                    try {
+                        Magnetometer.setUpdateInterval(data.intervalMs || 100);
+                        Magnetometer.addListener(sensorData => {
+                            if (webViewRef.current && data.callbackName) {
+                                // Calculate heading/compass bearing from magnetometer data
+                                const { x, y } = sensorData;
+                                let heading = Math.atan2(y, x) * (180 / Math.PI);
+                                if (heading < 0) heading += 360;
+                                const dataWithHeading = { ...sensorData, heading };
+                                const script = createCallbackScript(data.callbackName, true, JSON.stringify(dataWithHeading));
+                                webViewRef.current.injectJavaScript(script);
+                            }
+                        });
+                        result = 'Magnetometer started';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'SENSORS_STOP_ACCELEROMETER':
+                    Accelerometer.removeAllListeners();
+                    result = 'Accelerometer stopped';
+                    break;
+
+                case 'SENSORS_STOP_GYROSCOPE':
+                    Gyroscope.removeAllListeners();
+                    result = 'Gyroscope stopped';
+                    break;
+
+                case 'SENSORS_STOP_MAGNETOMETER':
+                    Magnetometer.removeAllListeners();
+                    result = 'Magnetometer stopped';
+                    break;
+
+                case 'SENSORS_STOP_ALL':
+                    Accelerometer.removeAllListeners();
+                    Gyroscope.removeAllListeners();
+                    Magnetometer.removeAllListeners();
+                    result = 'All sensors stopped';
                     break;
 
                 default:
@@ -809,18 +1127,32 @@ export default function RunnerScreen() {
                                 <Text style={styles.instructionLabel}>
                                     {selectedElement ? 'Instrução para o elemento:' : 'O que você quer alterar?'}
                                 </Text>
-                                <TextInput
-                                    style={styles.editInput}
-                                    value={editPrompt}
-                                    onChangeText={setEditPrompt}
-                                    placeholder={selectedElement
-                                        ? "Ex: mude a cor para azul, adicione um ícone..."
-                                        : "Descreva as mudanças desejadas..."
+                                <View style={styles.editInputContainer}>
+                                    <TextInput
+                                        style={styles.editInput}
+                                        value={editPrompt}
+                                        onChangeText={setEditPrompt}
+                                        placeholder={selectedElement
+                                            ? "Ex: mude a cor para azul, adicione um ícone..."
+                                            : "Descreva as mudanças desejadas..."
+                                        }
+                                        placeholderTextColor={colors.onSurfaceVariant}
+                                        multiline
+                                        numberOfLines={3}
+                                    />
+                                    <TouchableOpacity
+                                        style={[styles.editMicBtn, isListening && styles.editMicBtnActive]}
+                                        onPress={toggleEditListening}
+                                    >
+                                        <Text style={styles.editMicIcon}>{isListening ? '🔴' : '🎤'}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                <Text style={styles.editHint}>
+                                    {isListening
+                                        ? '🎤 Ouvindo... Toque para parar'
+                                        : '💡 Descreva ou use o microfone para falar'
                                     }
-                                    placeholderTextColor={colors.onSurfaceVariant}
-                                    multiline
-                                    numberOfLines={3}
-                                />
+                                </Text>
 
                                 <View style={styles.sheetButtons}>
                                     <TouchableOpacity
@@ -863,32 +1195,7 @@ export default function RunnerScreen() {
                         <TextInput
                             style={styles.searchInput}
                             value={searchQuery}
-                            onChangeText={(text) => {
-                                setSearchQuery(text);
-                                if (text) {
-                                    const regex = new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                                    const matches: { start: number; end: number }[] = [];
-                                    let match;
-                                    while ((match = regex.exec(manualCode)) !== null) {
-                                        matches.push({ start: match.index, end: match.index + match[0].length });
-                                    }
-                                    setSearchMatches(matches);
-                                    setSearchResultCount(matches.length);
-                                    setCurrentSearchIndex(0);
-                                    
-                                    // Auto-select first match to avoid invalid selection state and improve UX
-                                    if (matches.length > 0) {
-                                        setSearchSelection(matches[0]);
-                                    } else {
-                                        setSearchSelection(null);
-                                    }
-                                } else {
-                                    setSearchMatches([]);
-                                    setSearchResultCount(0);
-                                    setCurrentSearchIndex(0);
-                                    setSearchSelection(null);
-                                }
-                            }}
+                            onChangeText={setSearchQuery}
                             placeholder="Pesquisar no código..."
                             placeholderTextColor={colors.onSurfaceVariant}
                         />
@@ -900,7 +1207,7 @@ export default function RunnerScreen() {
                                         const newIndex = currentSearchIndex > 0 ? currentSearchIndex - 1 : searchMatches.length - 1;
                                         setCurrentSearchIndex(newIndex);
                                         setSearchSelection(searchMatches[newIndex]);
-                                        codeInputRef.current?.focus();
+                                        scrollToSearchResult(searchMatches[newIndex]);
                                     }}
                                 >
                                     <Text style={styles.searchNavText}>▲</Text>
@@ -914,7 +1221,7 @@ export default function RunnerScreen() {
                                         const newIndex = currentSearchIndex < searchMatches.length - 1 ? currentSearchIndex + 1 : 0;
                                         setCurrentSearchIndex(newIndex);
                                         setSearchSelection(searchMatches[newIndex]);
-                                        codeInputRef.current?.focus();
+                                        scrollToSearchResult(searchMatches[newIndex]);
                                     }}
                                 >
                                     <Text style={styles.searchNavText}>▼</Text>
@@ -933,32 +1240,29 @@ export default function RunnerScreen() {
                         contentContainerStyle={{ flexGrow: 1 }}
                         keyboardShouldPersistTaps="handled"
                     >
-                        <TextInput
-                            ref={codeInputRef}
-                            style={styles.codeEditor}
-                            scrollEnabled={false}
-                            value={manualCode}
-                            onChangeText={(text) => {
-                                setManualCode(text);
-                                setSearchSelection(null);
-                            }}
-                            onSelectionChange={(e) => {
-                                // Only clear selection if it's user interaction (different from our search selection)
-                                const { selection } = e.nativeEvent;
-                                if (searchSelection) {
-                                    if (selection.start !== searchSelection.start || selection.end !== searchSelection.end) {
-                                        setSearchSelection(null);
-                                    }
-                                }
-                            }}
-                            selectionColor={colors.tertiary}
-                            multiline
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            spellCheck={false}
-                            textAlignVertical="top"
-                            selection={searchSelection || undefined}
-                        />
+                        <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
+                            <View style={styles.codeEditorContainer}>
+                                {/* Highlight underlay */}
+                                <Text style={[styles.codeEditor, styles.codeHighlightUnderlay]} pointerEvents="none">
+                                    {renderHighlightedCode()}
+                                </Text>
+                                {/* Actual editable TextInput */}
+                                <TextInput
+                                    ref={codeInputRef}
+                                    style={[styles.codeEditor, styles.codeEditorInput]}
+                                    scrollEnabled={false}
+                                    value={manualCode}
+                                    onChangeText={setManualCode}
+                                    onSelectionChange={() => { }}
+                                    selectionColor={colors.tertiary}
+                                    multiline
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    spellCheck={false}
+                                    textAlignVertical="top"
+                                />
+                            </View>
+                        </ScrollView>
                     </ScrollView>
                 </View>
             </Modal>
@@ -1179,14 +1483,40 @@ const styles = StyleSheet.create({
         color: colors.onSurface,
         marginBottom: spacing.md,
     },
+    editInputContainer: {
+        position: 'relative',
+    },
     editInput: {
         backgroundColor: colors.surfaceVariant,
         borderRadius: borderRadius.md,
         padding: spacing.md,
+        paddingRight: 56, // Space for mic button
         color: colors.onSurface,
         fontSize: 16,
         minHeight: 100,
         textAlignVertical: 'top',
+    },
+    editMicBtn: {
+        position: 'absolute',
+        right: spacing.sm,
+        bottom: spacing.sm,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.primaryContainer,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    editMicBtnActive: {
+        backgroundColor: colors.error,
+    },
+    editMicIcon: {
+        fontSize: 20,
+    },
+    editHint: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+        marginTop: spacing.sm,
     },
     sheetButtons: {
         flexDirection: 'row',
@@ -1441,5 +1771,34 @@ const styles = StyleSheet.create({
     searchNoResults: {
         color: colors.onSurfaceVariant,
         fontSize: 12,
+    },
+    // Code editor with highlight
+    codeEditorContainer: {
+        position: 'relative',
+        flexGrow: 1,
+        minWidth: '100%',
+    },
+    codeHighlightUnderlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+    },
+    codeEditorInput: {
+        backgroundColor: 'transparent',
+        color: colors.onSurface,
+    },
+    codeHighlightText: {
+        color: colors.onSurface,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    searchHighlight: {
+        backgroundColor: colors.tertiary + '40',
+        borderRadius: 2,
+    },
+    searchHighlightCurrent: {
+        backgroundColor: colors.tertiary + '90',
     },
 });

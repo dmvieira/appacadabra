@@ -25,9 +25,7 @@ const searchFallbackModel = genAI.getGenerativeModel({
     tools: [{ googleSearch: {} }, { googleMaps: {} }],
 });
 
-// Audio transcription models
-const audioModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-const audioFallbackModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+
 
 // JSON models for structured output (must support JSON mode)
 const primaryJsonModel = genAI.getGenerativeModel({
@@ -70,21 +68,55 @@ How to create timestamps in JavaScript:
 - AppacadabraNotify.showNow(title, message, callback) - Show notification immediately
 - AppacadabraNotify.scheduleNotification(title, message, delayMinutes, callback) - Schedule notification
 
-🤖 AI API (AppacadabraAI) - use when there it should be better than deterministic approaches:
-1. AppacadabraAI.generateText(prompt, callbackName) - Generate text without search (priorize it)
-2. AppacadabraAI.generateTextWithSearch(prompt, callbackName) - Generate with web or maps search
-3. AppacadabraAI.describeImage(base64, prompt, callbackName) - Describe image
-4. AppacadabraAI.transcribeAudio(base64, callbackName) - Transcribe audio
-5. AppacadabraAI.extractStructuredData(text, schema, callbackName) - Extract structured JSON data (priorize it)
+🤖 AI API (AppacadabraAI) - Fluent Builder Pattern:
+Use encadeamento para configurar e chamar:
+
+  AppacadabraAI.generate(prompt, callback)                    // Geração básica de texto
+  AppacadabraAI.withSearch().generate(prompt, callback)       // Busca na web/maps + texto
+  AppacadabraAI.withSchema(schema).generate(text, callback)   // Extração de JSON estruturado
+  AppacadabraAI.fromImage(base64).generate(prompt, callback)  // Análise/descrição de imagem
+  AppacadabraAI.fromAudio(base64).generate(callback)          // Transcrição de áudio
+
+Combinações avançadas (podem ser encadeadas):
+  AppacadabraAI.withSchema(schema).withSearch().generate(prompt, callback)         // Busca → JSON
+  AppacadabraAI.fromImage(base64).withSearch().withSchema(schema).generate(prompt, callback) // Imagem + Web → JSON
+  AppacadabraAI.fromAudio(base64).withSearch().withSchema(schema).generate(prompt, callback) // Audio + Web → JSON
+
+Exemplos de schema: { name: "", age: 0, items: [] }
 
 ⚠️ IMPORTANT: All callbacks must be GLOBAL FUNCTIONS referenced by NAME (string).
 Example:
   window.handleResult = function(success, data) {
     if (success) console.log(data);
   };
-  AppacadabraAI.generateText("Hello", "handleResult");
+  AppacadabraAI.generate("Hello", "handleResult");
 
 All callbacks receive: function(success: boolean, result: string)
+
+📤 SHARE API (AppacadabraShare):
+  AppacadabraShare.share(text, url, callback)              // Compartilhar texto/URL
+  AppacadabraShare.shareFile(base64, mimeType, filename, callback) // Compartilhar arquivo
+
+📇 CONTACTS API (AppacadabraContacts):
+  AppacadabraContacts.getAll(callback)                     // Listar contatos (retorna JSON)
+  AppacadabraContacts.search(query, callback)              // Buscar contatos por nome/telefone/email
+  AppacadabraContacts.add({name, phone, email}, callback)  // Adicionar contato
+
+🔐 BIOMETRICS API (AppacadabraBiometrics):
+  AppacadabraBiometrics.isAvailable(callback)              // Verifica suporte (retorna JSON)
+  AppacadabraBiometrics.authenticate(reason, callback)     // Autenticar (Face ID/Touch ID/Fingerprint)
+
+🔑 AUTH API (AppacadabraAuth):
+  AppacadabraAuth.openAuthURL(authUrl, redirectUrl, callback) // Abre URL de OAuth no browser
+
+📱 SENSORS API (AppacadabraSensors):
+  AppacadabraSensors.startAccelerometer(intervalMs, callback) // Inicia acelerômetro (callback contínuo)
+  AppacadabraSensors.startGyroscope(intervalMs, callback)     // Inicia giroscópio (callback contínuo)
+  AppacadabraSensors.startMagnetometer(intervalMs, callback)  // Bússola: retorna {x, y, z, heading}
+  AppacadabraSensors.stopAccelerometer()                      // Para acelerômetro
+  AppacadabraSensors.stopGyroscope()                          // Para giroscópio
+  AppacadabraSensors.stopMagnetometer()                       // Para magnetômetro
+  AppacadabraSensors.stopAll()                                // Para todos os sensores
 `;
 
 function isRateLimitError(error: unknown): boolean {
@@ -254,46 +286,7 @@ export async function aiDescribeImage(base64Image: string, prompt: string): Prom
     }
 }
 
-export async function aiTranscribeAudio(base64Audio: string): Promise<string> {
-    // Clean base64 prefix if present (e.g., data:audio/webm;base64,)
-    const cleanBase64 = base64Audio
-        .replace(/^data:audio\/[^;]+;base64,/, '');
 
-    // Detect mime type from prefix or default to webm
-    let mimeType = 'audio/webm';
-    const mimeMatch = base64Audio.match(/^data:(audio\/[^;]+);base64,/);
-    if (mimeMatch) {
-        mimeType = mimeMatch[1];
-    }
-
-    try {
-        const result = await audioModel.generateContent([
-            {
-                inlineData: {
-                    mimeType: mimeType,
-                    data: cleanBase64,
-                },
-            },
-            'Transcribe this audio to text. Return only the transcription, no additional commentary.',
-        ]);
-        return result.response.text();
-    } catch (error) {
-        if (isRateLimitError(error)) {
-            console.log('Rate limit hit, trying audio fallback model...');
-            const result = await audioFallbackModel.generateContent([
-                {
-                    inlineData: {
-                        mimeType: mimeType,
-                        data: cleanBase64,
-                    },
-                },
-                'Transcribe this audio to text. Return only the transcription, no additional commentary.',
-            ]);
-            return result.response.text();
-        }
-        throw error;
-    }
-}
 
 export async function aiExtractStructuredData(text: string, schemaJson: string): Promise<string> {
     const prompt = `Extract structured data from this text: "${text}"
@@ -387,6 +380,123 @@ The HTML must be fully functional and self-contained.`;
             const result = await fallbackModel.generateContent(prompt);
             const text = result.response.text();
             return extractHtml(text);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Unified AI generate function that handles all options from the fluent builder
+ */
+export interface AIGenerateOptions {
+    prompt?: string | null;
+    search?: boolean;
+    schema?: object | null;
+    image?: string | null;
+    audio?: string | null;
+}
+
+export async function aiGenerate(options: AIGenerateOptions): Promise<string> {
+    const { prompt, search, schema, image, audio } = options;
+    const schemaJson = schema ? JSON.stringify(schema) : null;
+
+    // ===== Audio-based flows (1 call - model handles transcription + processing) =====
+    if (audio) {
+        const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
+        let mimeType = 'audio/webm';
+        const mimeMatch = audio.match(/^data:(audio\/[^;]+);base64,/);
+        if (mimeMatch) mimeType = mimeMatch[1];
+        const audioData = { inlineData: { mimeType, data: cleanBase64 } };
+
+        // Audio + Schema (with or without search): transcribe and extract JSON in one call
+        if (schemaJson) {
+            const extractPrompt = search
+                ? `Transcribe this audio. Use Google Search to enrich the content with context. Then extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`
+                : `Transcribe this audio and extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`;
+
+            if (search) {
+                const result = await searchModel.generateContent([audioData, extractPrompt]);
+                return result.response.text();
+            }
+            const result = await primaryJsonModel.generateContent([audioData, extractPrompt]);
+            return result.response.text();
+        }
+
+        // Audio + Search: transcribe with web context in one call
+        if (search) {
+            const searchPrompt = `Transcribe this audio. Use Google Search to find relevant information about the content. ${prompt || 'Provide detailed context.'}`;
+            const result = await searchModel.generateContent([audioData, searchPrompt]);
+            return result.response.text();
+        }
+
+        // Audio only: just transcribe (1 call)
+        const transcribePrompt = prompt || 'Transcribe this audio to text. Return only the transcription.';
+        const result = await primaryModel.generateContent([audioData, transcribePrompt]);
+        return result.response.text();
+    }
+
+    // ===== Image-based flows =====
+    if (image) {
+        const cleanBase64 = image.replace(/^data:image\/[^;]+;base64,/, '');
+        const imageData = { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } };
+
+        // Image + Schema (with or without search): describe and extract JSON in one call
+        if (schemaJson) {
+            const extractPrompt = search
+                ? `Analyze this image. Use Google Search to find more information about what you see. Then extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`
+                : `Analyze this image and extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`;
+
+            if (search) {
+                const result = await searchModel.generateContent([imageData, extractPrompt]);
+                return result.response.text();
+            }
+            const result = await primaryJsonModel.generateContent([imageData, extractPrompt]);
+            return result.response.text();
+        }
+
+        // Image + Search: describe with web context in one call
+        if (search) {
+            const searchPrompt = `Analyze this image. Use Google Search to find relevant information about what you see. ${prompt || 'Provide detailed context.'}`;
+            const result = await searchModel.generateContent([imageData, searchPrompt]);
+            return result.response.text();
+        }
+
+        // Image only: just describe (1 call)
+        return await aiDescribeImage(image, prompt || 'Describe this image in detail.');
+    }
+
+    // ===== Text-based flows =====
+
+    // Schema + Search: search and extract JSON in one call using search model with JSON instruction
+    if (schemaJson && search) {
+        const combinedPrompt = `Use Google Search to find information about: ${prompt || ''}\n\nThen extract structured data matching this JSON schema: ${schemaJson}\nReturn only valid JSON.`;
+        const result = await searchModel.generateContent(combinedPrompt);
+        return result.response.text();
+    }
+
+    // Schema only: extract structured data (1 call)
+    if (schemaJson) {
+        return await aiExtractStructuredData(prompt || '', schemaJson);
+    }
+
+    // Search only: generate with web search (1 call)
+    if (search) {
+        return await aiGenerateTextWithSearch(prompt || '');
+    }
+
+    // Basic text generation (1 call)
+    return await aiGenerateText(prompt || '');
+}
+
+// Helper for JSON model calls
+async function callJsonModel(prompt: string): Promise<string> {
+    try {
+        const result = await fallbackJsonModel.generateContent(prompt);
+        return result.response.text();
+    } catch (error) {
+        if (isRateLimitError(error)) {
+            const result = await primaryJsonModel.generateContent(prompt);
+            return result.response.text();
         }
         throw error;
     }

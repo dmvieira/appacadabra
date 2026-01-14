@@ -49,46 +49,185 @@ export function getInjectedJavaScript(appId: number): string {
     }
   }
 
-  // Expose bridges matching Gemini system prompt
-  window.AppacadabraAI = {
-    generateText: function(prompt, callbackName) {
-        sendMessage('AI_GENERATE_TEXT', { prompt }, callbackName);
-    },
-    generateTextWithSearch: function(prompt, callbackName) {
-        sendMessage('AI_GENERATE_TEXT_WITH_SEARCH', { prompt }, callbackName);
-    },
-    describeImage: function(base64, prompt, callbackName) {
-        sendMessage('AI_DESCRIBE_IMAGE', { base64, prompt }, callbackName);
-    },
-    transcribeAudio: function(base64, callbackName) {
-        sendMessage('AI_TRANSCRIBE_AUDIO', { base64 }, callbackName);
-    },
-    extractStructuredData: function(text, schema, callbackName) {
-        sendMessage('AI_EXTRACT_STRUCTURED', { text, schema }, callbackName);
+  // Expose fluent/builder AI API
+  window.AppacadabraAI = (function() {
+    function AIBuilder() {
+      this.options = {
+        search: false,
+        schema: null,
+        image: null,
+        audio: null
+      };
     }
-  };
+    
+    AIBuilder.prototype.withSearch = function() {
+      this.options.search = true;
+      return this;
+    };
+    
+    AIBuilder.prototype.withSchema = function(schema) {
+      this.options.schema = schema;
+      return this;
+    };
+    
+    AIBuilder.prototype.fromImage = function(base64) {
+      this.options.image = base64;
+      return this;
+    };
+    
+    AIBuilder.prototype.fromAudio = function(base64) {
+      this.options.audio = base64;
+      return this;
+    };
+    
+    AIBuilder.prototype.generate = function(prompt, callbackName) {
+      // Build log message
+      var logParts = ['[AppacadabraAI.generate]'];
+      if (this.options.search) logParts.push('search:true');
+      if (this.options.schema) logParts.push('schema:' + JSON.stringify(this.options.schema));
+      if (this.options.image) logParts.push('image:' + (this.options.image?.length || 0) + 'chars');
+      if (this.options.audio) logParts.push('audio:' + (this.options.audio?.length || 0) + 'chars');
+      if (prompt) logParts.push('prompt:' + (prompt?.substring ? prompt.substring(0, 80) : prompt));
+      logParts.push('callback:' + callbackName);
+      console.log(logParts.join(' '));
+      
+      sendMessage('AI_GENERATE', {
+        prompt: prompt,
+        search: this.options.search,
+        schema: this.options.schema,
+        image: this.options.image,
+        audio: this.options.audio
+      }, callbackName);
+    };
+    
+    // Factory methods that return new builder instances
+    return {
+      withSearch: function() { return new AIBuilder().withSearch(); },
+      withSchema: function(s) { return new AIBuilder().withSchema(s); },
+      fromImage: function(b) { return new AIBuilder().fromImage(b); },
+      fromAudio: function(b) { return new AIBuilder().fromAudio(b); },
+      generate: function(prompt, cb) { return new AIBuilder().generate(prompt, cb); }
+    };
+  })();
 
   window.AppacadabraCalendar = {
     createEvent: function(title, description, startTimeMs, endTimeMs, callbackName) {
+        console.log('[AppacadabraCalendar.createEvent] title:', title, 'start:', new Date(startTimeMs).toISOString(), 'end:', new Date(endTimeMs).toISOString(), 'callback:', callbackName);
         sendMessage('CALENDAR_CREATE_EVENT', { title, description, startTimeMs, endTimeMs }, callbackName);
     },
     createEventWithReminder: function(title, description, startTimeMs, endTimeMs, reminderMinutes, callbackName) {
+        console.log('[AppacadabraCalendar.createEventWithReminder] title:', title, 'reminder:', reminderMinutes, 'min, callback:', callbackName);
         sendMessage('CALENDAR_CREATE_EVENT_REMINDER', { title, description, startTimeMs, endTimeMs, reminderMinutes }, callbackName);
     }
   };
 
   window.AppacadabraNotify = {
     showNow: function(title, message, callbackName) {
+        console.log('[AppacadabraNotify.showNow] title:', title, 'message:', message, 'callback:', callbackName);
         sendMessage('NOTIFY_SHOW_NOW', { title, message }, callbackName);
     },
     scheduleNotification: function(title, message, delayMinutes, callbackName) {
+        console.log('[AppacadabraNotify.scheduleNotification] title:', title, 'delay:', delayMinutes, 'min, callback:', callbackName);
         sendMessage('NOTIFY_SCHEDULE', { title, message, delayMinutes }, callbackName);
     }
   };
 
   window.AppacadabraLocation = {
     getCurrentPosition: function(callbackName) {
+        console.log('[AppacadabraLocation.getCurrentPosition] callback:', callbackName);
         sendMessage('LOCATION_GET_CURRENT_POSITION', {}, callbackName);
+    }
+  };
+
+  // ============= Share Bridge =============
+  window.AppacadabraShare = {
+    share: function(text, url, callbackName) {
+        console.log('[AppacadabraShare.share] text:', text?.substring(0, 50), 'url:', url, 'callback:', callbackName);
+        sendMessage('SHARE_CONTENT', { text, url }, callbackName);
+    },
+    shareFile: function(base64, mimeType, filename, callbackName) {
+        console.log('[AppacadabraShare.shareFile] mimeType:', mimeType, 'filename:', filename, 'callback:', callbackName);
+        sendMessage('SHARE_FILE', { base64, mimeType, filename }, callbackName);
+    }
+  };
+
+  // ============= Contacts Bridge =============
+  window.AppacadabraContacts = {
+    getAll: function(callbackName) {
+        console.log('[AppacadabraContacts.getAll] callback:', callbackName);
+        sendMessage('CONTACTS_GET_ALL', {}, callbackName);
+    },
+    search: function(query, callbackName) {
+        console.log('[AppacadabraContacts.search] query:', query, 'callback:', callbackName);
+        sendMessage('CONTACTS_SEARCH', { query }, callbackName);
+    },
+    pick: function(callbackName) {
+        console.log('[AppacadabraContacts.pick] callback:', callbackName);
+        sendMessage('CONTACTS_PICK', {}, callbackName);
+    },
+    add: function(contact, callbackName) {
+        console.log('[AppacadabraContacts.add] name:', contact?.name, 'callback:', callbackName);
+        sendMessage('CONTACTS_ADD', { contact }, callbackName);
+    }
+  };
+
+  // ============= Biometrics Bridge =============
+  window.AppacadabraBiometrics = {
+    isAvailable: function(callbackName) {
+        console.log('[AppacadabraBiometrics.isAvailable] callback:', callbackName);
+        sendMessage('BIOMETRICS_IS_AVAILABLE', {}, callbackName);
+    },
+    authenticate: function(reason, callbackName) {
+        console.log('[AppacadabraBiometrics.authenticate] reason:', reason, 'callback:', callbackName);
+        sendMessage('BIOMETRICS_AUTHENTICATE', { reason }, callbackName);
+    }
+  };
+
+  // ============= Auth/SSO Bridge =============
+  window.AppacadabraAuth = {
+    loginWithGoogle: function(callbackName) {
+        console.log('[AppacadabraAuth.loginWithGoogle] callback:', callbackName);
+        sendMessage('AUTH_GOOGLE', {}, callbackName);
+    },
+    loginWithApple: function(callbackName) {
+        console.log('[AppacadabraAuth.loginWithApple] callback:', callbackName);
+        sendMessage('AUTH_APPLE', {}, callbackName);
+    },
+    openAuthURL: function(authUrl, redirectUrl, callbackName) {
+        console.log('[AppacadabraAuth.openAuthURL] url:', authUrl, 'callback:', callbackName);
+        sendMessage('AUTH_OPEN_URL', { authUrl, redirectUrl }, callbackName);
+    }
+  };
+
+  // ============= Sensors Bridge =============
+  window.AppacadabraSensors = {
+    startAccelerometer: function(intervalMs, callbackName) {
+        console.log('[AppacadabraSensors.startAccelerometer] interval:', intervalMs, 'callback:', callbackName);
+        sendMessage('SENSORS_START_ACCELEROMETER', { intervalMs, callbackName }, callbackName);
+    },
+    startGyroscope: function(intervalMs, callbackName) {
+        console.log('[AppacadabraSensors.startGyroscope] interval:', intervalMs, 'callback:', callbackName);
+        sendMessage('SENSORS_START_GYROSCOPE', { intervalMs, callbackName }, callbackName);
+    },
+    startMagnetometer: function(intervalMs, callbackName) {
+        console.log('[AppacadabraSensors.startMagnetometer] interval:', intervalMs, 'callback:', callbackName);
+        sendMessage('SENSORS_START_MAGNETOMETER', { intervalMs, callbackName }, callbackName);
+    },
+    stopAccelerometer: function() {
+        console.log('[AppacadabraSensors.stopAccelerometer]');
+        sendMessage('SENSORS_STOP_ACCELEROMETER', {});
+    },
+    stopGyroscope: function() {
+        console.log('[AppacadabraSensors.stopGyroscope]');
+        sendMessage('SENSORS_STOP_GYROSCOPE', {});
+    },
+    stopMagnetometer: function() {
+        console.log('[AppacadabraSensors.stopMagnetometer]');
+        sendMessage('SENSORS_STOP_MAGNETOMETER', {});
+    },
+    stopAll: function() {
+        console.log('[AppacadabraSensors.stopAll]');
+        sendMessage('SENSORS_STOP_ALL', {});
     }
   };
   
