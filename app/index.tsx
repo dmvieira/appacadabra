@@ -32,7 +32,7 @@ export default function HomeScreen() {
         isGenerating,
         isImporting,
         error,
-        backupStatus,
+        statusMessage,
         loadApps,
         openApp,
         createApp,
@@ -43,7 +43,8 @@ export default function HomeScreen() {
         importBackup,
         importProject,
         clearError,
-        clearBackupStatus,
+        clearStatusMessage,
+        setStatusMessage,
     } = useAppStore();
 
     // Dialog states
@@ -52,6 +53,7 @@ export default function HomeScreen() {
     const [deleteTarget, setDeleteTarget] = useState<GeneratedApp | null>(null);
     const [showMenu, setShowMenu] = useState(false);
     const [iconTarget, setIconTarget] = useState<GeneratedApp | null>(null);
+    const [isPicking, setIsPicking] = useState(false);
 
     useEffect(() => {
         loadApps();
@@ -63,13 +65,13 @@ export default function HomeScreen() {
         }
     }, [apps]);
 
-    // Clear backup status after 3 seconds
+    // Clear status message after 3 seconds
     useEffect(() => {
-        if (backupStatus) {
-            const timer = setTimeout(() => clearBackupStatus(), 3000);
+        if (statusMessage) {
+            const timer = setTimeout(() => clearStatusMessage(), 3000);
             return () => clearTimeout(timer);
         }
-    }, [backupStatus]);
+    }, [statusMessage]);
 
     const handleCreateApp = async (description: string) => {
         const app = await createApp(description);
@@ -115,25 +117,33 @@ export default function HomeScreen() {
         }
     };
     const handleSelectIconFromGallery = async () => {
-        if (!iconTarget) return;
+        if (!iconTarget || isPicking) return;
 
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
+        try {
+            setIsPicking(true);
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
 
-        if (!result.canceled && result.assets[0]) {
-            await updateAppIcon(iconTarget.id, result.assets[0].uri);
+            if (!result.canceled && result.assets[0]) {
+                await updateAppIcon(iconTarget.id, result.assets[0].uri);
+            }
+        } catch (e) {
+            console.error('Error selecting icon from gallery:', e);
+        } finally {
+            setIsPicking(false);
         }
         setIconTarget(null);
     };
 
     const handleSelectIconFromFile = async () => {
-        if (!iconTarget) return;
+        if (!iconTarget || isPicking) return;
 
         try {
+            setIsPicking(true);
             const result = await DocumentPicker.getDocumentAsync({
                 type: ['image/*'],
                 copyToCacheDirectory: true,
@@ -144,6 +154,8 @@ export default function HomeScreen() {
             }
         } catch (e) {
             console.error('Error selecting icon from file:', e);
+        } finally {
+            setIsPicking(false);
         }
         setIconTarget(null);
     };
@@ -163,10 +175,9 @@ export default function HomeScreen() {
     const handleCreateShortcut = async (app: GeneratedApp) => {
         const result = await createShortcut(app.id, app.name, app.iconPath || null);
         if (result) {
-            // Note: success means request sent, but on newer Android it shows a dialog
-            // alert('Atalho criado (ou solicitado)!', 'Verifique sua tela inicial.');
+            setStatusMessage(`Atalho criado para ${app.name}`);
         } else {
-            // alert('Erro', 'Não foi possível criar o atalho.');
+            setStatusMessage('Erro ao criar atalho');
         }
     };
 
@@ -175,30 +186,58 @@ export default function HomeScreen() {
         await exportBackup();
     };
 
-    const handleImport = async () => {
-        if (isImporting) return;
+    const handleImport = () => {
+        if (isImporting || isPicking) return;
         setShowMenu(false);
-        await importBackup();
+        setIsPicking(true);
+        
+        setTimeout(async () => {
+            try {
+                const result = await DocumentPicker.getDocumentAsync({
+                    type: ['application/json', 'text/plain'],
+                    copyToCacheDirectory: true,
+                });
+
+                if (result.canceled || !result.assets?.[0]) {
+                    return;
+                }
+
+                await importBackup(result.assets[0].uri);
+            } catch (error) {
+                console.error('Error picking backup file:', error);
+            } finally {
+                setIsPicking(false);
+            }
+        }, 300);
     };
 
-    const handleImportProject = async () => {
-        if (isImporting) return;
+    const handleImportProject = () => {
+        if (isImporting || isPicking) return;
         setShowMenu(false);
+        setIsPicking(true);
 
-        const result = await DocumentPicker.getDocumentAsync({
-            type: 'application/zip',
-            copyToCacheDirectory: true,
-        });
+        setTimeout(async () => {
+            try {
+                const result = await DocumentPicker.getDocumentAsync({
+                    type: ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
+                    copyToCacheDirectory: true,
+                });
 
-        if (result.canceled || !result.assets?.[0]) {
-            return;
-        }
+                if (result.canceled || !result.assets?.[0]) {
+                    return;
+                }
 
-        const app = await importProject(result.assets[0].uri);
-        if (app) {
-            openApp(app.id, 'edit');
-            router.push({ pathname: '/runner/[id]', params: { id: app.id, edit: 'true' } });
-        }
+                const app = await importProject(result.assets[0].uri);
+                if (app) {
+                    openApp(app.id, 'edit');
+                    router.push({ pathname: '/runner/[id]', params: { id: app.id, edit: 'true' } });
+                }
+            } catch (error) {
+                console.error('Error picking project file:', error);
+            } finally {
+                setIsPicking(false);
+            }
+        }, 300);
     };
 
     if (isLoading) {
@@ -337,8 +376,8 @@ export default function HomeScreen() {
                 <View style={styles.menuOverlay}>
                     <View style={styles.importingModal}>
                         <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={styles.importingText}>Importando projeto...</Text>
-                        <Text style={styles.importingHint}>Convertendo para webapp HTML</Text>
+                        <Text style={styles.importingText}>Importando...</Text>
+                        <Text style={styles.importingHint}>Processando arquivos...</Text>
                     </View>
                 </View>
             </Modal>
@@ -350,10 +389,10 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             )}
 
-            {/* Backup Status Snackbar */}
-            {backupStatus && (
-                <TouchableOpacity style={styles.statusBar} onPress={clearBackupStatus}>
-                    <Text style={styles.statusText}>{backupStatus}</Text>
+            {/* Status Message Snackbar */}
+            {statusMessage && (
+                <TouchableOpacity style={styles.statusBar} onPress={clearStatusMessage}>
+                    <Text style={styles.statusText}>{statusMessage}</Text>
                 </TouchableOpacity>
             )}
         </SafeAreaView>

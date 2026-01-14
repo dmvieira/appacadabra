@@ -18,6 +18,29 @@ public class ShortcutsModule: Module {
             activity.persistentIdentifier = id
         }
         
+        let attributes = CSSearchableItemAttributeSet(itemContentType: kUTTypeItem as String)
+        attributes.title = name
+        attributes.displayName = name
+        
+        if let iconPath = iconPath {
+            var path = iconPath
+            if path.hasPrefix("file://") {
+                path = String(path.dropFirst(7))
+            }
+            
+            // Handle URL encoding if present (simple check)
+            if path.contains("%") {
+                path = path.removingPercentEncoding ?? path
+            }
+
+            if let image = UIImage(contentsOfFile: path),
+               let imageData = image.pngData() {
+                attributes.thumbnailData = imageData
+            }
+        }
+        
+        activity.contentAttributeSet = attributes
+        
         activity.becomeCurrent()
         return true
     }

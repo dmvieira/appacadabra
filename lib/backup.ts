@@ -109,18 +109,22 @@ export async function exportBackup(): Promise<boolean> {
     }
 }
 
-export async function importBackup(): Promise<{ success: boolean; count: number; message: string }> {
+export async function importBackup(existingUri?: string): Promise<{ success: boolean; count: number; message: string }> {
     try {
-        const result = await DocumentPicker.getDocumentAsync({
-            type: 'application/json',
-            copyToCacheDirectory: true,
-        });
+        let fileUri = existingUri;
 
-        if (result.canceled || !result.assets?.[0]) {
-            return { success: false, count: 0, message: 'Importação cancelada' };
+        if (!fileUri) {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/json', 'text/plain'],
+                copyToCacheDirectory: true,
+            });
+
+            if (result.canceled || !result.assets?.[0]) {
+                return { success: false, count: 0, message: 'Importação cancelada' };
+            }
+            fileUri = result.assets[0].uri;
         }
 
-        const fileUri = result.assets[0].uri;
         const file = new File(fileUri);
         const json = await file.text();
         const backup: BackupData = JSON.parse(json);

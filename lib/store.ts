@@ -12,7 +12,7 @@ interface AppState {
     isGenerating: boolean;
     isImporting: boolean;
     error: string | null;
-    backupStatus: string | null;
+    statusMessage: string | null;
 
     // Window Management (Multitasking)
     runningInstances: { id: number; mode: 'run' | 'edit' }[];
@@ -40,10 +40,11 @@ interface AppState {
     updateAppIcon: (id: number, iconPath: string) => Promise<void>;
     updateAppCode: (id: number, code: string, instruction?: string) => Promise<void>;
     exportBackup: () => Promise<void>;
-    importBackup: () => Promise<void>;
+    importBackup: (uri?: string) => Promise<void>;
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
-    clearBackupStatus: () => void;
+    clearStatusMessage: () => void;
+    setStatusMessage: (message: string) => void;
     setSharedContent: (content: AppState['sharedContent']) => void;
     clearSharedContent: () => void;
 }
@@ -54,7 +55,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     isGenerating: false,
     isImporting: false,
     error: null,
-    backupStatus: null,
+    statusMessage: null,
     runningInstances: [],
     activeAppId: null,
     sharedContent: null,
@@ -291,24 +292,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     exportBackup: async () => {
         try {
-            set({ backupStatus: 'Exportando...' });
+            set({ statusMessage: 'Exportando...' });
             const success = await backup.exportBackup();
             if (success) {
-                set({ backupStatus: 'Backup exportado com sucesso!' });
+                set({ statusMessage: 'Backup exportado com sucesso!' });
             } else {
-                set({ backupStatus: 'Erro ao exportar backup' });
+                set({ statusMessage: 'Erro ao exportar backup' });
             }
         } catch (error) {
             console.error('Failed to export backup:', error);
-            set({ backupStatus: 'Erro ao exportar backup' });
+            set({ statusMessage: 'Erro ao exportar backup' });
         }
     },
 
-    importBackup: async () => {
+    importBackup: async (uri?: string) => {
         try {
-            set({ backupStatus: 'Importando...' });
-            const result = await backup.importBackup();
-            set({ backupStatus: result.message });
+            set({ isImporting: true, statusMessage: 'Importando...' });
+            const result = await backup.importBackup(uri);
+            set({ statusMessage: result.message, isImporting: false });
 
             if (result.success) {
                 // Reload apps after import
@@ -317,7 +318,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
         } catch (error) {
             console.error('Failed to import backup:', error);
-            set({ backupStatus: 'Erro ao importar backup' });
+            set({ statusMessage: 'Erro ao importar backup', isImporting: false });
         }
     },
 
@@ -359,7 +360,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             set(state => ({
                 apps: [createdApp, ...state.apps],
                 isImporting: false,
-                backupStatus: `Projeto "${result.name}" importado com sucesso!`
+                statusMessage: `Projeto "${result.name}" importado com sucesso!`
             }));
 
             SharingShortcuts.publishShortcut(id.toString(), createdApp.name, createdApp.iconPath);
@@ -376,7 +377,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     clearError: () => set({ error: null }),
-    clearBackupStatus: () => set({ backupStatus: null }),
+    clearStatusMessage: () => set({ statusMessage: null }),
+    setStatusMessage: (message) => set({ statusMessage: message }),
     setSharedContent: (content) => set({ sharedContent: content }),
     clearSharedContent: () => set({ sharedContent: null }),
 }));
