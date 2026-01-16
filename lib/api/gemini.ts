@@ -102,12 +102,10 @@ All callbacks receive: function(success: boolean, result: string)
   AppacadabraContacts.search(query, callback)              // Buscar contatos por nome/telefone/email
   AppacadabraContacts.add({name, phone, email}, callback)  // Adicionar contato
 
-🔐 BIOMETRICS API (AppacadabraBiometrics):
-  AppacadabraBiometrics.isAvailable(callback)              // Verifica suporte (retorna JSON)
-  AppacadabraBiometrics.authenticate(reason, callback)     // Autenticar (Face ID/Touch ID/Fingerprint)
+� AUTH API (AppacadabraAuth):
+  AppacadabraAuth.isAvailable(callback)                    // Verifica se autenticação do dispositivo está disponível
+  AppacadabraAuth.authenticate(reason, callback)           // Autenticar com biometria/senha (ex: reason="Entrar no App")
 
-🔑 AUTH API (AppacadabraAuth):
-  AppacadabraAuth.openAuthURL(authUrl, redirectUrl, callback) // Abre URL de OAuth no browser
 
 📱 SENSORS API (AppacadabraSensors):
   AppacadabraSensors.startAccelerometer(intervalMs, callback) // Inicia acelerômetro (callback contínuo)
@@ -137,6 +135,66 @@ function extractHtml(response: string): string {
     return response.trim();
 }
 
+
+// Helper for retry and timeout
+async function runWithRetryAndTimeout<T>(
+    operation: () => Promise<T>,
+    options: {
+        retries?: number;
+        timeoutMs?: number;
+        delayMs?: number;
+        backoffFactor?: number;
+        operationName?: string;
+    } = {}
+): Promise<T> {
+    const {
+        retries = 3,
+        timeoutMs = 40000,
+        delayMs = 1000,
+        backoffFactor = 2,
+        operationName = 'Operation'
+    } = options;
+
+    let lastError: any;
+    let currentDelay = delayMs;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            // Create a timeout promise
+            let timeoutHandle: NodeJS.Timeout;
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                timeoutHandle = setTimeout(() => {
+                    reject(new Error(`${operationName} timed out after ${timeoutMs}ms`));
+                }, timeoutMs);
+            });
+
+            // Race the operation against the timeout
+            const result = await Promise.race([
+                operation().finally(() => clearTimeout(timeoutHandle)),
+                timeoutPromise
+            ]);
+
+            return result;
+        } catch (error) {
+            lastError = error;
+            const isLastAttempt = attempt === retries;
+
+            if (isLastAttempt) {
+                console.error(`${operationName} failed after ${retries + 1} attempts. Last error:`, error);
+                throw error;
+            }
+
+            console.warn(`${operationName} failed attempt ${attempt + 1}/${retries + 1}. Retrying in ${currentDelay}ms... Error:`, error);
+
+            // Wait for delay
+            await new Promise(resolve => setTimeout(resolve, currentDelay));
+            currentDelay *= backoffFactor;
+        }
+    }
+
+    throw lastError;
+}
+
 export async function generateApp(description: string): Promise<string> {
     const prompt = `Create a single-file HTML application (including CSS and JS inside <style> and <script> tags) that does the following: ${description}.
 
@@ -148,16 +206,23 @@ ${SYSTEM_INSTRUCTIONS}
 
 Return ONLY the HTML code wrapped in a markdown code block \`\`\`html ... \`\`\`.`;
 
+    const runModelCall = async (model: any) => {
+        const result = await model.generateContent(prompt);
+        return extractHtml(result.response.text());
+    };
+
     try {
-        const result = await primaryModel.generateContent(prompt);
-        const text = result.response.text();
-        return extractHtml(text);
+        return await runWithRetryAndTimeout(
+            () => runModelCall(primaryModel),
+            { operationName: 'generateApp (Primary)' }
+        );
     } catch (error) {
         if (isRateLimitError(error)) {
             console.log('Rate limit hit, trying fallback model...');
-            const result = await fallbackModel.generateContent(prompt);
-            const text = result.response.text();
-            return extractHtml(text);
+            return await runWithRetryAndTimeout(
+                () => runModelCall(fallbackModel),
+                { operationName: 'generateApp (Fallback)' }
+            );
         }
         throw error;
     }
@@ -176,20 +241,29 @@ ${SYSTEM_INSTRUCTIONS}
 
 Return the full updated single-file HTML code. Wrap it in \`\`\`html ... \`\`\`.`;
 
+    const runModelCall = async (model: any) => {
+        const result = await model.generateContent(prompt);
+        return extractHtml(result.response.text());
+    };
+
     try {
-        const result = await primaryModel.generateContent(prompt);
-        const text = result.response.text();
-        return extractHtml(text);
+        return await runWithRetryAndTimeout(
+            () => runModelCall(primaryModel),
+            { operationName: 'editApp (Primary)' }
+        );
     } catch (error) {
         if (isRateLimitError(error)) {
             console.log('Rate limit hit, trying fallback model...');
-            const result = await fallbackModel.generateContent(prompt);
-            const text = result.response.text();
-            return extractHtml(text);
+            return await runWithRetryAndTimeout(
+                () => runModelCall(fallbackModel),
+                { operationName: 'editApp (Fallback)' }
+            );
         }
         throw error;
     }
 }
+
+
 
 export async function editAppWithContext(
     currentCode: string,
@@ -223,42 +297,61 @@ ${selectionPart}
 
 Return the COMPLETE updated HTML code with the modifications. Wrap it in \`\`\`html ... \`\`\`.`;
 
+    const runModelCall = async (model: any) => {
+        const result = await model.generateContent(prompt);
+        return extractHtml(result.response.text());
+    };
+
     try {
-        const result = await primaryModel.generateContent(prompt);
-        const text = result.response.text();
-        return extractHtml(text);
+        return await runWithRetryAndTimeout(
+            () => runModelCall(primaryModel),
+            { operationName: 'editAppWithContext (Primary)' }
+        );
     } catch (error) {
         if (isRateLimitError(error)) {
             console.log('Rate limit hit, trying fallback model...');
-            const result = await fallbackModel.generateContent(prompt);
-            const text = result.response.text();
-            return extractHtml(text);
+            return await runWithRetryAndTimeout(
+                () => runModelCall(fallbackModel),
+                { operationName: 'editAppWithContext (Fallback)' }
+            );
         }
         throw error;
     }
 }
 
+
 // AI functions for WebView bridge
 export async function aiGenerateText(prompt: string): Promise<string> {
-    try {
-        const result = await fallbackModel.generateContent(prompt);
+    const runModelCall = async (model: any) => {
+        const result = await model.generateContent(prompt);
         return result.response.text();
+    };
+
+    try {
+        return await runWithRetryAndTimeout(
+            () => runModelCall(fallbackModel),
+            { operationName: 'aiGenerateText (Fallback)' }
+        );
     } catch (error) {
         if (isRateLimitError(error)) {
             console.log('Rate limit hit, trying primary model...');
-            const result = await primaryModel.generateContent(prompt);
-            return result.response.text();
+            return await runWithRetryAndTimeout(
+                () => runModelCall(primaryModel),
+                { operationName: 'aiGenerateText (Primary)' }
+            );
         }
         throw error;
     }
 }
 
 export async function aiDescribeImage(base64Image: string, prompt: string): Promise<string> {
+    console.log('[Gemini] aiDescribeImage called. Image length:', base64Image?.length, 'Prompt:', prompt);
+
     const cleanBase64 = base64Image
         .replace(/^data:image\/[^;]+;base64,/, '');
 
-    try {
-        const result = await fallbackModel.generateContent([
+    const runModelCall = async (model: any) => {
+        const result = await model.generateContent([
             {
                 inlineData: {
                     mimeType: 'image/jpeg',
@@ -268,19 +361,20 @@ export async function aiDescribeImage(base64Image: string, prompt: string): Prom
             prompt || 'Describe this image in detail.',
         ]);
         return result.response.text();
+    };
+
+    try {
+        return await runWithRetryAndTimeout(
+            () => runModelCall(fallbackModel),
+            { operationName: 'aiDescribeImage (Fallback)' }
+        );
     } catch (error) {
         if (isRateLimitError(error)) {
             console.log('Rate limit hit, trying primary model for image...');
-            const result = await primaryModel.generateContent([
-                {
-                    inlineData: {
-                        mimeType: 'image/jpeg',
-                        data: cleanBase64,
-                    },
-                },
-                prompt || 'Describe this image in detail.',
-            ]);
-            return result.response.text();
+            return await runWithRetryAndTimeout(
+                () => runModelCall(primaryModel),
+                { operationName: 'aiDescribeImage (Primary)' }
+            );
         }
         throw error;
     }
@@ -296,26 +390,137 @@ Expected JSON schema: ${schemaJson}
 Return only the extracted data as valid JSON matching the schema.
 If information is missing, use null or empty string.`;
 
-    try {
-        const result = await fallbackJsonModel.generateContent(prompt);
+    const runModelCall = async (model: any) => {
+        const result = await model.generateContent(prompt);
         return result.response.text();
+    };
+
+    try {
+        return await runWithRetryAndTimeout(
+            () => runModelCall(fallbackJsonModel),
+            { operationName: 'aiExtractStructuredData (Fallback)' }
+        );
     } catch (error) {
         if (isRateLimitError(error)) {
             console.log('Rate limit hit, trying primary model for structured data...');
-            const result = await primaryJsonModel.generateContent(prompt);
-            return result.response.text();
+            return await runWithRetryAndTimeout(
+                () => runModelCall(primaryJsonModel),
+                { operationName: 'aiExtractStructuredData (Primary)' }
+            );
         }
         throw error;
     }
+}
+// ... (skip to aiGenerate)
+
+export async function aiGenerate(options: AIGenerateOptions): Promise<string> {
+    console.log('[Gemini] aiGenerate called. Options:', JSON.stringify({ ...options, image: options.image ? '<base64>' : null, audio: options.audio ? '<base64>' : null }));
+    const { prompt, search, schema, image, audio } = options;
+    const schemaJson = schema ? JSON.stringify(schema) : null;
+
+    // Helper to run model call with timeout/retry
+    const runModel = async (model: any, args: any, name: string) => {
+        return runWithRetryAndTimeout(async () => {
+            const result = await model.generateContent(args);
+            return result.response.text();
+        }, { operationName: name });
+    };
+
+    // ===== Audio-based flows (1 call - model handles transcription + processing) =====
+    if (audio) {
+        const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
+        let mimeType = 'audio/webm';
+        const mimeMatch = audio.match(/^data:(audio\/[^;]+);base64,/);
+        if (mimeMatch) mimeType = mimeMatch[1];
+        const audioData = { inlineData: { mimeType, data: cleanBase64 } };
+
+        // Audio + Schema (with or without search): transcribe and extract JSON in one call
+        if (schemaJson) {
+            const extractPrompt = search
+                ? `Transcribe this audio. Use Google Search to enrich the content with context. Then extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`
+                : `Transcribe this audio and extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`;
+
+            if (search) {
+                return runModel(searchModel, [audioData, extractPrompt], 'aiGenerate: Audio+Schema+Search');
+            }
+            return runModel(primaryJsonModel, [audioData, extractPrompt], 'aiGenerate: Audio+Schema');
+        }
+
+        // Audio + Search: transcribe with web context in one call
+        if (search) {
+            const searchPrompt = `Transcribe this audio. Use Google Search to find relevant information about the content. ${prompt || 'Provide detailed context.'}`;
+            return runModel(searchModel, [audioData, searchPrompt], 'aiGenerate: Audio+Search');
+        }
+
+        // Audio only: just transcribe (1 call)
+        const transcribePrompt = prompt || 'Transcribe this audio to text. Return only the transcription.';
+        return runModel(primaryModel, [audioData, transcribePrompt], 'aiGenerate: Audio');
+    }
+
+    // ===== Image-based flows =====
+    if (image) {
+        const cleanBase64 = image.replace(/^data:image\/[^;]+;base64,/, '');
+        const imageData = { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } };
+
+        // Image + Schema (with or without search): describe and extract JSON in one call
+        if (schemaJson) {
+            const extractPrompt = search
+                ? `Analyze this image. Use Google Search to find more information about what you see. Then extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`
+                : `Analyze this image and extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`;
+
+            if (search) {
+                return runModel(searchModel, [imageData, extractPrompt], 'aiGenerate: Image+Schema+Search');
+            }
+            return runModel(primaryJsonModel, [imageData, extractPrompt], 'aiGenerate: Image+Schema');
+        }
+
+        // Image + Search: describe with web context in one call
+        if (search) {
+            const searchPrompt = `Analyze this image. Use Google Search to find relevant information about what you see. ${prompt || 'Provide detailed context.'}`;
+            return runModel(searchModel, [imageData, searchPrompt], 'aiGenerate: Image+Search');
+        }
+
+        // Image only: just describe (1 call)
+        // Ensure aiDescribeImage uses retry internally (it does now)
+        return await aiDescribeImage(image, prompt || 'Describe this image in detail.');
+    }
+
+    // ===== Text-based flows =====
+
+    // Schema + Search: search and extract JSON in one call using search model with JSON instruction
+    if (schemaJson && search) {
+        const combinedPrompt = `Use Google Search to find information about: ${prompt || ''}\n\nThen extract structured data matching this JSON schema: ${schemaJson}\nReturn only valid JSON.`;
+        return runModel(searchModel, combinedPrompt, 'aiGenerate: Schema+Search');
+    }
+
+    // Schema only: extract structured data (1 call)
+    if (schemaJson) {
+        return await aiExtractStructuredData(prompt || '', schemaJson);
+    }
+
+    // Search only: generate with web search (1 call)
+    if (search) {
+        return await aiGenerateTextWithSearch(prompt || '');
+    }
+
+    // Basic text generation (1 call)
+    return await aiGenerateText(prompt || '');
 }
 
 export async function aiGenerateTextWithSearch(prompt: string): Promise<string> {
     // Add instruction to use Google Search for current/real-time information
     const searchPrompt = `Use o Google Search para buscar informações atuais e relevantes para responder: ${prompt}`;
 
+    const runCall = async (model: any) => {
+        return await model.generateContent(searchPrompt);
+    };
+
     try {
         console.log('Search: calling searchModel with prompt length:', searchPrompt.length);
-        const result = await searchModel.generateContent(searchPrompt);
+        const result = await runWithRetryAndTimeout(
+            () => runCall(searchModel),
+            { operationName: 'aiGenerateTextWithSearch (Primary)' }
+        );
 
         // Debug: log response structure
         console.log('Search: response received');
@@ -328,7 +533,10 @@ export async function aiGenerateTextWithSearch(prompt: string): Promise<string> 
 
         if (!text || text.trim() === '') {
             console.log('Search: Empty result, trying fallback model...');
-            const fallbackResult = await searchFallbackModel.generateContent(searchPrompt);
+            const fallbackResult = await runWithRetryAndTimeout(
+                () => runCall(searchFallbackModel),
+                { operationName: 'aiGenerateTextWithSearch (Fallback empty)' }
+            );
             const fallbackText = fallbackResult.response.text();
             console.log('Search fallback: result length:', fallbackText.length);
             return fallbackText;
@@ -338,7 +546,10 @@ export async function aiGenerateTextWithSearch(prompt: string): Promise<string> 
         console.error('AI Search Error:', error);
         if (isRateLimitError(error)) {
             console.log('Search: Rate limit hit, trying fallback search model...');
-            const result = await searchFallbackModel.generateContent(searchPrompt);
+            const result = await runWithRetryAndTimeout(
+                () => runCall(searchFallbackModel),
+                { operationName: 'aiGenerateTextWithSearch (Fallback error)' }
+            );
             return result.response.text();
         }
         throw error;
@@ -370,16 +581,23 @@ ${sourceCode}
 Return ONLY the complete HTML code wrapped in \`\`\`html ... \`\`\`.
 The HTML must be fully functional and self-contained.`;
 
+    const runModelCall = async (model: any) => {
+        const result = await model.generateContent(prompt);
+        return extractHtml(result.response.text());
+    };
+
     try {
-        const result = await primaryModel.generateContent(prompt);
-        const text = result.response.text();
-        return extractHtml(text);
+        return await runWithRetryAndTimeout(
+            () => runModelCall(primaryModel),
+            { operationName: 'convertNodeProject (Primary)' }
+        );
     } catch (error) {
         if (isRateLimitError(error)) {
             console.log('Rate limit hit, trying fallback model for project conversion...');
-            const result = await fallbackModel.generateContent(prompt);
-            const text = result.response.text();
-            return extractHtml(text);
+            return await runWithRetryAndTimeout(
+                () => runModelCall(fallbackModel),
+                { operationName: 'convertNodeProject (Fallback)' }
+            );
         }
         throw error;
     }
@@ -396,107 +614,27 @@ export interface AIGenerateOptions {
     audio?: string | null;
 }
 
-export async function aiGenerate(options: AIGenerateOptions): Promise<string> {
-    const { prompt, search, schema, image, audio } = options;
-    const schemaJson = schema ? JSON.stringify(schema) : null;
 
-    // ===== Audio-based flows (1 call - model handles transcription + processing) =====
-    if (audio) {
-        const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
-        let mimeType = 'audio/webm';
-        const mimeMatch = audio.match(/^data:(audio\/[^;]+);base64,/);
-        if (mimeMatch) mimeType = mimeMatch[1];
-        const audioData = { inlineData: { mimeType, data: cleanBase64 } };
 
-        // Audio + Schema (with or without search): transcribe and extract JSON in one call
-        if (schemaJson) {
-            const extractPrompt = search
-                ? `Transcribe this audio. Use Google Search to enrich the content with context. Then extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`
-                : `Transcribe this audio and extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`;
-
-            if (search) {
-                const result = await searchModel.generateContent([audioData, extractPrompt]);
-                return result.response.text();
-            }
-            const result = await primaryJsonModel.generateContent([audioData, extractPrompt]);
-            return result.response.text();
-        }
-
-        // Audio + Search: transcribe with web context in one call
-        if (search) {
-            const searchPrompt = `Transcribe this audio. Use Google Search to find relevant information about the content. ${prompt || 'Provide detailed context.'}`;
-            const result = await searchModel.generateContent([audioData, searchPrompt]);
-            return result.response.text();
-        }
-
-        // Audio only: just transcribe (1 call)
-        const transcribePrompt = prompt || 'Transcribe this audio to text. Return only the transcription.';
-        const result = await primaryModel.generateContent([audioData, transcribePrompt]);
-        return result.response.text();
-    }
-
-    // ===== Image-based flows =====
-    if (image) {
-        const cleanBase64 = image.replace(/^data:image\/[^;]+;base64,/, '');
-        const imageData = { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } };
-
-        // Image + Schema (with or without search): describe and extract JSON in one call
-        if (schemaJson) {
-            const extractPrompt = search
-                ? `Analyze this image. Use Google Search to find more information about what you see. Then extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`
-                : `Analyze this image and extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`;
-
-            if (search) {
-                const result = await searchModel.generateContent([imageData, extractPrompt]);
-                return result.response.text();
-            }
-            const result = await primaryJsonModel.generateContent([imageData, extractPrompt]);
-            return result.response.text();
-        }
-
-        // Image + Search: describe with web context in one call
-        if (search) {
-            const searchPrompt = `Analyze this image. Use Google Search to find relevant information about what you see. ${prompt || 'Provide detailed context.'}`;
-            const result = await searchModel.generateContent([imageData, searchPrompt]);
-            return result.response.text();
-        }
-
-        // Image only: just describe (1 call)
-        return await aiDescribeImage(image, prompt || 'Describe this image in detail.');
-    }
-
-    // ===== Text-based flows =====
-
-    // Schema + Search: search and extract JSON in one call using search model with JSON instruction
-    if (schemaJson && search) {
-        const combinedPrompt = `Use Google Search to find information about: ${prompt || ''}\n\nThen extract structured data matching this JSON schema: ${schemaJson}\nReturn only valid JSON.`;
-        const result = await searchModel.generateContent(combinedPrompt);
-        return result.response.text();
-    }
-
-    // Schema only: extract structured data (1 call)
-    if (schemaJson) {
-        return await aiExtractStructuredData(prompt || '', schemaJson);
-    }
-
-    // Search only: generate with web search (1 call)
-    if (search) {
-        return await aiGenerateTextWithSearch(prompt || '');
-    }
-
-    // Basic text generation (1 call)
-    return await aiGenerateText(prompt || '');
-}
 
 // Helper for JSON model calls
 async function callJsonModel(prompt: string): Promise<string> {
-    try {
-        const result = await fallbackJsonModel.generateContent(prompt);
+    const runCall = async (model: any) => {
+        const result = await model.generateContent(prompt);
         return result.response.text();
+    };
+
+    try {
+        return await runWithRetryAndTimeout(
+            () => runCall(fallbackJsonModel),
+            { operationName: 'callJsonModel (Fallback)' }
+        );
     } catch (error) {
         if (isRateLimitError(error)) {
-            const result = await primaryJsonModel.generateContent(prompt);
-            return result.response.text();
+            return await runWithRetryAndTimeout(
+                () => runCall(primaryJsonModel),
+                { operationName: 'callJsonModel (Primary)' }
+            );
         }
         throw error;
     }

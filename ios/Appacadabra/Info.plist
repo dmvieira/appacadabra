@@ -74,6 +74,8 @@
 	<string>Allow $(PRODUCT_NAME) to access your location</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>O app precisa acessar o microfone para entrada de voz.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>O app precisa acessar seus contatos para apps que usam a lista de contatos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>O app precisa acessar suas fotos para definir ícones dos apps.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>

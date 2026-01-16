@@ -171,31 +171,17 @@ export function getInjectedJavaScript(appId: number): string {
     }
   };
 
-  // ============= Biometrics Bridge =============
-  window.AppacadabraBiometrics = {
-    isAvailable: function(callbackName) {
-        console.log('[AppacadabraBiometrics.isAvailable] callback:', callbackName);
-        sendMessage('BIOMETRICS_IS_AVAILABLE', {}, callbackName);
-    },
-    authenticate: function(reason, callbackName) {
-        console.log('[AppacadabraBiometrics.authenticate] reason:', reason, 'callback:', callbackName);
-        sendMessage('BIOMETRICS_AUTHENTICATE', { reason }, callbackName);
-    }
-  };
+
 
   // ============= Auth/SSO Bridge =============
   window.AppacadabraAuth = {
-    loginWithGoogle: function(callbackName) {
-        console.log('[AppacadabraAuth.loginWithGoogle] callback:', callbackName);
-        sendMessage('AUTH_GOOGLE', {}, callbackName);
+    isAvailable: function(callbackName) {
+        console.log('[AppacadabraAuth.isAvailable] callback:', callbackName);
+        sendMessage('AUTH_IS_AVAILABLE', {}, callbackName);
     },
-    loginWithApple: function(callbackName) {
-        console.log('[AppacadabraAuth.loginWithApple] callback:', callbackName);
-        sendMessage('AUTH_APPLE', {}, callbackName);
-    },
-    openAuthURL: function(authUrl, redirectUrl, callbackName) {
-        console.log('[AppacadabraAuth.openAuthURL] url:', authUrl, 'callback:', callbackName);
-        sendMessage('AUTH_OPEN_URL', { authUrl, redirectUrl }, callbackName);
+    authenticate: function(reason, callbackName) {
+        console.log('[AppacadabraAuth.authenticate] reason:', reason, 'callback:', callbackName);
+        sendMessage('AUTH_AUTHENTICATE', { reason }, callbackName);
     }
   };
 

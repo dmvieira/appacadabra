@@ -22,10 +22,11 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as AuthSession from 'expo-auth-session';
+
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from '../lib/bridges/injectedJS';
+import { handleBridgeMessage } from '../lib/bridges/messageHandlers';
 import * as gemini from '../lib/api/gemini';
 import * as db from '../lib/database/db';
 import { colors, spacing, borderRadius } from '../lib/theme';
@@ -217,12 +218,50 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         }
     };
 
+    // Message chunking buffer
+    const messageBuffers = useRef<Record<string, string[]>>({});
+
     // Handle messages from WebView
     const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
         try {
             const messageStr = event.nativeEvent.data;
             const message = JSON.parse(messageStr);
-            const { type, data, callbackName } = message;
+            const { type, data, callbackName, appId: msgAppId } = message;
+
+            // Handle Chunked Messages
+            if (type === 'BRIDGE_CHUNK') {
+                const { id, index, total, chunk } = data;
+                if (!messageBuffers.current[id]) {
+                    messageBuffers.current[id] = new Array(total).fill('');
+                }
+                messageBuffers.current[id][index] = chunk;
+
+                // Check completion
+                let isComplete = true;
+                for (let i = 0; i < total; i++) {
+                    if (!messageBuffers.current[id][i]) {
+                        isComplete = false;
+                        break;
+                    }
+                }
+
+                if (isComplete) {
+                    const fullMessageStr = messageBuffers.current[id].join('');
+                    console.log(`[AppRunner] Reassembled message ${id}, length: ${fullMessageStr.length}`);
+                    delete messageBuffers.current[id];
+
+                    // Recursive call with the full message
+                    const fullEvent = {
+                        ...event,
+                        nativeEvent: {
+                            ...event.nativeEvent,
+                            data: fullMessageStr
+                        }
+                    };
+                    handleMessage(fullEvent);
+                }
+                return;
+            }
 
             // Log non-frequent messages
             if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG') {
@@ -236,6 +275,10 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 // ============= AI Handlers =============
                 case 'AI_GENERATE':
                     try {
+                        console.log('[AppRunner] AI_GENERATE request received.');
+                        if (data.image) console.log('[AppRunner] Image payload length:', data.image.length);
+                        if (data.audio) console.log('[AppRunner] Audio payload length:', data.audio.length);
+
                         result = await gemini.aiGenerate({
                             prompt: data.prompt,
                             search: data.search,
@@ -246,6 +289,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
+                        console.error('[AppRunner] AI_GENERATE Error:', e);
                     }
                     break;
 
@@ -499,8 +543,10 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     }
                     break;
 
-                // ============= Biometrics Handlers =============
-                case 'BIOMETRICS_IS_AVAILABLE':
+
+
+                // ============= Auth Handlers =============
+                case 'AUTH_IS_AVAILABLE':
                     try {
                         const hasHardware = await LocalAuthentication.hasHardwareAsync();
                         const isEnrolled = await LocalAuthentication.isEnrolledAsync();
@@ -512,10 +558,10 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     }
                     break;
 
-                case 'BIOMETRICS_AUTHENTICATE':
+                case 'AUTH_AUTHENTICATE':
                     try {
                         const authResult = await LocalAuthentication.authenticateAsync({
-                            promptMessage: data.reason || 'Autenticar',
+                            promptMessage: data.reason || 'Confirmar identidade',
                             fallbackLabel: 'Usar senha',
                             disableDeviceFallback: false,
                         });
@@ -526,18 +572,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     }
                     break;
 
-                // ============= Auth Handlers =============
-                case 'AUTH_OPEN_URL':
-                    try {
-                        const redirectUri = data.redirectUrl || AuthSession.makeRedirectUri();
-                        const authUrl = data.authUrl.includes('redirect_uri=') ? data.authUrl : `${data.authUrl}${data.authUrl.includes('?') ? '&' : '?'}redirect_uri=${encodeURIComponent(redirectUri)}`;
-                        await Linking.openURL(authUrl);
-                        result = JSON.stringify({ type: 'opened', redirectUri });
-                    } catch (e) {
-                        success = false;
-                        result = e instanceof Error ? e.message : 'Error';
-                    }
-                    break;
+
 
                 // ============= Sensors Handlers =============
                 case 'SENSORS_START_ACCELEROMETER':
@@ -610,6 +645,19 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     Magnetometer.removeAllListeners();
                     result = 'All sensors stopped';
                     break;
+
+                default:
+                    // Delegate to shared handlers for common message types
+                    const sharedResult = await handleBridgeMessage(type, data, {
+                        webViewRef: webViewRef as React.RefObject<WebView>,
+                        appId: app?.id || null,
+                    });
+                    if (sharedResult.handled) {
+                        success = sharedResult.success;
+                        result = sharedResult.result;
+                    } else {
+                        console.log('Unknown message type:', type);
+                    }
             }
 
             if (callbackName && webViewRef.current) {
@@ -775,7 +823,16 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 onError={(e) => console.error('WebView error:', e.nativeEvent)}
                 onShouldStartLoadWithRequest={(request) => {
                     const { url } = request;
-                    if (url.startsWith('http') && !url.includes('localhost')) {
+                    // Allow internal URLs (localhost, appacadabra.local, data:, about:)
+                    if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
+                        return true;
+                    }
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        // Keep navigation internal for our local baseUrl and localhost
+                        if (url.includes('localhost') || url.includes('appacadabra.local')) {
+                            return true;
+                        }
+                        // External URLs - open in system browser
                         Linking.openURL(url);
                         return false;
                     }

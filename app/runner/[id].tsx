@@ -28,6 +28,7 @@ import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript } from '../../lib/bridges/injectedJS';
+import { handleBridgeMessage } from '../../lib/bridges/messageHandlers';
 import * as gemini from '../../lib/api/gemini';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -812,7 +813,17 @@ export default function RunnerScreen() {
                     break;
 
                 default:
-                    console.log('Unknown message type:', type);
+                    // Delegate to shared handlers for common message types
+                    const handlerResult = await handleBridgeMessage(type, data, {
+                        webViewRef: webViewRef as React.RefObject<WebView>,
+                        appId: app?.id || null,
+                    });
+                    if (handlerResult.handled) {
+                        success = handlerResult.success;
+                        result = handlerResult.result;
+                    } else {
+                        console.log('Unknown message type:', type);
+                    }
             }
 
             // Send callback if needed
@@ -1006,6 +1017,10 @@ export default function RunnerScreen() {
                 onError={(e) => console.error('WebView error:', e.nativeEvent)}
                 onShouldStartLoadWithRequest={(request) => {
                     const { url } = request;
+                    // Allow internal URLs (localhost, appacadabra.local, data:, about:, blob:)
+                    if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
+                        return true;
+                    }
                     // External URLs - open in browser
                     if (url.startsWith('http://') || url.startsWith('https://')) {
                         if (!url.includes('localhost') && !url.includes('appacadabra.local')) {
