@@ -217,10 +217,12 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
     // Handle messages from WebView
     const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
+        let callbackName: string | undefined;
         try {
             const messageStr = event.nativeEvent.data;
             const message = JSON.parse(messageStr);
-            const { type, data, callbackName, appId: msgAppId } = message;
+            const { type, data, appId: msgAppId } = message;
+            callbackName = message.callbackName;
 
             // Handle Chunked Messages
             if (type === 'BRIDGE_CHUNK') {
@@ -310,6 +312,12 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             }
         } catch (e) {
             console.error('Error handling WebView message:', e);
+            // IMPORTANT: Always send callback on error to prevent JS from hanging
+            if (callbackName && webViewRef.current) {
+                const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+                const script = createCallbackScript(callbackName, false, errorMsg);
+                webViewRef.current.injectJavaScript(script);
+            }
         }
     }, [app, appId]);
 

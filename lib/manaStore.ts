@@ -30,7 +30,7 @@ export const calculateManaCost = (totalTokens: number): number => {
 export const useManaStore = create<ManaState>()(
     persist(
         (set, get) => ({
-            balance: 100, // Initial welcome bonus
+            balance: 0, // Start with zero - earn via ads or purchase
             isShopOpen: false,
 
             addMana: (amount: number) => {
@@ -47,7 +47,7 @@ export const useManaStore = create<ManaState>()(
             },
 
             resetMana: () => {
-                set({ balance: 100 });
+                set({ balance: 0 });
             },
 
             setBalance: (amount: number) => {

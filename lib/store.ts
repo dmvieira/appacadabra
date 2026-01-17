@@ -118,7 +118,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             // Just check if they have enough to start (minimum required)
             if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
                 manaStore.openShop();
-                set({ error: t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) }) });
+                set({ error: t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) }), isGenerating: false });
                 return null;
             }
 
@@ -168,7 +168,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to create app:', error);
             set({
-                error: `${t('errorCreatingApp')} ${error instanceof Error ? error.message : t('unknownError')}`,
+                error: t('spellFailedCreate'),
                 isGenerating: false
             });
             return null;
@@ -181,7 +181,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const manaStore = useManaStore.getState();
             if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
                 manaStore.openShop();
-                set({ error: t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) }) });
+                set({ error: t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) }), isGenerating: false });
                 return null;
             }
 
@@ -237,7 +237,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to update app:', error);
             set({
-                error: `${t('errorUpdatingApp')} ${error instanceof Error ? error.message : t('unknownError')}`,
+                error: t('spellFailedEdit'),
                 isGenerating: false
             });
             return null;

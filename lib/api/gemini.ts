@@ -296,8 +296,8 @@ async function runWithRetryAndTimeout<T>(
     } = {}
 ): Promise<T> {
     const {
-        retries = 3,
-        timeoutMs = 40000,
+        retries = 1,
+        timeoutMs = 30000,
         delayMs = 1000,
         backoffFactor = 2,
         operationName = 'Operation'
@@ -502,8 +502,8 @@ ${SMART_PATCH_INSTRUCTIONS}
             const runPatchParams = async (model: any) => {
                 const result = await model.generateContent(currentPrompt);
                 const text = result.response.text();
-                const jsonStr = text.replace(/[\s\S]*?\{/, '{').replace(/\}[\s\S]*$/, '}'); // Extract JSON
-                const data = JSON.parse(jsonStr) as { changes: Patch[] };
+                // With JSON mode, the response should be pure JSON
+                const data = JSON.parse(text) as { changes: Patch[] };
 
                 console.log(`[editApp] Attempt ${attempt}: Generated ${data.changes.length} patches.`);
 
@@ -516,10 +516,19 @@ ${SMART_PATCH_INSTRUCTIONS}
                 };
             };
 
-            return await runWithRetryAndTimeout(
-                () => runPatchParams(primaryJsonModel),
-                { operationName: `editApp (Smart Patch Attempt ${attempt})` }
-            );
+            // Try primary JSON model, fallback to secondary
+            try {
+                return await runWithRetryAndTimeout(
+                    () => runPatchParams(primaryJsonModel),
+                    { operationName: `editApp (Primary Attempt ${attempt})`, retries: 1, timeoutMs: 30000 }
+                );
+            } catch (primaryError) {
+                console.warn(`[editApp] Primary model failed, trying fallback...`, primaryError);
+                return await runWithRetryAndTimeout(
+                    () => runPatchParams(fallbackJsonModel),
+                    { operationName: `editApp (Fallback Attempt ${attempt})`, retries: 1, timeoutMs: 30000 }
+                );
+            }
 
         } catch (error) {
             console.warn(`[editApp] Attempt ${attempt} failed:`, error);
@@ -593,8 +602,8 @@ ${SMART_PATCH_INSTRUCTIONS}
             const runPatchParams = async (model: any) => {
                 const result = await model.generateContent(currentPrompt);
                 const text = result.response.text();
-                const jsonStr = text.replace(/[\s\S]*?\{/, '{').replace(/\}[\s\S]*$/, '}'); // Extract JSON
-                const data = JSON.parse(jsonStr) as { changes: Patch[] };
+                // With JSON mode, the response should be pure JSON
+                const data = JSON.parse(text) as { changes: Patch[] };
 
                 console.log(`[editAppWithContext] Attempt ${attempt}: Generated ${data.changes.length} patches.`);
 
@@ -607,11 +616,19 @@ ${SMART_PATCH_INSTRUCTIONS}
                 };
             };
 
-            // Try JSON model first
-            return await runWithRetryAndTimeout(
-                () => runPatchParams(primaryJsonModel),
-                { operationName: `editAppWithContext (Smart Patch Attempt ${attempt})` }
-            );
+            // Try primary JSON model, fallback to secondary
+            try {
+                return await runWithRetryAndTimeout(
+                    () => runPatchParams(primaryJsonModel),
+                    { operationName: `editAppWithContext (Primary Attempt ${attempt})` }
+                );
+            } catch (primaryError) {
+                console.warn(`[editAppWithContext] Primary model failed, trying fallback...`, primaryError);
+                return await runWithRetryAndTimeout(
+                    () => runPatchParams(fallbackJsonModel),
+                    { operationName: `editAppWithContext (Fallback Attempt ${attempt})` }
+                );
+            }
         } catch (error) {
             console.warn(`[editAppWithContext] Attempt ${attempt} failed:`, error);
             lastError = error;

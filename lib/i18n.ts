@@ -209,6 +209,8 @@ const translations = {
 
         // Store
         errorLoadingApps: 'Error loading apps',
+        spellFailedCreate: '🧙 The spell fizzled! The magic didn\'t work this time. Please try again with different words.',
+        spellFailedEdit: '🧙 Oops! The enchantment failed. Try rephrasing your request and cast again.',
         errorCreatingApp: 'Error creating app:',
         errorUpdatingApp: 'Error updating app:',
         errorDeletingApp: 'Error deleting app',
@@ -293,30 +295,7 @@ const translations = {
         lastUpdated: 'Última atualização: Janeiro de 2026',
 
         // Privacy sections
-        privacyIntro: 'O Appacadabra é um gerador de aplicativos web que utiliza inteligência artificial para criar aplicações personalizadas. Esta Política de Privacidade descreve como coletamos, usamos e protegemos suas informações.',
-        privacyCollectTitle: 'Informações que Coletamos',
-        privacyCollect: '• Descrições de aplicativos que você fornece\n• Código gerado (armazenado localmente)\n• Permissões acessadas apenas quando necessário (contatos, calendário, localização)',
-        privacyStorageTitle: 'Armazenamento',
-        privacyStorage: 'Todos os dados são armazenados exclusivamente no seu dispositivo. Não mantemos servidores com seus dados pessoais.',
-        privacySharingTitle: 'Compartilhamento',
-        privacySharing: 'As descrições de apps são processadas pela API do Google Gemini. Não vendemos nem compartilhamos seus dados com terceiros para marketing.',
-        privacyRightsTitle: 'Seus Direitos',
-        privacyRights: 'Você pode excluir qualquer app a qualquer momento, revogar permissões, ou desinstalar o aplicativo para remover todos os dados locais.',
-        privacyContact: 'Para dúvidas: privacy@appacadabra.com',
 
-        // Terms sections
-        termsAcceptTitle: 'Aceitação',
-        termsAccept: 'Ao usar o Appacadabra, você concorda com estes Termos de Serviço.',
-        termsDescTitle: 'Descrição do Serviço',
-        termsDesc: 'O Appacadabra é uma ferramenta que utiliza IA para gerar aplicativos web (HTML/CSS/JavaScript) baseados em suas descrições.',
-        termsUseTitle: 'Uso Aceitável',
-        termsUseCan: '✅ Você pode:\n• Criar apps para uso pessoal ou comercial\n• Modificar e compartilhar apps gerados',
-        termsUseCannot: '❌ Você NÃO pode:\n• Criar apps com conteúdo ilegal ou malicioso\n• Gerar código para phishing ou fraude\n• Tentar burlar os filtros de segurança',
-        termsPropertyTitle: 'Propriedade',
-        termsProperty: 'Os aplicativos que você gera são de sua propriedade. Você pode usá-los comercialmente sem royalties.',
-        termsDisclaimerTitle: 'Isenção de Garantias',
-        termsDisclaimer: 'O serviço é fornecido "como está". Não garantimos que o código gerado será perfeito ou seguro.',
-        termsContact: 'Para questões: legal@appacadabra.com',
 
         // Editor/Runner
         console: 'Console',
@@ -429,6 +408,8 @@ const translations = {
 
         // Store
         errorLoadingApps: 'Erro ao carregar apps',
+        spellFailedCreate: '🧙 O feitiço falhou! A magia não funcionou dessa vez. Tente novamente com outras palavras.',
+        spellFailedEdit: '🧙 Ops! O encantamento falhou. Reformule seu pedido e lance de novo.',
         errorCreatingApp: 'Erro ao criar app:',
         errorUpdatingApp: 'Erro ao atualizar app:',
         errorDeletingApp: 'Erro ao deletar app',
@@ -566,6 +547,8 @@ const translations = {
 
         // Store
         errorLoadingApps: 'Error al cargar apps',
+        spellFailedCreate: '🧙 ¡El hechizo falló! La magia no funcionó esta vez. Intenta de nuevo con otras palabras.',
+        spellFailedEdit: '🧙 ¡Ups! El encantamiento falló. Reformula tu petición e intenta de nuevo.',
         errorCreatingApp: 'Error al crear app:',
         errorUpdatingApp: 'Error al actualizar app:',
         errorDeletingApp: 'Error al eliminar app',
@@ -704,6 +687,8 @@ const translations = {
 
         // Store
         errorLoadingApps: 'Erreur chargement apps',
+        spellFailedCreate: '🧙 Le sort a échoué ! La magie n\'a pas fonctionné cette fois. Réessayez avec d\'autres mots.',
+        spellFailedEdit: '🧙 Oups ! L\'enchantement a échoué. Reformulez votre demande et réessayez.',
         errorCreatingApp: 'Erreur création:',
         errorUpdatingApp: 'Erreur mise à jour:',
         errorDeletingApp: 'Erreur suppression',

@@ -370,12 +370,14 @@ export default function RunnerScreen() {
 
     // Handle messages from WebView
     const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
+        let callbackName: string | undefined;
         try {
             const messageStr = event.nativeEvent.data;
             // console.log('RAW WebView Message:', messageStr); // Uncomment for deep debug
 
             const message = JSON.parse(messageStr);
-            const { type, data, callbackName, appId } = message;
+            const { type, data, appId } = message;
+            callbackName = message.callbackName;
 
             // Log non-frequent messages
             if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG') {
@@ -869,6 +871,12 @@ export default function RunnerScreen() {
             }
         } catch (e) {
             console.error('Error handling WebView message:', e);
+            // IMPORTANT: Always send callback on error to prevent JS from hanging
+            if (callbackName && webViewRef.current) {
+                const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+                const script = createCallbackScript(callbackName, false, errorMsg);
+                webViewRef.current.injectJavaScript(script);
+            }
         }
     }, [app]);
 

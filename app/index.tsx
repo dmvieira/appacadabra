@@ -73,6 +73,7 @@ export default function HomeScreen() {
         }
     }, [apps]);
 
+
     // Clear status message after 3 seconds
     useEffect(() => {
         if (statusMessage) {
@@ -80,6 +81,14 @@ export default function HomeScreen() {
             return () => clearTimeout(timer);
         }
     }, [statusMessage]);
+
+    // Show error Alert to user
+    useEffect(() => {
+        if (error) {
+            alert(error);
+            clearError();
+        }
+    }, [error, clearError]);
 
     const handleCreateApp = async (description: string) => {
         const app = await createApp(description);
