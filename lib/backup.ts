@@ -4,6 +4,8 @@ import * as Sharing from 'expo-sharing';
 import { GeneratedApp, AppVersion } from './database/types';
 import * as db from './database/db';
 import { t } from './i18n';
+import { useManaStore } from './manaStore';
+import { signData, verifyData } from './security';
 
 export interface BackupData {
     version: number;
@@ -13,6 +15,11 @@ export interface BackupData {
     // New format (React Native)
     versions?: Record<number, AppVersion[]>;
     storage?: Record<number, { key: string; value: string }[]>;
+    // Mana System
+    mana?: {
+        amount: number;
+        signature: string;
+    };
 }
 
 // Android format has versions and localStorage inside each app
@@ -25,6 +32,7 @@ interface BackupApp {
     iconBase64?: string; // Base64 encoded icon for backup portability
     lastUpdated: number;
     consoleLogs?: string;
+    totalManaCost?: number;
     // Android nested format
     versions?: { version: number; code: string; instruction: string; selectedContext: string; createdAt: number }[];
     localStorage?: Record<string, string>;
@@ -65,6 +73,7 @@ export async function createBackup(): Promise<BackupData> {
             iconBase64,
             lastUpdated: app.lastUpdated,
             consoleLogs: app.consoleLogs || '',
+            totalManaCost: app.totalManaCost || 0,
             versions: versions.map(v => ({
                 version: v.version,
                 code: v.code,
@@ -76,10 +85,23 @@ export async function createBackup(): Promise<BackupData> {
         });
     }
 
+    // Add Mana with signature for integrity
+    let manaData: { amount: number; signature: string } | undefined;
+    try {
+        const balance = useManaStore.getState().balance;
+        const signature = await signData(balance.toString());
+        if (signature) {
+            manaData = { amount: balance, signature };
+        }
+    } catch (e) {
+        console.warn('Failed to sign mana for backup:', e);
+    }
+
     return {
         version: 2,
         createdAt: Date.now(),
         apps: backupApps,
+        mana: manaData,
     };
 }
 
@@ -182,6 +204,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
                 iconPath,
                 lastUpdated: app.lastUpdated,
                 consoleLogs: app.consoleLogs || '',
+                totalManaCost: app.totalManaCost || 0,
             };
 
             const newId = await db.insertApp(newApp);
@@ -219,6 +242,22 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
             }
 
             importedCount++;
+        }
+
+        // Restore Mana if valid
+        if (backup.mana && typeof backup.mana.amount === 'number' && backup.mana.signature) {
+            const isValid = await verifyData(backup.mana.amount.toString(), backup.mana.signature);
+            if (isValid) {
+                console.log('Restoring verified mana:', backup.mana.amount);
+                // We trust the backup as it is signed by us
+                // We replace the current balance or add to it? 
+                // Usually Restore replaces state. Let's replace.
+                useManaStore.getState().setBalance(backup.mana.amount);
+            } else {
+                console.warn('Mana signature invalid! Ignoring mana from backup.');
+                // We could alert the user here, but we are inside an async function returning a simple status object.
+                // We'll proceed with app import but skip mana.
+            }
         }
 
         return {

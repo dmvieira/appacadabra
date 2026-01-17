@@ -19,6 +19,7 @@ import * as gemini from '../api/gemini';
 import * as db from '../database/db';
 import { createCallbackScript } from './injectedJS';
 import { t } from '../i18n';
+import { useManaStore, MANA_COSTS, calculateManaCost } from '../manaStore';
 
 export interface HandlerContext {
     webViewRef: React.RefObject<WebView>;
@@ -48,13 +49,40 @@ export async function handleBridgeMessage(
         // ============= AI Handler =============
         case 'AI_GENERATE':
             try {
-                result = await gemini.aiGenerate({
+                // Check Mana
+                const manaStore = useManaStore.getState();
+                if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
+                    manaStore.openShop();
+                    success = false;
+                    result = 'Insufficient Mana';
+                    break;
+                }
+
+                const genResult = await gemini.aiGenerate({
                     prompt: data.prompt,
                     search: data.search,
                     schema: data.schema,
                     image: data.image,
                     audio: data.audio,
                 });
+                result = genResult.text;
+
+                // Deduct Mana
+                const cost = calculateManaCost(genResult.usage?.totalTokens || 0);
+                manaStore.deductMana(cost);
+                console.log(`[Bridge] AI generated. Cost: ${cost}`);
+
+                // Update App Total Mana Cost if we have appId
+                if (ctx.appId) {
+                    const currentApp = await db.getAppById(ctx.appId);
+                    if (currentApp) {
+                        const updatedApp = {
+                            ...currentApp,
+                            totalManaCost: (currentApp.totalManaCost || 0) + cost
+                        };
+                        await db.updateApp(updatedApp);
+                    }
+                }
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -308,6 +336,26 @@ export async function handleBridgeMessage(
                     };
                     const contactId = await Contacts.addContactAsync(newContact);
                     result = contactId;
+                } else {
+                    success = false;
+                    result = 'Contacts permission denied';
+                }
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
+        case 'CONTACTS_UPDATE':
+            try {
+                const updatePerm = await Contacts.requestPermissionsAsync();
+                if (updatePerm.status === 'granted') {
+                    const contact = data.contact || {};
+                    if (!contact.id) {
+                        throw new Error('Contact ID is required for update');
+                    }
+                    const resultId = await Contacts.updateContactAsync(contact);
+                    result = resultId;
                 } else {
                     success = false;
                     result = 'Contacts permission denied';

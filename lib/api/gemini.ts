@@ -56,66 +56,90 @@ The generated app should use AI when makes sense:
 4. AVOID AI FOR: Random quotes, motivational messages, placeholder text - use arrays with fixed options
 5. PREFER LOCAL DATA: Use hardcoded lists/data instead of generating content via AI
 
-📅 CALENDAR INTEGRATION (Use AppacadabraCalendar API only when necessary to schedule events in calendar):
-- AppacadabraCalendar.createEvent(title, description, startTimeMs, endTimeMs, callback) - Opens native Calendar app with pre-filled details.
-- AppacadabraCalendar.createEventWithReminder(title, description, startMs, endMs, reminderMinutes, callback) - Opens native Calendar with reminder.
+⚠️ IMPORTANT: CALLBACK & DATA HANDLING
+All API callbacks receive two arguments: \`(success: boolean, result: string)\`
+1. \`success\`: Indicates if the COMPONENT/BRIDGE call was executed without system errors.
+2. \`result\`: A STRING that usually contains a JSON object. You MUST \`JSON.parse(result)\` to access the actual data.
 
-IMPORTANT: startTimeMs and endTimeMs must be Unix timestamps in MILLISECONDS (not seconds).
-How to create timestamps in JavaScript:
-  const startMs = new Date(2024, 0, 15, 14, 30).getTime(); // Jan 15, 2024 at 2:30 PM
-  const endMs = new Date(2024, 0, 15, 15, 30).getTime();   // Jan 15, 2024 at 3:30 PM
+Example Pattern:
+\`\`\`javascript
+window.handleAuth = function(success, resultString) {
+    if (!success) {
+        console.error("System Error:", resultString);
+        return;
+    }
+    try {
+        const data = JSON.parse(resultString);
+        // NOW check the logical success
+        if (data.success) {
+             console.log("User Authenticated!");
+        } else {
+             console.log("Auth Failed:", data.error);
+        }
+    } catch (e) {
+        console.error("JSON Error", e);
+    }
+};
+\`\`\`
 
-🔔 NOTIFICATION API (AppacadabraNotify API only when necessary to schedule user notifications outside the app):
-- AppacadabraNotify.showNow(title, message, callback) - Show notification immediately
-- AppacadabraNotify.scheduleNotification(title, message, delayMinutes, callback) - Schedule notification
+--- API DOCUMENTATION ---
 
-🤖 AI API (AppacadabraAI) - Fluent Builder Pattern:
-Use encadeamento para configurar e chamar:
+📅 CALENDAR (AppacadabraCalendar)
+- \`createEvent(title, desc, startMs, endMs, callback)\`
+- \`createEventWithReminder(title, desc, startMs, endMs, minutes, callback)\`
+- **Return**: "Calendar opened" (string)
 
-  AppacadabraAI.generate(prompt, callback)                    // Geração básica de texto
-  AppacadabraAI.withSearch().generate(prompt, callback)       // Busca na web/maps + texto
-  AppacadabraAI.withSchema(schema).generate(text, callback)   // Extração de JSON estruturado
-  AppacadabraAI.fromImage(base64).generate(prompt, callback)  // Análise/descrição de imagem
-  AppacadabraAI.fromAudio(base64).generate(callback)          // Transcrição de áudio
+🔔 NOTIFICATION (AppacadabraNotify)
+- \`showNow(title, msg, callback)\`
+- \`scheduleNotification(title, msg, minutes, callback)\`
+- **Return**: Notification ID (string)
 
-Combinações avançadas (podem ser encadeadas):
-  AppacadabraAI.withSchema(schema).withSearch().generate(prompt, callback)         // Busca → JSON
-  AppacadabraAI.fromImage(base64).withSearch().withSchema(schema).generate(prompt, callback) // Imagem + Web → JSON
-  AppacadabraAI.fromAudio(base64).withSearch().withSchema(schema).generate(prompt, callback) // Audio + Web → JSON
+🤖 AI (AppacadabraAI)
+- **Fluent Builder API**: Chain methods to configure generation.
+- **Methods**:
+    - \`generate(prompt, callback)\`: Execute the request.
+    - \`withSearch()\`: Enable Google Search for current events/info.
+    - \`withSchema(jsonSchemaObj)\`: Force Structured JSON output.
+    - \`fromImage(base64String)\`: Input an image for analysis.
+    - \`fromAudio(base64String)\`: Input audio for transcription/analysis.
+- **Examples**:
+    - Basic: \`AppacadabraAI.generate("Hello", callback)\`
+    - Search: \`AppacadabraAI.withSearch().generate("Who won the game?", callback)\`
+    - JSON: \`AppacadabraAI.withSchema({ type: "object", properties: { ... } }).generate("Extract data", callback)\`
+    - Vision: \`AppacadabraAI.fromImage(base64).generate("Describe this", callback)\`
+    - Audio: \`AppacadabraAI.fromAudio(base64).generate("Transcribe", callback)\`
+    - *Chained*: \`AppacadabraAI.withSearch().withSchema(schema).generate("Find phone numbers...", callback)\`
+- **Return**: Generated text (string). If \`withSchema\` is used, result is a JSON string.
 
-Exemplos de schema: { name: "", age: 0, items: [] }
+📤 SHARE (AppacadabraShare)
+- \`share(text, url, callback)\`
+- **Return**: "Shared" (string)
 
-⚠️ IMPORTANT: All callbacks must be GLOBAL FUNCTIONS referenced by NAME (string).
-Example:
-  window.handleResult = function(success, data) {
-    if (success) console.log(data);
-  };
-  AppacadabraAI.generate("Hello", "handleResult");
+📇 CONTACTS (AppacadabraContacts)
+- \`getAll(callback)\`
+    - **Return JSON**: \`[{ "id": "1", "name": "John", "phoneNumbers": [{ "number": "123" }], "emails": [{ "email": "a@b.com" }] }, ...]\`
+- \`search(query, callback)\`
+    - **Return JSON**: Same array format as getAll.
+- \`add(contactObj, callback)\`
+    - **Return**: Contact ID (string)
+- \`update(contactObj, callback)\`
+    - **Return**: Contact ID (string)
 
-All callbacks receive: function(success: boolean, result: string)
+🔐 AUTH (AppacadabraAuth)
+- \`isAvailable(callback)\`
+    - **Return JSON**: \`{ "available": boolean, "types": number[] }\`
+- \`authenticate(reason, callback)\`
+    - **Return JSON**: \`{ "success": boolean, "error": string, "warning": string }\`
+    - **CRITICAL**: The outer callback \`success\` only means the dialog opened. You MUST check \`JSON.parse(result).success\` to see if user passed biometrics.
 
-📤 SHARE API (AppacadabraShare):
-  AppacadabraShare.share(text, url, callback)              // Compartilhar texto/URL
-  AppacadabraShare.shareFile(base64, mimeType, filename, callback) // Compartilhar arquivo
+📱 SENSORS (AppacadabraSensors)
+- \`startAccelerometer(intervalMs, callback)\`
+    - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number }\`
+- \`startGyroscope(intervalMs, callback)\`
+    - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number }\`
+- \`startMagnetometer(intervalMs, callback)\`
+    - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number, "heading": number }\`
 
-📇 CONTACTS API (AppacadabraContacts):
-  AppacadabraContacts.getAll(callback)                     // Listar contatos (retorna JSON)
-  AppacadabraContacts.search(query, callback)              // Buscar contatos por nome/telefone/email
-  AppacadabraContacts.add({name, phone, email}, callback)  // Adicionar contato
-
-� AUTH API (AppacadabraAuth):
-  AppacadabraAuth.isAvailable(callback)                    // Verifica se autenticação do dispositivo está disponível
-  AppacadabraAuth.authenticate(reason, callback)           // Autenticar com biometria/senha (ex: reason="Entrar no App")
-
-
-📱 SENSORS API (AppacadabraSensors):
-  AppacadabraSensors.startAccelerometer(intervalMs, callback) // Inicia acelerômetro (callback contínuo)
-  AppacadabraSensors.startGyroscope(intervalMs, callback)     // Inicia giroscópio (callback contínuo)
-  AppacadabraSensors.startMagnetometer(intervalMs, callback)  // Bússola: retorna {x, y, z, heading}
-  AppacadabraSensors.stopAccelerometer()                      // Para acelerômetro
-  AppacadabraSensors.stopGyroscope()                          // Para giroscópio
-  AppacadabraSensors.stopMagnetometer()                       // Para magnetômetro
-  AppacadabraSensors.stopAll()                                // Para todos os sensores
 `;
 
 function isRateLimitError(error: unknown): boolean {
@@ -288,7 +312,7 @@ async function runWithRetryAndTimeout<T>(
             let timeoutHandle: NodeJS.Timeout;
             const timeoutPromise = new Promise<never>((_, reject) => {
                 timeoutHandle = setTimeout(() => {
-                    reject(new Error(`${operationName} timed out after ${timeoutMs}ms`));
+                    reject(new Error(`${operationName} timed out after ${timeoutMs} ms`));
                 }, timeoutMs);
             });
 
@@ -304,7 +328,7 @@ async function runWithRetryAndTimeout<T>(
             const isLastAttempt = attempt === retries;
 
             if (isLastAttempt) {
-                console.error(`${operationName} failed after ${retries + 1} attempts. Last error:`, error);
+                console.error(`${operationName} failed after ${retries + 1} attempts.Last error: `, error);
                 throw error;
             }
 
@@ -319,7 +343,27 @@ async function runWithRetryAndTimeout<T>(
     throw lastError;
 }
 
-export async function generateApp(description: string): Promise<string> {
+export interface GenerationResult {
+    text: string;
+    usage: {
+        promptTokens: number;
+        responseTokens: number;
+        totalTokens: number;
+    };
+}
+
+function getUsage(result: any): { promptTokens: number; responseTokens: number; totalTokens: number } {
+    const usage = result.response.usageMetadata;
+    return {
+        promptTokens: usage?.promptTokenCount || 0,
+        responseTokens: usage?.candidatesTokenCount || 0,
+        totalTokens: usage?.totalTokenCount || 0,
+    };
+}
+
+// ... helper updates ...
+
+export async function generateApp(description: string): Promise<GenerationResult> {
     // Content moderation check
     const validation = validateContentRequest(description);
     if (!validation.allowed) {
@@ -339,7 +383,10 @@ Return ONLY the HTML code wrapped in a markdown code block \`\`\`html ... \`\`\`
 
     const runModelCall = async (model: any) => {
         const result = await model.generateContent(prompt);
-        return extractHtml(result.response.text());
+        return {
+            text: extractHtml(result.response.text()),
+            usage: getUsage(result)
+        };
     };
 
     try {
@@ -359,47 +406,129 @@ Return ONLY the HTML code wrapped in a markdown code block \`\`\`html ... \`\`\`
     }
 }
 
-export async function editApp(currentCode: string, instructions: string): Promise<string> {
+interface Patch {
+    startLine: number;
+    endLine: number;
+    content: string;
+}
+
+function applyPatches(sourceCode: string, patches: Patch[]): string {
+    // Normalize source to LF and split into lines
+    let lines = sourceCode.replace(/\r\n/g, '\n').split('\n');
+
+    // Sort patches descending by startLine to prevent index shifts affecting subsequent patches
+    const sortedPatches = [...patches].sort((a, b) => b.startLine - a.startLine);
+
+    for (const patch of sortedPatches) {
+        // Validate bounds
+        if (patch.startLine < 1 || patch.endLine > lines.length || patch.startLine > patch.endLine) {
+            console.warn(`[applyPatches] Invalid range ${patch.startLine}-${patch.endLine} for ${lines.length} lines. Skipping.`);
+            continue;
+        }
+
+        const startIndex = patch.startLine - 1; // 0-based
+        const deleteCount = (patch.endLine - patch.startLine) + 1;
+
+        // Handle content: if empty string and intent is delete, simple split gives [""] (one empty line).
+        // This is generally fine (leaves a blank line).
+        const newLines = patch.content.replace(/\r\n/g, '\n').split('\n');
+
+        // Special case: if content is exactly empty string, do we delete lines entirely?
+        // Let's assume yes if the result of split is just [""] and user asked for empty content?
+        // Actually, let's just trust splice. [""] means replacing range with a blank line.
+
+        lines.splice(startIndex, deleteCount, ...newLines);
+    }
+
+    return lines.join('\n');
+}
+
+const SMART_PATCH_INSTRUCTIONS = `
+Task: Return a JSON object with a list of "changes" to apply to the code.
+Each change must have:
+- "startLine": The 1-based line number where the change starts (inclusive).
+- "endLine": The 1-based line number where the change ends (inclusive).
+- "content": The new code to replace these lines with.
+
+Rules:
+1. Use the line numbers provided in the source.
+2. To DELETE lines, set the "content" field to an empty string "".
+3. To INSERT lines, target the specific line(s) the new code should replace.
+   - Example: To insert after line 10, target line 10 and include the original content + new content.
+   - OR target lines 10-10 and provide "original line 10\\nnew line".
+4. If the user selected a specific context, make sure your changes align with that selection.
+5. Return ONLY valid JSON.
+6. Generate the app's user interface changes (labels, buttons, messages, placeholder texts) in THE SAME LANGUAGE the app already is.
+
+
+Schema:
+{
+  "changes": [
+    { "startLine": number, "endLine": number, "content": "string" }
+  ]
+}
+`;
+
+export async function editApp(currentCode: string, instructions: string): Promise<GenerationResult> {
     // Content moderation check
     const validation = validateContentRequest(instructions);
     if (!validation.allowed) {
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    const prompt = `Here is an existing HTML application:
+    // Prepare numbered code for context
+    const codeLines = currentCode.replace(/\r\n/g, '\n').split('\n');
+    const numberedCode = codeLines.map((line, i) => `${i + 1}| ${line}`).join('\n');
+
+    // 1. Try Smart Patch (Line-Based JSON) with Retry Loop
+    const basePatchPrompt = `Here is an existing HTML application with line numbers:
 
 \`\`\`html
-${currentCode}
+${numberedCode}
 \`\`\`
 
-Please modify it according to these instructions: ${instructions}
+User instructions: ${instructions}
 
-IMPORTANT LANGUAGE RULE: Keep the app's language consistent. If the existing UI is in a specific language, maintain that language. If the instruction is in a different language, still keep the app's UI in its original language unless explicitly asked to translate.
+${SMART_PATCH_INSTRUCTIONS}
+`;
 
-${SYSTEM_INSTRUCTIONS}
+    let lastError: any;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const currentPrompt = attempt === 1
+                ? basePatchPrompt
+                : `${basePatchPrompt}\n\nIMPORTANT: The previous attempt failed with error: "${lastError?.message || lastError}".\nPlease correct the JSON structure or Line Numbers to resolve this error.`;
 
-Return the full updated single-file HTML code. Wrap it in \`\`\`html ... \`\`\`.`;
+            const runPatchParams = async (model: any) => {
+                const result = await model.generateContent(currentPrompt);
+                const text = result.response.text();
+                const jsonStr = text.replace(/[\s\S]*?\{/, '{').replace(/\}[\s\S]*$/, '}'); // Extract JSON
+                const data = JSON.parse(jsonStr) as { changes: Patch[] };
 
-    const runModelCall = async (model: any) => {
-        const result = await model.generateContent(prompt);
-        return extractHtml(result.response.text());
-    };
+                console.log(`[editApp] Attempt ${attempt}: Generated ${data.changes.length} patches.`);
 
-    try {
-        return await runWithRetryAndTimeout(
-            () => runModelCall(primaryModel),
-            { operationName: 'editApp (Primary)' }
-        );
-    } catch (error) {
-        if (isRateLimitError(error)) {
-            console.log('Rate limit hit, trying fallback model...');
+                // Apply patches
+                const patchedCode = applyPatches(currentCode, data.changes);
+
+                return {
+                    text: patchedCode,
+                    usage: getUsage(result)
+                };
+            };
+
             return await runWithRetryAndTimeout(
-                () => runModelCall(fallbackModel),
-                { operationName: 'editApp (Fallback)' }
+                () => runPatchParams(primaryJsonModel),
+                { operationName: `editApp (Smart Patch Attempt ${attempt})` }
             );
+
+        } catch (error) {
+            console.warn(`[editApp] Attempt ${attempt} failed:`, error);
+            lastError = error;
+            if (isRateLimitError(error)) throw error;
         }
-        throw error;
     }
+
+    throw new Error(`Failed to edit app. Please try again with clearer instructions. Error: ${lastError?.message || lastError}`);
 }
 
 
@@ -409,64 +538,102 @@ export async function editAppWithContext(
     instructions: string,
     selectedContext: string,
     previousEdits: { version: number; instruction: string | null }[]
-): Promise<string> {
+): Promise<GenerationResult> {
     // Content moderation check
     const validation = validateContentRequest(instructions);
     if (!validation.allowed) {
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
+    // Prepare numbered code for context
+    // Normalize to LF first to ensure consistent line numbering
+    const normalizedCode = currentCode.replace(/\r\n/g, '\n');
+    const codeLines = normalizedCode.split('\n');
+    const numberedCode = codeLines.map((line, i) => `${i + 1}| ${line}`).join('\n');
+
     const historyContext = previousEdits.length > 0
         ? `
-IMPORTANT - Previous edits made to this app (DO NOT UNDO these changes):
+IMPORTANT - Previous edits made to this app(DO NOT UNDO these changes):
 ${previousEdits.map(e => `- v${e.version}: ${e.instruction}`).join('\n')}
-
 Make sure your new edit PRESERVES all the functionality and changes from previous versions.
 `
         : '';
 
     const selectionPart = selectedContext
-        ? `The user selected this specific part of the code:
-"${selectedContext}"
+        ? `
+The user selected this specific part of the code (Focus your edits here):
+"""
+${selectedContext}
+"""
+`
+        : '';
 
-Please modify ONLY this selected part according to the user's instructions: ${instructions}`
-        : `Please modify it according to these instructions: ${instructions}`;
-
-    const prompt = `Here is an HTML application:
+    // 1. Try Smart Patch (Line-Based JSON) with Retry Loop
+    const basePatchPrompt = `Here is an existing HTML application with line numbers:
 
 \`\`\`html
-${currentCode}
+${numberedCode}
 \`\`\`
+
 ${historyContext}
 ${selectionPart}
 
-Return the COMPLETE updated HTML code with the modifications. Wrap it in \`\`\`html ... \`\`\`.`;
+User instructions: ${instructions}
 
-    const runModelCall = async (model: any) => {
-        const result = await model.generateContent(prompt);
-        return extractHtml(result.response.text());
-    };
+${SMART_PATCH_INSTRUCTIONS}
+`;
 
-    try {
-        return await runWithRetryAndTimeout(
-            () => runModelCall(primaryModel),
-            { operationName: 'editAppWithContext (Primary)' }
-        );
-    } catch (error) {
-        if (isRateLimitError(error)) {
-            console.log('Rate limit hit, trying fallback model...');
+    let lastError: any;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const currentPrompt = attempt === 1
+                ? basePatchPrompt
+                : `${basePatchPrompt}\n\nIMPORTANT: The previous attempt failed with error: "${lastError?.message || lastError}".\nPlease correct the JSON structure or Line Numbers to resolve this error.`;
+
+            const runPatchParams = async (model: any) => {
+                const result = await model.generateContent(currentPrompt);
+                const text = result.response.text();
+                const jsonStr = text.replace(/[\s\S]*?\{/, '{').replace(/\}[\s\S]*$/, '}'); // Extract JSON
+                const data = JSON.parse(jsonStr) as { changes: Patch[] };
+
+                console.log(`[editAppWithContext] Attempt ${attempt}: Generated ${data.changes.length} patches.`);
+
+                // Apply patches against the normalized code (as applyPatches expects)
+                const patchedCode = applyPatches(normalizedCode, data.changes);
+
+                return {
+                    text: patchedCode,
+                    usage: getUsage(result)
+                };
+            };
+
+            // Try JSON model first
             return await runWithRetryAndTimeout(
-                () => runModelCall(fallbackModel),
-                { operationName: 'editAppWithContext (Fallback)' }
+                () => runPatchParams(primaryJsonModel),
+                { operationName: `editAppWithContext (Smart Patch Attempt ${attempt})` }
             );
+        } catch (error) {
+            console.warn(`[editAppWithContext] Attempt ${attempt} failed:`, error);
+            lastError = error;
+            if (isRateLimitError(error)) throw error;
         }
-        throw error;
     }
+
+    throw new Error(`Failed to edit app with context. Please try again. Error: ${lastError?.message || lastError}`);
 }
 
 
 // AI functions for WebView bridge
 export async function aiGenerateText(prompt: string): Promise<string> {
+    // Legacy/Bridge wrapper needed? No, we should update this too or wrap it.
+    // The bridge expects string. We can keep this returning string for simplicity, OR update bridge.
+    // Bridge uses: `aiGenerate` which calls this.
+    // Let's update `aiGenerate` to handle costs in `Bridge`?
+    // Actually, `aiGenerate` is used by `AppRunner`.
+    // Let's keep these returning strings for now IF NOT USED BY STORE directly?
+    // `store.ts` uses `generateApp` and `editApp`.
+    // `AppRunner` uses `aiGenerate`. We need to handle cost there too.
+
     const runModelCall = async (model: any) => {
         const result = await model.generateContent(prompt);
         return result.response.text();
@@ -489,89 +656,39 @@ export async function aiGenerateText(prompt: string): Promise<string> {
     }
 }
 
-export async function aiDescribeImage(base64Image: string, prompt: string): Promise<string> {
-    console.log('[Gemini] aiDescribeImage called. Image length:', base64Image?.length, 'Prompt:', prompt);
+// ... keeping other image funcs as string for now, will update `aiGenerate` ...
 
-    const cleanBase64 = base64Image
-        .replace(/^data:image\/[^;]+;base64,/, '');
-
-    const runModelCall = async (model: any) => {
-        const result = await model.generateContent([
-            {
-                inlineData: {
-                    mimeType: 'image/jpeg',
-                    data: cleanBase64,
-                },
-            },
-            prompt || 'Describe this image in detail.',
-        ]);
-        return result.response.text();
-    };
-
-    try {
-        return await runWithRetryAndTimeout(
-            () => runModelCall(fallbackModel),
-            { operationName: 'aiDescribeImage (Fallback)' }
-        );
-    } catch (error) {
-        if (isRateLimitError(error)) {
-            console.log('Rate limit hit, trying primary model for image...');
-            return await runWithRetryAndTimeout(
-                () => runModelCall(primaryModel),
-                { operationName: 'aiDescribeImage (Primary)' }
-            );
-        }
-        throw error;
-    }
-}
-
-
-
-export async function aiExtractStructuredData(text: string, schemaJson: string): Promise<string> {
-    const prompt = `Extract structured data from this text: "${text}"
-
-Expected JSON schema: ${schemaJson}
-
-Return only the extracted data as valid JSON matching the schema.
-If information is missing, use null or empty string.`;
-
-    const runModelCall = async (model: any) => {
-        const result = await model.generateContent(prompt);
-        return result.response.text();
-    };
-
-    try {
-        return await runWithRetryAndTimeout(
-            () => runModelCall(fallbackJsonModel),
-            { operationName: 'aiExtractStructuredData (Fallback)' }
-        );
-    } catch (error) {
-        if (isRateLimitError(error)) {
-            console.log('Rate limit hit, trying primary model for structured data...');
-            return await runWithRetryAndTimeout(
-                () => runModelCall(primaryJsonModel),
-                { operationName: 'aiExtractStructuredData (Primary)' }
-            );
-        }
-        throw error;
-    }
-}
-// ... (skip to aiGenerate)
-
-export async function aiGenerate(options: AIGenerateOptions): Promise<string> {
+export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: string, usage: any }> {
     console.log('[Gemini] aiGenerate called. Options:', JSON.stringify({ ...options, image: options.image ? '<base64>' : null, audio: options.audio ? '<base64>' : null }));
     const { prompt, search, schema, image, audio } = options;
     const schemaJson = schema ? JSON.stringify(schema) : null;
 
-    // Helper to run model call with timeout/retry
-    const runModel = async (model: any, args: any, name: string) => {
-        return runWithRetryAndTimeout(async () => {
-            const result = await model.generateContent(args);
-            return result.response.text();
-        }, { operationName: name });
+    // Helper to run model call with timeout/retry and fallback
+    const runModel = async (model: any, fallbackModel: any | null, args: any, name: string) => {
+        const runCall = async (m: any, opName: string) => {
+            return runWithRetryAndTimeout(async () => {
+                const result = await m.generateContent(args);
+                return {
+                    text: result.response.text(),
+                    usage: getUsage(result)
+                };
+            }, { operationName: opName });
+        };
+
+        try {
+            return await runCall(model, name);
+        } catch (error) {
+            if (fallbackModel && isRateLimitError(error)) {
+                console.log(`[Gemini] Rate limit hit for ${name}, using fallback...`);
+                return await runCall(fallbackModel, `${name} (Fallback)`);
+            }
+            throw error;
+        }
     };
 
-    // ===== Audio-based flows (1 call - model handles transcription + processing) =====
+    // Note: I'm refactoring all returns inside aiGenerate to use runModel and return object
+
+    // ===== Audio-based flows =====
     if (audio) {
         const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
         let mimeType = 'audio/webm';
@@ -579,27 +696,24 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<string> {
         if (mimeMatch) mimeType = mimeMatch[1];
         const audioData = { inlineData: { mimeType, data: cleanBase64 } };
 
-        // Audio + Schema (with or without search): transcribe and extract JSON in one call
         if (schemaJson) {
             const extractPrompt = search
                 ? `Transcribe this audio. Use Google Search to enrich the content with context. Then extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`
                 : `Transcribe this audio and extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`;
 
             if (search) {
-                return runModel(searchModel, [audioData, extractPrompt], 'aiGenerate: Audio+Schema+Search');
+                return runModel(searchModel, searchFallbackModel, [audioData, extractPrompt], 'aiGenerate: Audio+Schema+Search');
             }
-            return runModel(primaryJsonModel, [audioData, extractPrompt], 'aiGenerate: Audio+Schema');
+            return runModel(primaryJsonModel, fallbackJsonModel, [audioData, extractPrompt], 'aiGenerate: Audio+Schema');
         }
 
-        // Audio + Search: transcribe with web context in one call
         if (search) {
             const searchPrompt = `Transcribe this audio. Use Google Search to find relevant information about the content. ${prompt || 'Provide detailed context.'}`;
-            return runModel(searchModel, [audioData, searchPrompt], 'aiGenerate: Audio+Search');
+            return runModel(searchModel, searchFallbackModel, [audioData, searchPrompt], 'aiGenerate: Audio+Search');
         }
 
-        // Audio only: just transcribe (1 call)
         const transcribePrompt = prompt || 'Transcribe this audio to text. Return only the transcription.';
-        return runModel(primaryModel, [audioData, transcribePrompt], 'aiGenerate: Audio');
+        return runModel(primaryModel, fallbackModel, [audioData, transcribePrompt], 'aiGenerate: Audio');
     }
 
     // ===== Image-based flows =====
@@ -607,104 +721,54 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<string> {
         const cleanBase64 = image.replace(/^data:image\/[^;]+;base64,/, '');
         const imageData = { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } };
 
-        // Image + Schema (with or without search): describe and extract JSON in one call
         if (schemaJson) {
             const extractPrompt = search
                 ? `Analyze this image. Use Google Search to find more information about what you see. Then extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`
                 : `Analyze this image and extract structured data.\n${prompt || ''}\n\nExpected JSON schema: ${schemaJson}\nReturn only valid JSON matching the schema.`;
 
             if (search) {
-                return runModel(searchModel, [imageData, extractPrompt], 'aiGenerate: Image+Schema+Search');
+                return runModel(searchModel, searchFallbackModel, [imageData, extractPrompt], 'aiGenerate: Image+Schema+Search');
             }
-            return runModel(primaryJsonModel, [imageData, extractPrompt], 'aiGenerate: Image+Schema');
+            return runModel(primaryJsonModel, fallbackJsonModel, [imageData, extractPrompt], 'aiGenerate: Image+Schema');
         }
 
-        // Image + Search: describe with web context in one call
         if (search) {
             const searchPrompt = `Analyze this image. Use Google Search to find relevant information about what you see. ${prompt || 'Provide detailed context.'}`;
-            return runModel(searchModel, [imageData, searchPrompt], 'aiGenerate: Image+Search');
+            return runModel(searchModel, searchFallbackModel, [imageData, searchPrompt], 'aiGenerate: Image+Search');
         }
 
-        // Image only: just describe (1 call)
-        // Ensure aiDescribeImage uses retry internally (it does now)
-        return await aiDescribeImage(image, prompt || 'Describe this image in detail.');
+        // Simple describe wrap
+        return runModel(primaryModel, fallbackModel, [imageData, prompt || 'Describe this image in detail.'], 'aiGenerate: Image');
     }
 
     // ===== Text-based flows =====
 
-    // Schema + Search: search and extract JSON in one call using search model with JSON instruction
     if (schemaJson && search) {
         const combinedPrompt = `Use Google Search to find information about: ${prompt || ''}\n\nThen extract structured data matching this JSON schema: ${schemaJson}\nReturn only valid JSON.`;
-        return runModel(searchModel, combinedPrompt, 'aiGenerate: Schema+Search');
+        return runModel(searchModel, searchFallbackModel, combinedPrompt, 'aiGenerate: Schema+Search');
     }
 
-    // Schema only: extract structured data (1 call)
     if (schemaJson) {
-        return await aiExtractStructuredData(prompt || '', schemaJson);
+        // aiExtractStructuredData returns string, need to wrap or modify it too
+        // For simplicity, let's just use runModel here directly
+        const extractPrompt = `Extract structured data from this text: "${prompt}"\n\nExpected JSON schema: ${schemaJson}\n\nReturn only the extracted data as valid JSON matching the schema.`;
+        return runModel(primaryJsonModel, fallbackJsonModel, extractPrompt, 'aiGenerate: Schema');
     }
 
-    // Search only: generate with web search (1 call)
     if (search) {
-        return await aiGenerateTextWithSearch(prompt || '');
+        // aiGenerateTextWithSearch returns string.
+        // Let's reimplement call here to get usage
+        const searchPrompt = `Use o Google Search para buscar informações atuais e relevantes para responder: ${prompt}`;
+        return runModel(searchModel, searchFallbackModel, searchPrompt, 'aiGenerate: Search');
     }
 
-    // Basic text generation (1 call)
-    return await aiGenerateText(prompt || '');
-}
-
-export async function aiGenerateTextWithSearch(prompt: string): Promise<string> {
-    // Add instruction to use Google Search for current/real-time information
-    const searchPrompt = `Use o Google Search para buscar informações atuais e relevantes para responder: ${prompt}`;
-
-    const runCall = async (model: any) => {
-        return await model.generateContent(searchPrompt);
-    };
-
-    try {
-        console.log('Search: calling searchModel with prompt length:', searchPrompt.length);
-        const result = await runWithRetryAndTimeout(
-            () => runCall(searchModel),
-            { operationName: 'aiGenerateTextWithSearch (Primary)' }
-        );
-
-        // Debug: log response structure
-        console.log('Search: response received');
-        console.log('Search: candidates count:', result.response.candidates?.length || 0);
-        console.log('Search: finish reason:', result.response.candidates?.[0]?.finishReason);
-        console.log('Search: promptFeedback:', JSON.stringify(result.response.promptFeedback));
-
-        const text = result.response.text();
-        console.log('Search: result text length:', text.length);
-
-        if (!text || text.trim() === '') {
-            console.log('Search: Empty result, trying fallback model...');
-            const fallbackResult = await runWithRetryAndTimeout(
-                () => runCall(searchFallbackModel),
-                { operationName: 'aiGenerateTextWithSearch (Fallback empty)' }
-            );
-            const fallbackText = fallbackResult.response.text();
-            console.log('Search fallback: result length:', fallbackText.length);
-            return fallbackText;
-        }
-        return text;
-    } catch (error) {
-        console.error('AI Search Error:', error);
-        if (isRateLimitError(error)) {
-            console.log('Search: Rate limit hit, trying fallback search model...');
-            const result = await runWithRetryAndTimeout(
-                () => runCall(searchFallbackModel),
-                { operationName: 'aiGenerateTextWithSearch (Fallback error)' }
-            );
-            return result.response.text();
-        }
-        throw error;
-    }
+    return runModel(primaryModel, fallbackModel, prompt || '', 'aiGenerate: Text');
 }
 
 /**
  * Convert a Node/TypeScript project source code to standalone HTML webapp
  */
-export async function convertNodeProject(sourceCode: string, frameworkHint: string): Promise<string> {
+export async function convertNodeProject(sourceCode: string, frameworkHint: string): Promise<GenerationResult> {
     const prompt = `You are a code conversion expert. Convert the following ${frameworkHint} project source code into a SINGLE standalone HTML file that works in a WebView.
 
 IMPORTANT RULES:
@@ -728,7 +792,10 @@ The HTML must be fully functional and self-contained.`;
 
     const runModelCall = async (model: any) => {
         const result = await model.generateContent(prompt);
-        return extractHtml(result.response.text());
+        return {
+            text: extractHtml(result.response.text()),
+            usage: getUsage(result)
+        };
     };
 
     try {

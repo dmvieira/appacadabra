@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -11,7 +11,7 @@ import {
     ScrollView,
     Linking as RNLinking,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -26,6 +26,7 @@ import { colors, spacing, borderRadius } from '../lib/theme';
 import { GeneratedApp } from '../lib/database/types';
 import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
 import { t } from '../lib/i18n';
+import { ManaDisplay } from '../components/ManaDisplay';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -60,9 +61,11 @@ export default function HomeScreen() {
     const [showLegal, setShowLegal] = useState(false);
     const [legalTab, setLegalTab] = useState<'privacy' | 'terms'>('privacy');
 
-    useEffect(() => {
-        loadApps();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadApps();
+        }, [])
+    );
 
     useEffect(() => {
         if (apps.length > 0) {
@@ -259,7 +262,10 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             {/* Header with menu */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>✨ {t('appName')}</Text>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.headerTitle}>✨ {t('appName')}</Text>
+                </View>
+                <ManaDisplay />
                 <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuBtn}>
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>

@@ -20,7 +20,8 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       currentVersion INTEGER NOT NULL DEFAULT 1,
       iconPath TEXT,
       lastUpdated INTEGER NOT NULL,
-      consoleLogs TEXT NOT NULL DEFAULT ''
+      consoleLogs TEXT NOT NULL DEFAULT '',
+      totalManaCost REAL NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS app_versions (
@@ -46,6 +47,13 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_app_storage_appId_key ON app_storage(appId, key);
   `);
+
+    // Migration: Attempt to add totalManaCost column if it doesn't exist
+    try {
+        await database.execAsync('ALTER TABLE generated_apps ADD COLUMN totalManaCost REAL NOT NULL DEFAULT 0');
+    } catch (e) {
+        // Ignore error if column already exists
+    }
 }
 
 // ============= App CRUD Operations =============
@@ -68,9 +76,9 @@ export async function getAppById(id: number): Promise<GeneratedApp | null> {
 export async function insertApp(app: NewGeneratedApp): Promise<number> {
     const database = await getDatabase();
     const result = await database.runAsync(
-        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs]
+        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.totalManaCost || 0]
     );
     return result.lastInsertRowId;
 }
@@ -78,9 +86,9 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
 export async function updateApp(app: GeneratedApp): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?
+        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?
      WHERE id = ?`,
-        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.id]
+        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.totalManaCost, app.id]
     );
 }
 

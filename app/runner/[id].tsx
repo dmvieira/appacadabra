@@ -34,7 +34,8 @@ import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { GeneratedApp, AppVersion } from '../../lib/database/types';
 import { useSpeechToText } from '../../lib/useSpeech';
-import { getWebViewTranslations, t } from '../../lib/i18n';
+import { t, getWebViewTranslations } from '../../lib/i18n';
+import { useManaStore, MANA_COSTS, calculateManaCost } from '../../lib/manaStore';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -405,13 +406,47 @@ export default function RunnerScreen() {
 
                 case 'AI_GENERATE':
                     try {
-                        result = await gemini.aiGenerate({
+                        // Check Mana
+                        const manaStore = useManaStore.getState();
+                        // Minimum check
+                        if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
+                            manaStore.openShop();
+                            success = false;
+                            result = t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) });
+                            break;
+                        }
+
+                        const genResult = await gemini.aiGenerate({
                             prompt: data.prompt,
                             search: data.search,
                             schema: data.schema,
                             image: data.image,
                             audio: data.audio,
                         });
+                        result = genResult.text;
+
+                        // Deduct on success
+                        const cost = calculateManaCost(genResult.usage?.totalTokens || 0);
+                        manaStore.deductMana(cost);
+                        console.log(`[Runner] AI generated. Cost: ${cost}`);
+
+                        // Update App Total Mana Cost
+                        // We need to fetch current app first to be safe, or just atomic update?
+                        // Since we are in runner for specific ID, we can update it.
+                        // But [id].tsx doesn't export `updateApp` easily without full object.
+                        // We can use db.updateApp.
+                        // Ideally we should use store action to keep UI in sync, but [id].tsx uses direct db sometimes or store?
+                        // It uses `useAppStore`.
+                        const currentApp = await db.getAppById(Number(id));
+                        if (currentApp) {
+                            const updatedApp = {
+                                ...currentApp,
+                                totalManaCost: (currentApp.totalManaCost || 0) + cost
+                            };
+                            await db.updateApp(updatedApp);
+                            // Also update store to reflect change immediately if we go back
+                            // useAppStore.getState().loadApps(); // Might be heavy?
+                        }
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
@@ -881,7 +916,7 @@ export default function RunnerScreen() {
     const handleSaveManual = async () => {
         if (!app || !manualCode.trim()) return;
 
-        await updateAppCode(app.id, manualCode, 'Edição manual');
+        await updateAppCode(app.id, manualCode, t('manualEdit'));
         const updatedApp = await db.getAppById(app.id);
         if (updatedApp) {
             setApp(updatedApp);
@@ -914,12 +949,12 @@ export default function RunnerScreen() {
         if (version.version === app.currentVersion) return;
 
         Alert.alert(
-            'Excluir Versão',
-            `Tem certeza que deseja excluir a versão ${version.version}?`,
+            t('deleteVersionTitle'),
+            t('deleteVersionMessage', { version: version.version }),
             [
-                { text: 'Cancelar', style: 'cancel' },
+                { text: t('cancel'), style: 'cancel' },
                 {
-                    text: 'Excluir',
+                    text: t('delete'),
                     style: 'destructive',
                     onPress: async () => {
                         await db.deleteVersion(version.id);
@@ -990,7 +1025,7 @@ export default function RunnerScreen() {
             {isEditMode && (
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Text style={styles.backText}>← Voltar</Text>
+                        <Text style={styles.backText}>← {t('yourApps')}</Text>
                     </TouchableOpacity>
                     <Text style={styles.title} numberOfLines={1}>{app.name}</Text>
                     <Text style={styles.version}>v{app.currentVersion}</Text>
@@ -1060,7 +1095,7 @@ export default function RunnerScreen() {
                         }}
                     >
                         <Text style={styles.toolbarIcon}>👆</Text>
-                        <Text style={styles.toolbarText}>{isSelectionMode ? 'Cancel' : 'Select'}</Text>
+                        <Text style={styles.toolbarText}>{isSelectionMode ? t('cancel') : t('selectElement')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -1071,7 +1106,7 @@ export default function RunnerScreen() {
                         }}
                     >
                         <Text style={styles.toolbarIcon}>✏️</Text>
-                        <Text style={styles.toolbarText}>Editar</Text>
+                        <Text style={styles.toolbarText}>{t('edit')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -1082,7 +1117,7 @@ export default function RunnerScreen() {
                         }}
                     >
                         <Text style={styles.toolbarIcon}>💻</Text>
-                        <Text style={styles.toolbarText}>Código</Text>
+                        <Text style={styles.toolbarText}>{t('code')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -1093,7 +1128,7 @@ export default function RunnerScreen() {
                         }}
                     >
                         <Text style={styles.toolbarIcon}>📜</Text>
-                        <Text style={styles.toolbarText}>Histórico</Text>
+                        <Text style={styles.toolbarText}>{t('history')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -1101,7 +1136,7 @@ export default function RunnerScreen() {
                         onPress={() => setShowDebugPanel(true)}
                     >
                         <Text style={styles.toolbarIcon}>🐛</Text>
-                        <Text style={styles.toolbarText}>Debug</Text>
+                        <Text style={styles.toolbarText}>{t('debug')}</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -1113,12 +1148,12 @@ export default function RunnerScreen() {
                     style={styles.sheetOverlay}
                 >
                     <View style={styles.sheet}>
-                        <Text style={styles.sheetTitle}>Editar com IA</Text>
+                        <Text style={styles.sheetTitle}>{t('editWithAI')}</Text>
 
                         {isEditing ? (
                             <View style={styles.editingContainer}>
                                 <ActivityIndicator size="large" color={colors.primary} />
-                                <Text style={styles.editingText}>Aplicando mudanças...</Text>
+                                <Text style={styles.editingText}>{t('applyingChanges')}</Text>
                             </View>
                         ) : (
                             <>
@@ -1127,7 +1162,7 @@ export default function RunnerScreen() {
                                     <View style={styles.selectedElementBox}>
                                         <View style={styles.selectedElementHeader}>
                                             <Text style={styles.selectedElementLabel}>
-                                                Elemento selecionado: <Text style={styles.selectedElementTag}>&lt;{selectedElement.tagName}&gt;</Text>
+                                                {t('elementSelected')} <Text style={styles.selectedElementTag}>&lt;{selectedElement.tagName}&gt;</Text>
                                             </Text>
                                             <TouchableOpacity onPress={() => setSelectedElement(null)}>
                                                 <Text style={styles.clearElementBtn}>✕</Text>
@@ -1141,7 +1176,7 @@ export default function RunnerScreen() {
 
                                 {/* Instruction input */}
                                 <Text style={styles.instructionLabel}>
-                                    {selectedElement ? 'Instrução para o elemento:' : 'O que você quer alterar?'}
+                                    {selectedElement ? t('instructionElement') : t('instructionGeneral')}
                                 </Text>
                                 <View style={styles.editInputContainer}>
                                     <TextInput
@@ -1149,8 +1184,8 @@ export default function RunnerScreen() {
                                         value={editPrompt}
                                         onChangeText={setEditPrompt}
                                         placeholder={selectedElement
-                                            ? "Ex: mude a cor para azul, adicione um ícone..."
-                                            : "Descreva as mudanças desejadas..."
+                                            ? t('editExample')
+                                            : t('describeChanges')
                                         }
                                         placeholderTextColor={colors.onSurfaceVariant}
                                         multiline
@@ -1165,8 +1200,8 @@ export default function RunnerScreen() {
                                 </View>
                                 <Text style={styles.editHint}>
                                     {isListening
-                                        ? '🎤 Ouvindo... Toque para parar'
-                                        : '💡 Descreva ou use o microfone para falar'
+                                        ? t('listeningTap')
+                                        : t('describeOrMic')
                                     }
                                 </Text>
 
@@ -1178,13 +1213,13 @@ export default function RunnerScreen() {
                                             setSelectedElement(null);
                                         }}
                                     >
-                                        <Text style={styles.cancelText}>Cancelar</Text>
+                                        <Text style={styles.cancelText}>{t('cancel')}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.applyBtn}
                                         onPress={handleApplyEdit}
                                     >
-                                        <Text style={styles.applyText}>Aplicar</Text>
+                                        <Text style={styles.applyText}>{t('apply')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>
@@ -1198,11 +1233,11 @@ export default function RunnerScreen() {
                 <View style={[styles.editorContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
                     <View style={styles.editorHeader}>
                         <TouchableOpacity onPress={() => setShowManualEditor(false)}>
-                            <Text style={styles.cancelText}>Cancelar</Text>
+                            <Text style={styles.cancelText}>{t('cancel')}</Text>
                         </TouchableOpacity>
-                        <Text style={styles.editorTitle}>Editor de Código</Text>
+                        <Text style={styles.editorTitle}>{t('codeEditorTitle')}</Text>
                         <TouchableOpacity onPress={handleSaveManual}>
-                            <Text style={styles.saveText}>Salvar</Text>
+                            <Text style={styles.saveText}>{t('save')}</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -1212,7 +1247,7 @@ export default function RunnerScreen() {
                             style={styles.searchInput}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
-                            placeholder="Pesquisar no código..."
+                            placeholder={t('searchCode')}
                             placeholderTextColor={colors.onSurfaceVariant}
                         />
                         {searchQuery !== '' && searchResultCount > 0 && (
@@ -1245,7 +1280,7 @@ export default function RunnerScreen() {
                             </View>
                         )}
                         {searchQuery !== '' && searchResultCount === 0 && (
-                            <Text style={styles.searchNoResults}>0 resultados</Text>
+                            <Text style={styles.searchNoResults}>{t('noResults')}</Text>
                         )}
                     </View>
 

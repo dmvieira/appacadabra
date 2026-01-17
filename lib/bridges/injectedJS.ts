@@ -190,6 +190,10 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     add: function(contact, callbackName) {
         console.log('[AppacadabraContacts.add] name:', contact?.name, 'callback:', callbackName);
         sendMessage('CONTACTS_ADD', { contact }, callbackName);
+    },
+    update: function(contact, callbackName) {
+        console.log('[AppacadabraContacts.update] id:', contact?.id, 'callback:', callbackName);
+        sendMessage('CONTACTS_UPDATE', { contact }, callbackName);
     }
   };
 

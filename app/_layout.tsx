@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import * as Linking from 'expo-linking';
 import { colors } from '../lib/theme';
 import ShareReceiver from '../components/ShareReceiver';
+import { ManaShop } from '../components/ManaShop';
 
 export default function RootLayout() {
     const segments = useSegments();
@@ -53,6 +54,7 @@ export default function RootLayout() {
                 />
             </Stack>
             <ShareReceiver />
+            <ManaShop />
         </>
     );
 }

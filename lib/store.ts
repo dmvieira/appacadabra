@@ -6,6 +6,7 @@ import * as backup from './backup';
 import * as projectConverter from './projectConverter';
 import SharingShortcuts from './bridges/SharingShortcuts';
 import { t } from './i18n';
+import { useManaStore, MANA_COSTS, calculateManaCost } from './manaStore';
 
 interface AppState {
     apps: GeneratedApp[];
@@ -112,9 +113,25 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     createApp: async (description: string) => {
         try {
+            // Check Mana
+            const manaStore = useManaStore.getState();
+            // Just check if they have enough to start (minimum required)
+            if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
+                manaStore.openShop();
+                set({ error: t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) }) });
+                return null;
+            }
+
             set({ isGenerating: true, error: null });
 
-            const code = await gemini.generateApp(description);
+            const result = await gemini.generateApp(description);
+            const code = result.text;
+            const usage = result.usage;
+
+            // Deduct Mana based on actual usage
+            const cost = calculateManaCost(usage?.totalTokens || 0);
+            manaStore.deductMana(cost);
+            console.log(`[Store] App generated. Tokens: ${usage?.totalTokens}. Cost: ${cost} Mana.`);
 
             const newApp: NewGeneratedApp = {
                 name: description.slice(0, 20) + '...',
@@ -123,6 +140,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 iconPath: null,
                 lastUpdated: Date.now(),
                 consoleLogs: '',
+                totalManaCost: cost, // Initial cost
             };
 
             const id = await db.insertApp(newApp);
@@ -159,6 +177,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     updateAppWithAI: async (app: GeneratedApp, instructions: string, selectedContext?: string) => {
         try {
+            // Check Mana
+            const manaStore = useManaStore.getState();
+            if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
+                manaStore.openShop();
+                set({ error: t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) }) });
+                return null;
+            }
+
             set({ isGenerating: true, error: null });
 
             // Get previous versions for context
@@ -168,12 +194,14 @@ export const useAppStore = create<AppState>((set, get) => ({
                 .slice(0, 10)
                 .map(v => ({ version: v.version, instruction: v.instruction }));
 
-            const newCode = await gemini.editAppWithContext(
+            const result = await gemini.editAppWithContext(
                 app.code,
                 instructions,
                 selectedContext || '',
                 previousEdits
             );
+            const newCode = result.text;
+            const usage = result.usage;
 
             const newVersion = app.currentVersion + 1;
             const updatedApp: GeneratedApp = {
@@ -181,9 +209,16 @@ export const useAppStore = create<AppState>((set, get) => ({
                 code: newCode,
                 currentVersion: newVersion,
                 lastUpdated: Date.now(),
+                totalManaCost: (app.totalManaCost || 0) + calculateManaCost(usage?.totalTokens || 0), // Add edit cost
             };
 
             await db.updateApp(updatedApp);
+
+            // Deduct Mana
+            const cost = calculateManaCost(usage?.totalTokens || 0);
+            manaStore.deductMana(cost);
+            console.log(`[Store] App edited. Tokens: ${usage?.totalTokens}. Cost: ${cost} Mana.`);
+
             await db.insertVersion({
                 appId: app.id,
                 version: newVersion,
@@ -260,6 +295,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     updateAppCode: async (id: number, code: string, instruction?: string) => {
         try {
+            // Check Mana for manual edit? 
+            // "Edit App" cost usually implies AI Edit. Manual edit should be free?
+            // User prompt: "consumo nas chamadas de IA".
+            // So manual updateAppCode (from editor typing) should be FREE unless it uses AI features.
+            // This function is called by the Editor save.
+            // Wait, `updateAppWithAI` is the AI one. `updateAppCode` is manual save.
+            // So NO CHARGE here.
+
             const app = get().apps.find(a => a.id === id);
             if (!app) return;
 
@@ -344,6 +387,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 iconPath: null,
                 lastUpdated: Date.now(),
                 consoleLogs: '',
+                totalManaCost: 0,
             };
 
             const id = await db.insertApp(newApp);

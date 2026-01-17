@@ -8,6 +8,7 @@ export interface GeneratedApp {
     iconPath: string | null;
     lastUpdated: number;
     consoleLogs: string;
+    totalManaCost: number; // New field to track total mana used by this app
 }
 
 export interface AppVersion {
