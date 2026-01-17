@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { t } from '../i18n';
 
 // API Key should be set via environment variable EXPO_PUBLIC_GEMINI_API_KEY
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
@@ -135,6 +136,129 @@ function extractHtml(response: string): string {
     return response.trim();
 }
 
+// ============= CONTENT MODERATION =============
+// Block malicious, harmful, or inappropriate app generation requests
+
+const BLOCKED_PATTERNS = [
+    // Malware/hacking
+    /keylogger/i,
+    /spyware/i,
+    /malware/i,
+    /ransomware/i,
+    /trojan/i,
+    /exploit/i,
+    /rootkit/i,
+    /backdoor/i,
+
+    // Phishing/fraud
+    /phishing/i,
+    /fake.*login/i,
+    /credential.*steal/i,
+    /password.*harvest/i,
+    /clone.*site/i,
+    /imitar.*site/i,
+    /roubar.*senha/i,
+    /roubar.*dados/i,
+    /capturar.*senha/i,
+    /clonar.*(instagram|facebook|whatsapp|banco|bank)/i,
+
+    // Data theft
+    /steal.*data/i,
+    /exfiltrat/i,
+    /scrape.*personal/i,
+    /harvest.*contact/i,
+    /export.*all.*contacts/i,
+
+    // Harassment/illegal
+    /stalk/i,
+    /track.*without.*consent/i,
+    /spy.*on/i,
+    /espionar/i,
+    /rastrear.*pessoa/i,
+    /dox/i,
+
+    // Adult/harmful content
+    /pornograph/i,
+    /nude.*generat/i,
+    /deepfake/i,
+    /gore/i,
+    /self.?harm/i,
+    /suicid/i,
+
+    // Violence/weapons
+    /bomb.*instruc/i,
+    /weapon.*build/i,
+    /how.*to.*kill/i,
+    /como.*matar/i,
+    /fabricar.*arma/i,
+    /explosivo/i,
+
+    // Scams
+    /pyramid.*scheme/i,
+    /ponzi/i,
+    /esquema.*piramid/i,
+    /golpe/i,
+    /fraude/i,
+
+    // Code injection attempts
+    /eval\s*\(/i,
+    /document\.cookie/i,
+    /xmlhttprequest.*external/i,
+    /send.*to.*server/i,
+    /enviar.*para.*servidor/i,
+];
+
+const BLOCKED_KEYWORDS = [
+    'hack', 'hacker', 'hacking',
+    'crack', 'cracker',
+    'warez', 'pirat',
+    'ddos', 'botnet',
+    'phish',
+];
+
+interface ContentValidationResult {
+    allowed: boolean;
+    reason?: string;
+}
+
+function validateContentRequest(text: string): ContentValidationResult {
+    const lowerText = text.toLowerCase();
+
+    // Check blocked patterns
+    for (const pattern of BLOCKED_PATTERNS) {
+        if (pattern.test(text)) {
+            console.log('[ContentFilter] Blocked pattern detected:', pattern.source);
+            return {
+                allowed: false,
+                reason: t('contentBlockedReason')
+            };
+        }
+    }
+
+    // Check blocked keywords in context
+    for (const keyword of BLOCKED_KEYWORDS) {
+        if (lowerText.includes(keyword)) {
+            // Check if it's in a harmful context (not just mentioning)
+            const harmfulContexts = [
+                'criar', 'make', 'build', 'gerar', 'generate', 'app', 'aplicativo',
+                'programa', 'code', 'código'
+            ];
+            const hasHarmfulContext = harmfulContexts.some(ctx => lowerText.includes(ctx));
+            if (hasHarmfulContext) {
+                console.log('[ContentFilter] Blocked keyword in harmful context:', keyword);
+                return {
+                    allowed: false,
+                    reason: t('contentBlockedReason')
+                };
+            }
+        }
+    }
+
+    return { allowed: true };
+}
+
+// Export for testing
+export { validateContentRequest };
 
 // Helper for retry and timeout
 async function runWithRetryAndTimeout<T>(
@@ -196,11 +320,18 @@ async function runWithRetryAndTimeout<T>(
 }
 
 export async function generateApp(description: string): Promise<string> {
+    // Content moderation check
+    const validation = validateContentRequest(description);
+    if (!validation.allowed) {
+        throw new Error(validation.reason || t('requestBlocked'));
+    }
+
     const prompt = `Create a single-file HTML application (including CSS and JS inside <style> and <script> tags) that does the following: ${description}.
 
-    Reflect about the app and try to elaborate de instructions to improve based on the user needs.
-    Choose a creative, small and original name for the app based on the description and your reflection.
-    
+IMPORTANT LANGUAGE RULE: Generate the app's user interface (labels, buttons, messages, placeholder texts) in THE SAME LANGUAGE as the user's description above. If the description is in Portuguese, make the UI in Portuguese. If in Spanish, make it in Spanish. And so on.
+
+Reflect about the app and try to elaborate the instructions to improve based on the user needs.
+Choose a creative, short and original name for the app based on the description and your reflection.
 
 ${SYSTEM_INSTRUCTIONS}
 
@@ -229,6 +360,12 @@ Return ONLY the HTML code wrapped in a markdown code block \`\`\`html ... \`\`\`
 }
 
 export async function editApp(currentCode: string, instructions: string): Promise<string> {
+    // Content moderation check
+    const validation = validateContentRequest(instructions);
+    if (!validation.allowed) {
+        throw new Error(validation.reason || t('requestBlocked'));
+    }
+
     const prompt = `Here is an existing HTML application:
 
 \`\`\`html
@@ -236,6 +373,8 @@ ${currentCode}
 \`\`\`
 
 Please modify it according to these instructions: ${instructions}
+
+IMPORTANT LANGUAGE RULE: Keep the app's language consistent. If the existing UI is in a specific language, maintain that language. If the instruction is in a different language, still keep the app's UI in its original language unless explicitly asked to translate.
 
 ${SYSTEM_INSTRUCTIONS}
 
@@ -271,6 +410,12 @@ export async function editAppWithContext(
     selectedContext: string,
     previousEdits: { version: number; instruction: string | null }[]
 ): Promise<string> {
+    // Content moderation check
+    const validation = validateContentRequest(instructions);
+    if (!validation.allowed) {
+        throw new Error(validation.reason || t('requestBlocked'));
+    }
+
     const historyContext = previousEdits.length > 0
         ? `
 IMPORTANT - Previous edits made to this app (DO NOT UNDO these changes):

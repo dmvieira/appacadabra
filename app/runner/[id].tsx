@@ -34,6 +34,7 @@ import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { GeneratedApp, AppVersion } from '../../lib/database/types';
 import { useSpeechToText } from '../../lib/useSpeech';
+import { getWebViewTranslations, t } from '../../lib/i18n';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -312,7 +313,7 @@ export default function RunnerScreen() {
 
             if (shouldInject) {
                 console.log('Runner: Injecting shared content setup (onLoadEnd)');
-                const setupScript = createSharedContentSetupScript();
+                const setupScript = createSharedContentSetupScript(getWebViewTranslations());
                 webViewRef.current.injectJavaScript(setupScript);
 
                 setTimeout(() => {
@@ -340,7 +341,7 @@ export default function RunnerScreen() {
         if (shouldInject) {
             console.log('Runner: Shared content updated while running (focused)');
 
-            const setupScript = createSharedContentSetupScript();
+            const setupScript = createSharedContentSetupScript(getWebViewTranslations());
             webViewRef.current?.injectJavaScript(setupScript);
 
             setTimeout(() => {
@@ -425,7 +426,7 @@ export default function RunnerScreen() {
                         // Opens Google Calendar app (if installed) or browser with pre-filled event
                         const startMs = data.startTimeMs;
                         const endMs = data.endTimeMs;
-                        const eventTitle = encodeURIComponent(data.title || 'Novo Evento');
+                        const eventTitle = encodeURIComponent(data.title || t('newEvent'));
                         const eventDesc = encodeURIComponent(data.description || '');
 
                         // Format dates for Google Calendar URL (YYYYMMDDTHHmmssZ format)
@@ -592,7 +593,7 @@ export default function RunnerScreen() {
                             const content = data.text || data.url || '';
                             const tempPath = FileSystem.cacheDirectory + 'share_temp.txt';
                             await FileSystem.writeAsStringAsync(tempPath, content);
-                            await Sharing.shareAsync(tempPath, { mimeType: 'text/plain', dialogTitle: 'Compartilhar' });
+                            await Sharing.shareAsync(tempPath, { mimeType: 'text/plain', dialogTitle: t('shareTitle') });
                             result = 'Shared';
                         } else {
                             // Fallback to Linking for URL
@@ -708,8 +709,8 @@ export default function RunnerScreen() {
                 case 'BIOMETRICS_AUTHENTICATE':
                     try {
                         const authResult = await LocalAuthentication.authenticateAsync({
-                            promptMessage: data.reason || 'Autenticar',
-                            fallbackLabel: 'Usar senha',
+                            promptMessage: data.reason || t('authenticateBiometrics'),
+                            fallbackLabel: t('usePassword'),
                             disableDeviceFallback: false,
                         });
                         result = JSON.stringify(authResult);
@@ -971,7 +972,7 @@ export default function RunnerScreen() {
     // Combine scripts
     const storageScript = createStorageRestoreScript(savedStorage);
     const combinedScript = `
-        ${getInjectedJavaScript(app.id)}
+        ${getInjectedJavaScript(app.id, getWebViewTranslations())}
         ${storageScript}
     `;
 

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { useSpeechToText } from '../lib/useSpeech';
+import { t } from '../lib/i18n';
 
 interface ChatDialogProps {
     visible: boolean;
@@ -76,7 +77,7 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
                     {isGenerating ? (
                         <View style={styles.loadingContainer}>
                             <ActivityIndicator size="large" color={colors.primary} />
-                            <Text style={styles.loadingText}>Criando Mágica...</Text>
+                            <Text style={styles.loadingText}>{t('creatingMagic')}</Text>
                         </View>
                     ) : (
                         <>
@@ -85,7 +86,7 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
                                     style={styles.input}
                                     value={text}
                                     onChangeText={setText}
-                                    placeholder="Descreva os requisitos"
+                                    placeholder={t('describeRequirements')}
                                     placeholderTextColor={colors.onSurfaceVariant}
                                     multiline
                                     numberOfLines={4}
@@ -103,8 +104,8 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
                             </View>
                             <Text style={styles.hint}>
                                 {isListening
-                                    ? '🎤 Ouvindo... Toque para parar'
-                                    : '💡 Descreva ou use o microfone para falar'
+                                    ? t('listeningTap')
+                                    : t('describeOrMic')
                                 }
                             </Text>
                         </>
@@ -113,7 +114,7 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
                     <View style={styles.buttons}>
                         {!isGenerating && (
                             <TouchableOpacity style={styles.cancelBtn} onPress={onDismiss}>
-                                <Text style={styles.cancelText}>Cancelar</Text>
+                                <Text style={styles.cancelText}>{t('cancel')}</Text>
                             </TouchableOpacity>
                         )}
                         {!isGenerating && (
@@ -122,7 +123,7 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
                                 onPress={handleSend}
                                 disabled={!text.trim()}
                             >
-                                <Text style={styles.sendText}>Enviar</Text>
+                                <Text style={styles.sendText}>{t('send')}</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -165,22 +166,22 @@ export function RenameDialog({ visible, currentName, onDismiss, onConfirm }: Ren
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 <View style={styles.dialog}>
-                    <Text style={styles.title}>Renomear App</Text>
+                    <Text style={styles.title}>{t('renameTitle')}</Text>
 
                     <TextInput
                         style={styles.singleInput}
                         value={name}
                         onChangeText={setName}
-                        placeholder="Nome do App"
+                        placeholder={t('appNamePlaceholder')}
                         placeholderTextColor={colors.onSurfaceVariant}
                     />
 
                     <View style={styles.buttons}>
                         <TouchableOpacity style={styles.cancelBtn} onPress={onDismiss}>
-                            <Text style={styles.cancelText}>Cancelar</Text>
+                            <Text style={styles.cancelText}>{t('cancel')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.sendBtn} onPress={handleConfirm}>
-                            <Text style={styles.sendText}>Salvar</Text>
+                            <Text style={styles.sendText}>{t('save')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -202,7 +203,7 @@ export function ConfirmDialog({
     visible,
     title,
     message,
-    confirmText = 'Confirmar',
+    confirmText = t('confirm'),
     onDismiss,
     onConfirm
 }: ConfirmDialogProps) {
@@ -220,7 +221,7 @@ export function ConfirmDialog({
 
                     <View style={styles.buttons}>
                         <TouchableOpacity style={styles.cancelBtn} onPress={onDismiss}>
-                            <Text style={styles.cancelText}>Cancelar</Text>
+                            <Text style={styles.cancelText}>{t('cancel')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.dangerBtn} onPress={onConfirm}>
                             <Text style={styles.dangerText}>{confirmText}</Text>

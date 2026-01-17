@@ -1,5 +1,6 @@
 import { extractZip, analyzeProject, bundleBuiltProject, prepareSourceForAI, ProjectAnalysis } from './zipUtils';
 import * as gemini from './api/gemini';
+import { t } from './i18n';
 
 export interface ConversionResult {
     success: boolean;
@@ -17,7 +18,7 @@ export async function convertProject(zipUri: string): Promise<ConversionResult> 
         const files = await extractZip(zipUri);
 
         if (files.length === 0) {
-            return { success: false, error: 'ZIP vazio ou sem arquivos suportados' };
+            return { success: false, error: t('zipEmpty') };
         }
 
         // Step 2: Analyze project
@@ -41,7 +42,7 @@ export async function convertProject(zipUri: string): Promise<ConversionResult> 
         } else {
             return {
                 success: false,
-                error: 'Tipo de projeto não reconhecido. Certifique-se de incluir index.html ou package.json'
+                error: t('projectTypeUnknown')
             };
         }
 
@@ -51,7 +52,7 @@ export async function convertProject(zipUri: string): Promise<ConversionResult> 
         console.error('Project conversion error:', error);
         return {
             success: false,
-            error: error instanceof Error ? error.message : 'Erro desconhecido na conversão'
+            error: error instanceof Error ? error.message : t('conversionErrorUnknown')
         };
     }
 }
@@ -73,7 +74,7 @@ function getProjectName(analysis: ProjectAnalysis): string {
         }
     }
 
-    return 'Projeto Importado';
+    return t('projectImported');
 }
 
 /**
@@ -82,7 +83,7 @@ function getProjectName(analysis: ProjectAnalysis): string {
 async function convertSourceProjectWithAI(analysis: ProjectAnalysis): Promise<string> {
     // Check size limit (100KB of source code is reasonable for AI)
     if (analysis.totalSize > 200000) {
-        throw new Error('Projeto muito grande para conversão automática (limite: ~200KB de código fonte)');
+        throw new Error(t('projectTooLarge'));
     }
 
     // Prepare source code for AI

@@ -8,6 +8,8 @@ import {
     ActivityIndicator,
     Modal,
     Platform,
+    ScrollView,
+    Linking as RNLinking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +25,7 @@ import { colors, spacing, borderRadius } from '../lib/theme';
 
 import { GeneratedApp } from '../lib/database/types';
 import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
+import { t } from '../lib/i18n';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -54,6 +57,8 @@ export default function HomeScreen() {
     const [showMenu, setShowMenu] = useState(false);
     const [iconTarget, setIconTarget] = useState<GeneratedApp | null>(null);
     const [isPicking, setIsPicking] = useState(false);
+    const [showLegal, setShowLegal] = useState(false);
+    const [legalTab, setLegalTab] = useState<'privacy' | 'terms'>('privacy');
 
     useEffect(() => {
         loadApps();
@@ -94,7 +99,7 @@ export default function HomeScreen() {
         const success = await ShareIntent.openRunnerWindow(app.id);
         if (!success) {
             console.error('Native openRunnerWindow failed');
-            alert('Não foi possível iniciar o app em nova janela.');
+            alert(t('errorOpeningWindow'));
         }
     };
 
@@ -175,9 +180,9 @@ export default function HomeScreen() {
     const handleCreateShortcut = async (app: GeneratedApp) => {
         const result = await createShortcut(app.id, app.name, app.iconPath || null);
         if (result) {
-            setStatusMessage(`Atalho criado para ${app.name}`);
+            setStatusMessage(`${t('shortcutCreated')} ${app.name}`);
         } else {
-            setStatusMessage('Erro ao criar atalho');
+            setStatusMessage(t('shortcutError'));
         }
     };
 
@@ -190,7 +195,7 @@ export default function HomeScreen() {
         if (isImporting || isPicking) return;
         setShowMenu(false);
         setIsPicking(true);
-        
+
         setTimeout(async () => {
             try {
                 const result = await DocumentPicker.getDocumentAsync({
@@ -254,7 +259,7 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             {/* Header with menu */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>✨ Appacadabra</Text>
+                <Text style={styles.headerTitle}>✨ {t('appName')}</Text>
                 <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuBtn}>
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
@@ -268,7 +273,7 @@ export default function HomeScreen() {
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.list}
                     ListHeaderComponent={
-                        <Text style={styles.sectionTitle}>Seus Apps</Text>
+                        <Text style={styles.sectionTitle}>{t('yourApps')}</Text>
                     }
                     renderItem={({ item }) => (
                         <AppCard
@@ -290,7 +295,7 @@ export default function HomeScreen() {
                 onPress={() => setShowCreateDialog(true)}
             >
                 <Text style={styles.fabIcon}>✨</Text>
-                <Text style={styles.fabText}>Criar App</Text>
+                <Text style={styles.fabText}>{t('createApp')}</Text>
             </TouchableOpacity>
 
             {/* Menu Modal */}
@@ -303,16 +308,21 @@ export default function HomeScreen() {
                     <View style={styles.menuSheet}>
                         <TouchableOpacity style={styles.menuItem} onPress={handleImportProject}>
                             <Text style={styles.menuItemIcon}>📦</Text>
-                            <Text style={styles.menuItemText}>Importar Projeto ZIP</Text>
+                            <Text style={styles.menuItemText}>{t('importProject')}</Text>
                         </TouchableOpacity>
                         <View style={styles.menuDivider} />
                         <TouchableOpacity style={styles.menuItem} onPress={handleExport}>
                             <Text style={styles.menuItemIcon}>📤</Text>
-                            <Text style={styles.menuItemText}>Exportar Backup</Text>
+                            <Text style={styles.menuItemText}>{t('exportBackup')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.menuItem} onPress={handleImport}>
                             <Text style={styles.menuItemIcon}>📥</Text>
-                            <Text style={styles.menuItemText}>Importar Backup</Text>
+                            <Text style={styles.menuItemText}>{t('importBackup')}</Text>
+                        </TouchableOpacity>
+                        <View style={styles.menuDivider} />
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowLegal(true); }}>
+                            <Text style={styles.menuItemIcon}>📜</Text>
+                            <Text style={styles.menuItemText}>{t('legal')}</Text>
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
@@ -322,25 +332,25 @@ export default function HomeScreen() {
             <Modal visible={!!iconTarget} transparent animationType="fade">
                 <View style={styles.menuOverlay}>
                     <View style={styles.iconSheet}>
-                        <Text style={styles.iconSheetTitle}>Escolher Ícone</Text>
+                        <Text style={styles.iconSheetTitle}>{t('chooseIcon')}</Text>
                         <Text style={styles.iconSheetSubtitle}>{iconTarget?.name}</Text>
                         <TouchableOpacity style={styles.iconBtn} onPress={handleSelectIconFromGallery}>
                             <Text style={styles.iconBtnIcon}>🖼️</Text>
-                            <Text style={styles.iconBtnText}>Escolher da Galeria</Text>
+                            <Text style={styles.iconBtnText}>{t('fromGallery')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.iconBtn} onPress={handleSelectIconFromFile}>
                             <Text style={styles.iconBtnIcon}>📁</Text>
-                            <Text style={styles.iconBtnText}>Escolher dos Arquivos</Text>
+                            <Text style={styles.iconBtnText}>{t('fromFiles')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.iconBtn} onPress={handleSearchIconOnGoogle}>
                             <Text style={styles.iconBtnIcon}>🔍</Text>
-                            <Text style={styles.iconBtnText}>Buscar no Google</Text>
+                            <Text style={styles.iconBtnText}>{t('searchGoogle')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={styles.cancelBtn}
                             onPress={() => setIconTarget(null)}
                         >
-                            <Text style={styles.cancelText}>Cancelar</Text>
+                            <Text style={styles.cancelText}>{t('cancel')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -349,7 +359,7 @@ export default function HomeScreen() {
             {/* Dialogs */}
             <ChatDialog
                 visible={showCreateDialog}
-                title="Criar Novo App"
+                title={t('createTitle')}
                 isGenerating={isGenerating}
                 onDismiss={() => !isGenerating && setShowCreateDialog(false)}
                 onSend={handleCreateApp}
@@ -364,9 +374,9 @@ export default function HomeScreen() {
 
             <ConfirmDialog
                 visible={!!deleteTarget}
-                title="Deletar app?"
-                message={`Tem certeza que deseja deletar '${deleteTarget?.name}'? Ação irreversível.`}
-                confirmText="Deletar"
+                title={t('deleteTitle')}
+                message={t('deleteMessage', { name: deleteTarget?.name })}
+                confirmText={t('delete')}
                 onDismiss={() => setDeleteTarget(null)}
                 onConfirm={handleDeleteConfirm}
             />
@@ -376,8 +386,8 @@ export default function HomeScreen() {
                 <View style={styles.menuOverlay}>
                     <View style={styles.importingModal}>
                         <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={styles.importingText}>Importando...</Text>
-                        <Text style={styles.importingHint}>Processando arquivos...</Text>
+                        <Text style={styles.importingText}>{t('importing')}</Text>
+                        <Text style={styles.importingHint}>{t('processing')}</Text>
                     </View>
                 </View>
             </Modal>
@@ -395,6 +405,89 @@ export default function HomeScreen() {
                     <Text style={styles.statusText}>{statusMessage}</Text>
                 </TouchableOpacity>
             )}
+
+            {/* Legal Modal */}
+            <Modal visible={showLegal} animationType="slide">
+                <SafeAreaView style={styles.legalContainer}>
+                    <View style={styles.legalHeader}>
+                        <Text style={styles.legalTitle}>📜 {t('legalTitle')}</Text>
+                        <TouchableOpacity onPress={() => setShowLegal(false)} style={styles.legalCloseBtn}>
+                            <Text style={styles.legalCloseText}>✕</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Tab Buttons */}
+                    <View style={styles.legalTabs}>
+                        <TouchableOpacity
+                            style={[styles.legalTab, legalTab === 'privacy' && styles.legalTabActive]}
+                            onPress={() => setLegalTab('privacy')}
+                        >
+                            <Text style={[styles.legalTabText, legalTab === 'privacy' && styles.legalTabTextActive]}>
+                                {t('privacyTab')}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.legalTab, legalTab === 'terms' && styles.legalTabActive]}
+                            onPress={() => setLegalTab('terms')}
+                        >
+                            <Text style={[styles.legalTabText, legalTab === 'terms' && styles.legalTabTextActive]}>
+                                {t('termsTab')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView style={styles.legalContent} contentContainerStyle={styles.legalContentInner}>
+                        {legalTab === 'privacy' ? (
+                            <>
+                                <Text style={styles.legalSectionTitle}>{t('privacyTitle')}</Text>
+                                <Text style={styles.legalText}>{t('lastUpdated')}</Text>
+
+                                <Text style={styles.legalHeading}>1. {t('privacyCollectTitle').split(' ')[0]}</Text>
+                                <Text style={styles.legalText}>{t('privacyIntro')}</Text>
+
+                                <Text style={styles.legalHeading}>2. {t('privacyCollectTitle')}</Text>
+                                <Text style={styles.legalText}>{t('privacyCollect')}</Text>
+
+                                <Text style={styles.legalHeading}>3. {t('privacyStorageTitle')}</Text>
+                                <Text style={styles.legalText}>{t('privacyStorage')}</Text>
+
+                                <Text style={styles.legalHeading}>4. {t('privacySharingTitle')}</Text>
+                                <Text style={styles.legalText}>{t('privacySharing')}</Text>
+
+                                <Text style={styles.legalHeading}>5. {t('privacyRightsTitle')}</Text>
+                                <Text style={styles.legalText}>{t('privacyRights')}</Text>
+
+                                <Text style={styles.legalHeading}>6. {t('contactTitle')}</Text>
+                                <Text style={styles.legalText}>{t('privacyContact')}</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.legalSectionTitle}>{t('termsTitle')}</Text>
+                                <Text style={styles.legalText}>{t('lastUpdated')}</Text>
+
+                                <Text style={styles.legalHeading}>1. {t('termsAcceptTitle')}</Text>
+                                <Text style={styles.legalText}>{t('termsAccept')}</Text>
+
+                                <Text style={styles.legalHeading}>2. {t('termsDescTitle')}</Text>
+                                <Text style={styles.legalText}>{t('termsDesc')}</Text>
+
+                                <Text style={styles.legalHeading}>3. {t('termsUseTitle')}</Text>
+                                <Text style={styles.legalText}>{t('termsUseCan')}</Text>
+                                <Text style={styles.legalText}>{t('termsUseCannot')}</Text>
+
+                                <Text style={styles.legalHeading}>4. {t('termsPropertyTitle')}</Text>
+                                <Text style={styles.legalText}>{t('termsProperty')}</Text>
+
+                                <Text style={styles.legalHeading}>5. {t('termsDisclaimerTitle')}</Text>
+                                <Text style={styles.legalText}>{t('termsDisclaimer')}</Text>
+
+                                <Text style={styles.legalHeading}>6. {t('contactTitle')}</Text>
+                                <Text style={styles.legalText}>{t('termsContact')}</Text>
+                            </>
+                        )}
+                    </ScrollView>
+                </SafeAreaView>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -618,5 +711,79 @@ const styles = StyleSheet.create({
         color: colors.onSurfaceVariant,
         fontSize: 14,
         marginTop: spacing.sm,
+    },
+    // Legal Modal Styles
+    legalContainer: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+    legalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+        backgroundColor: colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.surfaceVariant,
+    },
+    legalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: colors.onSurface,
+    },
+    legalCloseBtn: {
+        padding: spacing.sm,
+    },
+    legalCloseText: {
+        fontSize: 24,
+        color: colors.onSurfaceVariant,
+    },
+    legalTabs: {
+        flexDirection: 'row',
+        backgroundColor: colors.surface,
+        padding: spacing.sm,
+    },
+    legalTab: {
+        flex: 1,
+        paddingVertical: spacing.md,
+        alignItems: 'center',
+        borderRadius: borderRadius.md,
+    },
+    legalTabActive: {
+        backgroundColor: colors.primaryContainer,
+    },
+    legalTabText: {
+        fontSize: 16,
+        color: colors.onSurfaceVariant,
+    },
+    legalTabTextActive: {
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    legalContent: {
+        flex: 1,
+    },
+    legalContentInner: {
+        padding: spacing.lg,
+        paddingBottom: spacing.xl * 2,
+    },
+    legalSectionTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: colors.primary,
+        marginBottom: spacing.sm,
+    },
+    legalHeading: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.onSurface,
+        marginTop: spacing.lg,
+        marginBottom: spacing.sm,
+    },
+    legalText: {
+        fontSize: 14,
+        color: colors.onSurfaceVariant,
+        lineHeight: 22,
     },
 });

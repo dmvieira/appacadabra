@@ -18,6 +18,7 @@ import { WebView } from 'react-native-webview';
 import * as gemini from '../api/gemini';
 import * as db from '../database/db';
 import { createCallbackScript } from './injectedJS';
+import { t } from '../i18n';
 
 export interface HandlerContext {
     webViewRef: React.RefObject<WebView>;
@@ -66,7 +67,7 @@ export async function handleBridgeMessage(
             try {
                 const startMs = data.startTimeMs;
                 const endMs = data.endTimeMs;
-                const eventTitle = encodeURIComponent(data.title || 'Novo Evento');
+                const eventTitle = encodeURIComponent(data.title || t('newEvent'));
                 const eventDesc = encodeURIComponent(data.description || '');
 
                 const startDate = new Date(startMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -333,8 +334,8 @@ export async function handleBridgeMessage(
         case 'AUTH_AUTHENTICATE':
             try {
                 const authResult = await LocalAuthentication.authenticateAsync({
-                    promptMessage: data.reason || 'Confirmar identidade',
-                    fallbackLabel: 'Usar senha',
+                    promptMessage: data.reason || t('confirmIdentity'),
+                    fallbackLabel: t('usePassword'),
                     disableDeviceFallback: false,
                 });
                 result = JSON.stringify(authResult);

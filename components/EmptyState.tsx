@@ -1,23 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, borderRadius } from '../lib/theme';
+import { t } from '../lib/i18n';
 
 export function EmptyState() {
     return (
         <View style={styles.container}>
             <Text style={styles.emoji}>🪄</Text>
-            <Text style={styles.title}>Crie apps com magia!</Text>
-            <Text style={styles.subtitle}>
-                Descreva o app perfeito para você e a IA cria algo 100% personalizado às suas necessidades.
-            </Text>
+            <Text style={styles.title}>{t('emptyMagic')}</Text>
+            <Text style={styles.subtitle}>{t('emptyDesc')}</Text>
 
             <View style={styles.howItWorks}>
-                <Text style={styles.howTitle}>Como funciona:</Text>
+                <Text style={styles.howTitle}>{t('howItWorks')}</Text>
 
-                <Step number="1" title="Descreva" description="Diga exatamente o que você precisa" />
-                <Step number="2" title="Personalize" description="A IA cria sob medida para você" />
-                <Step number="3" title="Use agora" description="Seu app funciona instantaneamente" />
-                <Step number="4" title="Evolua" description="Peça mudanças e melhorias" />
+                <Step number="1" title={t('step1Title')} description={t('step1Desc')} />
+                <Step number="2" title={t('step2Title')} description={t('step2Desc')} />
+                <Step number="3" title={t('step3Title')} description={t('step3Desc')} />
+                <Step number="4" title={t('step4Title')} description={t('step4Desc')} />
             </View>
         </View>
     );

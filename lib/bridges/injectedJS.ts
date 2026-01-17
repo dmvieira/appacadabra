@@ -1,7 +1,29 @@
 // JavaScript code injected into WebView to provide native API bridges
 // Matches the Android GeminiJsInterface, CalendarJsInterface, NotificationJsInterface
 
-export function getInjectedJavaScript(appId: number): string {
+// Translations that will be injected into the WebView
+export interface InjectedTranslations {
+  sharedTextInserted: string;
+  fileAttached: string;
+  imageLoaded: string;
+  fileReceivedNoUpload: string;
+  errorEmptyContent: string;
+  errorEmptyFile: string;
+  errorProcessingFile: string;
+}
+
+export function getInjectedJavaScript(appId: number, translations?: InjectedTranslations): string {
+  // Default English translations
+  const t = translations || {
+    sharedTextInserted: 'Shared text inserted!',
+    fileAttached: 'File attached successfully!',
+    imageLoaded: 'Image loaded!',
+    fileReceivedNoUpload: 'File received (no upload field)',
+    errorEmptyContent: 'Error: Empty content',
+    errorEmptyFile: 'Error: Empty file content',
+    errorProcessingFile: 'Error processing file:',
+  };
+
   return `
 (function() {
   // Store pending callbacks
@@ -451,7 +473,18 @@ interface SharedContent {
 }
 
 // Generate script to setup listener for shared content
-export function createSharedContentSetupScript(): string {
+export function createSharedContentSetupScript(translations?: InjectedTranslations): string {
+  // Default English translations
+  const t = translations || {
+    sharedTextInserted: 'Shared text inserted!',
+    fileAttached: 'File attached successfully!',
+    imageLoaded: 'Image loaded!',
+    fileReceivedNoUpload: 'File received (no upload field)',
+    errorEmptyContent: 'Error: Empty content',
+    errorEmptyFile: 'Error: Empty file content',
+    errorProcessingFile: 'Error processing file:',
+  };
+
   return `
     (function() {
       console.log('Setting up Shared Content Listener');
@@ -490,7 +523,7 @@ export function createSharedContentSetupScript(): string {
       function injectFileIntoInput(fileInput, base64, mimeType, fileName) {
         try {
           if (!base64) {
-            showToast('Erro: Conteúdo do arquivo vazio');
+            showToast('__ERROR_EMPTY_FILE__');
             return false;
           }
           
@@ -518,7 +551,7 @@ export function createSharedContentSetupScript(): string {
           return true;
         } catch (error) {
           console.error('Failed to inject file:', error);
-          showToast('Erro ao processar arquivo: ' + error.message);
+          showToast('__ERROR_PROCESSING_FILE__ ' + error.message);
           return false;
         }
       }
@@ -545,7 +578,7 @@ export function createSharedContentSetupScript(): string {
             textField.dispatchEvent(new Event('input', { bubbles: true }));
             textField.dispatchEvent(new Event('change', { bubbles: true }));
             textField.focus();
-            showToast('Texto compartilhado inserido!');
+            showToast('__SHARED_TEXT_INSERTED__');
             injected = true;
           }
         }
@@ -555,7 +588,7 @@ export function createSharedContentSetupScript(): string {
            const fileInput = document.querySelector('input[type="file"]');
            if (fileInput) {
              if (injectFileIntoInput(fileInput, sharedContent.base64, sharedContent.mimeType, sharedContent.fileName)) {
-               showToast('Arquivo anexado com sucesso!');
+               showToast('__FILE_ATTACHED__');
                injected = true;
              }
            } else {
@@ -568,7 +601,7 @@ export function createSharedContentSetupScript(): string {
            const imgField = document.querySelector('img:not([src]), img[src=""]');
            if (imgField) {
              imgField.src = 'data:' + sharedContent.mimeType + ';base64,' + sharedContent.base64;
-             showToast('Imagem carregada!');
+              showToast('__IMAGE_LOADED__');
              injected = true;
            }
         }
@@ -578,9 +611,9 @@ export function createSharedContentSetupScript(): string {
             // Check if we failed because of missing input
             const fileInput = document.querySelector('input[type="file"]');
             if (sharedContent.base64 && !fileInput) {
-                showToast('Arquivo recebido (sem campo de upload)');
+                showToast('__FILE_RECEIVED_NO_UPLOAD__');
             } else if (!sharedContent.base64 && !sharedContent.text) {
-                showToast('Erro: Conteúdo vazio');
+                showToast('__ERROR_EMPTY_CONTENT__');
             }
             
             window.dispatchEvent(new CustomEvent('sharedFile', { 
@@ -616,5 +649,12 @@ export function createSharedContentSetupScript(): string {
       // Notify ready
       console.log('Shared Content Listener Ready');
     })();
-  `;
+  `
+    .replace(/__SHARED_TEXT_INSERTED__/g, t.sharedTextInserted)
+    .replace(/__FILE_ATTACHED__/g, t.fileAttached)
+    .replace(/__IMAGE_LOADED__/g, t.imageLoaded)
+    .replace(/__FILE_RECEIVED_NO_UPLOAD__/g, t.fileReceivedNoUpload)
+    .replace(/__ERROR_EMPTY_CONTENT__/g, t.errorEmptyContent)
+    .replace(/__ERROR_EMPTY_FILE__/g, t.errorEmptyFile)
+    .replace(/__ERROR_PROCESSING_FILE__/g, t.errorProcessingFile);
 }

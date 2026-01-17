@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { GeneratedApp } from '../lib/database/types';
 import { colors, borderRadius, spacing } from '../lib/theme';
+import { getCurrentLanguage } from '../lib/i18n';
 
 interface AppCardProps {
     app: GeneratedApp;
@@ -20,7 +21,9 @@ interface AppCardProps {
 }
 
 export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, onShortcut }: AppCardProps) {
-    const formattedDate = new Date(app.lastUpdated).toLocaleDateString('pt-BR', {
+    // Use device locale for date formatting
+    const locale = getCurrentLanguage() || 'en';
+    const formattedDate = new Date(app.lastUpdated).toLocaleDateString(locale, {
         day: '2-digit',
         month: '2-digit',
         hour: '2-digit',

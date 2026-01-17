@@ -3,6 +3,8 @@ import {
     ExpoSpeechRecognitionModule,
     useSpeechRecognitionEvent
 } from 'expo-speech-recognition';
+import { getLocales } from 'expo-localization';
+import { t } from './i18n';
 
 export function useSpeechToText() {
     const [isListening, setIsListening] = useState(false);
@@ -34,21 +36,22 @@ export function useSpeechToText() {
         // Request permission
         const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
         if (!result.granted) {
-            setError('Permissão de microfone negada');
+            setError(t('micPermissionDenied'));
             return;
         }
 
         try {
             setIsListening(true);
+            const locale = getLocales()[0]?.languageTag || 'en-US';
             await ExpoSpeechRecognitionModule.start({
-                lang: 'pt-BR',
+                lang: locale,
                 interimResults: true,
                 maxAlternatives: 1,
                 continuous: false,
             });
         } catch (e) {
             console.error('Failed to start speech recognition:', e);
-            setError('Erro ao iniciar reconhecimento de voz');
+            setError(t('speechStartError'));
             setIsListening(false);
         }
     }, []);

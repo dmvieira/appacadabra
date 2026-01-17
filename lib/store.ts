@@ -5,6 +5,7 @@ import * as gemini from './api/gemini';
 import * as backup from './backup';
 import * as projectConverter from './projectConverter';
 import SharingShortcuts from './bridges/SharingShortcuts';
+import { t } from './i18n';
 
 interface AppState {
     apps: GeneratedApp[];
@@ -72,7 +73,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             });
         } catch (error) {
             console.error('Failed to load apps:', error);
-            set({ error: 'Erro ao carregar apps', isLoading: false });
+            set({ error: t('errorLoadingApps'), isLoading: false });
         }
     },
 
@@ -149,7 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to create app:', error);
             set({
-                error: `Erro ao criar app: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+                error: `${t('errorCreatingApp')} ${error instanceof Error ? error.message : t('unknownError')}`,
                 isGenerating: false
             });
             return null;
@@ -201,7 +202,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to update app:', error);
             set({
-                error: `Erro ao atualizar app: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+                error: `${t('errorUpdatingApp')} ${error instanceof Error ? error.message : t('unknownError')}`,
                 isGenerating: false
             });
             return null;
@@ -219,7 +220,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             SharingShortcuts.removeShortcut(id.toString());
         } catch (error) {
             console.error('Failed to delete app:', error);
-            set({ error: 'Erro ao deletar app' });
+            set({ error: t('errorDeletingApp') });
         }
     },
 
@@ -236,7 +237,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             }));
         } catch (error) {
             console.error('Failed to rename app:', error);
-            set({ error: 'Erro ao renomear app' });
+            set({ error: t('errorRenamingApp') });
         }
     },
 
@@ -253,7 +254,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             }));
         } catch (error) {
             console.error('Failed to update app icon:', error);
-            set({ error: 'Erro ao atualizar ícone' });
+            set({ error: t('errorUpdatingIcon') });
         }
     },
 
@@ -275,7 +276,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 appId: id,
                 version: newVersion,
                 code,
-                instruction: instruction || 'Edição manual',
+                instruction: instruction || t('manualEdit'),
                 selectedContext: null,
                 createdAt: Date.now(),
             });
@@ -286,28 +287,28 @@ export const useAppStore = create<AppState>((set, get) => ({
             }));
         } catch (error) {
             console.error('Failed to update app code:', error);
-            set({ error: 'Erro ao atualizar código' });
+            set({ error: t('errorUpdatingCode') });
         }
     },
 
     exportBackup: async () => {
         try {
-            set({ statusMessage: 'Exportando...' });
+            set({ statusMessage: t('exporting') });
             const success = await backup.exportBackup();
             if (success) {
-                set({ statusMessage: 'Backup exportado com sucesso!' });
+                set({ statusMessage: t('backupExportedSuccess') });
             } else {
-                set({ statusMessage: 'Erro ao exportar backup' });
+                set({ statusMessage: t('errorExportingBackup') });
             }
         } catch (error) {
             console.error('Failed to export backup:', error);
-            set({ statusMessage: 'Erro ao exportar backup' });
+            set({ statusMessage: t('errorExportingBackup') });
         }
     },
 
     importBackup: async (uri?: string) => {
         try {
-            set({ isImporting: true, statusMessage: 'Importando...' });
+            set({ isImporting: true, statusMessage: t('importing') });
             const result = await backup.importBackup(uri);
             set({ statusMessage: result.message, isImporting: false });
 
@@ -318,7 +319,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
         } catch (error) {
             console.error('Failed to import backup:', error);
-            set({ statusMessage: 'Erro ao importar backup', isImporting: false });
+            set({ statusMessage: t('errorImportingBackup'), isImporting: false });
         }
     },
 
@@ -330,14 +331,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             if (!result.success || !result.html) {
                 set({
-                    error: result.error || 'Erro ao converter projeto',
+                    error: result.error || t('errorConvertingProject'),
                     isImporting: false
                 });
                 return null;
             }
 
             const newApp: NewGeneratedApp = {
-                name: result.name || 'Projeto Importado',
+                name: result.name || t('projectImported'),
                 code: result.html,
                 currentVersion: 1,
                 iconPath: null,
@@ -351,7 +352,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 appId: id,
                 version: 1,
                 code: result.html,
-                instruction: 'Importado de projeto ZIP',
+                instruction: t('importedFromZip'),
                 selectedContext: null,
                 createdAt: Date.now(),
             });
@@ -360,7 +361,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             set(state => ({
                 apps: [createdApp, ...state.apps],
                 isImporting: false,
-                statusMessage: `Projeto "${result.name}" importado com sucesso!`
+                statusMessage: t('projectImportedSuccess', { name: result.name })
             }));
 
             SharingShortcuts.publishShortcut(id.toString(), createdApp.name, createdApp.iconPath);
@@ -369,7 +370,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to import project:', error);
             set({
-                error: `Erro ao importar: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+                error: `${t('importError')} ${error instanceof Error ? error.message : t('unknownError')}`,
                 isImporting: false
             });
             return null;

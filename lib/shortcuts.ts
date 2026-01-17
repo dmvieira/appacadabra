@@ -1,5 +1,6 @@
 import { createShortcut as createNativeShortcut, setDynamicShortcuts as setNativeDynamicShortcuts, ShortcutItem } from 'shortcuts';
 import { Platform, Alert } from 'react-native';
+import { t } from './i18n';
 
 export const createShortcut = async (id: number | string, name: string, iconPath: string | null): Promise<boolean> => {
     try {
@@ -7,7 +8,7 @@ export const createShortcut = async (id: number | string, name: string, iconPath
         return result;
     } catch (e) {
         console.error('Failed to create shortcut:', e);
-        Alert.alert('Erro', 'Não foi possível criar o atalho: ' + (e instanceof Error ? e.message : 'Erro desconhecido'));
+        Alert.alert(t('errorTitle'), t('shortcutCreationError') + ' ' + (e instanceof Error ? e.message : t('unknownError')));
         return false;
     }
 };

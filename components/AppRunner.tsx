@@ -32,6 +32,7 @@ import * as db from '../lib/database/db';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { GeneratedApp, AppVersion } from '../lib/database/types';
 import * as ShareIntent from 'share-intent';
+import { getWebViewTranslations } from '../lib/i18n';
 
 interface AppRunnerProps {
     appId: number;
@@ -781,7 +782,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     `;
 
     const storageScript = createStorageRestoreScript(savedStorage);
-    const combinedScript = `${getInjectedJavaScript(app.id)} ${storageScript}`;
+    const combinedScript = `${getInjectedJavaScript(app.id, getWebViewTranslations())} ${storageScript}`;
 
     return (
         <SafeAreaView

@@ -17,6 +17,7 @@ import { handleBridgeMessage } from './lib/bridges/messageHandlers';
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
+import { getWebViewTranslations } from './lib/i18n';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -160,7 +161,7 @@ function RunnerContent({ appId }: Props) {
 
     const storageScript = createStorageRestoreScript(savedStorage);
     const combinedScript = `
-        ${getInjectedJavaScript(app.id)}
+        ${getInjectedJavaScript(app.id, getWebViewTranslations())}
         ${storageScript}
     `;
 
@@ -191,7 +192,7 @@ function RunnerContent({ appId }: Props) {
                     console.log('RunnerApp: Injecting shared content, fileName:', sharedContent.fileName);
 
                     // Setup the shared content handler in WebView
-                    const setupScript = createSharedContentSetupScript();
+                    const setupScript = createSharedContentSetupScript(getWebViewTranslations());
                     webViewRef.current.injectJavaScript(setupScript);
 
                     // Post the content after a short delay to ensure handler is ready

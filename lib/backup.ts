@@ -3,6 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import { GeneratedApp, AppVersion } from './database/types';
 import * as db from './database/db';
+import { t } from './i18n';
 
 export interface BackupData {
     version: number;
@@ -95,7 +96,7 @@ export async function exportBackup(): Promise<boolean> {
         if (await Sharing.isAvailableAsync()) {
             await Sharing.shareAsync(file.uri, {
                 mimeType: 'application/json',
-                dialogTitle: 'Exportar Backup',
+                dialogTitle: t('exportBackupDialog'),
                 UTI: 'public.json',
             });
             return true;
@@ -120,7 +121,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
             });
 
             if (result.canceled || !result.assets?.[0]) {
-                return { success: false, count: 0, message: 'Importação cancelada' };
+                return { success: false, count: 0, message: t('importCancelled') };
             }
             fileUri = result.assets[0].uri;
         }
@@ -130,7 +131,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
         const backup: BackupData = JSON.parse(json);
 
         if (!backup.apps || !Array.isArray(backup.apps)) {
-            return { success: false, count: 0, message: 'Arquivo de backup inválido' };
+            return { success: false, count: 0, message: t('invalidBackupFile') };
         }
 
         let importedCount = 0;
@@ -223,14 +224,14 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
         return {
             success: true,
             count: importedCount,
-            message: `${importedCount} apps importados com sucesso!`
+            message: `${importedCount} ${t('appsImportedSuccess')}`
         };
     } catch (error) {
         console.error('Import backup error:', error);
         return {
             success: false,
             count: 0,
-            message: `Erro ao importar: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+            message: `${t('importError')} ${error instanceof Error ? error.message : t('unknownError')}`
         };
     }
 }

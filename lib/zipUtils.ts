@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { File } from 'expo-file-system/next';
+import { t } from './i18n';
 
 export interface ExtractedFile {
     path: string;
@@ -149,7 +150,7 @@ export function analyzeProject(files: ExtractedFile[]): ProjectAnalysis {
  */
 export function bundleBuiltProject(analysis: ProjectAnalysis): string {
     if (!analysis.mainHtml) {
-        throw new Error('No index.html found in build folder');
+        throw new Error(t('noIndexFound'));
     }
 
     let html = analysis.mainHtml;
