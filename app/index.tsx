@@ -17,16 +17,20 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
 import * as ShareIntent from 'share-intent';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
 import { ChatDialog, RenameDialog, ConfirmDialog } from '../components/Dialogs';
+import { Onboarding } from '../components/Onboarding';
 import { colors, spacing, borderRadius } from '../lib/theme';
 
 import { GeneratedApp } from '../lib/database/types';
 import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
 import { t } from '../lib/i18n';
 import { ManaDisplay } from '../components/ManaDisplay';
+
+const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -60,6 +64,31 @@ export default function HomeScreen() {
     const [isPicking, setIsPicking] = useState(false);
     const [showLegal, setShowLegal] = useState(false);
     const [legalTab, setLegalTab] = useState<'privacy' | 'terms'>('privacy');
+    const [showOnboarding, setShowOnboarding] = useState(false);
+
+    // Check if onboarding should be shown
+    useEffect(() => {
+        const checkOnboarding = async () => {
+            try {
+                const seen = await AsyncStorage.getItem(ONBOARDING_KEY);
+                if (!seen) {
+                    setShowOnboarding(true);
+                }
+            } catch (e) {
+                console.error('Error checking onboarding:', e);
+            }
+        };
+        checkOnboarding();
+    }, []);
+
+    const handleOnboardingComplete = async () => {
+        try {
+            await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+        } catch (e) {
+            console.error('Error saving onboarding state:', e);
+        }
+        setShowOnboarding(false);
+    };
 
     useFocusEffect(
         useCallback(() => {
@@ -454,55 +483,58 @@ export default function HomeScreen() {
                     <ScrollView style={styles.legalContent} contentContainerStyle={styles.legalContentInner}>
                         {legalTab === 'privacy' ? (
                             <>
-                                <Text style={styles.legalSectionTitle}>{t('privacyTitle')}</Text>
-                                <Text style={styles.legalText}>{t('lastUpdated')}</Text>
+                                <Text style={styles.legalSectionTitle}>Privacy Policy</Text>
+                                <Text style={styles.legalText}>Last updated: January 2026</Text>
 
-                                <Text style={styles.legalHeading}>1. {t('privacyCollectTitle').split(' ')[0]}</Text>
-                                <Text style={styles.legalText}>{t('privacyIntro')}</Text>
+                                <Text style={styles.legalHeading}>1. Introduction</Text>
+                                <Text style={styles.legalText}>Appacadabra is a web app generator that uses artificial intelligence to create personalized applications. This Privacy Policy describes how we collect, use, and protect your information.</Text>
 
-                                <Text style={styles.legalHeading}>2. {t('privacyCollectTitle')}</Text>
-                                <Text style={styles.legalText}>{t('privacyCollect')}</Text>
+                                <Text style={styles.legalHeading}>2. Information We Collect</Text>
+                                <Text style={styles.legalText}>• App descriptions you provide{'\n'}• Generated code (stored locally){'\n'}• Permissions accessed only when needed (contacts, calendar, location)</Text>
 
-                                <Text style={styles.legalHeading}>3. {t('privacyStorageTitle')}</Text>
-                                <Text style={styles.legalText}>{t('privacyStorage')}</Text>
+                                <Text style={styles.legalHeading}>3. Storage</Text>
+                                <Text style={styles.legalText}>All data is stored exclusively on your device. We do not maintain servers with your personal data.</Text>
 
-                                <Text style={styles.legalHeading}>4. {t('privacySharingTitle')}</Text>
-                                <Text style={styles.legalText}>{t('privacySharing')}</Text>
+                                <Text style={styles.legalHeading}>4. Sharing</Text>
+                                <Text style={styles.legalText}>App descriptions are processed by Google Gemini API. We do not sell or share your data with third parties for marketing.</Text>
 
-                                <Text style={styles.legalHeading}>5. {t('privacyRightsTitle')}</Text>
-                                <Text style={styles.legalText}>{t('privacyRights')}</Text>
+                                <Text style={styles.legalHeading}>5. Your Rights</Text>
+                                <Text style={styles.legalText}>You can delete any app at any time, revoke permissions, or uninstall the application to remove all local data.</Text>
 
-                                <Text style={styles.legalHeading}>6. {t('contactTitle')}</Text>
-                                <Text style={styles.legalText}>{t('privacyContact')}</Text>
+                                <Text style={styles.legalHeading}>6. Contact</Text>
+                                <Text style={styles.legalText}>For questions: privacy@appacadabra.com</Text>
                             </>
                         ) : (
                             <>
-                                <Text style={styles.legalSectionTitle}>{t('termsTitle')}</Text>
-                                <Text style={styles.legalText}>{t('lastUpdated')}</Text>
+                                <Text style={styles.legalSectionTitle}>Terms of Service</Text>
+                                <Text style={styles.legalText}>Last updated: January 2026</Text>
 
-                                <Text style={styles.legalHeading}>1. {t('termsAcceptTitle')}</Text>
-                                <Text style={styles.legalText}>{t('termsAccept')}</Text>
+                                <Text style={styles.legalHeading}>1. Acceptance</Text>
+                                <Text style={styles.legalText}>By using Appacadabra, you agree to these Terms of Service.</Text>
 
-                                <Text style={styles.legalHeading}>2. {t('termsDescTitle')}</Text>
-                                <Text style={styles.legalText}>{t('termsDesc')}</Text>
+                                <Text style={styles.legalHeading}>2. Service Description</Text>
+                                <Text style={styles.legalText}>Appacadabra is a tool that uses AI to generate web applications (HTML/CSS/JavaScript) based on your descriptions.</Text>
 
-                                <Text style={styles.legalHeading}>3. {t('termsUseTitle')}</Text>
-                                <Text style={styles.legalText}>{t('termsUseCan')}</Text>
-                                <Text style={styles.legalText}>{t('termsUseCannot')}</Text>
+                                <Text style={styles.legalHeading}>3. Acceptable Use</Text>
+                                <Text style={styles.legalText}>✅ You may:{'\n'}• Create apps for personal or commercial use{'\n'}• Modify and share generated apps</Text>
+                                <Text style={styles.legalText}>❌ You may NOT:{'\n'}• Create apps with illegal or malicious content{'\n'}• Generate code for phishing or fraud{'\n'}• Attempt to bypass security filters</Text>
 
-                                <Text style={styles.legalHeading}>4. {t('termsPropertyTitle')}</Text>
-                                <Text style={styles.legalText}>{t('termsProperty')}</Text>
+                                <Text style={styles.legalHeading}>4. Property</Text>
+                                <Text style={styles.legalText}>The apps you generate are your property. You may use them commercially without royalties.</Text>
 
-                                <Text style={styles.legalHeading}>5. {t('termsDisclaimerTitle')}</Text>
-                                <Text style={styles.legalText}>{t('termsDisclaimer')}</Text>
+                                <Text style={styles.legalHeading}>5. Disclaimer</Text>
+                                <Text style={styles.legalText}>The service is provided "as is". We do not guarantee that generated code will be perfect or secure.</Text>
 
-                                <Text style={styles.legalHeading}>6. {t('contactTitle')}</Text>
-                                <Text style={styles.legalText}>{t('termsContact')}</Text>
+                                <Text style={styles.legalHeading}>6. Contact</Text>
+                                <Text style={styles.legalText}>For questions: legal@appacadabra.com</Text>
                             </>
                         )}
                     </ScrollView>
                 </SafeAreaView>
             </Modal>
+
+            {/* Onboarding */}
+            <Onboarding visible={showOnboarding} onComplete={handleOnboardingComplete} />
         </SafeAreaView>
     );
 }

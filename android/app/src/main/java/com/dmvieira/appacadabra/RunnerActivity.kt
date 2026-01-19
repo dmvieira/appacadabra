@@ -23,7 +23,12 @@ class RunnerActivity : ReactActivity() {
             // Only finish if this broadcast is for THIS specific app
             if (targetAppId == myAppId) {
                 android.util.Log.d("RunnerActivity", "AppId matches, finishing...")
-                finish()
+                // Use finishAndRemoveTask to properly clean up
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    finishAndRemoveTask()
+                } else {
+                    finish()
+                }
             } else {
                 android.util.Log.d("RunnerActivity", "AppId doesn't match, ignoring")
             }
@@ -65,17 +70,24 @@ class RunnerActivity : ReactActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         try {
             unregisterReceiver(finishReceiver)
         } catch (e: Exception) {
             // Receiver might not be registered
         }
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
     }
+    
+    // Override back button to just move task to back instead of destroying
+    // This preserves the React context for other activities
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // Move to back instead of finishing - preserves React context
+        moveTaskToBack(true)
+    }
 }
-

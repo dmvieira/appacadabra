@@ -70,9 +70,10 @@ class ShareIntentModule : Module() {
                 val intent = Intent()
                 intent.setClassName(currentActivity.packageName, "com.dmvieira.appacadabra.RunnerActivity")
                 intent.putExtra("appId", appId)
-                // Use document ID to create separate tasks per app
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
-                // Set the data URI for the document identity (allows window reuse per app)
+                // NEW_DOCUMENT creates separate tasks per unique data URI
+                // documentLaunchMode="intoExisting" in manifest reuses existing task for same URI
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+                // Set the data URI - same appId = same document = reuse window
                 intent.data = Uri.parse("runapp://runner/$appId")
                 currentActivity.startActivity(intent)
                 Log.d(TAG, "openRunnerWindow succeeded")

@@ -4,7 +4,8 @@ import {
     Text,
     StyleSheet,
     ActivityIndicator,
-    BackHandler,
+    AppState,
+    AppStateStatus,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -41,6 +42,8 @@ function RunnerContent({ appId }: Props) {
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
     const [sharedContent, setSharedContent] = useState<any>(null);
     const [webViewReady, setWebViewReady] = useState(false);
+    const [webViewKey, setWebViewKey] = useState(0); // Key to force WebView recreation
+    const lastCodeRef = useRef<string | null>(null); // Track code changes
 
     // Check drop-box file for pending shared content
     useEffect(() => {
@@ -88,15 +91,77 @@ function RunnerContent({ appId }: Props) {
         loadApp();
     }, [appId]);
 
-    // Handle Android back button
+    // Detect when app comes to foreground and check if WebView is still alive
+    const heartbeatReceivedRef = useRef(false);
+
     useEffect(() => {
-        const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-            // Close the activity when back is pressed
-            BackHandler.exitApp();
-            return true;
-        });
-        return () => backHandler.remove();
-    }, []);
+        let wasInBackground = false;
+
+        const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+            if (nextAppState === 'background' || nextAppState === 'inactive') {
+                wasInBackground = true;
+                console.log('RunnerApp: App went to background');
+            }
+
+            if (nextAppState === 'active' && wasInBackground && app) {
+                console.log('RunnerApp: App came to foreground after being in background');
+                wasInBackground = false;
+
+                // Re-fetch app data to get latest code
+                const freshApp = await db.getAppById(appId);
+                if (freshApp) {
+                    // Check if code changed while we were in background
+                    if (freshApp.code !== lastCodeRef.current) {
+                        console.log('RunnerApp: Code was updated, reloading with new code...');
+                        lastCodeRef.current = freshApp.code;
+                        setApp(freshApp);
+                        setWebViewKey(k => k + 1); // Force reload for code change
+                        return;
+                    }
+                }
+
+                // Smart detection: Send heartbeat and wait for response
+                if (webViewRef.current) {
+                    heartbeatReceivedRef.current = false;
+
+                    try {
+                        console.log('RunnerApp: Sending heartbeat to WebView...');
+                        webViewRef.current.injectJavaScript(`
+                            if (typeof window !== 'undefined' && window.ReactNativeWebView) {
+                                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'HEARTBEAT_RESPONSE' }));
+                            }
+                            true;
+                        `);
+
+                        // Wait for response - if no response in 300ms, WebView is dead
+                        setTimeout(() => {
+                            if (!heartbeatReceivedRef.current) {
+                                console.log('RunnerApp: No heartbeat response, WebView is dead - forcing reload');
+                                setWebViewKey(k => k + 1);
+                            } else {
+                                console.log('RunnerApp: Heartbeat received, WebView is healthy');
+                            }
+                        }, 300);
+                    } catch (e) {
+                        console.log('RunnerApp: Error sending heartbeat, forcing reload');
+                        setWebViewKey(k => k + 1);
+                    }
+                }
+            }
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+        return () => subscription?.remove();
+    }, [app, appId]);
+
+    // Track the current code version
+    useEffect(() => {
+        if (app) {
+            lastCodeRef.current = app.code;
+        }
+    }, [app]);
+
+    // Back button is handled natively in RunnerActivity.kt using moveTaskToBack
 
     // Handle messages from WebView
     const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
@@ -112,6 +177,12 @@ function RunnerContent({ appId }: Props) {
             // Handle local-only messages first
             if (type === 'CONSOLE_LOG' || type === 'NETWORK_LOG') {
                 // Silently ignore in run-only mode
+                return;
+            }
+
+            // Handle heartbeat response for white screen detection
+            if (type === 'HEARTBEAT_RESPONSE') {
+                heartbeatReceivedRef.current = true;
                 return;
             }
 
@@ -167,6 +238,7 @@ function RunnerContent({ appId }: Props) {
 
     return (
         <WebView
+            key={webViewKey}
             ref={webViewRef}
             source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }}
             style={styles.webview}
