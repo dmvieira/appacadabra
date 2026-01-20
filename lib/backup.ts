@@ -38,19 +38,21 @@ interface BackupApp {
     localStorage?: Record<string, string>;
 }
 
-export async function createBackup(): Promise<BackupData> {
+export async function createBackup(includeStorage: boolean = true): Promise<BackupData> {
     const apps = await db.getAllApps();
     const backupApps: BackupApp[] = [];
 
     for (const app of apps) {
         const versions = await db.getVersionsForApp(app.id);
-        const storageItems = await db.getStorageForApp(app.id);
 
-        // Create localStorage object
-        const localStorage: Record<string, string> = {};
-        storageItems.forEach(s => {
-            localStorage[s.key] = s.value;
-        });
+        // Only get storage if includeStorage is true
+        let localStorage: Record<string, string> = {};
+        if (includeStorage) {
+            const storageItems = await db.getStorageForApp(app.id);
+            storageItems.forEach(s => {
+                localStorage[s.key] = s.value;
+            });
+        }
 
         // Convert icon to base64 if exists
         let iconBase64: string | undefined;
@@ -81,7 +83,7 @@ export async function createBackup(): Promise<BackupData> {
                 selectedContext: v.selectedContext || '',
                 createdAt: v.createdAt,
             })),
-            localStorage,
+            localStorage: includeStorage ? localStorage : undefined,
         });
     }
 
@@ -104,10 +106,9 @@ export async function createBackup(): Promise<BackupData> {
         mana: manaData,
     };
 }
-
-export async function exportBackup(): Promise<boolean> {
+export async function exportBackup(includeStorage: boolean = true): Promise<boolean> {
     try {
-        const backup = await createBackup();
+        const backup = await createBackup(includeStorage);
         const json = JSON.stringify(backup, null, 2);
 
         const filename = `appacadabra_backup_${Date.now()}.json`;

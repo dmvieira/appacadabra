@@ -10,6 +10,7 @@ import {
     Platform,
     ScrollView,
     Linking as RNLinking,
+    Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -227,9 +228,30 @@ export default function HomeScreen() {
         }
     };
 
-    const handleExport = async () => {
+    const handleExport = () => {
         setShowMenu(false);
-        await exportBackup();
+        Alert.alert(
+            t('exportOptionsTitle'),
+            '',
+            [
+                {
+                    text: t('exportWithData'),
+                    onPress: async () => {
+                        await exportBackup(true);
+                    },
+                },
+                {
+                    text: t('exportWithoutData'),
+                    onPress: async () => {
+                        await exportBackup(false);
+                    },
+                },
+                {
+                    text: t('cancel'),
+                    style: 'cancel',
+                },
+            ]
+        );
     };
 
     const handleImport = () => {
@@ -304,7 +326,7 @@ export default function HomeScreen() {
                     <Text style={styles.headerTitle}>✨ {t('appName')}</Text>
                 </View>
                 <ManaDisplay />
-                <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.menuBtn}>
+                <TouchableOpacity onPress={() => setShowMenu(true)} style={[styles.menuBtn, { marginLeft: spacing.md }]}>
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
             </View>

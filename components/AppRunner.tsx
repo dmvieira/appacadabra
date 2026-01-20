@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     loadingContainer: { justifyContent: 'center', alignItems: 'center' },
     header: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceVariant },
     backBtn: { marginRight: spacing.md },
-    backText: { color: colors.primary, fontSize: 16 },
+    backText: { color: colors.onPrimary, fontSize: 16 },
     title: { flex: 1, color: colors.onSurface, fontSize: 18, fontWeight: '600' },
     version: { color: colors.onSurfaceVariant, fontSize: 14 },
     webview: { flex: 1, backgroundColor: '#FFFFFF' },

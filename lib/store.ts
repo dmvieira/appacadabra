@@ -133,8 +133,15 @@ export const useAppStore = create<AppState>((set, get) => ({
             manaStore.deductMana(cost);
             console.log(`[Store] App generated. Tokens: ${usage?.totalTokens}. Cost: ${cost} Mana.`);
 
+            // Extract title from generated HTML
+            let appName = description.slice(0, 20) + '...';
+            const titleMatch = code.match(/<title[^>]*>([^<]+)<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+                appName = titleMatch[1].trim();
+            }
+
             const newApp: NewGeneratedApp = {
-                name: description.slice(0, 20) + '...',
+                name: appName,
                 code,
                 currentVersion: 1,
                 iconPath: null,
@@ -334,10 +341,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
-    exportBackup: async () => {
+    exportBackup: async (includeStorage: boolean = true) => {
         try {
             set({ statusMessage: t('exporting') });
-            const success = await backup.exportBackup();
+            const success = await backup.exportBackup(includeStorage);
             if (success) {
                 set({ statusMessage: t('backupExportedSuccess') });
             } else {

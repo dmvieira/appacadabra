@@ -76,20 +76,22 @@ function RunnerContent({ appId }: Props) {
         checkDropBox();
     }, [appId]);
 
-    // Load app data
+    // Load app data and storage - also reload when webViewKey changes (WebView recreation)
     useEffect(() => {
         async function loadApp() {
             if (!appId) return;
             const appData = await db.getAppById(appId);
             if (appData) {
                 setApp(appData);
+                // Reload storage from database (critical for WebView recreation)
                 const storage = await db.getStorageForApp(appData.id);
+                console.log('RunnerApp: Loaded storage from DB, items:', storage.length);
                 setSavedStorage(storage.map(s => ({ key: s.key, value: s.value })));
             }
             setIsLoading(false);
         }
         loadApp();
-    }, [appId]);
+    }, [appId, webViewKey]); // webViewKey added to reload storage on WebView recreation
 
     // Detect when app comes to foreground and check if WebView is still alive
     const heartbeatReceivedRef = useRef(false);

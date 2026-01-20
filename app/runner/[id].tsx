@@ -1483,7 +1483,7 @@ const styles = StyleSheet.create({
         marginRight: spacing.md,
     },
     backText: {
-        color: colors.primary,
+        color: colors.onPrimary,
         fontSize: 16,
     },
     title: {
