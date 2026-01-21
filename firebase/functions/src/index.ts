@@ -24,24 +24,30 @@ const API_KEY = process.env.GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Models configuration
-const primaryModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+// WebView models (Lite version as requested)
+const webviewModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-const primaryJsonModel = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: { responseMimeType: "application/json" },
-});
-
-const fallbackJsonModel = genAI.getGenerativeModel({
+const webviewSearchModel = genAI.getGenerativeModel({
     model: "gemini-2.5-flash-lite",
-    generationConfig: { responseMimeType: "application/json" },
+    // @ts-ignore - googleSearch exists in API
+    tools: [{ googleSearch: {} }, { googleMaps: {} }],
 });
 
-const searchModel = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    // @ts-ignore - googleSearch exists in API
+// Main models for Create/Edit/Convert (Pro/Preview version as requested)
+// All main actions use googleSearch as requested
+const mainModel = genAI.getGenerativeModel({
+    model: "gemini-3-flash-preview",
+    // @ts-ignore
     tools: [{ googleSearch: {} }],
 });
+
+const mainJsonModel = genAI.getGenerativeModel({
+    model: "gemini-3-flash-preview",
+    generationConfig: { responseMimeType: "application/json" },
+    // @ts-ignore
+    tools: [{ googleSearch: {} }],
+});
+
 
 // ============= RATE LIMITING =============
 // Constants for rate limiting
@@ -110,7 +116,7 @@ async function checkRateLimit(
 }
 
 // Constants
-const TOKENS_PER_CREDIT = 5000; // 1 mana = 5000 tokens
+const TOKENS_PER_CREDIT = 7000; // 1 mana = 7000 tokens
 
 interface PreviousEdit {
     version: number;
@@ -118,7 +124,7 @@ interface PreviousEdit {
 }
 
 interface GenerateSpellRequest {
-    action: "create" | "edit" | "convert" | "webview_ai" | "webview_ai_search";
+    action: "create" | "edit" | "convert" | "webview_ai";
     prompt?: string;
     currentCode?: string;
     instruction?: string;
@@ -132,6 +138,7 @@ interface GenerateSpellRequest {
     schema?: object;
     imageBase64?: string;
     audioBase64?: string;
+    useSearch?: boolean; // New parameter for consolidated webview action
 }
 
 interface GenerateSpellResponse {
@@ -220,7 +227,8 @@ export const generateSpell = onCall<GenerateSpellRequest>(
             frameworkHint,
             schema,
             imageBase64,
-            audioBase64
+            audioBase64,
+            useSearch
         } = request.data;
 
         // Validate required fields
@@ -280,17 +288,9 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         const fullPrompt = SYSTEM_INSTRUCTIONS + "\n\n" + GENERATE_APP_PROMPT + prompt;
 
-                        try {
-                            const result = await primaryModel.generateContent(fullPrompt);
-                            usage = getUsage(result);
-                            resultText = extractHtml(result.response.text());
-                        } catch (error: any) {
-                            // Fallback to secondary model
-                            console.warn("Primary model failed, trying fallback:", error.message);
-                            const result = await fallbackModel.generateContent(fullPrompt);
-                            usage = getUsage(result);
-                            resultText = extractHtml(result.response.text());
-                        }
+                        const result = await mainModel.generateContent(fullPrompt);
+                        usage = getUsage(result);
+                        resultText = extractHtml(result.response.text());
                         break;
                     }
 
@@ -316,18 +316,10 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         const editPrompt = `Here is an existing HTML application with line numbers:\n\n\`\`\`html\n${numberedCode}\n\`\`\`\n${historyContext}${selectionPart}\nUser instructions: ${instruction}\n\n${SMART_PATCH_INSTRUCTIONS}`;
 
-                        try {
-                            const result = await primaryJsonModel.generateContent(editPrompt);
-                            usage = getUsage(result);
-                            const jsonResponse = JSON.parse(result.response.text());
-                            resultText = applyPatches(normalizedCode, jsonResponse.changes || []);
-                        } catch (error: any) {
-                            console.warn("Primary JSON model failed, trying fallback:", error.message);
-                            const result = await fallbackJsonModel.generateContent(editPrompt);
-                            usage = getUsage(result);
-                            const jsonResponse = JSON.parse(result.response.text());
-                            resultText = applyPatches(normalizedCode, jsonResponse.changes || []);
-                        }
+                        const result = await mainJsonModel.generateContent(editPrompt);
+                        usage = getUsage(result);
+                        const jsonResponse = JSON.parse(result.response.text());
+                        resultText = applyPatches(normalizedCode, jsonResponse.changes || []);
                         break;
                     }
 
@@ -339,16 +331,9 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const framework = frameworkHint || "web project";
                         const convertPrompt = `${CONVERT_PROJECT_PROMPT}\n\n${SYSTEM_INSTRUCTIONS}\n\nFramework hint: ${framework}\n\nSOURCE CODE TO CONVERT:\n${sourceCode}`;
 
-                        try {
-                            const result = await primaryModel.generateContent(convertPrompt);
-                            usage = getUsage(result);
-                            resultText = extractHtml(result.response.text());
-                        } catch (error: any) {
-                            console.warn("Primary model failed for convert, trying fallback:", error.message);
-                            const result = await fallbackModel.generateContent(convertPrompt);
-                            usage = getUsage(result);
-                            resultText = extractHtml(result.response.text());
-                        }
+                        const result = await mainModel.generateContent(convertPrompt);
+                        usage = getUsage(result);
+                        resultText = extractHtml(result.response.text());
                         break;
                     }
 
@@ -379,27 +364,28 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             });
                         }
 
-                        const model = schema ? primaryJsonModel : primaryModel;
-
-                        try {
-                            const result = await model.generateContent(parts);
-                            usage = getUsage(result);
-                            resultText = result.response.text();
-                        } catch (error: any) {
-                            const fallback = schema ? fallbackJsonModel : fallbackModel;
-                            const result = await fallback.generateContent(parts);
-                            usage = getUsage(result);
-                            resultText = result.response.text();
+                        // Determine model based on schema (JSON) or search/default
+                        let model;
+                        if (schema) {
+                            // If schema is present, we need a JSON model.
+                            // We don't have a dedicated "webviewJsonModel", but we can use genAI to get one with tools if needed
+                            // Or assume the fallbackJsonModel (lite) is sufficient as requested.
+                            // The user said: "use gemini-2.5-flash-lite ... for everything webview"
+                            model = genAI.getGenerativeModel({
+                                model: "gemini-2.5-flash-lite",
+                                generationConfig: { responseMimeType: "application/json" },
+                                // @ts-ignore
+                                tools: useSearch ? [{ googleSearch: {} }] : undefined,
+                            });
+                        } else {
+                            if (useSearch) {
+                                model = webviewSearchModel;
+                            } else {
+                                model = webviewModel;
+                            }
                         }
-                        break;
-                    }
 
-                    case "webview_ai_search": {
-                        if (!prompt) {
-                            throw new HttpsError("invalid-argument", "Prompt is required for webview_ai_search");
-                        }
-
-                        const result = await searchModel.generateContent(prompt);
+                        const result = await model.generateContent(parts);
                         usage = getUsage(result);
                         resultText = result.response.text();
                         break;

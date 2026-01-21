@@ -52,11 +52,16 @@ ios_launch.log
 # android/
 android/app/build/
 android/build/
-modules/share-intent/android/build
+modules/*/android/build/
+modules/*/ios/build/
 *.iml
 .gradle/
 local.properties
 *.hprof
+google-services.json
+.cxx/
+android/app/.cxx/
+android/app/build/generated/
 
 # =====================
 # IDE & Editors
@@ -82,3 +87,13 @@ Thumbs.db
 # =====================
 *.tsbuildinfo
 .cache/
+
+
+# =====================
+# Firebase Functions
+# =====================
+firebase/functions/node_modules/
+firebase/functions/lib/
+firebase/functions/lib.zip
+firebase/functions/firebase-debug.log*
+firebase/functions/firebase-debug.*.log*

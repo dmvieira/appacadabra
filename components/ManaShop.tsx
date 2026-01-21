@@ -3,13 +3,14 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } fr
 import { useManaStore } from '../lib/manaStore';
 import { t } from '../lib/i18n';
 import { colors, borderRadius, spacing } from '../lib/theme';
+import * as firebase from '../lib/firebase';
 
 export function ManaShop() {
     const { addMana, balance, isShopOpen, closeShop } = useManaStore();
 
     if (!isShopOpen) return null;
 
-    const handlePurchase = (amount: number) => {
+    const handlePurchase = async (amount: number) => {
         // Simulate purchase
         Alert.alert(
             t('confirmPurchase'),
@@ -18,23 +19,33 @@ export function ManaShop() {
                 { text: t('cancel'), style: 'cancel' },
                 {
                     text: t('confirm'),
-                    onPress: () => {
-                        addMana(amount);
-                        Alert.alert(t('purchaseSuccess', { amount }));
-                        closeShop(); // Optional: close or keep open
+                    onPress: async () => {
+                        try {
+                            const result = await firebase.addCredits(amount, 'purchase_simulator');
+                            Alert.alert(t('purchaseSuccess', { amount }));
+                            closeShop();
+                        } catch (error) {
+                            console.error(error);
+                            Alert.alert('Error', 'Failed to add credits');
+                        }
                     }
                 }
             ]
         );
     };
 
-    const handleWatchAd = () => {
+    const handleWatchAd = async () => {
         // Simulate Ad
         Alert.alert(t('watchAd'), t('watchingAd'), [
             {
-                text: 'OK', onPress: () => {
-                    addMana(1);
-                    Alert.alert(t('purchaseSuccess', { amount: 1 }));
+                text: 'OK', onPress: async () => {
+                    try {
+                        await firebase.addCredits(1, 'ad_reward');
+                        Alert.alert(t('purchaseSuccess', { amount: 1 }));
+                    } catch (error) {
+                        console.error(error);
+                        Alert.alert('Error', 'Failed to add reward');
+                    }
                 }
             }
         ]);

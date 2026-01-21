@@ -166,85 +166,10 @@ The HTML must be fully functional and self-contained.
 `;
 
 // ============= CONTENT MODERATION =============
-// Block malicious, harmful, or inappropriate app generation requests
+// Validation disabled as per user request (2026-01-20)
+// Original blocked patterns removed for testing
 
-const BLOCKED_PATTERNS = [
-    // Malware/hacking
-    /keylogger/i,
-    /spyware/i,
-    /malware/i,
-    /ransomware/i,
-    /trojan/i,
-    /exploit/i,
-    /rootkit/i,
-    /backdoor/i,
 
-    // Phishing/fraud
-    /phishing/i,
-    /fake.*login/i,
-    /credential.*steal/i,
-    /password.*harvest/i,
-    /clone.*site/i,
-    /imitar.*site/i,
-    /roubar.*senha/i,
-    /roubar.*dados/i,
-    /capturar.*senha/i,
-    /clonar.*(instagram|facebook|whatsapp|banco|bank)/i,
-
-    // Data theft
-    /steal.*data/i,
-    /exfiltrat/i,
-    /scrape.*personal/i,
-    /harvest.*contact/i,
-    /export.*all.*contacts/i,
-
-    // Harassment/illegal
-    /stalk/i,
-    /track.*without.*consent/i,
-    /spy.*on/i,
-    /espionar/i,
-    /rastrear.*sem.*consen/i,
-    /perseguir/i,
-
-    // Explicit/inappropriate
-    /porn/i,
-    /nsfw/i,
-    /nude/i,
-    /adult.*content/i,
-    /conteúdo.*adulto/i,
-    /explicit/i,
-    /sexual/i,
-
-    // Violence/weapons
-    /bomb.*making/i,
-    /weapon.*instructions/i,
-    /how.*to.*kill/i,
-    /como.*matar/i,
-    /fabricar.*bomba/i,
-    /arma.*caseira/i,
-
-    // Scam/fraud
-    /pyramid.*scheme/i,
-    /ponzi/i,
-    /esquema.*piramid/i,
-    /golpe/i,
-    /fraude/i,
-
-    // Code injection attempts
-    /eval\s*\(/i,
-    /document\.cookie/i,
-    /xmlhttprequest.*external/i,
-    /send.*to.*server/i,
-    /enviar.*para.*servidor/i,
-];
-
-const BLOCKED_KEYWORDS = [
-    'hack', 'hacker', 'hacking',
-    'crack', 'cracker',
-    'warez', 'pirat',
-    'ddos', 'botnet',
-    'phish',
-];
 
 export interface ContentValidationResult {
     allowed: boolean;
@@ -252,27 +177,6 @@ export interface ContentValidationResult {
 }
 
 export function validateContentRequest(text: string): ContentValidationResult {
-    const lowerText = text.toLowerCase();
-
-    // Check patterns
-    for (const pattern of BLOCKED_PATTERNS) {
-        if (pattern.test(text)) {
-            return {
-                allowed: false,
-                reason: 'This type of app cannot be created for safety reasons.'
-            };
-        }
-    }
-
-    // Check keywords
-    for (const keyword of BLOCKED_KEYWORDS) {
-        if (lowerText.includes(keyword)) {
-            return {
-                allowed: false,
-                reason: 'This type of app cannot be created for safety reasons.'
-            };
-        }
-    }
-
+    // Validation disabled
     return { allowed: true };
 }

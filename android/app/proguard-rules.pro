@@ -12,3 +12,6 @@
 -keep class com.facebook.react.turbomodule.** { *; }
 
 # Add any project specific keep options here:
+-keep class com.google.firebase.appcheck.debug.** { *; }
+-keep class io.invertase.firebase.** { *; }
+-keep class com.google.firebase.** { *; }

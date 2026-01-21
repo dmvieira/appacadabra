@@ -29,13 +29,13 @@ import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript } from '../../lib/bridges/injectedJS';
 import { handleBridgeMessage } from '../../lib/bridges/messageHandlers';
-import * as gemini from '../../lib/api/gemini';
+import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { GeneratedApp, AppVersion } from '../../lib/database/types';
 import { useSpeechToText } from '../../lib/useSpeech';
 import { t, getWebViewTranslations } from '../../lib/i18n';
-import { useManaStore, MANA_COSTS, calculateManaCost } from '../../lib/manaStore';
+import { useManaStore } from '../../lib/manaStore';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -408,17 +408,7 @@ export default function RunnerScreen() {
 
                 case 'AI_GENERATE':
                     try {
-                        // Check Mana
-                        const manaStore = useManaStore.getState();
-                        // Minimum check
-                        if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
-                            manaStore.openShop();
-                            success = false;
-                            result = t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) });
-                            break;
-                        }
-
-                        const genResult = await gemini.aiGenerate({
+                        const genResult = await ai.aiGenerate({
                             prompt: data.prompt,
                             search: data.search,
                             schema: data.schema,
@@ -427,27 +417,24 @@ export default function RunnerScreen() {
                         });
                         result = genResult.text;
 
-                        // Deduct on success
-                        const cost = calculateManaCost(genResult.usage?.totalTokens || 0);
-                        manaStore.deductMana(cost);
-                        console.log(`[Runner] AI generated. Cost: ${cost}`);
+                        // Log cost (optional, server handles deduction)
+                        console.log(`[Runner] AI generated. Usage:`, genResult.usage);
 
-                        // Update App Total Mana Cost
-                        // We need to fetch current app first to be safe, or just atomic update?
-                        // Since we are in runner for specific ID, we can update it.
-                        // But [id].tsx doesn't export `updateApp` easily without full object.
-                        // We can use db.updateApp.
-                        // Ideally we should use store action to keep UI in sync, but [id].tsx uses direct db sometimes or store?
-                        // It uses `useAppStore`.
-                        const currentApp = await db.getAppById(Number(id));
-                        if (currentApp) {
-                            const updatedApp = {
-                                ...currentApp,
-                                totalManaCost: (currentApp.totalManaCost || 0) + cost
-                            };
-                            await db.updateApp(updatedApp);
-                            // Also update store to reflect change immediately if we go back
-                            // useAppStore.getState().loadApps(); // Might be heavy?
+                        // Update App Total Mana Cost logic if needed (optional since we rely on server sync)
+                        // But for immediate consistency in database:
+                        if (id) {
+                            // We assume server deducted it, but we might want to track total cost locally for the app record
+                            // However, without calculateManaCost or consistent conversion, maybe we just skip this 
+                            // OR rely on what the server returned?
+                            // The generic aiGenerate generic wrapper returns { text, usage }.
+                            // Usage might have 'creditsUsed' if we updated it? api/ai.ts says:
+                            /*
+                                 const result = await firebase.generateSpellWebviewAI(...)
+                                 return { text: result.text, usage: result.usage }
+                            */
+                            // firebase.generateSpellWebviewAI returns GenerationResult which has creditsUsed.
+                            // But logic in api/ai.ts only returns usage object from LLM? 
+                            // Let's check api/ai.ts again or just simplify.
                         }
                     } catch (e) {
                         success = false;

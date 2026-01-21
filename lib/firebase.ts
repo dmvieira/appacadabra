@@ -1,11 +1,8 @@
-/**
- * Firebase integration for Appacadabra
- * Uses @react-native-firebase for native integration
- */
-
 import auth from '@react-native-firebase/auth';
-import functions from '@react-native-firebase/functions';
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import firestore from '@react-native-firebase/firestore';
+import firebase from '@react-native-firebase/app';
+import appCheck from '@react-native-firebase/app-check'; // Import default
 
 // Types for function responses
 export interface GenerationResult {
@@ -28,11 +25,35 @@ export interface AddCreditsResult {
     creditsRemaining: number;
 }
 
-// Ensure user is authenticated (anonymous auth)
+export interface PreviousEdit {
+    version: number;
+    instruction: string;
+}
+
+/**
+ * Why Anonymous Auth?
+ * We use anonymous authentication to assign a unique User ID (UID) to this device.
+ * This allows us to:
+ * 1. Store your Mana balance safely in the cloud (Firestore).
+ * 2. Apply rate limits to prevent abuse.
+ * 3. Keep your data private (Firestore Security Rules).
+ * All without forcing you to create an account or password immediately.
+ */
+// Helper for functions instance - Explicitly bind to default app to ensure Auth integration
+function getFunctionsInstance() {
+    return getFunctions(firebase.app(), 'southamerica-east1');
+}
+
 export async function ensureAuthenticated(): Promise<string> {
     const currentUser = auth().currentUser;
 
     if (currentUser) {
+        // Force token refresh to ensure Functions SDK picks it up
+        try {
+            await currentUser.getIdToken(true);
+        } catch (e) {
+            console.log('Firebase: Failed to refresh token, proceeding anyway', e);
+        }
         return currentUser.uid;
     }
 
@@ -41,6 +62,21 @@ export async function ensureAuthenticated(): Promise<string> {
     console.log('Firebase: Signed in anonymously as', result.user.uid);
     return result.user.uid;
 }
+
+// Initialize App Check
+async function initializeAppCheck() {
+    try {
+        // Activate App Check with Debug provider
+        // Using the injected CI token from MainApplication.kt
+        await appCheck().activate('debug', true);
+        console.log('Firebase: App Check activated (Debug Mode with CI Token)');
+    } catch (e) {
+        console.error('Firebase: App Check activation failed', e);
+    }
+}
+
+// Call initialization immediately
+initializeAppCheck();
 
 // Get current user ID (null if not authenticated)
 export function getCurrentUserId(): string | null {
@@ -54,26 +90,26 @@ export function onAuthStateChanged(callback: (userId: string | null) => void): (
     });
 }
 
-// ============= AI Functions =============
-
 // Generate a new spell (create app)
 export async function generateSpellCreate(prompt: string): Promise<GenerationResult> {
     await ensureAuthenticated();
 
-    const generateSpell = functions().httpsCallable<any, GenerationResult>('generateSpell');
-    const result = await generateSpell({
-        action: 'create',
-        prompt,
-    });
-
-    return result.data;
+    console.log('[Firebase] Calling generateSpellCreate...');
+    try {
+        const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
+        const result = await generateSpell({
+            action: 'create',
+            prompt,
+        });
+        console.log('[Firebase] generateSpellCreate success');
+        return result.data;
+    } catch (e: any) {
+        console.error('[Firebase] generateSpellCreate ERROR:', e.code, e.message, e.details);
+        throw e;
+    }
 }
 
-// Edit an existing spell (with history tracking)
-export interface PreviousEdit {
-    version: number;
-    instruction: string;
-}
+// ...
 
 export async function generateSpellEdit(
     currentCode: string,
@@ -85,7 +121,7 @@ export async function generateSpellEdit(
 ): Promise<GenerationResult> {
     await ensureAuthenticated();
 
-    const generateSpell = functions().httpsCallable<any, GenerationResult>('generateSpell');
+    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
     const result = await generateSpell({
         action: 'edit',
         currentCode,
@@ -97,14 +133,14 @@ export async function generateSpellEdit(
     return result.data;
 }
 
-// Convert a project (Node/React) to standalone HTML
+// Convert
 export async function generateSpellConvert(
     sourceCode: string,
     frameworkHint?: string
 ): Promise<GenerationResult> {
     await ensureAuthenticated();
 
-    const generateSpell = functions().httpsCallable<any, GenerationResult>('generateSpell');
+    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
     const result = await generateSpell({
         action: 'convert',
         sourceCode,
@@ -114,18 +150,19 @@ export async function generateSpellConvert(
     return result.data;
 }
 
-// WebView AI call (basic generation)
+// WebView AI
 export async function generateSpellWebviewAI(
     prompt: string,
     options?: {
         schema?: object;
         imageBase64?: string;
         audioBase64?: string;
+        useSearch?: boolean;
     }
 ): Promise<GenerationResult> {
     await ensureAuthenticated();
 
-    const generateSpell = functions().httpsCallable<any, GenerationResult>('generateSpell');
+    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
     const result = await generateSpell({
         action: 'webview_ai',
         prompt,
@@ -135,44 +172,34 @@ export async function generateSpellWebviewAI(
     return result.data;
 }
 
-// WebView AI call with Google Search
-export async function generateSpellWebviewAISearch(prompt: string): Promise<GenerationResult> {
-    await ensureAuthenticated();
-
-    const generateSpell = functions().httpsCallable<any, GenerationResult>('generateSpell');
-    const result = await generateSpell({
-        action: 'webview_ai_search',
-        prompt,
-    });
-
-    return result.data;
-}
-
-// ============= Credits Functions =============
-
-// Get current credits balance
+// Credits
 export async function getCredits(): Promise<number> {
     await ensureAuthenticated();
 
-    const getCreditsFunc = functions().httpsCallable<void, CreditsResult>('getCredits');
+    const getCreditsFunc = httpsCallable<void, CreditsResult>(getFunctionsInstance(), 'getCredits');
     const result = await getCreditsFunc();
 
     return result.data.credits;
 }
 
-// Add credits (for ad rewards)
 export async function addCredits(amount: number, source: string): Promise<AddCreditsResult> {
     await ensureAuthenticated();
 
-    const addCreditsFunc = functions().httpsCallable<{ amount: number; source: string }, AddCreditsResult>('addCredits');
-    const result = await addCreditsFunc({ amount, source });
-
-    return result.data;
+    console.log('[Firebase] Calling addCredits...', amount, source);
+    try {
+        const addCreditsFunc = httpsCallable<{ amount: number; source: string }, AddCreditsResult>(getFunctionsInstance(), 'addCredits');
+        const result = await addCreditsFunc({ amount, source });
+        console.log('[Firebase] addCredits success');
+        return result.data;
+    } catch (e: any) {
+        console.error('[Firebase] addCredits ERROR:', e.code, e.message, e.details);
+        throw e;
+    }
 }
 
 // Listen to credits changes in real-time
-export function onCreditsChanged(callback: (credits: number) => void): () => void {
-    const userId = getCurrentUserId();
+export function onCreditsChanged(callback: (credits: number) => void, explicitUserId?: string): () => void {
+    const userId = explicitUserId || getCurrentUserId();
     if (!userId) {
         console.warn('Firebase: Cannot listen to credits - not authenticated');
         return () => { };
@@ -183,6 +210,7 @@ export function onCreditsChanged(callback: (credits: number) => void): () => voi
         .doc(userId)
         .onSnapshot((doc) => {
             const credits = doc.data()?.credits || 0;
+            console.log('Firebase: Real-time credit update:', credits);
             callback(credits);
         }, (error) => {
             console.error('Firebase: Error listening to credits:', error);

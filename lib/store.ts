@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { GeneratedApp, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
-import * as gemini from './api/gemini';
+import * as ai from './api/ai';
 import * as backup from './backup';
 import * as projectConverter from './projectConverter';
 import SharingShortcuts from './bridges/SharingShortcuts';
 import { t } from './i18n';
-import { useManaStore, MANA_COSTS, calculateManaCost } from './manaStore';
+import { useManaStore } from './manaStore';
 
 interface AppState {
     apps: GeneratedApp[];
@@ -113,25 +113,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     createApp: async (description: string) => {
         try {
-            // Check Mana
-            const manaStore = useManaStore.getState();
-            // Just check if they have enough to start (minimum required)
-            if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
-                manaStore.openShop();
-                set({ error: t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) }), isGenerating: false });
-                return null;
-            }
-
             set({ isGenerating: true, error: null });
 
-            const result = await gemini.generateApp(description);
+            const result = await ai.generateApp(description);
             const code = result.text;
             const usage = result.usage;
-
-            // Deduct Mana based on actual usage
-            const cost = calculateManaCost(usage?.totalTokens || 0);
-            manaStore.deductMana(cost);
-            console.log(`[Store] App generated. Tokens: ${usage?.totalTokens}. Cost: ${cost} Mana.`);
 
             // Extract title from generated HTML
             let appName = description.slice(0, 20) + '...';
@@ -147,7 +133,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 iconPath: null,
                 lastUpdated: Date.now(),
                 consoleLogs: '',
-                totalManaCost: cost, // Initial cost
+                totalManaCost: result.creditsUsed || 0,
             };
 
             const id = await db.insertApp(newApp);
@@ -184,14 +170,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     updateAppWithAI: async (app: GeneratedApp, instructions: string, selectedContext?: string) => {
         try {
-            // Check Mana
-            const manaStore = useManaStore.getState();
-            if (manaStore.balance < MANA_COSTS.MIN_REQUIRED) {
-                manaStore.openShop();
-                set({ error: t('insufficientManaMessage', { cost: MANA_COSTS.MIN_REQUIRED, balance: manaStore.balance.toFixed(2) }), isGenerating: false });
-                return null;
-            }
-
             set({ isGenerating: true, error: null });
 
             // Get previous versions for context
@@ -201,7 +179,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 .slice(0, 10)
                 .map(v => ({ version: v.version, instruction: v.instruction }));
 
-            const result = await gemini.editAppWithContext(
+            const result = await ai.editAppWithContext(
                 app.code,
                 instructions,
                 selectedContext || '',
@@ -216,15 +194,12 @@ export const useAppStore = create<AppState>((set, get) => ({
                 code: newCode,
                 currentVersion: newVersion,
                 lastUpdated: Date.now(),
-                totalManaCost: (app.totalManaCost || 0) + calculateManaCost(usage?.totalTokens || 0), // Add edit cost
+                totalManaCost: (app.totalManaCost || 0) + (result.creditsUsed || 0),
             };
 
             await db.updateApp(updatedApp);
 
-            // Deduct Mana
-            const cost = calculateManaCost(usage?.totalTokens || 0);
-            manaStore.deductMana(cost);
-            console.log(`[Store] App edited. Tokens: ${usage?.totalTokens}. Cost: ${cost} Mana.`);
+            console.log(`[Store] App edited. Tokens: ${usage?.totalTokens}. Cost: ${result.creditsUsed} Mana.`);
 
             await db.insertVersion({
                 appId: app.id,

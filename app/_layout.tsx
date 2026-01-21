@@ -5,6 +5,7 @@ import * as Linking from 'expo-linking';
 import { colors } from '../lib/theme';
 import ShareReceiver from '../components/ShareReceiver';
 import { ManaShop } from '../components/ManaShop';
+import { useManaStore } from '../lib/manaStore';
 
 export default function RootLayout() {
     const segments = useSegments();
@@ -12,6 +13,9 @@ export default function RootLayout() {
     // Block runapp:// URLs from being processed internally by expo-router
     // They should only be handled by the external RunnerActivity
     useEffect(() => {
+        // Initialize Mana Store (Firebase Sync)
+        useManaStore.getState().init();
+
         const subscription = Linking.addEventListener('url', ({ url }) => {
             if (url.startsWith('runapp://')) {
                 console.log('_layout: Blocking runapp:// URL from expo-router:', url);

@@ -1,5 +1,5 @@
 import { extractZip, analyzeProject, bundleBuiltProject, prepareSourceForAI, ProjectAnalysis } from './zipUtils';
-import * as gemini from './api/gemini';
+import * as ai from './api/ai';
 import { t } from './i18n';
 
 export interface ConversionResult {

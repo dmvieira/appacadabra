@@ -1,54 +1,61 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as firebase from './firebase';
 
 interface ManaState {
     balance: number;
     isShopOpen: boolean;
 
     // Actions
-    addMana: (amount: number) => void;
-    deductMana: (amount: number) => boolean;
-    resetMana: () => void;
-    setBalance: (amount: number) => void; // For restore
+    init: () => void; // Start listening
+    setBalance: (amount: number) => void;
     openShop: () => void;
     closeShop: () => void;
+
+    // Legacy support (redirects to firebase logging)
+    addMana: (amount: number) => void;
 }
 
-export const MANA_COSTS = {
-    // 1 Mana per 5000 tokens
-    TOKENS_PER_MANA: 5000,
 
-    // Minimums checks (just to allow start)
-    MIN_REQUIRED: 0.1,
-};
-
-export const calculateManaCost = (totalTokens: number): number => {
-    return totalTokens / MANA_COSTS.TOKENS_PER_MANA;
-};
 
 export const useManaStore = create<ManaState>()(
     persist(
         (set, get) => ({
-            balance: 0, // Start with zero - earn via ads or purchase
+            balance: 0,
             isShopOpen: false,
 
+            init: () => {
+                console.log('ManaStore: Initializing firebase sync...');
+
+                // Listen for Auth changes first
+                firebase.onAuthStateChanged((userId) => {
+                    if (userId) {
+                        console.log('ManaStore: User authenticated, listening to credits for', userId);
+                        // Setup credits listener
+                        firebase.onCreditsChanged((credits) => {
+                            console.log('ManaStore: Balance updated:', credits);
+                            set({ balance: credits });
+                        }, userId);
+
+                        // Force a fetch as well
+                        firebase.getCredits().then(credits => {
+                            set({ balance: credits });
+                        }).catch(e => console.log('ManaStore: Fetch failed', e));
+
+                    } else {
+                        console.log('ManaStore: User not authenticated yet');
+                    }
+                });
+            },
+
             addMana: (amount: number) => {
-                set((state) => ({ balance: state.balance + amount }));
+                // This is now handled by the server or specific ad/purchase logic
+                // But for optimistic UI, we could update, but better wait for sync.
+                console.warn('ManaStore: addMana called locally. Should call firebase.addCredits instead.');
             },
 
-            deductMana: (amount: number) => {
-                const currentBalance = get().balance;
-                if (currentBalance >= amount) {
-                    set({ balance: currentBalance - amount });
-                    return true;
-                }
-                return false;
-            },
 
-            resetMana: () => {
-                set({ balance: 0 });
-            },
 
             setBalance: (amount: number) => {
                 set({ balance: amount });
@@ -63,3 +70,4 @@ export const useManaStore = create<ManaState>()(
         }
     )
 );
+

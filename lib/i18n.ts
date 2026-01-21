@@ -194,7 +194,7 @@ const translations = {
         projectImportedSuccess: 'Scroll "%{name}" imported successfully!',
 
         // Onboarding
-        onboardingWelcomeTitle: 'Welcome, Wizard! 🧙',
+        onboardingWelcomeTitle: 'Welcome! 🧙',
         onboardingWelcomeBody: 'Appacadabra turns your ideas into mini-tools called **Spells**. Just describe what you need!',
         onboardingHowTitle: 'How to Cast',
         onboardingHowBody: '1. Tap **Cast Spell** ✨\n2. Describe your tool\n3. The AI creates it instantly!',
@@ -404,7 +404,7 @@ const translations = {
         projectImportedSuccess: 'Pergaminho "%{name}" importado com sucesso!',
 
         // Onboarding
-        onboardingWelcomeTitle: 'Bem-vindo, Mago! 🧙',
+        onboardingWelcomeTitle: 'Boas-vindas! 🧙',
         onboardingWelcomeBody: 'O Appacadabra transforma suas ideias em mini-ferramentas chamadas **Feitiços**. Basta descrever o que você precisa!',
         onboardingHowTitle: 'Como Conjurar',
         onboardingHowBody: '1. Toque em **Lançar Feitiço** ✨\n2. Descreva sua ferramenta\n3. A IA cria instantaneamente!',
@@ -553,7 +553,7 @@ const translations = {
         projectImportedSuccess: 'Pergamino "%{name}" importado!',
 
         // Onboarding
-        onboardingWelcomeTitle: '¡Bienvenido, Mago! 🧙',
+        onboardingWelcomeTitle: '¡Te damos la bienvenida! 🧙',
         onboardingWelcomeBody: 'Appacadabra convierte tus ideas en mini-herramientas llamadas **Hechizos**. ¡Solo describe lo que necesitas!',
         onboardingHowTitle: 'Cómo Conjurar',
         onboardingHowBody: '1. Toca **Lanzar Hechizo** ✨\n2. Describe tu herramienta\n3. ¡La IA lo crea al instante!',
@@ -702,7 +702,7 @@ const translations = {
         projectImportedSuccess: 'Parchemin "%{name}" importé!',
 
         // Onboarding
-        onboardingWelcomeTitle: 'Bienvenue, Mage ! 🧙',
+        onboardingWelcomeTitle: 'Bienvenue ! 🧙',
         onboardingWelcomeBody: 'Appacadabra transforme vos idées en mini-outils appelés **Sorts**. Décrivez simplement ce dont vous avez besoin !',
         onboardingHowTitle: 'Comment Lancer',
         onboardingHowBody: '1. Touchez **Lancer Sort** ✨\n2. Décrivez votre outil\n3. L\'IA le crée instantanément !',
@@ -765,7 +765,7 @@ const translations = {
         watchAd: 'Werbung ansehen (+1 Mana)',
 
         // Onboarding
-        onboardingWelcomeTitle: 'Willkommen, Zauberer! 🧙',
+        onboardingWelcomeTitle: 'Willkommen! 🧙',
         onboardingWelcomeBody: 'Appacadabra verwandelt deine Ideen in Mini-Tools namens **Zauber**. Beschreibe einfach, was du brauchst!',
         onboardingHowTitle: 'Wie Man Zaubert',
         onboardingHowBody: '1. Tippe auf **Zauber Wirken** ✨\n2. Beschreibe dein Tool\n3. Die KI erstellt es sofort!',
@@ -828,7 +828,7 @@ const translations = {
         watchAd: 'Guarda Pubblicità (+1 Mana)',
 
         // Onboarding
-        onboardingWelcomeTitle: 'Benvenuto, Mago! 🧙',
+        onboardingWelcomeTitle: 'Ti diamo il benvenuto! 🧙',
         onboardingWelcomeBody: 'Appacadabra trasforma le tue idee in mini-strumenti chiamati **Incantesimi**. Descrivi cosa ti serve!',
         onboardingHowTitle: 'Come Lanciare',
         onboardingHowBody: '1. Tocca **Lancia Incantesimo** ✨\n2. Descrivi il tuo strumento\n3. L\'IA lo crea all\'istante!',
