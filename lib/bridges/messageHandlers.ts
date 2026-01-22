@@ -16,6 +16,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { WebView } from 'react-native-webview';
 import * as ai from '../api/ai';
+import * as AuthSession from 'expo-auth-session'; // Add import for AuthSession to support AUTH_OPEN_URL
 import * as db from '../database/db';
 import { createCallbackScript } from './injectedJS';
 import { t } from '../i18n';
@@ -267,23 +268,7 @@ export async function handleBridgeMessage(
             break;
 
         // ============= Contacts Handlers =============
-        case 'CONTACTS_GET_ALL':
-            try {
-                const contactsPerm = await Contacts.requestPermissionsAsync();
-                if (contactsPerm.status === 'granted') {
-                    const { data: contacts } = await Contacts.getContactsAsync({
-                        fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
-                    });
-                    result = JSON.stringify(contacts.slice(0, 100));
-                } else {
-                    success = false;
-                    result = 'Contacts permission denied';
-                }
-            } catch (e) {
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
+
 
         case 'CONTACTS_SEARCH':
             try {
@@ -322,7 +307,16 @@ export async function handleBridgeMessage(
                         phoneNumbers: contact.phone ? [{ number: contact.phone, label: 'mobile' }] : [],
                         emails: contact.email ? [{ email: contact.email, label: 'work' }] : [],
                     };
-                    const contactId = await Contacts.addContactAsync(newContact);
+
+                    // Fix for "Cannot add contacts to local/SIM" (iOS/Android)
+                    let containerId;
+                    try {
+                        containerId = await Contacts.getDefaultContainerIdAsync();
+                    } catch (cError) {
+                        console.warn('Could not get default container ID', cError);
+                    }
+
+                    const contactId = await Contacts.addContactAsync(newContact, containerId);
                     result = contactId;
                 } else {
                     success = false;
@@ -355,26 +349,39 @@ export async function handleBridgeMessage(
             break;
 
         // ============= Auth Handlers =============
-        case 'AUTH_IS_AVAILABLE':
-            try {
-                const hasHardware = await LocalAuthentication.hasHardwareAsync();
-                const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-                const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-                result = JSON.stringify({ available: hasHardware && isEnrolled, types });
-            } catch (e) {
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
+
 
         case 'AUTH_AUTHENTICATE':
             try {
+                // Check availability internally
+                const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+                if (!hasHardware || !isEnrolled) {
+                    throw new Error(t('biometricsNotAvailable') || 'Biometric authentication not available');
+                }
+
                 const authResult = await LocalAuthentication.authenticateAsync({
                     promptMessage: data.reason || t('confirmIdentity'),
                     fallbackLabel: t('usePassword'),
                     disableDeviceFallback: false,
                 });
                 result = JSON.stringify(authResult);
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
+        case 'AUTH_OPEN_URL':
+            try {
+                // Open auth URL in browser and return the redirect result
+                const redirectUri = data.redirectUrl || AuthSession.makeRedirectUri();
+                const authUrl = data.authUrl.includes('redirect_uri=')
+                    ? data.authUrl
+                    : `${data.authUrl}${data.authUrl.includes('?') ? '&' : '?'}redirect_uri=${encodeURIComponent(redirectUri)}`;
+                await Linking.openURL(authUrl);
+                result = JSON.stringify({ type: 'opened', redirectUri });
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';

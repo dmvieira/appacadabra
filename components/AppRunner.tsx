@@ -92,6 +92,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
     // Saved localStorage items
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
+    const [storageLoaded, setStorageLoaded] = useState(false);
 
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);
@@ -106,6 +107,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 // Load stored localStorage data
                 const storage = await db.getStorageForApp(appData.id);
                 setSavedStorage(storage.map(s => ({ key: s.key, value: s.value })));
+                setStorageLoaded(true);
+            } else {
+                setStorageLoaded(true); // Mark as loaded even if no app found
             }
             setIsLoading(false);
         }
@@ -409,9 +413,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         setShowHistory(false);
     };
 
-    if (!app) {
-        // If app failed to load or just started
-        if (isLoading) {
+    if (!app || !storageLoaded) {
+        // If app failed to load, still loading, or storage not ready
+        if (isLoading || !storageLoaded) {
             return (
                 <View style={[styles.container, styles.loadingContainer]}>
                     <ActivityIndicator size="large" color={colors.primary} />

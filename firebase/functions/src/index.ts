@@ -9,11 +9,15 @@ import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
     SYSTEM_INSTRUCTIONS,
-    GENERATE_APP_PROMPT,
-    SMART_PATCH_INSTRUCTIONS,
     CONVERT_PROJECT_PROMPT,
+    // Unified 2-Step Prompts
+    UNIFIED_CREATE_PLANNER_PROMPT,
+    UNIFIED_CREATE_CODE_PROMPT,
+    UNIFIED_EDIT_PLANNER_PROMPT,
+    UNIFIED_EDIT_MIGRATE_PROMPT,
     validateContentRequest,
 } from "./prompts";
+import { validateGeneratedCode, generateFixPrompt } from "./codeValidator";
 
 // Initialize Firebase Admin
 initializeApp();
@@ -33,20 +37,14 @@ const webviewSearchModel = genAI.getGenerativeModel({
     tools: [{ googleSearch: {} }, { googleMaps: {} }],
 });
 
-// Main models for Create/Edit/Convert (Pro/Preview version as requested)
-// All main actions use googleSearch as requested
+// Main models for Create/Edit/Convert
 const mainModel = genAI.getGenerativeModel({
     model: "gemini-3-flash-preview",
     // @ts-ignore
     tools: [{ googleSearch: {} }],
 });
 
-const mainJsonModel = genAI.getGenerativeModel({
-    model: "gemini-3-flash-preview",
-    generationConfig: { responseMimeType: "application/json" },
-    // @ts-ignore
-    tools: [{ googleSearch: {} }],
-});
+
 
 
 // ============= RATE LIMITING =============
@@ -175,6 +173,146 @@ function extractHtml(response: string): string {
     return response.trim();
 }
 
+// Helper to extract JSON from markdown code block
+function extractJson(response: string): any {
+    const text = response.trim();
+
+    // Strategy 1: Find valid JSON bounded by { } anywhere in the text
+    const startObj = text.indexOf('{');
+    const endObj = text.lastIndexOf('}');
+
+    if (startObj !== -1 && endObj !== -1 && endObj > startObj) {
+        const potentialJson = text.substring(startObj, endObj + 1);
+        try {
+            return JSON.parse(potentialJson);
+        } catch (e) {
+            // Continue if this fails
+        }
+    }
+
+    // Strategy 2: If finding brackets failed, try markdown stripping
+    const match = text.match(/```([\s\S]*?)```/);
+    if (match) {
+        let content = match[1].trim();
+        const firstLineEnd = content.indexOf('\n');
+        if (firstLineEnd !== -1) {
+            const firstLine = content.substring(0, firstLineEnd).trim();
+            if (/^[a-z]+$/i.test(firstLine) && !firstLine.includes('{')) {
+                content = content.substring(firstLineEnd).trim();
+            }
+        }
+        try {
+            return JSON.parse(content);
+        } catch (e) { }
+    }
+
+    // Strategy 3: Direct parse
+    return JSON.parse(text);
+}
+
+// ============= CALLBACK PATTERN FIXER =============
+// Deterministically fixes inline callbacks in Appacadabra API calls
+// Transforms: AppacadabraAI.generate("prompt", function(...) { ... })
+// Into: window.handle_X = function(...) { ... }; AppacadabraAI.generate("prompt", "handle_X");
+
+function fixCallbackPatterns(html: string): string {
+    let fixedHtml = html;
+    let callbackCounter = 0;
+    const extractedCallbacks: string[] = [];
+
+    // Find all script sections
+    const scriptMatch = fixedHtml.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
+    if (!scriptMatch) return html;
+
+    for (const scriptBlock of scriptMatch) {
+        let scriptContent = scriptBlock.replace(/<\/?script[^>]*>/gi, "");
+        let modified = false;
+
+        // Pattern 1: function(...) { ... }
+        const funcPattern = /(Appacadabra(?:AI|Calendar|Notify|Share|Contacts|Auth|Sensors)\.[a-zA-Z]+\([^,)]*),\s*function\s*\(([^)]*)\)\s*\{/g;
+
+        let match;
+        while ((match = funcPattern.exec(scriptContent)) !== null) {
+            callbackCounter++;
+            const callbackName = `appCallback_${callbackCounter}`;
+            const apiCall = match[1];
+            const params = match[2];
+
+            // Find the matching closing brace for the callback
+            const startIdx = match.index + match[0].length;
+            let braceCount = 1;
+            let endIdx = startIdx;
+
+            while (braceCount > 0 && endIdx < scriptContent.length) {
+                if (scriptContent[endIdx] === "{") braceCount++;
+                if (scriptContent[endIdx] === "}") braceCount--;
+                endIdx++;
+            }
+
+            if (braceCount === 0) {
+                const callbackBody = scriptContent.substring(startIdx, endIdx - 1);
+                const globalFunc = `window.${callbackName} = function(${params}) {${callbackBody}};`;
+                extractedCallbacks.push(globalFunc);
+
+                // Replace the inline callback with the function name
+                const fullMatch = scriptContent.substring(match.index, endIdx);
+                const replacement = `${apiCall}, "${callbackName}"`;
+                scriptContent = scriptContent.replace(fullMatch, replacement);
+                modified = true;
+
+                // Reset regex to continue finding
+                funcPattern.lastIndex = 0;
+            }
+        }
+
+        // Pattern 2: arrow functions (...) => { ... }
+        const arrowPattern = /(Appacadabra(?:AI|Calendar|Notify|Share|Contacts|Auth|Sensors)\.[a-zA-Z]+\([^,)]*),\s*\(([^)]*)\)\s*=>\s*\{/g;
+
+        while ((match = arrowPattern.exec(scriptContent)) !== null) {
+            callbackCounter++;
+            const callbackName = `appCallback_${callbackCounter}`;
+            const apiCall = match[1];
+            const params = match[2];
+
+            const startIdx = match.index + match[0].length;
+            let braceCount = 1;
+            let endIdx = startIdx;
+
+            while (braceCount > 0 && endIdx < scriptContent.length) {
+                if (scriptContent[endIdx] === "{") braceCount++;
+                if (scriptContent[endIdx] === "}") braceCount--;
+                endIdx++;
+            }
+
+            if (braceCount === 0) {
+                const callbackBody = scriptContent.substring(startIdx, endIdx - 1);
+                const globalFunc = `window.${callbackName} = function(${params}) {${callbackBody}};`;
+                extractedCallbacks.push(globalFunc);
+
+                const fullMatch = scriptContent.substring(match.index, endIdx);
+                const replacement = `${apiCall}, "${callbackName}"`;
+                scriptContent = scriptContent.replace(fullMatch, replacement);
+                modified = true;
+
+                arrowPattern.lastIndex = 0;
+            }
+        }
+
+        if (modified) {
+            // Prepend extracted callbacks to script content
+            const newScriptContent = extractedCallbacks.join("\n") + "\n" + scriptContent;
+            fixedHtml = fixedHtml.replace(scriptBlock, `<script>${newScriptContent}</script>`);
+            extractedCallbacks.length = 0; // Clear for next script block
+        }
+    }
+
+    if (callbackCounter > 0) {
+        console.log(`[CALLBACK FIX] Transformed ${callbackCounter} inline callbacks to global functions`);
+    }
+
+    return fixedHtml;
+}
+
 // Apply patches to source code
 interface Patch {
     startLine: number;
@@ -290,11 +428,54 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             throw new HttpsError("invalid-argument", "Prompt is required for create");
                         }
 
-                        const fullPrompt = SYSTEM_INSTRUCTIONS + "\n\n" + GENERATE_APP_PROMPT + prompt;
+                        // ============= 2-STEP CREATE PIPELINE (Unified) =============
+                        // Uses gemini-3-flash-preview for speed/quality balance
+                        let totalUsage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
+                        const addUsage = (u: { promptTokens: number; responseTokens: number; totalTokens: number }) => {
+                            totalUsage.promptTokens += u.promptTokens;
+                            totalUsage.responseTokens += u.responseTokens;
+                            totalUsage.totalTokens += u.totalTokens;
+                        };
 
-                        const result = await mainModel.generateContent(fullPrompt);
-                        usage = getUsage(result);
-                        resultText = extractHtml(result.response.text());
+                        // Stage 1: Unified Planner (Spec + Features + Contract)
+                        console.log("[CREATE] Stage 1: Planning...");
+                        const plannerPrompt = `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
+                        const planResult = await mainModel.generateContent(plannerPrompt);
+                        addUsage(getUsage(planResult));
+                        const appPlan = extractJson(planResult.response.text());
+                        console.log("[CREATE] Plan:", JSON.stringify(appPlan));
+
+                        // Stage 2: Unified Code Generator (HTML + CSS + JS)
+                        console.log("[CREATE] Stage 2: Generating code...");
+                        const codePrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
+                        const codeResult = await mainModel.generateContent(codePrompt);
+                        addUsage(getUsage(codeResult));
+
+                        // Extract HTML and fix patterns
+                        resultText = fixCallbackPatterns(extractHtml(codeResult.response.text()));
+
+                        // Validate generated code
+                        let validation = validateGeneratedCode(resultText);
+                        if (!validation.valid) {
+                            if (validation.canRetry) {
+                                console.log("[CREATE] Validation failed, attempting fix...", validation.errors);
+                                const fixPrompt = generateFixPrompt(validation.errors, resultText);
+                                const fixResult = await mainModel.generateContent(fixPrompt);
+                                addUsage(getUsage(fixResult));
+                                resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
+                                console.log("[CREATE] Fix applied, revalidating...");
+                                validation = validateGeneratedCode(resultText);
+                            }
+
+                            if (!validation.valid) {
+                                const errorMsg = validation.errors[0]?.message || "Unknown validation error";
+                                console.log("[CREATE] Final validation failed:", validation.errors);
+                                throw new HttpsError("internal", `App generation failed: ${errorMsg}`);
+                            }
+                        }
+
+                        usage = totalUsage;
+                        console.log(`[CREATE] Total tokens: ${usage.totalTokens}`);
                         break;
                     }
 
@@ -303,27 +484,69 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             throw new HttpsError("invalid-argument", "currentCode and instruction are required for edit");
                         }
 
-                        // Add line numbers to code
+                        // ============= 2-STEP EDIT PIPELINE (Unified) =============
+                        let totalUsage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
+                        const addUsage = (u: { promptTokens: number; responseTokens: number; totalTokens: number }) => {
+                            totalUsage.promptTokens += u.promptTokens;
+                            totalUsage.responseTokens += u.responseTokens;
+                            totalUsage.totalTokens += u.totalTokens;
+                        };
+
+                        // Normalize and prepare code
                         const normalizedCode = currentCode.replace(/\r\n/g, "\n");
                         const codeLines = normalizedCode.split("\n");
                         const numberedCode = codeLines.map((line: string, i: number) => `${i + 1}| ${line}`).join("\n");
 
-                        // Build history context if previous edits exist
+                        // Build history context
                         const historyContext = previousEdits && previousEdits.length > 0
-                            ? `\nIMPORTANT - Previous edits made to this app (DO NOT UNDO these changes):\n${previousEdits.map((e: PreviousEdit) => `- v${e.version}: ${e.instruction}`).join("\n")}\nMake sure your new edit PRESERVES all the functionality and changes from previous versions.\n`
+                            ? `\nPrevious edits:\n${previousEdits.map((e: PreviousEdit) => `- v${e.version}: ${e.instruction}`).join("\n")}\n`
                             : "";
 
-                        // Build selection context if user selected specific code
+                        // Build selection context
                         const selectionPart = selectedContext
-                            ? `\nThe user selected this specific part of the code (Focus your edits here):\n"""\n${selectedContext}\n"""\n`
+                            ? `\nSelected code:\n"""\n${selectedContext}\n"""\n`
                             : "";
 
-                        const editPrompt = `${SYSTEM_INSTRUCTIONS}\n\nHere is an existing HTML application with line numbers:\n\n\`\`\`html\n${numberedCode}\n\`\`\`\n${historyContext}${selectionPart}\nUser instructions: ${instruction}\n\n${SMART_PATCH_INSTRUCTIONS}`;
+                        // Stage 1: Unified Planner (Intent + Impact + Patch Plan)
+                        console.log("[EDIT] Stage 1: Planning patches...");
+                        const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
+                        const planResult = await mainModel.generateContent(planPrompt);
+                        addUsage(getUsage(planResult));
+                        const editPlan = extractJson(planResult.response.text());
+                        console.log("[EDIT] Plan:", JSON.stringify(editPlan));
 
-                        const result = await mainJsonModel.generateContent(editPrompt);
-                        usage = getUsage(result);
-                        const jsonResponse = JSON.parse(result.response.text());
-                        resultText = applyPatches(normalizedCode, jsonResponse.changes || []);
+                        // Stage 2: Patch Generator (Generate JSON Patches)
+                        console.log("[EDIT] Stage 2: Generating patches...");
+                        const patchPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
+                        const patchResult = await mainModel.generateContent(patchPrompt);
+                        addUsage(getUsage(patchResult));
+                        const patchResponse = extractJson(patchResult.response.text());
+
+                        // Apply patches deterministically
+                        resultText = fixCallbackPatterns(applyPatches(normalizedCode, patchResponse.changes || []));
+
+                        // Validate edited code
+                        let editValidation = validateGeneratedCode(resultText);
+                        if (!editValidation.valid) {
+                            if (editValidation.canRetry) {
+                                console.log("[EDIT] Validation failed, attempting fix...", editValidation.errors);
+                                const fixPrompt = generateFixPrompt(editValidation.errors, resultText);
+                                const fixResult = await mainModel.generateContent(fixPrompt);
+                                addUsage(getUsage(fixResult));
+                                resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
+                                console.log("[EDIT] Fix applied");
+                                editValidation = validateGeneratedCode(resultText);
+                            }
+
+                            if (!editValidation.valid) {
+                                const errorMsg = editValidation.errors[0]?.message || "Unknown validation error";
+                                console.log("[EDIT] Final validation failed:", editValidation.errors);
+                                throw new HttpsError("internal", `Edit failed: ${errorMsg}`);
+                            }
+                        }
+
+                        usage = totalUsage;
+                        console.log(`[EDIT] Total tokens: ${usage.totalTokens}`);
                         break;
                     }
 
@@ -337,8 +560,39 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const convertPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${CONVERT_PROJECT_PROMPT}\n\nFramework hint: ${framework}\n\nSOURCE CODE TO CONVERT:\n${sourceCode}`;
 
                         const result = await mainModel.generateContent(convertPrompt);
-                        usage = getUsage(result);
-                        resultText = extractHtml(result.response.text());
+
+                        // Validate converted code
+                        let convertResultText = fixCallbackPatterns(extractHtml(result.response.text()));
+                        let convertValidation = validateGeneratedCode(convertResultText);
+
+                        if (!convertValidation.valid) {
+                            if (convertValidation.canRetry) {
+                                console.log("[CONVERT] Validation failed, attempting fix...", convertValidation.errors);
+                                const fixPrompt = generateFixPrompt(convertValidation.errors, convertResultText);
+                                const fixResult = await mainModel.generateContent(fixPrompt);
+                                // Note: We sum up usage here? Logic above uses `usage = ...`. 
+                                // To be accurate we should accumulate, but current logic assigns `usage`.
+                                // Let's accumulate for correctness in this scope.
+                                const fixUsage = getUsage(fixResult);
+                                usage = {
+                                    promptTokens: (getUsage(result).promptTokens + fixUsage.promptTokens),
+                                    responseTokens: (getUsage(result).responseTokens + fixUsage.responseTokens),
+                                    totalTokens: (getUsage(result).totalTokens + fixUsage.totalTokens)
+                                };
+                                convertResultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
+                                convertValidation = validateGeneratedCode(convertResultText);
+                            }
+
+                            if (!convertValidation.valid) {
+                                const errorMsg = convertValidation.errors[0]?.message || "Unknown validation error";
+                                console.log("[CONVERT] Final validation failed:", convertValidation.errors);
+                                throw new HttpsError("internal", `Conversion failed: ${errorMsg}`);
+                            }
+                        } else {
+                            usage = getUsage(result);
+                        }
+
+                        resultText = convertResultText;
                         break;
                     }
 
@@ -377,7 +631,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             // Or assume the fallbackJsonModel (lite) is sufficient as requested.
                             // The user said: "use gemini-2.5-flash-lite ... for everything webview"
                             model = genAI.getGenerativeModel({
-                                model: "gemini-2.5-flash-lite",
+                                model: "gemini-3-flash-preview",
                                 generationConfig: { responseMimeType: "application/json" },
                                 // @ts-ignore
                                 tools: useSearch ? [{ googleSearch: {} }] : undefined,
@@ -393,6 +647,17 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const result = await model.generateContent(parts);
                         usage = getUsage(result);
                         resultText = result.response.text();
+
+                        // Validate JSON if schema was requested
+                        if (schema) {
+                            try {
+                                // This throws if invalid JSON
+                                extractJson(resultText);
+                            } catch (e) {
+                                console.error("[WEBVIEW_AI] JSON validation failed:", e);
+                                throw new HttpsError("internal", "AI failed to generate valid JSON response");
+                            }
+                        }
                         break;
                     }
 

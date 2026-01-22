@@ -21,30 +21,32 @@ The generated app should use AI when makes sense:
 4. AVOID AI FOR: Random quotes, motivational messages, placeholder text - use arrays with fixed options
 5. PREFER LOCAL DATA: Use hardcoded lists/data instead of generating content via AI
 
-⚠️ IMPORTANT: CALLBACK & DATA HANDLING
-All API callbacks receive two arguments: \`(success: boolean, result: string)\`
-1. \`success\`: Indicates if the COMPONENT/BRIDGE call was executed without system errors.
-2. \`result\`: A STRING that usually contains a JSON object. You MUST \`JSON.parse(result)\` to access the actual data.
+⚠️ CRITICAL: CALLBACK PATTERN (READ CAREFULLY)
+All Appacadabra API callbacks MUST be global functions on \`window\`.
 
-Example Pattern:
+✅ CORRECT PATTERN:
 \`\`\`javascript
-window.handleAuth = function(success, resultString) {
-    if (!success) {
-        console.error("System Error:", resultString);
-        return;
-    }
-    try {
-        const data = JSON.parse(resultString);
-        // NOW check the logical success
-        if (data.success) {
-             console.log("User Authenticated!");
-        } else {
-             console.log("Auth Failed:", data.error);
-        }
-    } catch (e) {
-        console.error("JSON Error", e);
-    }
+// 1. Define callback as global function FIRST
+window.handleAIResult = function(success, resultString) {
+    if (!success) { console.error("Error:", resultString); return; }
+    const data = JSON.parse(resultString);
+    console.log("Result:", data);
 };
+
+// 2. Pass the FUNCTION NAME (string) to the API
+AppacadabraAI.generate("Hello", "handleAIResult");
+\`\`\`
+
+❌ WRONG PATTERNS (DO NOT USE):
+\`\`\`javascript
+// WRONG: Inline anonymous function
+AppacadabraAI.generate("Hello", function(success, result) { ... });
+
+// WRONG: Arrow function
+AppacadabraAI.generate("Hello", (success, result) => { ... });
+
+// WRONG: Direct function reference
+AppacadabraAI.generate("Hello", handleResult);
 \`\`\`
 
 --- API DOCUMENTATION ---
@@ -106,20 +108,6 @@ window.handleAuth = function(success, resultString) {
     - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number, "heading": number }\`
 `;
 
-// Prompt for generating a new app
-export const GENERATE_APP_PROMPT = `
-You are an expert mobile app generator. Create a complete, single-file web app using HTML, CSS (internal), and JavaScript (internal).
-The app must be modern (use modern browser features), visually appealing with the following design guidelines:
-  - Use a dark theme by default, with a modern purple/blue neon styled accent color.
-  - The UI must be simple, intuitive, and mobile-friendly (touch targets > 44px, good contrast, no tiny text).
-  - Use flexbox or CSS Grid for layout.
-  - Add smooth transitions and subtle animations.
-  - Use SVG or emoji icons. Do not use external icon libraries.
-  - Avoid plain black or white backgrounds. Use dark grays with slight gradients.
-  - Fonts: use system fonts or Google Fonts (Inter, Roboto, Outfit).
-
-User's request for the app:
-`;
 
 // Instructions for smart patching (editing) existing apps
 export const SMART_PATCH_INSTRUCTIONS = `
@@ -165,18 +153,135 @@ Return ONLY the complete HTML code wrapped in \`\`\`html ... \`\`\`.
 The HTML must be fully functional and self-contained.
 `;
 
+// ============= UNIFIED 2-STEP PIPELINE PROMPTS (With Chain of Thoughts) =============
+
+// CREATE STEP 1: Unified Planner
+// Combines: Planner, Feature Selector, Contract
+export const UNIFIED_CREATE_PLANNER_PROMPT = `You are an expert system architect and product manager.
+Given the user's request, plan the entire application specification, technical requirements, and data structure.
+Think step-by-step about the user's needs, the best UX, and how to implement it technically.
+
+Return a JSON object with this exact schema:
+{
+  "appName": "Creative name for the app",
+  "description": "Short description of what it does",
+  "reasoning": "Brief explanation of design choices",
+  "coreFeatures": ["List of 3-5 core features identifiers"],
+  "technicalRequirements": {
+    "apis": [
+      { "name": "AppacadabraAI", "usage": "For generating text/images/audio" },
+      { "name": "AppacadabraNotify", "usage": "For notifications" }
+    ],
+    "localStorageKeys": { "keyName": "Description of data structure" },
+    "globalVariables": ["List of critical global state variables"]
+  },
+  "uiContract": {
+    "elements": [
+      { "htmlId": "id", "tag": "div|button|input", "purpose": "description" }
+    ],
+    "functions": [
+      { "name": "functionName", "purpose": "what it does", "trigger": "click/load" }
+    ]
+  }
+}
+
+Available APIs:
+- AppacadabraAI (generate text, images, audio) - Use sparingly, prefer deterministic code
+- AppacadabraNotify (push notifications)
+- AppacadabraCalendar (write calendar)
+- AppacadabraContacts (search/update/add contacts - prefer search/update)
+- AppacadabraLocation (get current location)
+- AppacadabraSpeech (speech-to-text)
+- AppacadabraSensors (accelerometer, gyroscope, magnetometer)
+- AppacadabraShare (share content)
+- AppacadabraAuth (biometric auth)
+
+Rules:
+1. Be creative but practical. The app must be a single-file web app.
+2. Select ONLY necessary APIs.
+3. Plan for a complete, working product.
+4. IMPORTANT: Plan for all text content to be in THE SAME LANGUAGE as the user's request.
+`;
+
+// CREATE STEP 2: Unified Code Generator
+// Combines: HTML Skeleton, CSS Skin, JS Logic, Assembly
+export const UNIFIED_CREATE_CODE_PROMPT = `You are a full-stack mobile web developer.
+Create a complete, single-file web app based on the provided PLAN.
+
+Rules:
+1. Use EXACTLY the IDs, function names, and APIs defined in the PLAN.
+2. Use modern HTML5, CSS3 (internal), and ES6+ JavaScript (internal).
+3. DESIGN: Dark theme, purple/blue neon accents, mobile-first, touch-friendly (>44px targets).
+4. LOGIC: Use localStorage for persistence. Implement all features described.
+5. LANGUAGE: All UI text (labels, buttons, alerts) MUST be in the same language as the user's request.
+6. CALLBACKS: All Appacadabra API callbacks must be global window functions.
+
+Output ONLY the raw HTML code wrapped in \`\`\`html ... \`\`\`.
+`;
+
+// EDIT STEP 1: Unified Edit Planner
+// Combines: Intent Analyzer, Patch Planner
+export const UNIFIED_EDIT_PLANNER_PROMPT = `You are a code reviewer and architect.
+Analyze the user's edit request against the current code and plan the necessary changes.
+Think step-by-step:
+1. Understand the user's intent (what they want to change).
+2. Analyze the impact on existing code (HTML, CSS, JS).
+3. Plan specific, minimal patches to achieve the goal without breaking other features.
+
+Return a JSON object with this exact schema:
+{
+  "intent": "Clear summary of what needs to change",
+  "reasoning": "Why these changes are necessary and safe",
+  "impactAnalysis": ["List of affected components/functions"],
+  "patches": [
+    {
+      "description": "Brief description of this specific change",
+      "targetSection": "HTML ID or function name or line range approximation"
+    }
+  ]
+}
+
+Rules:
+1. Be precise. If the user wants to change a color, identify the CSS rule.
+2. If the user wants logic changes, identify the function.
+3. Preserve existing functionality unless explicitly asked to remove it.
+`;
+
+// EDIT STEP 2: Patch Generator
+// Generates the actual code changes
+export const UNIFIED_EDIT_MIGRATE_PROMPT = `
+Task: Return a JSON object with a list of "changes" to apply to the code based on the PLAN.
+Each change must have:
+- "startLine": The 1-based line number where the change starts (inclusive).
+- "endLine": The 1-based line number where the change ends (inclusive).
+- "content": The new code to replace these lines with.
+
+Rules:
+1. Use the line numbers provided in the source.
+2. To DELETE lines, set the "content" field to an empty string "".
+3. To INSERT lines, target the specific line(s) the new code should replace.
+4. If the user selected a specific context, make sure your changes align with that selection.
+5. Return ONLY valid JSON.
+6. Generate the app's user interface changes (labels, buttons, messages) in THE SAME LANGUAGE the app already is.
+
+Schema:
+{
+  "changes": [
+    { "startLine": number, "endLine": number, "content": "string" }
+  ]
+}
+`;
+
 // ============= CONTENT MODERATION =============
 // Validation disabled as per user request (2026-01-20)
 // Original blocked patterns removed for testing
 
-
-
 export interface ContentValidationResult {
-    allowed: boolean;
-    reason?: string;
+  allowed: boolean;
+  reason?: string;
 }
 
 export function validateContentRequest(text: string): ContentValidationResult {
-    // Validation disabled
-    return { allowed: true };
+  // Validation disabled
+  return { allowed: true };
 }

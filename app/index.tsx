@@ -125,7 +125,9 @@ export default function HomeScreen() {
         if (app) {
             setShowCreateDialog(false);
             openApp(app.id);
+            return true;
         }
+        return false;
     };
 
     const handleRunApp = async (app: GeneratedApp) => {

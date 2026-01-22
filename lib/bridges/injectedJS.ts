@@ -175,17 +175,9 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
 
   // ============= Contacts Bridge =============
   window.AppacadabraContacts = {
-    getAll: function(callbackName) {
-        console.log('[AppacadabraContacts.getAll] callback:', callbackName);
-        sendMessage('CONTACTS_GET_ALL', {}, callbackName);
-    },
     search: function(query, callbackName) {
         console.log('[AppacadabraContacts.search] query:', query, 'callback:', callbackName);
         sendMessage('CONTACTS_SEARCH', { query }, callbackName);
-    },
-    pick: function(callbackName) {
-        console.log('[AppacadabraContacts.pick] callback:', callbackName);
-        sendMessage('CONTACTS_PICK', {}, callbackName);
     },
     add: function(contact, callbackName) {
         console.log('[AppacadabraContacts.add] name:', contact?.name, 'callback:', callbackName);
@@ -201,10 +193,6 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
 
   // ============= Auth/SSO Bridge =============
   window.AppacadabraAuth = {
-    isAvailable: function(callbackName) {
-        console.log('[AppacadabraAuth.isAvailable] callback:', callbackName);
-        sendMessage('AUTH_IS_AVAILABLE', {}, callbackName);
-    },
     authenticate: function(reason, callbackName) {
         console.log('[AppacadabraAuth.authenticate] reason:', reason, 'callback:', callbackName);
         sendMessage('AUTH_AUTHENTICATE', { reason }, callbackName);
@@ -441,6 +429,10 @@ export function createCallbackScript(callbackName: string, success: boolean, dat
 
   return `
     (function() {
+      // Log the return from Native Bridge so it appears in debug console
+      var dataPreview = "${escapedData}".length > 100 ? "${escapedData}".substring(0, 100) + "..." : "${escapedData}";
+      console.log("[BridgeReturn] ${callbackName} | Success: ${success} | Data: " + dataPreview);
+
       if (typeof ${callbackName} === 'function') {
         ${callbackName}(${success}, "${escapedData}");
       }

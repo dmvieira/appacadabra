@@ -19,7 +19,7 @@ interface ChatDialogProps {
     title: string;
     isGenerating: boolean;
     onDismiss: () => void;
-    onSend: (text: string) => void;
+    onSend: (text: string) => Promise<boolean | void> | void;
 }
 
 export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: ChatDialogProps) {
@@ -42,10 +42,14 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
         }
     }, [visible]);
 
-    const handleSend = () => {
+    const handleSend = async () => {
         if (text.trim() && !isGenerating) {
-            onSend(text.trim());
-            setText('');
+            const result = await onSend(text.trim());
+            // Clear text only if result is explicitly true or undefined (void), 
+            // but if it returns false (error), keep text.
+            if (result !== false) {
+                setText('');
+            }
         }
     };
 
