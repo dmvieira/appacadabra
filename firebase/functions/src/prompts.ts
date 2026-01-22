@@ -82,19 +82,15 @@ AppacadabraAI.generate("Hello", handleResult);
 - \`share(text, url, callback)\`
 - **Return**: "Shared" (string)
 
-📇 CONTACTS (AppacadabraContacts)
-- \`getAll(callback)\`
-    - **Return JSON**: \`[{ "id": "1", "name": "John", "phoneNumbers": [{ "number": "123" }], "emails": [{ "email": "a@b.com" }] }, ...]\`
+📇 CONTACTS (AppacadabraContacts): prefer search/update
 - \`search(query, callback)\`
     - **Return JSON**: Same array format as getAll.
-- \`add(contactObj, callback)\`
-    - **Return**: Contact ID (string)
 - \`update(contactObj, callback)\`
+    - **Return**: Contact ID (string)
+- \`add(contactObj, callback)\`
     - **Return**: Contact ID (string)
 
 🔐 AUTH (AppacadabraAuth)
-- \`isAvailable(callback)\`
-    - **Return JSON**: \`{ "available": boolean, "types": number[] }\`
 - \`authenticate(reason, callback)\`
     - **Return JSON**: \`{ "success": boolean, "error": string, "warning": string }\`
     - **CRITICAL**: The outer callback \`success\` only means the dialog opened. You MUST check \`JSON.parse(result).success\` to see if user passed biometrics.
@@ -184,17 +180,6 @@ Return a JSON object with this exact schema:
     ]
   }
 }
-
-Available APIs:
-- AppacadabraAI (generate text, images, audio) - Use sparingly, prefer deterministic code
-- AppacadabraNotify (push notifications)
-- AppacadabraCalendar (write calendar)
-- AppacadabraContacts (search/update/add contacts - prefer search/update)
-- AppacadabraLocation (get current location)
-- AppacadabraSpeech (speech-to-text)
-- AppacadabraSensors (accelerometer, gyroscope, magnetometer)
-- AppacadabraShare (share content)
-- AppacadabraAuth (biometric auth)
 
 Rules:
 1. Be creative but practical. The app must be a single-file web app.
