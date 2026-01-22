@@ -439,7 +439,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Stage 1: Unified Planner (Spec + Features + Contract)
                         console.log("[CREATE] Stage 1: Planning...");
-                        const plannerPrompt = `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
+                        const plannerPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
                         const planResult = await mainModel.generateContent(plannerPrompt);
                         addUsage(getUsage(planResult));
                         const appPlan = extractJson(planResult.response.text());
@@ -509,7 +509,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Stage 1: Unified Planner (Intent + Impact + Patch Plan)
                         console.log("[EDIT] Stage 1: Planning patches...");
-                        const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
+                        const planPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
                         const planResult = await mainModel.generateContent(planPrompt);
                         addUsage(getUsage(planResult));
                         const editPlan = extractJson(planResult.response.text());

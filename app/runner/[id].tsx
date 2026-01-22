@@ -413,6 +413,23 @@ export default function RunnerScreen() {
 
                     break;
 
+                // ============= Console Log =============
+                case 'CONSOLE_LOG':
+                    const logEntry = `[${data.type}] ${data.message}`;
+                    setConsoleLogs(prev => [...prev.slice(-99), logEntry]);
+                    break;
+
+                case 'NETWORK_LOG':
+                    setNetworkLogs(prev => [...prev.slice(-49), {
+                        url: data.url,
+                        method: data.method,
+                        status: data.status,
+                        time: Date.now(),
+                        duration: data.duration,
+                        responseBody: data.responseBody || data.error,
+                    }]);
+                    break;
+
                 default:
                     // Delegate to shared handlers for common message types
                     const handlerResult = await handleBridgeMessage(type, data, {
