@@ -314,7 +314,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             ? `\nThe user selected this specific part of the code (Focus your edits here):\n"""\n${selectedContext}\n"""\n`
                             : "";
 
-                        const editPrompt = `Here is an existing HTML application with line numbers:\n\n\`\`\`html\n${numberedCode}\n\`\`\`\n${historyContext}${selectionPart}\nUser instructions: ${instruction}\n\n${SMART_PATCH_INSTRUCTIONS}`;
+                        const editPrompt = `${SYSTEM_INSTRUCTIONS}\n\nHere is an existing HTML application with line numbers:\n\n\`\`\`html\n${numberedCode}\n\`\`\`\n${historyContext}${selectionPart}\nUser instructions: ${instruction}\n\n${SMART_PATCH_INSTRUCTIONS}`;
 
                         const result = await mainJsonModel.generateContent(editPrompt);
                         usage = getUsage(result);
