@@ -155,6 +155,10 @@ interface GenerateSpellResponse {
 // Helper to get usage metadata
 function getUsage(result: any): { promptTokens: number; responseTokens: number; totalTokens: number } {
     const usage = result.response?.usageMetadata;
+    const cachedTokens = usage?.cachedContentTokenCount || 0;
+    if (cachedTokens > 0) {
+        console.log(`[CACHE HIT] ${cachedTokens} tokens from cache (of ${usage?.promptTokenCount} prompt tokens)`);
+    }
     return {
         promptTokens: usage?.promptTokenCount || 0,
         responseTokens: usage?.candidatesTokenCount || 0,
@@ -329,7 +333,8 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         }
 
                         const framework = frameworkHint || "web project";
-                        const convertPrompt = `${CONVERT_PROJECT_PROMPT}\n\n${SYSTEM_INSTRUCTIONS}\n\nFramework hint: ${framework}\n\nSOURCE CODE TO CONVERT:\n${sourceCode}`;
+                        // SYSTEM_INSTRUCTIONS first for implicit caching
+                        const convertPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${CONVERT_PROJECT_PROMPT}\n\nFramework hint: ${framework}\n\nSOURCE CODE TO CONVERT:\n${sourceCode}`;
 
                         const result = await mainModel.generateContent(convertPrompt);
                         usage = getUsage(result);
