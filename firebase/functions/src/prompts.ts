@@ -85,10 +85,31 @@ AppacadabraAI.generate("Hello", handleResult);
 📇 CONTACTS (AppacadabraContacts): prefer search/update
 - \`search(query, callback)\`
     - **Return JSON**: Same array format as getAll.
-- \`update(contactObj, callback)\`
-    - **Return**: Contact ID (string)
-- \`add(contactObj, callback)\`
-    - **Return**: Contact ID (string)
+- \`update(contactObj, callback)\` - Opens native edit form with pre-filled data
+    - **Return**: Contact ID (string) or "Contact form presented"
+- \`add(contactObj, callback)\` - Opens native add form with pre-filled data
+    - **Return**: "Contact form presented"
+
+**contactObj structure** (all fields optional except id for update):
+\`\`\`javascript
+{
+  id: "string",           // REQUIRED for update only
+  name: "string",         // Full name
+  firstName: "string",    // First name
+  lastName: "string",     // Last name
+  phone: "string",        // Phone number
+  email: "string",        // Email address
+  company: "string",      // Company name
+  jobTitle: "string",     // Job title
+  department: "string",   // Department
+  nickname: "string",     // Nickname
+  note: "string",         // Notes
+  website: "string",      // Website URL (or use "url")
+  birthday: "YYYY-MM-DD", // Birthday as string OR { year, month, day }
+  address: "string"       // Simple address OR object:
+  // address: { street, city, region, postalCode, country, label }
+}
+\`\`\`
 
 🔐 AUTH (AppacadabraAuth)
 - \`authenticate(reason, callback)\`
@@ -186,6 +207,7 @@ Rules:
 2. Select ONLY necessary APIs.
 3. Plan for a complete, working product.
 4. IMPORTANT: Plan for all text content to be in THE SAME LANGUAGE as the user's request.
+5. DEEP LINKS: Whenever possible, use Universal Links (standard HTTPS URLs like 'https://www.notion.so/...') instead of custom schemes ('notion://'). HTTPS links open the app if installed, or fallback to the website automatically. Custom schemes often fail silently if the app is not installed.
 `;
 
 // CREATE STEP 2: Unified Code Generator

@@ -174,6 +174,53 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   };
 
   // ============= Contacts Bridge =============
+  // Helper to validate and sanitize contact object
+  function validateContactObj(contact, isUpdate) {
+    if (!contact || typeof contact !== 'object') {
+      return { valid: false, error: 'Contact must be an object' };
+    }
+    if (isUpdate && !contact.id) {
+      return { valid: false, error: 'Contact ID is required for update' };
+    }
+    // Sanitize all fields to strings
+    const sanitized = {};
+    const stringFields = ['id', 'name', 'firstName', 'lastName', 'phone', 'email', 
+                          'company', 'jobTitle', 'department', 'nickname', 'note', 'website', 'url'];
+    stringFields.forEach(function(field) {
+      if (contact[field] !== undefined && contact[field] !== null) {
+        sanitized[field] = String(contact[field]);
+      }
+    });
+    // Handle birthday (string or object)
+    if (contact.birthday) {
+      if (typeof contact.birthday === 'string') {
+        sanitized.birthday = contact.birthday;
+      } else if (typeof contact.birthday === 'object') {
+        sanitized.birthday = {
+          year: Number(contact.birthday.year),
+          month: Number(contact.birthday.month),
+          day: Number(contact.birthday.day)
+        };
+      }
+    }
+    // Handle address (string or object)
+    if (contact.address) {
+      if (typeof contact.address === 'string') {
+        sanitized.address = contact.address;
+      } else if (typeof contact.address === 'object') {
+        sanitized.address = {
+          street: String(contact.address.street || ''),
+          city: String(contact.address.city || ''),
+          region: String(contact.address.region || contact.address.state || ''),
+          postalCode: String(contact.address.postalCode || contact.address.zipCode || ''),
+          country: String(contact.address.country || ''),
+          label: String(contact.address.label || 'home')
+        };
+      }
+    }
+    return { valid: true, sanitized: sanitized };
+  }
+
   window.AppacadabraContacts = {
     search: function(query, callbackName) {
         console.log('[AppacadabraContacts.search] query:', query, 'callback:', callbackName);
@@ -181,11 +228,27 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     },
     add: function(contact, callbackName) {
         console.log('[AppacadabraContacts.add] name:', contact?.name, 'callback:', callbackName);
-        sendMessage('CONTACTS_ADD', { contact }, callbackName);
+        var validation = validateContactObj(contact, false);
+        if (!validation.valid) {
+          console.error('[AppacadabraContacts.add] Validation error:', validation.error);
+          if (callbackName && typeof window[callbackName] === 'function') {
+            window[callbackName](false, validation.error);
+          }
+          return;
+        }
+        sendMessage('CONTACTS_ADD', { contact: validation.sanitized }, callbackName);
     },
     update: function(contact, callbackName) {
         console.log('[AppacadabraContacts.update] id:', contact?.id, 'callback:', callbackName);
-        sendMessage('CONTACTS_UPDATE', { contact }, callbackName);
+        var validation = validateContactObj(contact, true);
+        if (!validation.valid) {
+          console.error('[AppacadabraContacts.update] Validation error:', validation.error);
+          if (callbackName && typeof window[callbackName] === 'function') {
+            window[callbackName](false, validation.error);
+          }
+          return;
+        }
+        sendMessage('CONTACTS_UPDATE', { contact: validation.sanitized }, callbackName);
     }
   };
 

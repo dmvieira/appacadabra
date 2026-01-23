@@ -16,7 +16,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { WebView } from 'react-native-webview';
 import * as ai from '../api/ai';
-import * as AuthSession from 'expo-auth-session'; // Add import for AuthSession to support AUTH_OPEN_URL
+
 import * as db from '../database/db';
 import { createCallbackScript } from './injectedJS';
 import { t } from '../i18n';
@@ -299,25 +299,84 @@ export async function handleBridgeMessage(
                 const addPerm = await Contacts.requestPermissionsAsync();
                 if (addPerm.status === 'granted') {
                     const contact = data.contact || {};
-                    const newContact: Contacts.Contact = {
+
+                    // Build contact object for native form with proper field mapping
+                    const newContact: Partial<Contacts.Contact> = {
                         contactType: Contacts.ContactTypes.Person,
-                        name: contact.name || '',
-                        firstName: contact.firstName || contact.name?.split(' ')[0] || '',
-                        lastName: contact.lastName || contact.name?.split(' ').slice(1).join(' ') || '',
-                        phoneNumbers: contact.phone ? [{ number: contact.phone, label: 'mobile' }] : [],
-                        emails: contact.email ? [{ email: contact.email, label: 'work' }] : [],
+                        name: String(contact.name || ''),
+                        firstName: String(contact.firstName || contact.name?.split(' ')[0] || ''),
+                        lastName: String(contact.lastName || contact.name?.split(' ').slice(1).join(' ') || ''),
                     };
 
-                    // Fix for "Cannot add contacts to local/SIM" (iOS/Android)
-                    let containerId;
-                    try {
-                        containerId = await Contacts.getDefaultContainerIdAsync();
-                    } catch (cError) {
-                        console.warn('Could not get default container ID', cError);
+                    // Add phone if provided
+                    if (contact.phone) {
+                        newContact.phoneNumbers = [{ number: String(contact.phone), label: 'mobile' }];
                     }
 
-                    const contactId = await Contacts.addContactAsync(newContact, containerId);
-                    result = contactId;
+                    // Add email if provided
+                    if (contact.email) {
+                        newContact.emails = [{ email: String(contact.email), label: 'work' }];
+                    }
+
+                    // Add company/work fields if provided
+                    if (contact.company) newContact.company = String(contact.company);
+                    if (contact.jobTitle) newContact.jobTitle = String(contact.jobTitle);
+                    if (contact.department) newContact.department = String(contact.department);
+
+                    // Add nickname if provided
+                    if (contact.nickname) newContact.nickname = String(contact.nickname);
+
+                    // Add note if provided
+                    if (contact.note) newContact.note = String(contact.note);
+
+                    // Add address if provided (can be object or string)
+                    if (contact.address) {
+                        if (typeof contact.address === 'string') {
+                            newContact.addresses = [{ street: String(contact.address), label: 'home' }];
+                        } else if (typeof contact.address === 'object') {
+                            newContact.addresses = [{
+                                street: String(contact.address.street || ''),
+                                city: String(contact.address.city || ''),
+                                region: String(contact.address.region || contact.address.state || ''),
+                                postalCode: String(contact.address.postalCode || contact.address.zipCode || ''),
+                                country: String(contact.address.country || ''),
+                                label: String(contact.address.label || 'home')
+                            }];
+                        }
+                    }
+
+                    // Add birthday if provided (expects { day, month, year } or "YYYY-MM-DD" string)
+                    if (contact.birthday) {
+                        if (typeof contact.birthday === 'string') {
+                            const parts = contact.birthday.split('-');
+                            if (parts.length >= 3) {
+                                newContact.birthday = {
+                                    year: parseInt(parts[0], 10),
+                                    month: parseInt(parts[1], 10) - 1, // JS months are 0-indexed
+                                    day: parseInt(parts[2], 10)
+                                };
+                            }
+                        } else if (typeof contact.birthday === 'object') {
+                            newContact.birthday = {
+                                year: contact.birthday.year,
+                                month: contact.birthday.month,
+                                day: contact.birthday.day
+                            };
+                        }
+                    }
+
+                    // Add website/URL if provided
+                    if (contact.website || contact.url) {
+                        newContact.urlAddresses = [{
+                            url: String(contact.website || contact.url),
+                            label: 'homepage'
+                        }];
+                    }
+
+                    // Use presentFormAsync to open native add contact form
+                    // This is more reliable than addContactAsync on Android
+                    await Contacts.presentFormAsync(null, newContact as Contacts.Contact, { isNew: true });
+                    result = 'Contact form presented';
                 } else {
                     success = false;
                     result = 'Contacts permission denied';
@@ -332,12 +391,116 @@ export async function handleBridgeMessage(
             try {
                 const updatePerm = await Contacts.requestPermissionsAsync();
                 if (updatePerm.status === 'granted') {
-                    const contact = data.contact || {};
-                    if (!contact.id) {
+                    const contactData = data.contact || {};
+
+                    if (!contactData.id) {
                         throw new Error('Contact ID is required for update');
                     }
-                    const resultId = await Contacts.updateContactAsync(contact);
-                    result = resultId;
+
+                    // Build update payload with properly typed fields
+                    const updatePayload: Record<string, any> = {
+                        id: String(contactData.id)
+                    };
+
+                    // Parse name if needed
+                    if (contactData.name) {
+                        updatePayload.firstName = String(contactData.name.split(' ')[0] || '');
+                        if (contactData.name.includes(' ')) {
+                            updatePayload.lastName = String(contactData.name.split(' ').slice(1).join(' '));
+                        }
+                    }
+                    if (contactData.firstName) updatePayload.firstName = String(contactData.firstName);
+                    if (contactData.lastName) updatePayload.lastName = String(contactData.lastName);
+                    if (contactData.company) updatePayload.company = String(contactData.company);
+                    if (contactData.jobTitle) updatePayload.jobTitle = String(contactData.jobTitle);
+                    if (contactData.department) updatePayload.department = String(contactData.department);
+                    if (contactData.nickname) updatePayload.nickname = String(contactData.nickname);
+                    if (contactData.note) updatePayload.note = String(contactData.note);
+
+                    // Phone numbers
+                    if (contactData.phone) {
+                        updatePayload.phoneNumbers = [{ number: String(contactData.phone), label: 'mobile' }];
+                    }
+
+                    // Emails
+                    if (contactData.email) {
+                        updatePayload.emails = [{ email: String(contactData.email), label: 'work' }];
+                    }
+
+                    // Try updateContactAsync first (works on some devices)
+                    try {
+                        const resultId = await Contacts.updateContactAsync(updatePayload as any);
+                        result = resultId;
+                    } catch (updateError: any) {
+                        // Fallback: copy data to clipboard and open native editor
+                        // See: https://github.com/expo/expo/issues/36802
+                        // Fallback to native editor with clipboard support
+
+                        // Build clipboard text with ALL contact info for easy pasting
+                        const clipboardParts: string[] = [];
+
+                        // Name parts
+                        const fullName = [updatePayload.firstName, updatePayload.lastName].filter(Boolean).join(' ');
+                        if (fullName) clipboardParts.push(`Nome: ${fullName}`);
+
+                        // Contact info
+                        if (contactData.phone) clipboardParts.push(`Tel: ${contactData.phone}`);
+                        if (contactData.email) clipboardParts.push(`Email: ${contactData.email}`);
+
+                        // Work info
+                        if (contactData.company) clipboardParts.push(`Empresa: ${contactData.company}`);
+                        if (contactData.jobTitle) clipboardParts.push(`Cargo: ${contactData.jobTitle}`);
+                        if (contactData.department) clipboardParts.push(`Departamento: ${contactData.department}`);
+
+                        // Address - check both contactData.address and updatePayload.addresses
+                        if (contactData.address) {
+                            let addrStr: string;
+                            if (typeof contactData.address === 'string') {
+                                addrStr = contactData.address;
+                            } else {
+                                const a = contactData.address;
+                                addrStr = [a.street, a.city, a.region, a.state, a.postalCode, a.zipCode, a.country]
+                                    .filter(Boolean).join(', ');
+                            }
+                            if (addrStr) clipboardParts.push(`Endereço: ${addrStr}`);
+                        }
+
+                        // Other fields
+                        if (contactData.birthday) {
+                            const bd = typeof contactData.birthday === 'string'
+                                ? contactData.birthday
+                                : `${contactData.birthday.day}/${contactData.birthday.month}/${contactData.birthday.year}`;
+                            clipboardParts.push(`Nascimento: ${bd}`);
+                        }
+                        if (contactData.website || contactData.url) {
+                            clipboardParts.push(`Website: ${contactData.website || contactData.url}`);
+                        }
+                        if (contactData.nickname) clipboardParts.push(`Apelido: ${contactData.nickname}`);
+                        if (contactData.note) clipboardParts.push(`Nota: ${contactData.note}`);
+
+                        // Copy to clipboard FIRST (before any focus change)
+                        const clipboardText = clipboardParts.join('\n');
+
+                        const { Clipboard, Alert } = require('react-native');
+                        if (clipboardText) {
+                            Clipboard.setString(clipboardText);
+                        }
+
+                        // Show alert and wait for user to tap OK before opening editor
+                        await new Promise<void>((resolve) => {
+                            Alert.alert(
+                                'Dados copiados',
+                                clipboardText
+                                    ? 'As informações do contato foram copiadas para a área de transferência. Cole nos campos desejados.'
+                                    : 'Edite o contato na tela seguinte.',
+                                [{ text: 'OK', onPress: () => resolve() }]
+                            );
+                        });
+
+                        // Open native editor
+                        await Contacts.presentFormAsync(String(contactData.id), null, { allowsEditing: true });
+                        result = contactData.id;
+                    }
                 } else {
                     success = false;
                     result = 'Contacts permission denied';
@@ -373,20 +536,7 @@ export async function handleBridgeMessage(
             }
             break;
 
-        case 'AUTH_OPEN_URL':
-            try {
-                // Open auth URL in browser and return the redirect result
-                const redirectUri = data.redirectUrl || AuthSession.makeRedirectUri();
-                const authUrl = data.authUrl.includes('redirect_uri=')
-                    ? data.authUrl
-                    : `${data.authUrl}${data.authUrl.includes('?') ? '&' : '?'}redirect_uri=${encodeURIComponent(redirectUri)}`;
-                await Linking.openURL(authUrl);
-                result = JSON.stringify({ type: 'opened', redirectUri });
-            } catch (e) {
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
+
 
         // ============= Sensors Handlers =============
         case 'SENSORS_START_ACCELEROMETER':

@@ -16,17 +16,6 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 
-// Firebase App Check CI/CD imports
-import com.google.firebase.FirebaseApp
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-
-
-// Manual linking - NativeFunctionsPackage for New Architecture
-import io.invertase.firebase.functions.NativeFunctionsPackage
-
-import android.content.Context
-
 class MainApplication : Application(), ReactApplication {
 
   override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
@@ -35,8 +24,7 @@ class MainApplication : Application(), ReactApplication {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here, for example:
-              add(SharingShortcutsPackage())
-              add(NativeFunctionsPackage()) // Manually linked (TurboModules support)
+              // add(MyReactNativePackage())
             }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"
@@ -52,13 +40,6 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
-    
-    // Initialize Firebase and install Debug Provider Factory (Native)
-    // This allows using the device-generated debug token in Release builds
-    FirebaseApp.initializeApp(this)
-    val firebaseAppCheck = FirebaseAppCheck.getInstance()
-    firebaseAppCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
-
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
       ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
     } catch (e: IllegalArgumentException) {

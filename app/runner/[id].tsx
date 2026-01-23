@@ -647,13 +647,21 @@ export default function RunnerScreen() {
                         return true;
                     }
                     // External URLs - open in browser
+                    // External URLs - open in browser
                     if (url.startsWith('http://') || url.startsWith('https://')) {
                         if (!url.includes('localhost') && !url.includes('appacadabra.local')) {
                             Linking.openURL(url);
                             return false;
                         }
+                        return true;
                     }
-                    return true;
+
+                    // Handle custom schemes (deeplinks like notion://, tel:, mailto:, etc.)
+                    // Try to open with system handler
+                    Linking.openURL(url).catch(err => {
+                        console.log('Failed to open deep link:', url, err);
+                    });
+                    return false;
                 }}
                 // Handle geolocation permission requests from WebView
                 // @ts-ignore - androidOnGeolocationPermissionsShowPrompt is available on Android
