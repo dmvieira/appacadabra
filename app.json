@@ -13,6 +13,10 @@
       "resizeMode": "contain",
       "backgroundColor": "#0A0A1A"
     },
+    "notification": {
+      "icon": "./assets/notification_icon.png",
+      "color": "#023c69"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dmvieira.appacadabra",
@@ -98,7 +102,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "O app precisa acessar sua localização para apps que usam GPS."
         }
-      ]
+      ],
+      "./plugins/withAppacadabraNative"
     ]
   }
 }

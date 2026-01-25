@@ -90,24 +90,38 @@ AppacadabraAI.generate("Hello", handleResult);
 - \`add(contactObj, callback)\` - Opens native add form with pre-filled data
     - **Return**: "Contact form presented"
 
-**contactObj structure** (all fields optional except id for update):
+**contactObj structure** (Native Expo Contacts format):
 \`\`\`javascript
 {
   id: "string",           // REQUIRED for update only
   name: "string",         // Full name
   firstName: "string",    // First name
   lastName: "string",     // Last name
-  phone: "string",        // Phone number
-  email: "string",        // Email address
   company: "string",      // Company name
   jobTitle: "string",     // Job title
   department: "string",   // Department
   nickname: "string",     // Nickname
   note: "string",         // Notes
-  website: "string",      // Website URL (or use "url")
-  birthday: "YYYY-MM-DD", // Birthday as string OR { year, month, day }
-  address: "string"       // Simple address OR object:
-  // address: { street, city, region, postalCode, country, label }
+  phoneNumbers: [         // Array of phones
+    { number: "string", label: "mobile|home|work" }
+  ],
+  emails: [               // Array of emails
+    { email: "string", label: "work|home" }
+  ],
+  addresses: [            // Array of addresses
+    {
+      street: "string",
+      city: "string",
+      region: "string", // State/Region
+      postalCode: "string", // Zip
+      country: "string",
+      label: "home|work"
+    }
+  ],
+  birthday: { year: number, month: number, day: number }, // Object
+  urlAddresses: [         // Websites
+    { url: "string", label: "homepage" }
+  ]
 }
 \`\`\`
 

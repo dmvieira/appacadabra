@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "fs-extra": "^11.3.3",
     "typescript": "~5.9.2"
   },
   "private": true

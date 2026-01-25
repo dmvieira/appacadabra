@@ -275,14 +275,38 @@ export async function handleBridgeMessage(
                 const searchPerm = await Contacts.requestPermissionsAsync();
                 if (searchPerm.status === 'granted') {
                     const { data: allContacts } = await Contacts.getContactsAsync({
-                        fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
+                        fields: [
+                            Contacts.Fields.Name,
+                            Contacts.Fields.FirstName,
+                            Contacts.Fields.LastName,
+                            Contacts.Fields.PhoneNumbers,
+                            Contacts.Fields.Emails,
+                            Contacts.Fields.Company,
+                            Contacts.Fields.JobTitle,
+                            Contacts.Fields.Department,
+                            Contacts.Fields.Note,
+                            Contacts.Fields.UrlAddresses,
+                            Contacts.Fields.Birthday,
+                            Contacts.Fields.Addresses,
+                            Contacts.Fields.Nickname,
+                        ],
                     });
                     const query = (data.query || '').toLowerCase();
-                    const filtered = allContacts.filter(c =>
-                        c.name?.toLowerCase().includes(query) ||
-                        c.phoneNumbers?.some(p => p.number?.includes(query)) ||
-                        c.emails?.some(e => e.email?.toLowerCase().includes(query))
-                    );
+
+                    const filtered = allContacts.filter(c => {
+                        if (!query) return true;
+                        return (
+                            c.name?.toLowerCase().includes(query) ||
+                            c.firstName?.toLowerCase().includes(query) ||
+                            c.lastName?.toLowerCase().includes(query) ||
+                            c.phoneNumbers?.some(p => p.number?.includes(query)) ||
+                            c.emails?.some(e => e.email?.toLowerCase().includes(query)) ||
+                            c.company?.toLowerCase().includes(query)
+                        );
+                    });
+
+                    // Return native structure directly (slice to 50 max)
+                    // The AI prompt will be updated to understand this native schema (arrays for phones, emails, etc.)
                     result = JSON.stringify(filtered.slice(0, 50));
                 } else {
                     success = false;
@@ -300,81 +324,37 @@ export async function handleBridgeMessage(
                 if (addPerm.status === 'granted') {
                     const contact = data.contact || {};
 
-                    // Build contact object for native form with proper field mapping
+                    // Build contact object for native form directly from native schema
                     const newContact: Partial<Contacts.Contact> = {
                         contactType: Contacts.ContactTypes.Person,
-                        name: String(contact.name || ''),
-                        firstName: String(contact.firstName || contact.name?.split(' ')[0] || ''),
-                        lastName: String(contact.lastName || contact.name?.split(' ').slice(1).join(' ') || ''),
+                        firstName: String(contact.firstName || ''),
+                        lastName: String(contact.lastName || ''),
+                        middleName: String(contact.middleName || ''),
+                        name: String(contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(' ') || ''),
+                        company: String(contact.company || ''),
+                        jobTitle: String(contact.jobTitle || ''),
+                        department: String(contact.department || ''),
+                        nickname: String(contact.nickname || ''),
+                        note: String(contact.note || ''),
                     };
 
-                    // Add phone if provided
-                    if (contact.phone) {
-                        newContact.phoneNumbers = [{ number: String(contact.phone), label: 'mobile' }];
-                    }
+                    // Arrays - generic pass-through if they match schema
+                    if (Array.isArray(contact.phoneNumbers)) newContact.phoneNumbers = contact.phoneNumbers;
+                    if (Array.isArray(contact.emails)) newContact.emails = contact.emails;
+                    if (Array.isArray(contact.addresses)) newContact.addresses = contact.addresses;
+                    if (Array.isArray(contact.urlAddresses)) newContact.urlAddresses = contact.urlAddresses;
 
-                    // Add email if provided
-                    if (contact.email) {
-                        newContact.emails = [{ email: String(contact.email), label: 'work' }];
-                    }
-
-                    // Add company/work fields if provided
-                    if (contact.company) newContact.company = String(contact.company);
-                    if (contact.jobTitle) newContact.jobTitle = String(contact.jobTitle);
-                    if (contact.department) newContact.department = String(contact.department);
-
-                    // Add nickname if provided
-                    if (contact.nickname) newContact.nickname = String(contact.nickname);
-
-                    // Add note if provided
-                    if (contact.note) newContact.note = String(contact.note);
-
-                    // Add address if provided (can be object or string)
-                    if (contact.address) {
-                        if (typeof contact.address === 'string') {
-                            newContact.addresses = [{ street: String(contact.address), label: 'home' }];
-                        } else if (typeof contact.address === 'object') {
-                            newContact.addresses = [{
-                                street: String(contact.address.street || ''),
-                                city: String(contact.address.city || ''),
-                                region: String(contact.address.region || contact.address.state || ''),
-                                postalCode: String(contact.address.postalCode || contact.address.zipCode || ''),
-                                country: String(contact.address.country || ''),
-                                label: String(contact.address.label || 'home')
-                            }];
-                        }
-                    }
-
-                    // Add birthday if provided (expects { day, month, year } or "YYYY-MM-DD" string)
+                    // Handle birthday
                     if (contact.birthday) {
-                        if (typeof contact.birthday === 'string') {
-                            const parts = contact.birthday.split('-');
-                            if (parts.length >= 3) {
-                                newContact.birthday = {
-                                    year: parseInt(parts[0], 10),
-                                    month: parseInt(parts[1], 10) - 1, // JS months are 0-indexed
-                                    day: parseInt(parts[2], 10)
-                                };
-                            }
-                        } else if (typeof contact.birthday === 'object') {
+                        if (typeof contact.birthday === 'object') {
                             newContact.birthday = {
-                                year: contact.birthday.year,
-                                month: contact.birthday.month,
-                                day: contact.birthday.day
+                                year: Number(contact.birthday.year),
+                                month: Number(contact.birthday.month), // 0-indexed in JS/Expo usually
+                                day: Number(contact.birthday.day)
                             };
                         }
                     }
 
-                    // Add website/URL if provided
-                    if (contact.website || contact.url) {
-                        newContact.urlAddresses = [{
-                            url: String(contact.website || contact.url),
-                            label: 'homepage'
-                        }];
-                    }
-
-                    // Use presentFormAsync to open native add contact form
-                    // This is more reliable than addContactAsync on Android
                     await Contacts.presentFormAsync(null, newContact as Contacts.Contact, { isNew: true });
                     result = 'Contact form presented';
                 } else {
@@ -397,107 +377,63 @@ export async function handleBridgeMessage(
                         throw new Error('Contact ID is required for update');
                     }
 
-                    // Build update payload with properly typed fields
+                    // Build update payload - map top level fields
                     const updatePayload: Record<string, any> = {
                         id: String(contactData.id)
                     };
 
-                    // Parse name if needed
-                    if (contactData.name) {
-                        updatePayload.firstName = String(contactData.name.split(' ')[0] || '');
-                        if (contactData.name.includes(' ')) {
-                            updatePayload.lastName = String(contactData.name.split(' ').slice(1).join(' '));
-                        }
-                    }
-                    if (contactData.firstName) updatePayload.firstName = String(contactData.firstName);
-                    if (contactData.lastName) updatePayload.lastName = String(contactData.lastName);
-                    if (contactData.company) updatePayload.company = String(contactData.company);
-                    if (contactData.jobTitle) updatePayload.jobTitle = String(contactData.jobTitle);
-                    if (contactData.department) updatePayload.department = String(contactData.department);
-                    if (contactData.nickname) updatePayload.nickname = String(contactData.nickname);
-                    if (contactData.note) updatePayload.note = String(contactData.note);
+                    const stringFields = ['firstName', 'lastName', 'middleName', 'company', 'jobTitle', 'department', 'nickname', 'note'];
+                    stringFields.forEach(field => {
+                        if (contactData[field] !== undefined) updatePayload[field] = String(contactData[field]);
+                    });
 
-                    // Phone numbers
-                    if (contactData.phone) {
-                        updatePayload.phoneNumbers = [{ number: String(contactData.phone), label: 'mobile' }];
+                    // Arrays
+                    if (Array.isArray(contactData.phoneNumbers)) updatePayload.phoneNumbers = contactData.phoneNumbers;
+                    if (Array.isArray(contactData.emails)) updatePayload.emails = contactData.emails;
+                    if (Array.isArray(contactData.addresses)) updatePayload.addresses = contactData.addresses;
+                    if (Array.isArray(contactData.urlAddresses)) updatePayload.urlAddresses = contactData.urlAddresses;
+
+                    // Birthday
+                    if (contactData.birthday && typeof contactData.birthday === 'object') {
+                        updatePayload.birthday = contactData.birthday;
                     }
 
-                    // Emails
-                    if (contactData.email) {
-                        updatePayload.emails = [{ email: String(contactData.email), label: 'work' }];
-                    }
-
-                    // Try updateContactAsync first (works on some devices)
                     try {
                         const resultId = await Contacts.updateContactAsync(updatePayload as any);
                         result = resultId;
                     } catch (updateError: any) {
-                        // Fallback: copy data to clipboard and open native editor
-                        // See: https://github.com/expo/expo/issues/36802
-                        // Fallback to native editor with clipboard support
-
-                        // Build clipboard text with ALL contact info for easy pasting
+                        // Fallback: clipboard + native editor
                         const clipboardParts: string[] = [];
 
-                        // Name parts
                         const fullName = [updatePayload.firstName, updatePayload.lastName].filter(Boolean).join(' ');
                         if (fullName) clipboardParts.push(`Nome: ${fullName}`);
 
-                        // Contact info
-                        if (contactData.phone) clipboardParts.push(`Tel: ${contactData.phone}`);
-                        if (contactData.email) clipboardParts.push(`Email: ${contactData.email}`);
+                        // Arrays
+                        if (updatePayload.phoneNumbers?.length) {
+                            updatePayload.phoneNumbers.forEach((p: any) => clipboardParts.push(`Tel: ${p.number}`));
+                        }
+                        if (updatePayload.emails?.length) {
+                            updatePayload.emails.forEach((e: any) => clipboardParts.push(`Email: ${e.email}`));
+                        }
+                        if (updatePayload.addresses?.length) {
+                            updatePayload.addresses.forEach((a: any) => {
+                                const addrStr = [a.street, a.city, a.region, a.postalCode, a.country].filter(Boolean).join(', ');
+                                clipboardParts.push(`Endereço: ${addrStr}`);
+                            });
+                        }
 
                         // Work info
-                        if (contactData.company) clipboardParts.push(`Empresa: ${contactData.company}`);
-                        if (contactData.jobTitle) clipboardParts.push(`Cargo: ${contactData.jobTitle}`);
-                        if (contactData.department) clipboardParts.push(`Departamento: ${contactData.department}`);
+                        if (updatePayload.company) clipboardParts.push(`Empresa: ${updatePayload.company}`);
+                        if (updatePayload.jobTitle) clipboardParts.push(`Cargo: ${updatePayload.jobTitle}`);
 
-                        // Address - check both contactData.address and updatePayload.addresses
-                        if (contactData.address) {
-                            let addrStr: string;
-                            if (typeof contactData.address === 'string') {
-                                addrStr = contactData.address;
-                            } else {
-                                const a = contactData.address;
-                                addrStr = [a.street, a.city, a.region, a.state, a.postalCode, a.zipCode, a.country]
-                                    .filter(Boolean).join(', ');
-                            }
-                            if (addrStr) clipboardParts.push(`Endereço: ${addrStr}`);
-                        }
-
-                        // Other fields
-                        if (contactData.birthday) {
-                            const bd = typeof contactData.birthday === 'string'
-                                ? contactData.birthday
-                                : `${contactData.birthday.day}/${contactData.birthday.month}/${contactData.birthday.year}`;
-                            clipboardParts.push(`Nascimento: ${bd}`);
-                        }
-                        if (contactData.website || contactData.url) {
-                            clipboardParts.push(`Website: ${contactData.website || contactData.url}`);
-                        }
-                        if (contactData.nickname) clipboardParts.push(`Apelido: ${contactData.nickname}`);
-                        if (contactData.note) clipboardParts.push(`Nota: ${contactData.note}`);
-
-                        // Copy to clipboard FIRST (before any focus change)
                         const clipboardText = clipboardParts.join('\n');
-
                         const { Clipboard, Alert } = require('react-native');
-                        if (clipboardText) {
-                            Clipboard.setString(clipboardText);
-                        }
+                        if (clipboardText) Clipboard.setString(clipboardText);
 
-                        // Show alert and wait for user to tap OK before opening editor
                         await new Promise<void>((resolve) => {
-                            Alert.alert(
-                                'Dados copiados',
-                                clipboardText
-                                    ? 'As informações do contato foram copiadas para a área de transferência. Cole nos campos desejados.'
-                                    : 'Edite o contato na tela seguinte.',
-                                [{ text: 'OK', onPress: () => resolve() }]
-                            );
+                            Alert.alert('Dados copiados', 'As informações foram copiadas. Cole no editor.', [{ text: 'OK', onPress: () => resolve() }]);
                         });
 
-                        // Open native editor
                         await Contacts.presentFormAsync(String(contactData.id), null, { allowsEditing: true });
                         result = contactData.id;
                     }

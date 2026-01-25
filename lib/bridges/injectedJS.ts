@@ -184,24 +184,29 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     }
     // Sanitize all fields to strings
     const sanitized = {};
-    const stringFields = ['id', 'name', 'firstName', 'lastName', 'phone', 'email', 
-                          'company', 'jobTitle', 'department', 'nickname', 'note', 'website', 'url'];
+    const stringFields = ['id', 'name', 'firstName', 'lastName', 'middleName', 'company', 'jobTitle', 'department', 'nickname', 'note'];
     stringFields.forEach(function(field) {
       if (contact[field] !== undefined && contact[field] !== null) {
         sanitized[field] = String(contact[field]);
       }
     });
-    // Handle birthday (string or object)
-    if (contact.birthday) {
-      if (typeof contact.birthday === 'string') {
-        sanitized.birthday = contact.birthday;
-      } else if (typeof contact.birthday === 'object') {
+
+    // Pass through arrays (validation could be stricter here but we trust the inputs roughly)
+    const arrayFields = ['phoneNumbers', 'emails', 'addresses', 'urlAddresses'];
+    arrayFields.forEach(function(field) {
+      if (Array.isArray(contact[field])) {
+        // Deep clone or basic map to ensure it's a clean array
+        sanitized[field] = contact[field];
+      }
+    });
+
+    // Handle birthday (object)
+    if (contact.birthday && typeof contact.birthday === 'object') {
         sanitized.birthday = {
           year: Number(contact.birthday.year),
           month: Number(contact.birthday.month),
           day: Number(contact.birthday.day)
         };
-      }
     }
     // Handle address (string or object)
     if (contact.address) {
