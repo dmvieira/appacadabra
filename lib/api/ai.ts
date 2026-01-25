@@ -14,6 +14,37 @@ export function validateContentRequest(text: string): ContentValidationResult {
     return { allowed: true };
 }
 
+// Helper for timeout and retry
+async function withTimeoutAndRetry<T>(
+    operation: () => Promise<T>,
+    timeoutMs: number = 120000, // 2 minutes default
+    retries: number = 1
+): Promise<T> {
+    const runOp = async (): Promise<T> => {
+        let lastError: any;
+
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                // Create a promise that rejects after timeout
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error('Operation timed out')), timeoutMs);
+                });
+
+                // Race the operation against the timeout
+                return await Promise.race([operation(), timeoutPromise]);
+            } catch (error) {
+                lastError = error;
+                if (attempt < retries) {
+                    console.warn(`[AI] Attempt ${attempt + 1} failed, retrying...`, error);
+                    // Optional: slight delay backoff could go here
+                }
+            }
+        }
+        throw lastError;
+    };
+    return runOp();
+}
+
 // ============= AI FUNCTIONS (FIREBASE WRAPPERS) =============
 
 export async function generateApp(description: string): Promise<GenerationResult> {
@@ -23,8 +54,8 @@ export async function generateApp(description: string): Promise<GenerationResult
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    // 2. Call Firebase
-    return await firebase.generateSpellCreate(description);
+    // 2. Call Firebase with retry
+    return withTimeoutAndRetry(() => firebase.generateSpellCreate(description));
 }
 
 export async function editApp(currentCode: string, instructions: string): Promise<GenerationResult> {
@@ -33,7 +64,7 @@ export async function editApp(currentCode: string, instructions: string): Promis
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    return await firebase.generateSpellEdit(currentCode, instructions);
+    return withTimeoutAndRetry(() => firebase.generateSpellEdit(currentCode, instructions));
 }
 
 export async function editAppWithContext(
@@ -52,14 +83,14 @@ export async function editAppWithContext(
         .filter(e => e.instruction !== null)
         .map(e => ({ version: e.version, instruction: e.instruction as string }));
 
-    return await firebase.generateSpellEdit(currentCode, instructions, {
+    return withTimeoutAndRetry(() => firebase.generateSpellEdit(currentCode, instructions, {
         previousEdits: validEdits,
         selectedContext
-    });
+    }));
 }
 
 export async function convertNodeProject(sourceCode: string, frameworkHint: string): Promise<GenerationResult> {
-    return await firebase.generateSpellConvert(sourceCode, frameworkHint);
+    return withTimeoutAndRetry(() => firebase.generateSpellConvert(sourceCode, frameworkHint));
 }
 
 // ============= BRIDGE AI FUNCTIONS =============
@@ -82,17 +113,19 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
     const cleanImage = image ? image.replace(/^data:image\/[^;]+;base64,/, '') : undefined;
     const cleanAudio = audio ? audio.replace(/^data:audio\/[^;]+;base64,/, '') : undefined;
 
-    const result = await firebase.generateSpellWebviewAI(prompt, {
-        schema,
-        imageBase64: cleanImage,
-        audioBase64: cleanAudio,
-        useSearch: search
-    });
+    return withTimeoutAndRetry(async () => {
+        const result = await firebase.generateSpellWebviewAI(prompt, {
+            schema,
+            imageBase64: cleanImage,
+            audioBase64: cleanAudio,
+            useSearch: search
+        });
 
-    return {
-        text: result.text,
-        usage: result.usage
-    };
+        return {
+            text: result.text,
+            usage: result.usage
+        };
+    });
 }
 
 // Legacy text-only wrapper

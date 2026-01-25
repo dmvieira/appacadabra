@@ -440,7 +440,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // Stage 1: Unified Planner (Spec + Features + Contract)
                         console.log("[CREATE] Stage 1: Planning...");
                         const plannerPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
-                        const planResult = await mainModel.generateContent(plannerPrompt);
+                        const planResult = await mainModel.generateContent(plannerPrompt, { timeout: 60000 });
                         addUsage(getUsage(planResult));
                         const appPlan = extractJson(planResult.response.text());
                         console.log("[CREATE] Plan:", JSON.stringify(appPlan));
@@ -448,7 +448,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // Stage 2: Unified Code Generator (HTML + CSS + JS)
                         console.log("[CREATE] Stage 2: Generating code...");
                         const codePrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
-                        const codeResult = await mainModel.generateContent(codePrompt);
+                        const codeResult = await mainModel.generateContent(codePrompt, { timeout: 60000 });
                         addUsage(getUsage(codeResult));
 
                         // Extract HTML and fix patterns
@@ -460,7 +460,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             if (validation.canRetry) {
                                 console.log("[CREATE] Validation failed, attempting fix...", validation.errors);
                                 const fixPrompt = generateFixPrompt(validation.errors, resultText);
-                                const fixResult = await mainModel.generateContent(fixPrompt);
+                                const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 60000 });
                                 addUsage(getUsage(fixResult));
                                 resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
                                 console.log("[CREATE] Fix applied, revalidating...");
@@ -510,7 +510,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // Stage 1: Unified Planner (Intent + Impact + Patch Plan)
                         console.log("[EDIT] Stage 1: Planning patches...");
                         const planPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                        const planResult = await mainModel.generateContent(planPrompt);
+                        const planResult = await mainModel.generateContent(planPrompt, { timeout: 60000 });
                         addUsage(getUsage(planResult));
                         const editPlan = extractJson(planResult.response.text());
                         console.log("[EDIT] Plan:", JSON.stringify(editPlan));
@@ -518,7 +518,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // Stage 2: Patch Generator (Generate JSON Patches)
                         console.log("[EDIT] Stage 2: Generating patches...");
                         const patchPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                        const patchResult = await mainModel.generateContent(patchPrompt);
+                        const patchResult = await mainModel.generateContent(patchPrompt, { timeout: 60000 });
                         addUsage(getUsage(patchResult));
                         const patchResponse = extractJson(patchResult.response.text());
 
@@ -531,7 +531,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             if (editValidation.canRetry) {
                                 console.log("[EDIT] Validation failed, attempting fix...", editValidation.errors);
                                 const fixPrompt = generateFixPrompt(editValidation.errors, resultText);
-                                const fixResult = await mainModel.generateContent(fixPrompt);
+                                const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 60000 });
                                 addUsage(getUsage(fixResult));
                                 resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
                                 console.log("[EDIT] Fix applied");
@@ -559,7 +559,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // SYSTEM_INSTRUCTIONS first for implicit caching
                         const convertPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${CONVERT_PROJECT_PROMPT}\n\nFramework hint: ${framework}\n\nSOURCE CODE TO CONVERT:\n${sourceCode}`;
 
-                        const result = await mainModel.generateContent(convertPrompt);
+                        const result = await mainModel.generateContent(convertPrompt, { timeout: 60000 });
 
                         // Validate converted code
                         let convertResultText = fixCallbackPatterns(extractHtml(result.response.text()));
@@ -569,7 +569,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             if (convertValidation.canRetry) {
                                 console.log("[CONVERT] Validation failed, attempting fix...", convertValidation.errors);
                                 const fixPrompt = generateFixPrompt(convertValidation.errors, convertResultText);
-                                const fixResult = await mainModel.generateContent(fixPrompt);
+                                const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 60000 });
                                 // Note: We sum up usage here? Logic above uses `usage = ...`. 
                                 // To be accurate we should accumulate, but current logic assigns `usage`.
                                 // Let's accumulate for correctness in this scope.
@@ -644,7 +644,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             }
                         }
 
-                        const result = await model.generateContent(parts);
+                        const result = await model.generateContent(parts, { timeout: 60000 });
                         usage = getUsage(result);
                         resultText = result.response.text();
 
