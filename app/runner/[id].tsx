@@ -656,12 +656,7 @@ export default function RunnerScreen() {
                         return true;
                     }
 
-                    // Handle custom schemes (deeplinks like notion://, tel:, mailto:, etc.)
-                    // Try to open with system handler
-                    Linking.openURL(url).catch(err => {
-                        console.log('Failed to open deep link:', url, err);
-                    });
-                    return false;
+                    return true;
                 }}
                 // Handle geolocation permission requests from WebView
                 // @ts-ignore - androidOnGeolocationPermissionsShowPrompt is available on Android

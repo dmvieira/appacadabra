@@ -179,4 +179,12 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // App Check Debug Provider (for CI/CD or local release builds with debug token)
+    implementation 'com.google.firebase:firebase-appcheck-debug'
+
+    // Manual linking
+    implementation project(':react-native-firebase_functions')
 }
+
+apply plugin: 'com.google.gms.google-services'

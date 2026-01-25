@@ -7,22 +7,33 @@ import ShareReceiver from '../components/ShareReceiver';
 import { ManaShop } from '../components/ManaShop';
 import { useManaStore } from '../lib/manaStore';
 
+import * as SplashScreen from 'expo-splash-screen';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync().catch(() => { });
+
 export default function RootLayout() {
     const segments = useSegments();
 
-    // Block runapp:// URLs from being processed internally by expo-router
-    // They should only be handled by the external RunnerActivity
     useEffect(() => {
+        console.log('RootLayout: Mounted');
+
         // Initialize Mana Store (Firebase Sync)
         useManaStore.getState().init();
 
         const subscription = Linking.addEventListener('url', ({ url }) => {
             if (url.startsWith('runapp://')) {
                 console.log('_layout: Blocking runapp:// URL from expo-router:', url);
-                // Do nothing - let Android handle it externally
                 return;
             }
         });
+
+        // SAFETY: Force hide splash screen after 1s just in case
+        setTimeout(async () => {
+            console.log('RootLayout: Forcing Splash Screen Hide');
+            await SplashScreen.hideAsync().catch((e: any) => console.log('Error hiding splash:', e));
+        }, 1000);
+
         return () => subscription.remove();
     }, []);
 

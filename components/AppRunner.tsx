@@ -493,12 +493,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                         return false;
                     }
 
-                    // Handle custom schemes (deeplinks like notion://, tel:, mailto:, etc.)
-                    // Try to open with system handler
-                    Linking.openURL(url).catch(err => {
-                        console.log('Failed to open deep link:', url, err);
-                    });
-                    return false;
+                    return true;
                 }}
                 // @ts-ignore
                 androidOnGeolocationPermissionsShowPrompt={async (origin, callback) => {

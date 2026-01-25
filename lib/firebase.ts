@@ -1,8 +1,9 @@
-import auth from '@react-native-firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged as onAuthStateChangedModular, getIdToken } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
-import firestore from '@react-native-firebase/firestore';
-import firebase from '@react-native-firebase/app';
-import appCheck from '@react-native-firebase/app-check'; // Import default
+import { getFirestore, doc, collection, onSnapshot } from '@react-native-firebase/firestore';
+import { getApp } from '@react-native-firebase/app';
+// @ts-ignore - Index.d.ts exports class as type, but it is a value in runtime. Import from root to ensure module registration.
+import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
 
 // Types for function responses
 export interface GenerationResult {
@@ -41,16 +42,17 @@ export interface PreviousEdit {
  */
 // Helper for functions instance - Explicitly bind to default app to ensure Auth integration
 function getFunctionsInstance() {
-    return getFunctions(firebase.app(), 'southamerica-east1');
+    return getFunctions(getApp(), 'southamerica-east1');
 }
 
 export async function ensureAuthenticated(): Promise<string> {
-    const currentUser = auth().currentUser;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
 
     if (currentUser) {
         // Force token refresh to ensure Functions SDK picks it up
         try {
-            await currentUser.getIdToken(true);
+            await getIdToken(currentUser, true);
         } catch (e) {
             console.log('Firebase: Failed to refresh token, proceeding anyway', e);
         }
@@ -58,17 +60,34 @@ export async function ensureAuthenticated(): Promise<string> {
     }
 
     // Sign in anonymously if not authenticated
-    const result = await auth().signInAnonymously();
+    const result = await signInAnonymously(auth);
     console.log('Firebase: Signed in anonymously as', result.user.uid);
     return result.user.uid;
 }
 
 // Initialize App Check
-async function initializeAppCheck() {
+async function initializeAppCheckWrapper() {
     try {
         // Activate App Check with Debug provider
         // Using the injected CI token from MainApplication.kt
-        await appCheck().activate('debug', true);
+        const provider = new ReactNativeFirebaseAppCheckProvider();
+        provider.configure({
+            android: {
+                provider: 'debug',
+            },
+            apple: {
+                provider: 'debug',
+            },
+            web: {
+                provider: 'reCaptchaV3',
+                siteKey: 'none',
+            },
+        });
+
+        await initializeAppCheck(getApp(), {
+            provider,
+            isTokenAutoRefreshEnabled: true,
+        });
         console.log('Firebase: App Check activated (Debug Mode with CI Token)');
     } catch (e) {
         console.error('Firebase: App Check activation failed', e);
@@ -76,16 +95,17 @@ async function initializeAppCheck() {
 }
 
 // Call initialization immediately
-initializeAppCheck();
+initializeAppCheckWrapper();
 
 // Get current user ID (null if not authenticated)
 export function getCurrentUserId(): string | null {
-    return auth().currentUser?.uid || null;
+    return getAuth().currentUser?.uid || null;
 }
 
 // Listen to auth state changes
 export function onAuthStateChanged(callback: (userId: string | null) => void): () => void {
-    return auth().onAuthStateChanged((user) => {
+    const auth = getAuth();
+    return onAuthStateChangedModular(auth, (user) => {
         callback(user?.uid || null);
     });
 }
@@ -205,16 +225,17 @@ export function onCreditsChanged(callback: (credits: number) => void, explicitUs
         return () => { };
     }
 
-    const unsubscribe = firestore()
-        .collection('users')
-        .doc(userId)
-        .onSnapshot((doc) => {
-            const credits = doc.data()?.credits || 0;
-            console.log('Firebase: Real-time credit update:', credits);
-            callback(credits);
-        }, (error) => {
-            console.error('Firebase: Error listening to credits:', error);
-        });
+    const db = getFirestore();
+    const userDocRef = doc(collection(db, 'users'), userId);
+
+    // In modular SDK, onSnapshot is a top-level function that takes the reference
+    const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+        const credits = docSnapshot.data()?.credits || 0;
+        console.log('Firebase: Real-time credit update:', credits);
+        callback(credits);
+    }, (error) => {
+        console.error('Firebase: Error listening to credits:', error);
+    });
 
     return unsubscribe;
 }
