@@ -771,6 +771,7 @@ export const processSpellJob = onDocumentCreated(
             let resultText = "";
             let usage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
             let appName: string | undefined;
+            let auditLog: any = {};
 
             switch (action) {
                 case "create": {
@@ -797,16 +798,35 @@ export const processSpellJob = onDocumentCreated(
 
                     resultText = fixCallbackPatterns(extractHtml(codeResult.response.text()));
 
+                    // Audit
+                    auditLog = {
+                        plannerPrompt,
+                        codePrompt
+                    };
+
                     // Validation
                     console.log(`[Job ${jobId}] Validating code...`);
                     let validation = validateGeneratedCode(resultText);
+
+                    if (!validation.valid) {
+                        auditLog.initialValidationErrors = validation.errors;
+                    }
+
                     if (!validation.valid && validation.canRetry) {
                         console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, validation.errors);
                         const fixPrompt = generateFixPrompt(validation.errors, resultText);
+
+                        // Audit fix
+                        auditLog.fixPrompt = fixPrompt;
+
                         const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
                         addUsage(getUsage(fixResult));
                         resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
                         validation = validateGeneratedCode(resultText);
+
+                        if (!validation.valid) {
+                            auditLog.finalValidationErrors = validation.errors;
+                        }
                     }
 
                     if (!validation.valid) throw new Error(`App generation failed: ${validation.errors[0]?.message || 'Unknown'}`);
@@ -853,18 +873,37 @@ export const processSpellJob = onDocumentCreated(
                     addUsage(getUsage(patchResult));
                     const patchResponse = extractJson(patchResult.response.text());
 
+                    // Audit
+                    auditLog = {
+                        planPrompt,
+                        patchPrompt
+                    };
+
                     resultText = fixCallbackPatterns(applyPatches(normalizedCode, patchResponse.changes || []));
                     console.log(`[Job ${jobId}] Patching complete. Validating...`);
 
                     // Validation
                     let editValidation = validateGeneratedCode(resultText);
+
+                    if (!editValidation.valid) {
+                        auditLog.initialValidationErrors = editValidation.errors;
+                    }
+
                     if (!editValidation.valid && editValidation.canRetry) {
                         console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, editValidation.errors);
                         const fixPrompt = generateFixPrompt(editValidation.errors, resultText);
+
+                        // Audit fix
+                        auditLog.fixPrompt = fixPrompt;
+
                         const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
                         addUsage(getUsage(fixResult));
                         resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
                         editValidation = validateGeneratedCode(resultText);
+
+                        if (!editValidation.valid) {
+                            auditLog.finalValidationErrors = editValidation.errors;
+                        }
                     }
                     if (!editValidation.valid) throw new Error(`Edit failed: ${editValidation.errors[0]?.message}`);
 
@@ -901,7 +940,8 @@ export const processSpellJob = onDocumentCreated(
                             creditsUsed,
                             creditsRemaining: newCredits,
                             ...(appName ? { appName } : {}),
-                        }
+                        },
+                        audit: auditLog // Save audit logs
                     });
                 }
             });
