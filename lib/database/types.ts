@@ -9,6 +9,7 @@ export interface GeneratedApp {
     lastUpdated: number;
     consoleLogs: string;
     totalManaCost: number; // New field to track total mana used by this app
+    jobId?: string; // Link to the async job that created this app
 }
 
 export interface AppVersion {
@@ -19,6 +20,7 @@ export interface AppVersion {
     instruction: string | null;
     selectedContext: string | null;
     createdAt: number;
+    jobId?: string; // Link to the async job that created this version
 }
 
 export interface AppStorage {

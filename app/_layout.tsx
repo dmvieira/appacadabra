@@ -6,8 +6,20 @@ import { colors } from '../lib/theme';
 import ShareReceiver from '../components/ShareReceiver';
 import { ManaShop } from '../components/ManaShop';
 import { useManaStore } from '../lib/manaStore';
+import { Toast } from '../components/Toast';
+import { useAppStore } from '../lib/store';
+import * as Notifications from 'expo-notifications';
 
 import * as SplashScreen from 'expo-splash-screen';
+
+// Notification Handler (foreground)
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+    }),
+});
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => { });
@@ -20,6 +32,17 @@ export default function RootLayout() {
 
         // Initialize Mana Store (Firebase Sync)
         useManaStore.getState().init();
+
+        // Initialize App Store (Job Listeners)
+        useAppStore.getState().initializeListeners();
+
+        // Check for notification permissions
+        (async () => {
+            const { status } = await Notifications.getPermissionsAsync();
+            if (status !== 'granted') {
+                await Notifications.requestPermissionsAsync();
+            }
+        })();
 
         const subscription = Linking.addEventListener('url', ({ url }) => {
             if (url.startsWith('runapp://')) {
@@ -70,6 +93,7 @@ export default function RootLayout() {
             </Stack>
             <ShareReceiver />
             <ManaShop />
+            <Toast />
         </>
     );
 }

@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Appacadabra is a **local code generation tool** that uses AI to help users create simple web utilities. This document clarifies how Appacadabra differs from app stores and complies with App Store Guidelines.
+Appacadabra is a **local tool generation utility** that uses AI to help users create simple web-based tools and micro-apps. This document clarifies how Appacadabra differs from app stores and complies with App Store Guidelines.
 
 ---
 
@@ -26,20 +26,20 @@ Appacadabra is a **local code generation tool** that uses AI to help users creat
 │  ┌─────────────┐    ┌─────────────────────────┐ │
 │  │   User      │    │     Appacadabra         │ │
 │  │   Input     │───▶│  ┌─────────────────┐    │ │
-│  │ (text only) │    │  │ Gemini API Call │    │ │
-│  └─────────────┘    │  │ (HTTPS request) │    │ │
+│  │ (text only) │    │  │ Job Queue (DB)  │    │ │
+│  └─────────────┘    │  │ (Firestore)     │    │ │
 │                     │  └────────┬────────┘    │ │
-│                     │           │             │ │
+│                     │           │ (Async)     │ │
+│                     │           ▼             │ │
+│                     │  ┌─────────────────┐    │ │
+│                     │  │ Cloud Functions │    │ │
+│                     │  │ (Gemini AI)     │    │ │
+│                     │  └────────┬────────┘    │ │
+│                     │           │ (Result)    │ │
 │                     │           ▼             │ │
 │                     │  ┌─────────────────┐    │ │
 │                     │  │ HTML/CSS/JS     │    │ │
-│                     │  │ (generated code)│    │ │
-│                     │  └────────┬────────┘    │ │
-│                     │           │             │ │
-│                     │           ▼             │ │
-│                     │  ┌─────────────────┐    │ │
-│                     │  │ Local SQLite DB │    │ │
-│                     │  │ (on-device)     │    │ │
+│                     │  │ (Stored locally)│    │ │
 │                     │  └────────┬────────┘    │ │
 │                     │           │             │ │
 │                     │           ▼             │ │
@@ -60,10 +60,10 @@ Appacadabra is a **local code generation tool** that uses AI to help users creat
 **Requirement:** Apps should not be app stores or create interfaces to browse/download third-party content.
 
 **How Appacadabra Complies:**
-1. **No catalog/store interface** - Users describe what they want in natural language
-2. **No downloadable content** - Code is generated via API, not downloaded from a repository
-3. **No third-party submissions** - Only the user creates content for themselves
-4. **No distribution mechanism** - Apps exist only on the user's device
+1. **No catalog/store interface** - Users describe a tool they need in natural language.
+2. **No downloadable content** - Code is generated on-demand via API, not downloaded from a repository.
+3. **No third-party submissions** - Only the user creates tools for their own personal use.
+4. **No distribution mechanism** - Tools exist only on the user's device.
 
 **Comparison to Approved Apps:**
 - **Notion** - Users create complex databases and automations

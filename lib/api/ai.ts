@@ -17,7 +17,7 @@ export function validateContentRequest(text: string): ContentValidationResult {
 // Helper for timeout and retry
 async function withTimeoutAndRetry<T>(
     operation: () => Promise<T>,
-    timeoutMs: number = 120000, // 2 minutes default
+    timeoutMs: number = 240000, // 4 minutes default
     retries: number = 1
 ): Promise<T> {
     const runOp = async (): Promise<T> => {

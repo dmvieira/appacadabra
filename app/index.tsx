@@ -42,6 +42,8 @@ export default function HomeScreen() {
         isImporting,
         error,
         statusMessage,
+        creatingApps, // Add this
+        updatingAppIds, // Add this
         loadApps,
         openApp,
         createApp,
@@ -54,6 +56,7 @@ export default function HomeScreen() {
         clearError,
         clearStatusMessage,
         setStatusMessage,
+        initializeListeners,
     } = useAppStore();
 
     // Dialog states
@@ -66,6 +69,11 @@ export default function HomeScreen() {
     const [showLegal, setShowLegal] = useState(false);
     const [legalTab, setLegalTab] = useState<'privacy' | 'terms'>('privacy');
     const [showOnboarding, setShowOnboarding] = useState(false);
+
+    // Initialize background listeners for async jobs
+    useEffect(() => {
+        initializeListeners();
+    }, []);
 
     // Check if onboarding should be shown
     useEffect(() => {
@@ -121,10 +129,11 @@ export default function HomeScreen() {
     }, [error, clearError]);
 
     const handleCreateApp = async (description: string) => {
-        const app = await createApp(description);
-        if (app) {
+        // Async: createApp returns true if job submitted
+        const success = await createApp(description);
+        if (success) {
             setShowCreateDialog(false);
-            openApp(app.id);
+            // We do NOT open the app immediately.
             return true;
         }
         return false;
@@ -320,6 +329,21 @@ export default function HomeScreen() {
         );
     }
 
+    // Combine real apps with placeholders
+    const placeholderApps = creatingApps.map((ca, index) => ({
+        id: -1 - index, // Negative IDs to avoid conflict
+        name: t('newApp'),
+        code: '',
+        currentVersion: 0,
+        iconPath: null,
+        lastUpdated: Date.now(),
+        consoleLogs: '',
+        totalManaCost: 0,
+        isPlaceholder: true, // Marker property
+    } as GeneratedApp)); // Cast to satisfy type, we handle isPlaceholder in renderItem
+
+    const allApps = [...placeholderApps, ...apps];
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             {/* Header with menu */}
@@ -333,27 +357,36 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             </View>
 
-            {apps.length === 0 && !isGenerating ? (
+            {allApps.length === 0 && !isGenerating ? (
                 <EmptyState />
             ) : (
                 <FlatList
-                    data={apps}
+                    data={allApps}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.list}
                     ListHeaderComponent={
                         <Text style={styles.sectionTitle}>{t('yourApps')}</Text>
                     }
-                    renderItem={({ item }) => (
-                        <AppCard
-                            app={item}
-                            onRun={() => handleRunApp(item)}
-                            onEdit={() => handleEditApp(item)}
-                            onDelete={() => setDeleteTarget(item)}
-                            onRename={() => setRenameTarget(item)}
-                            onIconPress={() => setIconTarget(item)}
-                            onShortcut={() => handleCreateShortcut(item)}
-                        />
-                    )}
+                    renderItem={({ item }) => {
+                        // Check if this item is a placeholder (from our manual mapping above)
+                        const isPlaceholder = (item as any).isPlaceholder;
+                        // Check if this real app is currently updating
+                        const isLocked = updatingAppIds.includes(item.id);
+
+                        return (
+                            <AppCard
+                                app={item}
+                                onRun={() => handleRunApp(item)}
+                                onEdit={() => handleEditApp(item)}
+                                onDelete={() => setDeleteTarget(item)}
+                                onRename={() => setRenameTarget(item)}
+                                onIconPress={() => setIconTarget(item)}
+                                onShortcut={() => handleCreateShortcut(item)}
+                                isPlaceholder={isPlaceholder}
+                                isLocked={isLocked}
+                            />
+                        );
+                    }}
                 />
             )}
 

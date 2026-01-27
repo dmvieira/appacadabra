@@ -1,9 +1,51 @@
 import { getAuth, signInAnonymously, onAuthStateChanged as onAuthStateChangedModular, getIdToken } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
-import { getFirestore, doc, collection, onSnapshot } from '@react-native-firebase/firestore';
+import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, query, where, orderBy, limit } from '@react-native-firebase/firestore';
 import { getApp } from '@react-native-firebase/app';
 // @ts-ignore - Index.d.ts exports class as type, but it is a value in runtime. Import from root to ensure module registration.
 import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
+import pako from 'pako';
+
+// Compression Utils
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
+    const binary_string = atob(base64);
+    const len = binary_string.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes;
+}
+
+export function compressContent(text: string): string {
+    if (!text) return '';
+    const compressed = pako.gzip(text);
+    return `GZIP:${uint8ArrayToBase64(compressed)}`;
+}
+
+export function decompressContent(input: string): string {
+    if (!input) return '';
+    if (input.startsWith('GZIP:')) {
+        const base64 = input.substring(5);
+        try {
+            const decompressed = pako.ungzip(base64ToUint8Array(base64), { to: 'string' });
+            return decompressed;
+        } catch (e) {
+            console.error('Decompression failed', e);
+            return input; // Fallback? Or throw?
+        }
+    }
+    return input;
+}
 
 // Types for function responses
 export interface GenerationResult {
@@ -24,6 +66,23 @@ export interface CreditsResult {
 export interface AddCreditsResult {
     success: boolean;
     creditsRemaining: number;
+}
+
+export interface Job {
+    id: string;
+    userId: string;
+    action: 'create' | 'edit';
+    status: 'queued' | 'processing' | 'completed' | 'failed';
+    createdAt: any;
+    payload?: any; // Added payload so we can retrieve appId from it
+    result?: {
+        text: string;
+        usage?: any;
+        creditsUsed?: number;
+        creditsRemaining?: number;
+        appName?: string;
+    };
+    error?: string;
 }
 
 export interface PreviousEdit {
@@ -110,23 +169,97 @@ export function onAuthStateChanged(callback: (userId: string | null) => void): (
     });
 }
 
-// Generate a new spell (create app)
-export async function generateSpellCreate(prompt: string): Promise<GenerationResult> {
-    await ensureAuthenticated();
+// Helper to submit a job and wait for it
+// Internal Helper: Sanitize payload to remove undefined values (Firestore doesn't like them)
+function sanitizePayload(payload: any): any {
+    if (payload === undefined) return null;
+    if (payload === null) return null;
+    if (typeof payload !== 'object') return payload; // Return primitives (string, number, boolean)
 
-    console.log('[Firebase] Calling generateSpellCreate...');
+    if (Array.isArray(payload)) {
+        return payload.map(item => sanitizePayload(item)).filter(item => item !== undefined);
+    }
+
+    const clean: any = {};
+    Object.keys(payload).forEach(key => {
+        const value = sanitizePayload(payload[key]);
+        if (value !== undefined) {
+            clean[key] = value;
+        }
+    });
+    return clean;
+}
+
+// Helper to submit a job and wait for it
+async function submitJobAndWait(action: 'create' | 'edit', payload: any): Promise<GenerationResult> {
+    console.error(`[DEBUG] submitJobAndWait called. Action: ${action}`);
     try {
-        const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
-        const result = await generateSpell({
-            action: 'create',
-            prompt,
+        const userId = await ensureAuthenticated();
+        console.error(`[DEBUG] UserId: ${userId}`);
+
+        const db = getFirestore();
+        const jobsRef = collection(db, 'jobs');
+
+        const cleanPayload = sanitizePayload(payload);
+        console.error(`[DEBUG] Adding doc to jobs collection with payload:`, JSON.stringify(cleanPayload));
+
+        // Create a new job document
+        const jobDoc = await addDoc(jobsRef, {
+            userId,
+            action,
+            status: 'queued',
+            createdAt: serverTimestamp(),
+            payload: cleanPayload
         });
-        console.log('[Firebase] generateSpellCreate success');
-        return result.data;
-    } catch (e: any) {
-        console.error('[Firebase] generateSpellCreate ERROR:', e.code, e.message, e.details);
+
+        console.error(`[DEBUG] Job submitted. ID: ${jobDoc.id}. Listening...`);
+
+        // Poll/Listen for completion
+        return new Promise<GenerationResult>((resolve, reject) => {
+            console.error(`[DEBUG] Setting up onSnapshot for ${jobDoc.id}`);
+            const unsubscribe = onSnapshot(jobDoc, (snapshot) => {
+                console.error(`[DEBUG] Snapshot update for ${jobDoc.id}. Exists? ${snapshot.exists()}`);
+                const data = snapshot.data() as Job | undefined;
+                if (!data) {
+                    console.error(`[DEBUG] No data in snapshot.`);
+                    return;
+                }
+
+                console.error(`[DEBUG] Job Status: ${data.status}`);
+
+                if (data.status === 'completed' && data.result) {
+                    console.error(`[DEBUG] Job completed!`);
+                    unsubscribe();
+
+                    // Process result
+                    const finalText = decompressContent(data.result.text);
+                    resolve({
+                        text: finalText,
+                        usage: data.result.usage || { promptTokens: 0, responseTokens: 0, totalTokens: 0 },
+                        creditsUsed: data.result.creditsUsed || 0,
+                        creditsRemaining: data.result.creditsRemaining || 0
+                    });
+                } else if (data.status === 'failed') {
+                    console.error(`[DEBUG] Job failed: ${data.error}`);
+                    unsubscribe();
+                    reject(new Error(data.error || 'Job failed unknown error'));
+                }
+            }, (error) => {
+                console.error('[DEBUG] Job listener error:', error);
+                reject(error);
+            });
+        });
+    } catch (e) {
+        console.error('[DEBUG] submitJobAndWait CRITICAL ERROR:', e);
         throw e;
     }
+}
+
+// Generate a new spell (create app) - ASYNC
+export async function generateSpellCreate(prompt: string): Promise<GenerationResult> {
+    return submitJobAndWait('create', {
+        prompt: compressContent(prompt)
+    });
 }
 
 // ...
@@ -139,18 +272,12 @@ export async function generateSpellEdit(
         selectedContext?: string;
     }
 ): Promise<GenerationResult> {
-    await ensureAuthenticated();
-
-    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
-    const result = await generateSpell({
-        action: 'edit',
-        currentCode,
-        instruction,
+    return submitJobAndWait('edit', {
+        currentCode: compressContent(currentCode),
+        instruction: compressContent(instruction),
         previousEdits: options?.previousEdits,
-        selectedContext: options?.selectedContext,
+        selectedContext: options?.selectedContext ? compressContent(options.selectedContext) : undefined,
     });
-
-    return result.data;
 }
 
 // Convert
@@ -163,10 +290,13 @@ export async function generateSpellConvert(
     const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
     const result = await generateSpell({
         action: 'convert',
-        sourceCode,
+        sourceCode: compressContent(sourceCode), // Compress source (zip base64 or huge text)
         frameworkHint,
     });
 
+    if (result.data && result.data.text) {
+        result.data.text = decompressContent(result.data.text);
+    }
     return result.data;
 }
 
@@ -185,10 +315,13 @@ export async function generateSpellWebviewAI(
     const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
     const result = await generateSpell({
         action: 'webview_ai',
-        prompt,
+        prompt: compressContent(prompt),
         ...options,
     });
 
+    if (result.data && result.data.text) {
+        result.data.text = decompressContent(result.data.text);
+    }
     return result.data;
 }
 
@@ -238,4 +371,87 @@ export function onCreditsChanged(callback: (credits: number) => void, explicitUs
     });
 
     return unsubscribe;
+}
+
+// Submit a job without waiting (Fire & Forget)
+export async function submitJob(action: 'create' | 'edit', payload: any): Promise<string> {
+    console.log(`[Firebase] submitJob called. Action: ${action}`);
+    try {
+        const userId = await ensureAuthenticated();
+        const db = getFirestore();
+        const jobsRef = collection(db, 'jobs');
+
+        const cleanPayload = sanitizePayload(payload);
+
+        const jobDoc = await addDoc(jobsRef, {
+            userId,
+            action,
+            status: 'queued',
+            createdAt: serverTimestamp(),
+            payload: cleanPayload
+        });
+
+        console.log(`[Firebase] Job submitted. ID: ${jobDoc.id}`);
+        return jobDoc.id;
+    } catch (e) {
+        console.error('[Firebase] submitJob failed:', e);
+        throw e;
+    }
+}
+
+// Listen to active/recent jobs for the current user
+export function listenToActiveJobs(callback: (jobs: Job[]) => void): () => void {
+    let unsubscribeFirestore: (() => void) | null = null;
+
+    // Listen to Auth State to set up Firestore listener
+    const unsubscribeAuth = onAuthStateChangedModular(getAuth(), (user) => {
+        // Cleanup previous listener if user changed
+        if (unsubscribeFirestore) {
+            unsubscribeFirestore();
+            unsubscribeFirestore = null;
+        }
+
+        if (user) {
+            console.log('[Firebase] listenToActiveJobs: User authenticated, setting up listener.', user.uid);
+            const db = getFirestore();
+            const jobsRef = collection(db, 'jobs');
+
+            const q = query(
+                jobsRef,
+                where('userId', '==', user.uid),
+                orderBy('createdAt', 'desc'),
+                limit(10)
+            );
+
+            unsubscribeFirestore = onSnapshot(q, (snapshot) => {
+                const jobs: Job[] = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    jobs.push({
+                        id: doc.id,
+                        userId: data.userId,
+                        action: data.action,
+                        status: data.status,
+                        createdAt: data.createdAt,
+                        result: data.result,
+                        error: data.error,
+                        payload: data.payload,
+                    });
+                });
+                console.log(`[Firebase] Active jobs updated: ${jobs.length}`);
+                callback(jobs);
+            }, (error) => {
+                console.error('Firebase: Error listening to jobs:', error);
+            });
+        } else {
+            console.log('[Firebase] listenToActiveJobs: No user, clearing jobs.');
+            callback([]);
+        }
+    });
+
+    // Return a function that unsubscribes both
+    return () => {
+        unsubscribeAuth();
+        if (unsubscribeFirestore) unsubscribeFirestore();
+    };
 }

@@ -61,6 +61,32 @@ export default function RunnerScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
 
+    // Subscribe to store apps to react to background updates (async jobs)
+    const storeApps = useAppStore(state => state.apps);
+
+    // Initial load
+    useEffect(() => {
+        const loadApp = async () => {
+            if (!id) return;
+            const loadedApp = await db.getAppById(Number(id));
+            setApp(loadedApp);
+            setIsLoading(false);
+        };
+        loadApp();
+    }, [id]);
+
+    // React to store updates (e.g. async job finished)
+    useEffect(() => {
+        if (!app || !id) return;
+        const updatedApp = storeApps.find(a => a.id === Number(id));
+
+        // If we found a newer version in the store, update local state
+        if (updatedApp && updatedApp.currentVersion > app.currentVersion) {
+            console.log('RunnerScreen: Detected newer version from store, updating...', updatedApp.currentVersion);
+            setApp(updatedApp);
+        }
+    }, [storeApps, app, id]);
+
     // Edit mode states
     const isEditMode = edit === 'true';
     const isShareMode = share === 'true'; // Keep for other logic, but injection uses payload presence
@@ -488,9 +514,14 @@ export default function RunnerScreen() {
                 fullPrompt = `Alterar o elemento <${selectedElement.tagName}>:\n${selectedElement.preview}\n\nInstrução: ${editPrompt}`;
             }
 
-            const updatedApp = await updateAppWithAI(freshApp, fullPrompt);
-            if (updatedApp) {
-                setApp(updatedApp);
+            const success = await updateAppWithAI(freshApp, fullPrompt);
+            if (success) {
+                // Async job started. 
+                // We do NOT update 'app' immediately. It will update via store listener -> DB -> live reload?
+                // Wait, RunnerScreen doesn't live reload from DB unless we tell it to.
+                // We should close the sheet and show "Job Started" (handled by store).
+
+                // setApp(updatedApp); // CANNOT DO THIS
                 setShowEditSheet(false);
                 setEditPrompt('');
                 setSelectedElement(null);

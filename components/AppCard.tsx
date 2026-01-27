@@ -7,6 +7,7 @@ import {
     Image,
     Modal,
     Pressable,
+    ActivityIndicator,
 } from 'react-native';
 import { GeneratedApp } from '../lib/database/types';
 import { colors, borderRadius, spacing } from '../lib/theme';
@@ -20,9 +21,11 @@ interface AppCardProps {
     onRename: () => void;
     onIconPress?: () => void;
     onShortcut?: () => void;
+    isPlaceholder?: boolean;
+    isLocked?: boolean;
 }
 
-export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, onShortcut }: AppCardProps) {
+export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, onShortcut, isPlaceholder, isLocked }: AppCardProps) {
     const [showMenu, setShowMenu] = useState(false);
 
     // Use device locale for date formatting
@@ -34,10 +37,18 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, o
         minute: '2-digit',
     });
 
+    const isInteractionDisabled = isPlaceholder || isLocked;
+
     return (
-        <View style={styles.card}>
-            <TouchableOpacity style={styles.iconContainer} onPress={onIconPress || onRename}>
-                {app.iconPath ? (
+        <View style={[styles.card, isLocked && styles.cardLocked]}>
+            <TouchableOpacity
+                style={[styles.iconContainer, isLocked && styles.iconLocked]}
+                onPress={isInteractionDisabled ? undefined : (onIconPress || onRename)}
+                disabled={isInteractionDisabled}
+            >
+                {isPlaceholder ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                ) : app.iconPath ? (
                     <Image source={{ uri: app.iconPath }} style={styles.icon} />
                 ) : (
                     <Text style={styles.iconText}>
@@ -46,26 +57,55 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, o
                 )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.info} onPress={onRename}>
+            <TouchableOpacity
+                style={styles.info}
+                onPress={isInteractionDisabled ? undefined : onRename}
+                disabled={isInteractionDisabled}
+            >
                 <Text style={styles.name} numberOfLines={1}>
                     {app.name}
                 </Text>
-                <Text style={styles.meta}>
-                    v{app.currentVersion} • {formattedDate}
-                </Text>
-                <Text style={styles.manaUsage}>
-                    {t('manaUsed')}: {(app.totalManaCost || 0).toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </Text>
+
+                {isPlaceholder ? (
+                    <Text style={[styles.meta, { color: colors.primary, fontStyle: 'italic' }]}>
+                        {t('generatingApp') || 'Generating App...'}
+                    </Text>
+                ) : isLocked ? (
+                    <Text style={[styles.meta, { color: colors.primary, fontStyle: 'italic' }]}>
+                        {t('updatingApp') || 'Updating with AI...'}
+                    </Text>
+                ) : (
+                    <>
+                        <Text style={styles.meta}>
+                            v{app.currentVersion} • {formattedDate}
+                        </Text>
+                        <Text style={styles.manaUsage}>
+                            {t('manaUsed')}: {(app.totalManaCost || 0).toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                        </Text>
+                    </>
+                )}
             </TouchableOpacity>
 
             <View style={styles.actions}>
-                <TouchableOpacity style={styles.actionBtn} onPress={onRun}>
-                    <Text style={styles.actionIcon}>▶️</Text>
+                <TouchableOpacity
+                    style={[styles.actionBtn, isInteractionDisabled && styles.actionBtnDisabled]}
+                    onPress={onRun}
+                    disabled={isInteractionDisabled}
+                >
+                    <Text style={[styles.actionIcon, isInteractionDisabled && styles.actionIconDisabled]}>▶️</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn} onPress={onEdit}>
-                    <Text style={styles.actionIcon}>✏️</Text>
+                <TouchableOpacity
+                    style={[styles.actionBtn, isInteractionDisabled && styles.actionBtnDisabled]}
+                    onPress={onEdit}
+                    disabled={isInteractionDisabled}
+                >
+                    <Text style={[styles.actionIcon, isInteractionDisabled && styles.actionIconDisabled]}>✏️</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuBtn} onPress={() => setShowMenu(true)}>
+                <TouchableOpacity
+                    style={[styles.menuBtn, isInteractionDisabled && styles.disabledOpacity]}
+                    onPress={() => setShowMenu(true)}
+                    disabled={isInteractionDisabled}
+                >
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
             </View>
@@ -131,6 +171,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 4,
     },
+    cardLocked: {
+        opacity: 0.9,
+    },
     iconContainer: {
         width: 56,
         height: 56,
@@ -139,6 +182,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
+    },
+    iconLocked: {
+        opacity: 0.6,
     },
     icon: {
         width: 56,
@@ -179,11 +225,21 @@ const styles = StyleSheet.create({
         backgroundColor: colors.primaryContainer,
         borderRadius: borderRadius.full,
     },
+    actionBtnDisabled: {
+        backgroundColor: colors.surfaceVariant,
+        opacity: 0.5,
+    },
     actionIcon: {
         fontSize: 18,
     },
+    actionIconDisabled: {
+        color: colors.onSurfaceVariant,
+    },
     menuBtn: {
         padding: spacing.sm,
+    },
+    disabledOpacity: {
+        opacity: 0.3,
     },
     menuIcon: {
         fontSize: 20,

@@ -7,6 +7,9 @@ const translations = {
         // App
         appName: 'Appacadabra',
         createApp: 'Cast Spell ✨',
+        newApp: 'New Spell',
+        initialGeneration: 'First cast using AI',
+        aiEdit: 'Edited with AI',
         yourApps: 'Your Spell Stack',
 
         // Empty state
@@ -28,7 +31,19 @@ const translations = {
         listeningTap: '🎤 Listening... Tap to stop',
         describeOrMic: '💡 Describe or use the microphone',
         appNamePlaceholder: 'Spell Name',
+        generatingApp: 'Conjuring Spell...',
+        updatingApp: 'Enhancing Spell...',
         manaUsed: 'Mana Used',
+
+        // Async Notifications
+        jobStarted: 'Casting Spell... 🪄',
+        editJobStarted: 'Enhancing Spell... 🪄',
+        appReadyNotify: '✨ "%{name}" is ready!',
+        appReadyTitle: '✨ New Spell Ready!',
+        appReadyBody: '"%{name}" has been created successfully.',
+        appUpdatedNotify: '✨ Spell updated successfully!',
+        appUpdatedTitle: '✨ Spell Updated!',
+        appUpdatedBody: '"%{name}" has been updated with your changes.',
 
         // Menu
         importProject: 'Import Scroll 📜',
@@ -176,15 +191,15 @@ const translations = {
         speechStartError: 'Error starting speech recognition',
 
         // Store
-        errorLoadingApps: 'Error loading apps',
+        errorLoadingApps: 'Error loading spells',
         spellFailedCreate: '🧙 The spell fizzled! The magic didn\'t work this time. Please try again with different words.',
         spellFailedEdit: '🧙 Oops! The enchantment failed. Try rephrasing your request and cast again.',
-        errorCreatingApp: 'Error creating app:',
+        errorCreatingApp: 'Error creating spell:',
         errorUpdatingApp: 'Error updating spell:',
         errorDeletingApp: 'Error removing spell',
         errorRenamingApp: 'Error renaming spell',
-        errorUpdatingIcon: 'Error updating icon',
-        errorUpdatingCode: 'Error updating code',
+        errorUpdatingIcon: 'Error updating spell icon',
+        errorUpdatingCode: 'Error updating spell code',
         exporting: 'Exporting...',
         backupExportedSuccess: 'Spell stack exported successfully!',
         errorExportingBackup: 'Error exporting spell stack',
@@ -212,7 +227,21 @@ const translations = {
         // App
         appName: 'Appacadabra',
         createApp: 'Lançar Feitiço ✨',
+        newApp: 'Novo Feitiço',
+        initialGeneration: 'Primeiro feitiço lançado com IA',
+        aiEdit: 'Editado com IA',
         yourApps: 'Seus Feitiços',
+
+        // Async Notifications (PT)
+        jobStarted: 'Feitiço iniciado... 🪄',
+        editJobStarted: 'Melhoria iniciada... 🪄',
+        appReadyNotify: 'Feitiço Pronto: %{name} ✨',
+        appReadyTitle: '✨ Novo Feitiço Pronto!',
+        appReadyBody: '"%{name}" foi criado com sucesso.',
+        appUpdatedNotify: 'Feitiço Melhorado: %{name} ✨',
+        appUpdatedTitle: '✨ Feitiço Atualizado!',
+        appUpdatedBody: '"%{name}" foi atualizado com suas alterações.',
+        errorProcessingJob: 'O feitiço falhou! A magia se dissipou.',
 
         // Empty state
         emptyTitle: 'Sua lista de feitiços está vazia',
@@ -233,6 +262,8 @@ const translations = {
         listeningTap: '🎤 Ouvindo... Toque para parar',
         describeOrMic: '💡 Descreva ou use o microfone',
         appNamePlaceholder: 'Nome do Feitiço',
+        generatingApp: 'Conjurando Feitiço...',
+        updatingApp: 'Melhorando Feitiço...',
         manaUsed: 'Mana Usada',
 
         // Menu
@@ -421,7 +452,24 @@ const translations = {
     es: {
         appName: 'Appacadabra',
         createApp: 'Lanzar Hechizo ✨',
+        newApp: 'Nuevo Hechizo',
+        initialGeneration: 'Primer hechizo con IA',
+        aiEdit: 'Editado con IA',
         yourApps: 'Tus Hechizos',
+
+        // Async Notifications (ES)
+        jobStarted: 'Lanzando Hechizo... 🪄',
+        editJobStarted: 'Mejorando Hechizo... 🪄',
+        appReadyNotify: '✨ ¡%{name} está listo!',
+        appReadyTitle: '✨ ¡Nuevo Hechizo Listo!',
+        appReadyBody: '"%{name}" ha sido creado con éxito.',
+        appUpdatedNotify: '✨ ¡Hechizo actualizado: %{name}!',
+        appUpdatedTitle: '✨ ¡Hechizo Actualizado!',
+        appUpdatedBody: '"%{name}" ha sido actualizado con tus cambios.',
+        errorProcessingJob: '¡El hechizo falló! La magia se disipó.',
+        generatingApp: 'Conjurando Hechizo...',
+        updatingApp: 'Mejorando Hechizo...',
+
         emptyTitle: 'Tu lista de hechizos está vacía',
         emptySubtitle: '¡Lanza tu primer hechizo con IA!',
         run: 'Lanzar',
@@ -570,7 +618,24 @@ const translations = {
     fr: {
         appName: 'Appacadabra',
         createApp: 'Lancer Sort ✨',
+        newApp: 'Nouveau Sort',
+        initialGeneration: 'Premier sort lancé avec IA',
+        aiEdit: 'Modifié avec IA',
         yourApps: 'Vos Sorts',
+
+        // Async Notifications (FR)
+        jobStarted: 'Lancement du Sort... 🪄',
+        editJobStarted: 'Amélioration du Sort... 🪄',
+        appReadyNotify: '✨ "%{name}" est prêt !',
+        appReadyTitle: '✨ Nouveau Sort Prêt !',
+        appReadyBody: '"%{name}" a été créé avec succès.',
+        appUpdatedNotify: '✨ Sort mis à jour : %{name} !',
+        appUpdatedTitle: '✨ Sort Mis à Jour !',
+        appUpdatedBody: '"%{name}" a été mis à jour avec vos changements.',
+        errorProcessingJob: 'Le sort a échoué ! La magie s\'est dissipée.',
+        generatingApp: 'Incantation du Sort...',
+        updatingApp: 'Amélioration du Sort...',
+
         emptyTitle: 'Votre liste de sorts est vide',
         emptySubtitle: 'Lancez votre premier sort avec l\'IA!',
         run: 'Lancer',
@@ -719,7 +784,24 @@ const translations = {
     de: {
         appName: 'Appacadabra',
         createApp: 'Zauber Wirken ✨',
+        newApp: 'Neuer Zauber',
+        initialGeneration: 'Erster Zauber mit KI',
+        aiEdit: 'Mit KI bearbeitet',
         yourApps: 'Deine Zauber',
+
+        // Async Notifications (DE)
+        jobStarted: 'Zauber wird gewirkt... 🪄',
+        editJobStarted: 'Zauber wird verbessert... 🪄',
+        appReadyNotify: '✨ "%{name}" ist bereit!',
+        appReadyTitle: '✨ Neuer Zauber Bereit!',
+        appReadyBody: '"%{name}" wurde erfolgreich erstellt.',
+        appUpdatedNotify: '✨ Zauber aktualisiert: %{name}!',
+        appUpdatedTitle: '✨ Zauber Aktualisiert!',
+        appUpdatedBody: '"%{name}" wurde mit deinen Änderungen aktualisiert.',
+        errorProcessingJob: 'Der Zauber ist fehlgeschlagen! Die Magie hat sich aufgelöst.',
+        generatingApp: 'Zauber wird beschworen...',
+        updatingApp: 'Zauber wird verbessert...',
+
         emptyTitle: 'Deine Zauberliste ist leer',
         emptySubtitle: 'Wirke deinen ersten Zauber mit KI!',
         run: 'Wirken',
@@ -782,7 +864,24 @@ const translations = {
     it: {
         appName: 'Appacadabra',
         createApp: 'Lancia Incantesimo ✨',
+        newApp: 'Nuovo Incantesimo',
+        initialGeneration: 'Primo incantesimo con IA',
+        aiEdit: 'Modificato con IA',
         yourApps: 'I Tuoi Incantesimi',
+
+        // Async Notifications (IT)
+        jobStarted: 'Lancio Incantesimo... 🪄',
+        editJobStarted: 'Miglioramento Incantesimo... 🪄',
+        appReadyNotify: '✨ "%{name}" è pronto!',
+        appReadyTitle: '✨ Nuovo Incantesimo Pronto!',
+        appReadyBody: '"%{name}" è stato creato con successo.',
+        appUpdatedNotify: '✨ Incantesimo aggiornato: %{name}!',
+        appUpdatedTitle: '✨ Incantesimo Aggiornato!',
+        appUpdatedBody: '"%{name}" è stato aggiornato con le tue modifiche.',
+        errorProcessingJob: 'L\'incantesimo è fallito! La magia si è dissipata.',
+        generatingApp: 'Evocazione Incantesimo...',
+        updatingApp: 'Miglioramento Incantesimo...',
+
         emptyTitle: 'La tua lista incantesimi è vuota',
         emptySubtitle: 'Lancia il tuo primo incantesimo con l\'IA!',
         run: 'Lancia',

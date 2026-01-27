@@ -4,9 +4,11 @@
  */
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import * as zlib from 'zlib';
 import {
     SYSTEM_INSTRUCTIONS,
     CONVERT_PROJECT_PROMPT,
@@ -45,6 +47,32 @@ const mainModel = genAI.getGenerativeModel({
 });
 
 
+// ============= COMPRESSION UTILS =============
+function compressContent(text: string): string {
+    if (!text) return '';
+    try {
+        const compressed = zlib.gzipSync(Buffer.from(text));
+        return `GZIP:${compressed.toString('base64')}`;
+    } catch (e) {
+        console.error('Compression failed', e);
+        return text;
+    }
+}
+
+function decompressContent(input: string): string {
+    if (!input) return '';
+    if (input.startsWith('GZIP:')) {
+        const base64 = input.substring(5);
+        try {
+            const buffer = Buffer.from(base64, 'base64');
+            return zlib.gunzipSync(buffer).toString();
+        } catch (e) {
+            console.error('Decompression failed', e);
+            return input;
+        }
+    }
+    return input;
+}
 
 
 // ============= RATE LIMITING =============
@@ -343,7 +371,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
     {
         region: "southamerica-east1",
         memory: "512MiB",
-        timeoutSeconds: 120,
+        timeoutSeconds: 300, // 5 minutes to match client timeout
         secrets: ["GEMINI_API_KEY"],
     },
     async (request): Promise<GenerateSpellResponse> => {
@@ -358,14 +386,12 @@ export const generateSpell = onCall<GenerateSpellRequest>(
         }
 
         const uid = request.auth.uid;
+        // Decompress inputs
+        const action = request.data.action;
+        const prompt = decompressContent(request.data.prompt || "");
+        const sourceCode = decompressContent(request.data.sourceCode || "");
+
         const {
-            action,
-            prompt,
-            currentCode,
-            instruction,
-            previousEdits,
-            selectedContext,
-            sourceCode,
             frameworkHint,
             schema,
             imageBase64,
@@ -379,7 +405,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
         }
 
         // Content moderation
-        const textToValidate = prompt || instruction || "";
+        const textToValidate = prompt || sourceCode || "";
         if (textToValidate) {
             const validation = validateContentRequest(textToValidate);
             if (!validation.allowed) {
@@ -423,132 +449,11 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
             try {
                 switch (action) {
-                    case "create": {
-                        if (!prompt) {
-                            throw new HttpsError("invalid-argument", "Prompt is required for create");
-                        }
+                    case "create":
+                        throw new HttpsError("failed-precondition", "Action 'create' has moved to async Job Queue. Please update app.");
 
-                        // ============= 2-STEP CREATE PIPELINE (Unified) =============
-                        // Uses gemini-3-flash-preview for speed/quality balance
-                        let totalUsage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
-                        const addUsage = (u: { promptTokens: number; responseTokens: number; totalTokens: number }) => {
-                            totalUsage.promptTokens += u.promptTokens;
-                            totalUsage.responseTokens += u.responseTokens;
-                            totalUsage.totalTokens += u.totalTokens;
-                        };
-
-                        // Stage 1: Unified Planner (Spec + Features + Contract)
-                        console.log("[CREATE] Stage 1: Planning...");
-                        const plannerPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
-                        const planResult = await mainModel.generateContent(plannerPrompt, { timeout: 60000 });
-                        addUsage(getUsage(planResult));
-                        const appPlan = extractJson(planResult.response.text());
-                        console.log("[CREATE] Plan:", JSON.stringify(appPlan));
-
-                        // Stage 2: Unified Code Generator (HTML + CSS + JS)
-                        console.log("[CREATE] Stage 2: Generating code...");
-                        const codePrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
-                        const codeResult = await mainModel.generateContent(codePrompt, { timeout: 60000 });
-                        addUsage(getUsage(codeResult));
-
-                        // Extract HTML and fix patterns
-                        resultText = fixCallbackPatterns(extractHtml(codeResult.response.text()));
-
-                        // Validate generated code
-                        let validation = validateGeneratedCode(resultText);
-                        if (!validation.valid) {
-                            if (validation.canRetry) {
-                                console.log("[CREATE] Validation failed, attempting fix...", validation.errors);
-                                const fixPrompt = generateFixPrompt(validation.errors, resultText);
-                                const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 60000 });
-                                addUsage(getUsage(fixResult));
-                                resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
-                                console.log("[CREATE] Fix applied, revalidating...");
-                                validation = validateGeneratedCode(resultText);
-                            }
-
-                            if (!validation.valid) {
-                                const errorMsg = validation.errors[0]?.message || "Unknown validation error";
-                                console.log("[CREATE] Final validation failed:", validation.errors);
-                                throw new HttpsError("internal", `App generation failed: ${errorMsg}`);
-                            }
-                        }
-
-                        usage = totalUsage;
-                        console.log(`[CREATE] Total tokens: ${usage.totalTokens}`);
-                        break;
-                    }
-
-                    case "edit": {
-                        if (!currentCode || !instruction) {
-                            throw new HttpsError("invalid-argument", "currentCode and instruction are required for edit");
-                        }
-
-                        // ============= 2-STEP EDIT PIPELINE (Unified) =============
-                        let totalUsage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
-                        const addUsage = (u: { promptTokens: number; responseTokens: number; totalTokens: number }) => {
-                            totalUsage.promptTokens += u.promptTokens;
-                            totalUsage.responseTokens += u.responseTokens;
-                            totalUsage.totalTokens += u.totalTokens;
-                        };
-
-                        // Normalize and prepare code
-                        const normalizedCode = currentCode.replace(/\r\n/g, "\n");
-                        const codeLines = normalizedCode.split("\n");
-                        const numberedCode = codeLines.map((line: string, i: number) => `${i + 1}| ${line}`).join("\n");
-
-                        // Build history context
-                        const historyContext = previousEdits && previousEdits.length > 0
-                            ? `\nPrevious edits:\n${previousEdits.map((e: PreviousEdit) => `- v${e.version}: ${e.instruction}`).join("\n")}\n`
-                            : "";
-
-                        // Build selection context
-                        const selectionPart = selectedContext
-                            ? `\nSelected code:\n"""\n${selectedContext}\n"""\n`
-                            : "";
-
-                        // Stage 1: Unified Planner (Intent + Impact + Patch Plan)
-                        console.log("[EDIT] Stage 1: Planning patches...");
-                        const planPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                        const planResult = await mainModel.generateContent(planPrompt, { timeout: 60000 });
-                        addUsage(getUsage(planResult));
-                        const editPlan = extractJson(planResult.response.text());
-                        console.log("[EDIT] Plan:", JSON.stringify(editPlan));
-
-                        // Stage 2: Patch Generator (Generate JSON Patches)
-                        console.log("[EDIT] Stage 2: Generating patches...");
-                        const patchPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                        const patchResult = await mainModel.generateContent(patchPrompt, { timeout: 60000 });
-                        addUsage(getUsage(patchResult));
-                        const patchResponse = extractJson(patchResult.response.text());
-
-                        // Apply patches deterministically
-                        resultText = fixCallbackPatterns(applyPatches(normalizedCode, patchResponse.changes || []));
-
-                        // Validate edited code
-                        let editValidation = validateGeneratedCode(resultText);
-                        if (!editValidation.valid) {
-                            if (editValidation.canRetry) {
-                                console.log("[EDIT] Validation failed, attempting fix...", editValidation.errors);
-                                const fixPrompt = generateFixPrompt(editValidation.errors, resultText);
-                                const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 60000 });
-                                addUsage(getUsage(fixResult));
-                                resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
-                                console.log("[EDIT] Fix applied");
-                                editValidation = validateGeneratedCode(resultText);
-                            }
-
-                            if (!editValidation.valid) {
-                                const errorMsg = editValidation.errors[0]?.message || "Unknown validation error";
-                                console.log("[EDIT] Final validation failed:", editValidation.errors);
-                                throw new HttpsError("internal", `Edit failed: ${errorMsg}`);
-                            }
-                        }
-
-                        usage = totalUsage;
-                        console.log(`[EDIT] Total tokens: ${usage.totalTokens}`);
-                        break;
-                    }
+                    case "edit":
+                        throw new HttpsError("failed-precondition", "Action 'edit' has moved to async Job Queue. Please update app.");
 
                     case "convert": {
                         if (!sourceCode) {
@@ -559,7 +464,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // SYSTEM_INSTRUCTIONS first for implicit caching
                         const convertPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${CONVERT_PROJECT_PROMPT}\n\nFramework hint: ${framework}\n\nSOURCE CODE TO CONVERT:\n${sourceCode}`;
 
-                        const result = await mainModel.generateContent(convertPrompt, { timeout: 60000 });
+                        const result = await mainModel.generateContent(convertPrompt, { timeout: 120000 });
 
                         // Validate converted code
                         let convertResultText = fixCallbackPatterns(extractHtml(result.response.text()));
@@ -569,7 +474,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             if (convertValidation.canRetry) {
                                 console.log("[CONVERT] Validation failed, attempting fix...", convertValidation.errors);
                                 const fixPrompt = generateFixPrompt(convertValidation.errors, convertResultText);
-                                const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 60000 });
+                                const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
                                 // Note: We sum up usage here? Logic above uses `usage = ...`. 
                                 // To be accurate we should accumulate, but current logic assigns `usage`.
                                 // Let's accumulate for correctness in this scope.
@@ -644,7 +549,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             }
                         }
 
-                        const result = await model.generateContent(parts, { timeout: 60000 });
+                        const result = await model.generateContent(parts, { timeout: 120000 });
                         usage = getUsage(result);
                         resultText = result.response.text();
 
@@ -696,7 +601,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
             });
 
             return {
-                text: resultText,
+                text: compressContent(resultText), // Compress output
                 usage,
                 creditsUsed,
                 creditsRemaining: newCredits,
@@ -786,5 +691,228 @@ export const getCredits = onCall(
         }
 
         return { credits: userDoc.data()?.credits || 0 };
+    }
+);
+
+// ============= ASYNC JOB PROCESSOR =============
+
+interface Job {
+    id: string;
+    userId: string;
+    action: 'create' | 'edit';
+    status: 'queued' | 'processing' | 'completed' | 'failed';
+    createdAt: any;
+    updatedAt: any;
+    payload: {
+        prompt?: string;
+        currentCode?: string; // GZIP:base64
+        instruction?: string;
+        selectedContext?: string;
+        previousEdits?: PreviousEdit[];
+    };
+    result?: {
+        text: string; // GZIP:base64
+        usage: any;
+        creditsUsed: number;
+        creditsRemaining: number;
+        appName?: string; // For notification
+    };
+    error?: string;
+}
+
+export const processSpellJob = onDocumentCreated(
+    {
+        document: "jobs/{jobId}",
+        region: "southamerica-east1",
+        memory: "512MiB",
+        timeoutSeconds: 300, // 5 minutes Max
+        secrets: ["GEMINI_API_KEY"],
+    },
+    async (event) => {
+        const snapshot = event.data;
+        if (!snapshot) return;
+
+        const jobData = snapshot.data() as Job;
+        const jobId = event.params.jobId;
+
+        // Only process queued jobs
+        if (jobData.status !== 'queued') return;
+
+        console.log(`[Job ${jobId}] Starting processing. Action: ${jobData.action}`);
+
+        // Mark as processing
+        await snapshot.ref.update({
+            status: 'processing',
+            startedAt: FieldValue.serverTimestamp(),
+        });
+
+        const uid = jobData.userId;
+        const { action, payload } = jobData;
+
+        // Decompress Inputs
+        const prompt = decompressContent(payload.prompt || "");
+        const currentCode = decompressContent(payload.currentCode || "");
+        const instruction = decompressContent(payload.instruction || "");
+        const selectedContext = payload.selectedContext ? decompressContent(payload.selectedContext) : undefined;
+        const previousEdits = payload.previousEdits;
+
+        const userRef = db.collection("users").doc(uid);
+
+        try {
+            // 1. Check Credits/Limits
+            const userDoc = await userRef.get();
+            if (!userDoc.exists) throw new Error("User not found");
+
+            const userData = userDoc.data()!;
+            if ((userData.credits || 0) < 0.1) {
+                throw new Error("Insufficient credits");
+            }
+
+            let resultText = "";
+            let usage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
+            let appName: string | undefined;
+
+            switch (action) {
+                case "create": {
+                    let totalUsage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
+                    const addUsage = (u: any) => {
+                        totalUsage.promptTokens += u.promptTokens;
+                        totalUsage.responseTokens += u.responseTokens;
+                        totalUsage.totalTokens += u.totalTokens;
+                    };
+
+                    // Stage 1: Planning
+                    console.log(`[Job ${jobId}] Stage 1: Planning...`);
+                    const plannerPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
+                    const planResult = await mainModel.generateContent(plannerPrompt, { timeout: 120000 });
+                    addUsage(getUsage(planResult));
+                    const appPlan = extractJson(planResult.response.text());
+                    console.log(`[Job ${jobId}] Plan created:`, JSON.stringify(appPlan).substring(0, 200) + '...');
+
+                    // Stage 2: Coding
+                    console.log(`[Job ${jobId}] Stage 2: Coding...`);
+                    const codePrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
+                    const codeResult = await mainModel.generateContent(codePrompt, { timeout: 120000 });
+                    addUsage(getUsage(codeResult));
+
+                    resultText = fixCallbackPatterns(extractHtml(codeResult.response.text()));
+
+                    // Validation
+                    console.log(`[Job ${jobId}] Validating code...`);
+                    let validation = validateGeneratedCode(resultText);
+                    if (!validation.valid && validation.canRetry) {
+                        console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, validation.errors);
+                        const fixPrompt = generateFixPrompt(validation.errors, resultText);
+                        const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
+                        addUsage(getUsage(fixResult));
+                        resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
+                        validation = validateGeneratedCode(resultText);
+                    }
+
+                    if (!validation.valid) throw new Error(`App generation failed: ${validation.errors[0]?.message || 'Unknown'}`);
+                    usage = totalUsage;
+
+                    // Extract App Name from Title
+                    const titleMatch = resultText.match(/<title[^>]*>([^<]+)<\/title>/i);
+                    if (titleMatch && titleMatch[1]) {
+                        appName = titleMatch[1].trim();
+                    }
+                    break;
+                }
+                case "edit": {
+                    let totalUsage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
+                    const addUsage = (u: any) => {
+                        totalUsage.promptTokens += u.promptTokens;
+                        totalUsage.responseTokens += u.responseTokens;
+                        totalUsage.totalTokens += u.totalTokens;
+                    };
+
+                    const normalizedCode = currentCode.replace(/\r\n/g, "\n");
+                    const codeLines = normalizedCode.split("\n");
+                    const numberedCode = codeLines.map((line: string, i: number) => `${i + 1}| ${line}`).join("\n");
+
+                    const historyContext = previousEdits && previousEdits.length > 0
+                        ? `\nPrevious edits:\n${previousEdits.map((e: PreviousEdit) => `- v${e.version}: ${e.instruction}`).join("\n")}\n`
+                        : "";
+                    const selectionPart = selectedContext
+                        ? `\nSelected code:\n"""\n${selectedContext}\n"""\n`
+                        : "";
+
+                    // Stage 1: Plan
+                    console.log(`[Job ${jobId}] Stage 1: Planning Edit...`);
+                    const planPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
+                    const planResult = await mainModel.generateContent(planPrompt, { timeout: 120000 });
+                    addUsage(getUsage(planResult));
+                    const editPlan = extractJson(planResult.response.text());
+                    console.log(`[Job ${jobId}] Edit Plan:`, JSON.stringify(editPlan, null, 2));
+
+                    // Stage 2: Patch
+                    console.log(`[Job ${jobId}] Stage 2: Patching...`);
+                    const patchPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
+                    const patchResult = await mainModel.generateContent(patchPrompt, { timeout: 120000 });
+                    addUsage(getUsage(patchResult));
+                    const patchResponse = extractJson(patchResult.response.text());
+
+                    resultText = fixCallbackPatterns(applyPatches(normalizedCode, patchResponse.changes || []));
+                    console.log(`[Job ${jobId}] Patching complete. Validating...`);
+
+                    // Validation
+                    let editValidation = validateGeneratedCode(resultText);
+                    if (!editValidation.valid && editValidation.canRetry) {
+                        console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, editValidation.errors);
+                        const fixPrompt = generateFixPrompt(editValidation.errors, resultText);
+                        const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
+                        addUsage(getUsage(fixResult));
+                        resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
+                        editValidation = validateGeneratedCode(resultText);
+                    }
+                    if (!editValidation.valid) throw new Error(`Edit failed: ${editValidation.errors[0]?.message}`);
+
+                    usage = totalUsage;
+                    // For edits, we don't strictly need appName, client knows it.
+                    break;
+                }
+                default:
+                    throw new Error(`Invalid Async Action: ${action}`);
+            }
+
+            // Deduct Credits
+            const creditsUsed = usage.totalTokens / TOKENS_PER_CREDIT;
+
+            await db.runTransaction(async (t) => {
+                const ref = db.collection("users").doc(uid);
+                const doc = await t.get(ref);
+                if (doc.exists) {
+                    const data = doc.data()!;
+                    const newCredits = Math.max(0, (data.credits || 0) - creditsUsed);
+                    t.update(ref, {
+                        credits: newCredits,
+                        creditsUsed: FieldValue.increment(creditsUsed),
+                        lastActive: FieldValue.serverTimestamp(),
+                    });
+
+                    // Update Job
+                    t.update(snapshot.ref, {
+                        status: 'completed',
+                        completedAt: FieldValue.serverTimestamp(),
+                        result: {
+                            text: compressContent(resultText),
+                            usage,
+                            creditsUsed,
+                            creditsRemaining: newCredits,
+                            ...(appName ? { appName } : {}),
+                        }
+                    });
+                }
+            });
+
+        } catch (error: any) {
+            console.error(`Job ${jobId} failed:`, error);
+            await snapshot.ref.update({
+                status: 'failed',
+                error: error.message || 'Unknown error',
+                failedAt: FieldValue.serverTimestamp(),
+            });
+        }
     }
 );
