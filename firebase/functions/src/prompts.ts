@@ -12,9 +12,11 @@ IMPORTANT: The app will run in a WebView. For data persistence:
 - Save data whenever user makes changes
 - The localStorage data will persist between app sessions
 - Always use console.log e console.error for debugging to help us understand what's happening
+- NEVER return undefined, null or empty strings for user interface because user is not technical and will not understand what's happening
+- Build simple to use interfaces with clear instructions, simple UI and feedback
 
 PREFER DETERMINISTIC CODE:
-The generated app should use AI when makes sense:
+The generated app should use AI and other Appacadabra APIs when makes sense:
 1. USE FIXED MESSAGES: For tips, greetings, feedback - use pre-written strings, not AI generation
 2. USE SIMPLE LOGIC: For calculations, sorting, filtering - use JavaScript functions, not AI
 3. CACHE AI RESPONSES: If AI is used, store results in localStorage to avoid repeated calls

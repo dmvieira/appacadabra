@@ -127,9 +127,3 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
         };
     });
 }
-
-// Legacy text-only wrapper
-export async function aiGenerateText(prompt: string): Promise<string> {
-    const result = await firebase.generateSpellWebviewAI(prompt);
-    return result.text;
-}

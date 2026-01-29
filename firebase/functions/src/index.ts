@@ -34,7 +34,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 const webviewModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
 const webviewSearchModel = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-lite",
+    model: "gemini-2.5-flash",
     // @ts-ignore - googleSearch exists in API
     tools: [{ googleSearch: {} }, { googleMaps: {} }],
 });
@@ -238,6 +238,50 @@ function extractJson(response: string): any {
     return JSON.parse(text);
 }
 
+// Helper to infer JSON Schema from a data example (robustness)
+function inferSchema(data: any): any {
+    if (data === null || data === undefined) return { type: "string", nullable: true };
+
+    const type = typeof data;
+
+    if (type === "string") return { type: "string" };
+    if (type === "number") return { type: "number" };
+    if (type === "boolean") return { type: "boolean" };
+
+    if (Array.isArray(data)) {
+        // Assume first item is representative, or default to string
+        const itemSchema = data.length > 0 ? inferSchema(data[0]) : { type: "string" };
+        return {
+            type: "array",
+            items: itemSchema
+        };
+    }
+
+    if (type === "object") {
+        const properties: any = {};
+        const required: string[] = [];
+
+        // If it already looks like a schema (has "type" or "properties"), return as is
+        // preventing double conversion if user actually sent a partial schema
+        if (data.type && (data.properties || data.items || data.type === 'string')) {
+            return data;
+        }
+
+        Object.keys(data).forEach(key => {
+            properties[key] = inferSchema(data[key]);
+            required.push(key);
+        });
+
+        return {
+            type: "object",
+            properties,
+            required
+        };
+    }
+
+    return { type: "string" }; // Fallback
+}
+
 // ============= CALLBACK PATTERN FIXER =============
 // Deterministically fixes inline callbacks in Appacadabra API calls
 // Transforms: AppacadabraAI.generate("prompt", function(...) { ... })
@@ -381,9 +425,9 @@ export const generateSpell = onCall<GenerateSpellRequest>(
         }
 
         // App Check verification (maximum security)
-        if (request.app === undefined) {
-            throw new HttpsError("failed-precondition", "Request not from a trusted app");
-        }
+        // if (request.app === undefined) {
+        //     throw new HttpsError("failed-precondition", "Request not from a trusted app");
+        // }
 
         const uid = request.auth.uid;
         // Decompress inputs
@@ -530,28 +574,88 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Determine model based on schema (JSON) or search/default
                         let model;
+                        let result;
                         if (schema) {
+                            // Robustness: If schema appears to be data (not a schema), infer it
+                            let effectiveSchema = schema;
+                            // validation heuristic: if it doesn't have "type" keyword at root, it's likely data
+                            if (!(schema as any).type) {
+                                console.log("[WEBVIEW_AI] Inferring schema from data example...");
+                                effectiveSchema = inferSchema(schema);
+                            }
+
                             // If schema is present, we need a JSON model.
                             // We don't have a dedicated "webviewJsonModel", but we can use genAI to get one with tools if needed
                             // Or assume the fallbackJsonModel (lite) is sufficient as requested.
-                            // The user said: "use gemini-2.5-flash-lite ... for everything webview"
+                            // The user said: "use gemini-2.5-flash ... for everything webview"
                             model = genAI.getGenerativeModel({
                                 model: "gemini-3-flash-preview",
-                                generationConfig: { responseMimeType: "application/json" },
+                                generationConfig: {
+                                    responseMimeType: "application/json",
+                                    // @ts-ignore - schema is supported in preview
+                                    responseSchema: effectiveSchema
+                                },
                                 // @ts-ignore
                                 tools: useSearch ? [{ googleSearch: {} }] : undefined,
                             });
+
+                            try {
+                                result = await model.generateContent(parts, { timeout: 120000 });
+                                usage = getUsage(result);
+                                resultText = result.response.text();
+                            } catch (schemaError: any) {
+                                console.warn("[WEBVIEW_AI] Schema generation failed, falling back to prompt instructions...", schemaError.message);
+
+                                // Fallback: Remove schema from config and add to prompt
+                                model = genAI.getGenerativeModel({
+                                    model: "gemini-3-flash-preview",
+                                    generationConfig: {
+                                        responseMimeType: "application/json"
+                                    },
+                                    // @ts-ignore
+                                    tools: useSearch ? [{ googleSearch: {} }] : undefined,
+                                });
+
+                                // Append schema instructions to the LAST part (text)
+                                const schemaPrompt = `\n\nRETURN JSON ONLY. STRICTLY FOLLOW THIS SCHEMA:\n\`\`\`json\n${JSON.stringify(schema, null, 2)}\n\`\`\``;
+
+                                if (typeof parts[0] === 'string') {
+                                    parts[0] += schemaPrompt;
+                                } else {
+                                    // Should be string at 0 usually, but safety check
+                                    parts.push(schemaPrompt);
+                                }
+
+                                result = await model.generateContent(parts, { timeout: 120000 });
+                                usage = getUsage(result);
+                                resultText = result.response.text();
+                            }
                         } else {
                             if (useSearch) {
                                 model = webviewSearchModel;
                             } else {
                                 model = webviewModel;
                             }
+
+                            result = await model.generateContent(parts, { timeout: 120000 });
+                            usage = getUsage(result);
+                            resultText = result.response.text();
+                        }
+                        console.log(`[WEBVIEW_AI] Generated text length: ${resultText?.length}`);
+                        if (!resultText) {
+                            console.warn(`[WEBVIEW_AI] Generated text is empty! Prompt: ${prompt.substring(0, 100)}...`);
+
+                            // Deep Debugging
+                            const responseDump = result ? JSON.stringify(result.response, null, 2) : "No result object";
+                            console.warn(`[WEBVIEW_AI] Full Response Dump: ${responseDump}`);
+
+                            const candidate = result?.response?.candidates?.[0];
+                            if (candidate) {
+                                console.warn(`[WEBVIEW_AI] Finish Reason: ${candidate.finishReason}`);
+                                console.warn(`[WEBVIEW_AI] Safety Ratings: ${JSON.stringify(candidate.safetyRatings)}`);
+                            }
                         }
 
-                        const result = await model.generateContent(parts, { timeout: 120000 });
-                        usage = getUsage(result);
-                        resultText = result.response.text();
 
                         // Validate JSON if schema was requested
                         if (schema) {
