@@ -59,6 +59,7 @@ export default function RunnerScreen() {
 
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLocked, setIsLocked] = useState(false);
     const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
 
     // Subscribe to store apps to react to background updates (async jobs)
@@ -70,10 +71,67 @@ export default function RunnerScreen() {
             if (!id) return;
             const loadedApp = await db.getAppById(Number(id));
             setApp(loadedApp);
+
+            // Check biometric authentication
+            if (loadedApp?.requiresBiometric) {
+                // Determine if we should authenticate immediately
+                try {
+                    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+                    if (hasHardware && isEnrolled) {
+                        const result = await LocalAuthentication.authenticateAsync({
+                            promptMessage: t('biometricRequired'),
+                            fallbackLabel: t('usePassword') || 'Use Password',  // Fallback if key missing
+                            disableDeviceFallback: false,
+                        });
+
+                        if (!result.success) {
+                            setIsLocked(true);
+                        }
+                    } else {
+                        // If biometric is required but not available on device, we still lock it?
+                        // For security, yes. Or we assume without enrollment it's owner?
+                        // No, if I set a lock I expect it to lock. 
+                        // If I remove fingerprints, I should be locked out until I add them back or use password.
+                        setIsLocked(true);
+                        Alert.alert(t('error'), t('biometricsNotAvailable') || 'Biometrics not available');
+                    }
+                } catch (e) {
+                    console.error('Biometric init error:', e);
+                    setIsLocked(true);
+                }
+            }
+
             setIsLoading(false);
         };
         loadApp();
     }, [id]);
+
+    // Authentication helper
+    const authenticate = async () => {
+        try {
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+            if (!hasHardware || !isEnrolled) {
+                Alert.alert(t('error'), t('biometricsNotAvailable') || 'Biometrics not available');
+                return;
+            }
+
+            const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: t('biometricRequired'),
+                fallbackLabel: t('usePassword') || 'Use Password',
+                disableDeviceFallback: false,
+            });
+
+            if (result.success) {
+                setIsLocked(false);
+            }
+        } catch (e) {
+            console.error('Biometric retry error:', e);
+        }
+    };
 
     // React to store updates (e.g. async job finished)
     useEffect(() => {
@@ -90,6 +148,18 @@ export default function RunnerScreen() {
     // Edit mode states
     const isEditMode = edit === 'true';
     const isShareMode = share === 'true'; // Keep for other logic, but injection uses payload presence
+
+    // Listen for edit completion signal to navigate back
+    const lastCompletedEditAppId = useAppStore(state => state.lastCompletedEditAppId);
+    const clearLastCompletedEdit = useAppStore(state => state.clearLastCompletedEdit);
+
+    useEffect(() => {
+        if (lastCompletedEditAppId && lastCompletedEditAppId === Number(id) && isEditMode) {
+            console.log('RunnerScreen: Edit completed, navigating back to app list');
+            clearLastCompletedEdit();
+            router.back();
+        }
+    }, [lastCompletedEditAppId, id, isEditMode, clearLastCompletedEdit, router]);
     const [showEditSheet, setShowEditSheet] = useState(false);
     const [editPrompt, setEditPrompt] = useState('');
     const [selectedElement, setSelectedElement] = useState<{ html: string; tagName: string; preview: string } | null>(null);
@@ -525,6 +595,9 @@ export default function RunnerScreen() {
                 setShowEditSheet(false);
                 setEditPrompt('');
                 setSelectedElement(null);
+
+                // Navigate back to listing immediately after submitting job
+                router.back();
             }
         } finally {
             setIsEditing(false);
@@ -584,6 +657,22 @@ export default function RunnerScreen() {
             ]
         );
     };
+
+    // Show locked screen
+    if (isLocked) {
+        return (
+            <SafeAreaView style={styles.lockedContainer}>
+                <Text style={styles.lockIcon}>🔒</Text>
+                <Text style={styles.lockedText}>{t('biometricRequired')}</Text>
+                <TouchableOpacity style={styles.unlockBtn} onPress={authenticate}>
+                    <Text style={styles.unlockBtnText}>{t('authenticateBiometrics')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.lockedCancelBtn} onPress={() => router.replace('/')}>
+                    <Text style={styles.lockedCancelBtnText}>{t('cancel')}</Text>
+                </TouchableOpacity>
+            </SafeAreaView>
+        );
+    }
 
     if (isLoading || !app || !storageLoaded) {
         return (
@@ -1474,5 +1563,45 @@ const styles = StyleSheet.create({
     },
     searchHighlightCurrent: {
         backgroundColor: colors.tertiary + '90',
+    },
+    // Locked screen styles
+    lockedContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.background,
+        padding: spacing.xl,
+    },
+    lockIcon: {
+        fontSize: 64,
+        marginBottom: spacing.lg,
+    },
+    lockedText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: colors.onSurface,
+        marginBottom: spacing.md,
+    },
+    unlockBtn: {
+        backgroundColor: colors.primary,
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.md,
+    },
+    unlockBtnText: {
+        color: colors.onPrimary,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    lockedCancelBtn: {
+        backgroundColor: colors.surfaceVariant,
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+    },
+    lockedCancelBtnText: {
+        color: colors.onSurface,
+        fontSize: 16,
     },
 });

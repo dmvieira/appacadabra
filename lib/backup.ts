@@ -206,6 +206,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
                 lastUpdated: app.lastUpdated,
                 consoleLogs: app.consoleLogs || '',
                 totalManaCost: app.totalManaCost || 0,
+                requiresBiometric: false, // Imported apps start unlocked
             };
 
             const newId = await db.insertApp(newApp);

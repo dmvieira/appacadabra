@@ -94,18 +94,18 @@ const translations = {
         search: 'Search',
 
         // Content filter
-        contentBlocked: 'Content not allowed. Please describe a legitimate and useful app.',
+        contentBlocked: 'Content not allowed. Please describe a legitimate and useful spell.',
 
         // Empty state / How it works
-        emptyMagic: 'Create apps with magic!',
-        emptyDesc: 'Describe your perfect app and AI creates something 100% personalized to your needs.',
+        emptyMagic: 'Create spells with magic!',
+        emptyDesc: 'Describe your perfect spell and AI creates something 100% personalized to your needs.',
         howItWorks: 'How it works:',
         step1Title: 'Describe',
         step1Desc: 'Tell exactly what you need',
         step2Title: 'Personalize',
         step2Desc: 'AI creates custom for you',
         step3Title: 'Use now',
-        step3Desc: 'Your app works instantly',
+        step3Desc: 'Your spell works instantly',
         step4Title: 'Evolve',
         step4Desc: 'Request changes and improvements',
 
@@ -127,7 +127,7 @@ const translations = {
         noIndexFound: 'No index.html found in build folder',
 
         // Content Filter
-        contentBlockedReason: 'Content not allowed. Please describe a legitimate and useful app.',
+        contentBlockedReason: 'Content not allowed. Please describe a legitimate and useful spell.',
         requestBlocked: 'Request blocked by content filter.',
 
         // Bridge Messages
@@ -141,7 +141,11 @@ const translations = {
         unknownError: 'Unknown error',
         shareTitle: 'Share',
         authenticateBiometrics: 'Authenticate',
-        errorOpeningWindow: 'Unable to open app in new window',
+        enableBiometric: 'Enable Biometric Lock',
+        disableBiometric: 'Disable Biometric Lock',
+        biometricRequired: 'Biometric authentication required',
+        biometricUnlockFailed: 'Authentication failed',
+        errorOpeningWindow: 'Unable to open spell in new window',
         history: 'History',
         code: 'Code',
         applyingChanges: 'Applying changes...',
@@ -166,6 +170,8 @@ const translations = {
         buyMana: 'Buy Mana',
         insufficientMana: 'Insufficient Mana',
         insufficientManaMessage: 'You need %{cost} Mana to perform this action. Your balance is %{balance}.',
+        manaDepletedTitle: '⚡ Out of Mana!',
+        manaDepletedMessage: 'Your Mana is depleted. Recharge to continue using AI features.',
         manaShopTitle: 'Mana Shop',
         manaPackage1: '100 Mana (Meditation)',
         manaPackage2: '500 Mana (Short Rest)',
@@ -183,7 +189,7 @@ const translations = {
         exportBackupDialog: 'Export Backup',
         importCancelled: 'Import cancelled',
         invalidBackupFile: 'Invalid backup file',
-        appsImportedSuccess: 'apps imported successfully!',
+        appsImportedSuccess: 'spells imported successfully!',
         importError: 'Error importing:',
 
         // Speech
@@ -320,18 +326,18 @@ const translations = {
         search: 'Buscar',
 
         // Content filter
-        contentBlocked: 'Conteúdo não permitido. Por favor, descreva um aplicativo legítimo e útil.',
+        contentBlocked: 'Conteúdo não permitido. Por favor, descreva um feitiço legítimo e útil.',
 
         // Empty state / How it works
-        emptyMagic: 'Crie apps com magia!',
-        emptyDesc: 'Descreva o app perfeito para você e a IA cria algo 100% personalizado às suas necessidades.',
+        emptyMagic: 'Crie feitiços com magia!',
+        emptyDesc: 'Descreva o feitiço perfeito para você e a IA cria algo 100% personalizado às suas necessidades.',
         howItWorks: 'Como funciona:',
         step1Title: 'Descreva',
         step1Desc: 'Diga exatamente o que você precisa',
         step2Title: 'Personalize',
         step2Desc: 'A IA cria sob medida para você',
         step3Title: 'Use agora',
-        step3Desc: 'Seu app funciona instantaneamente',
+        step3Desc: 'Seu feitiço funciona instantaneamente',
         step4Title: 'Evolua',
         step4Desc: 'Peça mudanças e melhorias',
 
@@ -353,7 +359,7 @@ const translations = {
         noIndexFound: 'Nenhum index.html encontrado na pasta de build',
 
         // Content Filter
-        contentBlockedReason: 'Conteúdo não permitido. Por favor, descreva um aplicativo legítimo e útil.',
+        contentBlockedReason: 'Conteúdo não permitido. Por favor, descreva um feitiço legítimo e útil.',
         requestBlocked: 'Solicitação bloqueada pelo filtro de conteúdo.',
 
         // Bridge Messages
@@ -367,7 +373,11 @@ const translations = {
         unknownError: 'Erro desconhecido',
         shareTitle: 'Compartilhar',
         authenticateBiometrics: 'Autenticar',
-        errorOpeningWindow: 'Não foi possível iniciar o app em nova janela',
+        enableBiometric: 'Ativar Bloqueio Biométrico',
+        disableBiometric: 'Desativar Bloqueio Biométrico',
+        biometricRequired: 'Autenticação biométrica necessária',
+        biometricUnlockFailed: 'Autenticação falhou',
+        errorOpeningWindow: 'Não foi possível iniciar o feitiço em nova janela',
         history: 'Histórico',
         code: 'Código',
         applyingChanges: 'Aplicando mudanças...',
@@ -392,6 +402,8 @@ const translations = {
         buyMana: 'Comprar Mana',
         insufficientMana: 'Mana Insuficiente',
         insufficientManaMessage: 'Você precisa de %{cost} Mana para esta ação. Seu saldo é %{balance}.',
+        manaDepletedTitle: '⚡ Mana Acabou!',
+        manaDepletedMessage: 'Sua Mana acabou. Recarregue para continuar usando recursos de IA.',
         manaShopTitle: 'Loja de Mana',
         manaPackage1: '100 Mana (Meditação)',
         manaPackage2: '500 Mana (Descanso Curto)',
@@ -409,7 +421,7 @@ const translations = {
         exportBackupDialog: 'Exportar Backup',
         importCancelled: 'Importação cancelada',
         invalidBackupFile: 'Arquivo de backup inválido',
-        appsImportedSuccess: 'apps importados com sucesso!',
+        appsImportedSuccess: 'feitiços importados com sucesso!',
         importError: 'Erro ao importar:',
 
         // Speech
@@ -501,7 +513,7 @@ const translations = {
         importing: 'Invocando...',
         processing: 'Procesando pergamino...',
         // Legal - uses EN fallback
-        contentBlocked: 'Contenido no permitido. Por favor, describe una app legítima y útil.',
+        contentBlocked: 'Contenido no permitido. Por favor, describe un hechizo legítimo y útil.',
         console: 'Consola',
         network: 'Red',
         editWithAI: 'Editar con IA',
@@ -520,7 +532,7 @@ const translations = {
         noIndexFound: 'No se encontró index.html en build',
 
         // Content
-        contentBlockedReason: 'Contenido no permitido. Describe una app legítima.',
+        contentBlockedReason: 'Contenido no permitido. Describe un hechizo legítimo.',
         requestBlocked: 'Solicitud bloqueada por filtro.',
 
         // Bridge & Errors
@@ -532,7 +544,11 @@ const translations = {
         unknownError: 'Error desconocido',
         shareTitle: 'Compartir',
         authenticateBiometrics: 'Autenticar',
-        errorOpeningWindow: 'No se pudo abrir la app en nueva ventana',
+        enableBiometric: 'Activar Bloqueo Biométrico',
+        disableBiometric: 'Desactivar Bloqueo Biométrico',
+        biometricRequired: 'Se requiere autenticación biométrica',
+        biometricUnlockFailed: 'Autenticación fallida',
+        errorOpeningWindow: 'No se pudo abrir el hechizo en nueva ventana',
         history: 'Historial',
         code: 'Código',
         applyingChanges: 'Aplicando cambios...',
@@ -557,6 +573,8 @@ const translations = {
         buyMana: 'Comprar Mana',
         insufficientMana: 'Mana Insuficiente',
         insufficientManaMessage: 'Necesitas %{cost} Mana para esta acción. Tu saldo es %{balance}.',
+        manaDepletedTitle: '⚡ ¡Sin Mana!',
+        manaDepletedMessage: 'Tu Mana se agotó. Recarga para seguir usando funciones de IA.',
         manaShopTitle: 'Tienda de Mana',
         manaPackage1: '100 Mana (Meditación)',
         manaPackage2: '500 Mana (Descanso Corto)',
@@ -574,7 +592,7 @@ const translations = {
         exportBackupDialog: 'Exportar Respaldo',
         importCancelled: 'Importación cancelada',
         invalidBackupFile: 'Respaldo inválido',
-        appsImportedSuccess: 'apps importadas con éxito!',
+        appsImportedSuccess: 'hechizos importados con éxito!',
         importError: 'Error al importar:',
 
         // Speech
@@ -667,7 +685,7 @@ const translations = {
         importing: 'Invocation...',
         processing: 'Traitement du parchemin...',
         // Legal - uses EN fallback
-        contentBlocked: 'Contenu non autorisé. Veuillez décrire une app légitime et utile.',
+        contentBlocked: 'Contenu non autorisé. Veuillez décrire un sort légitime et utile.',
         console: 'Console',
         network: 'Réseau',
         editWithAI: 'Modifier avec IA',
@@ -698,7 +716,11 @@ const translations = {
         unknownError: 'Erreur inconnue',
         shareTitle: 'Partager',
         authenticateBiometrics: 'Authentifier',
-        errorOpeningWindow: 'Impossible d\'ouvrir l\'app dans une nouvelle fenêtre',
+        enableBiometric: 'Activer Verrouillage Biométrique',
+        disableBiometric: 'Désactiver Verrouillage Biométrique',
+        biometricRequired: 'Authentification biométrique requise',
+        biometricUnlockFailed: 'Échec de l\'authentification',
+        errorOpeningWindow: 'Impossible d\'ouvrir le sort dans une nouvelle fenêtre',
         history: 'Historique',
         code: 'Code',
         applyingChanges: 'Application des changements...',
@@ -723,6 +745,8 @@ const translations = {
         buyMana: 'Acheter Mana',
         insufficientMana: 'Mana Insuffisant',
         insufficientManaMessage: 'Vous avez besoin de %{cost} Mana pour cette action. Votre solde est de %{balance}.',
+        manaDepletedTitle: '⚡ Plus de Mana !',
+        manaDepletedMessage: 'Votre Mana est épuisé. Rechargez pour continuer à utiliser les fonctions IA.',
         manaShopTitle: 'Boutique Mana',
         manaPackage1: '100 Mana (Méditation)',
         manaPackage2: '500 Mana (Repos Court)',
@@ -740,7 +764,7 @@ const translations = {
         exportBackupDialog: 'Exporter Sauvegarde',
         importCancelled: 'Annulé',
         invalidBackupFile: 'Fichier invalide',
-        appsImportedSuccess: 'apps importées!',
+        appsImportedSuccess: 'sorts importés!',
         importError: 'Erreur import:',
 
         // Speech

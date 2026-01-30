@@ -4,34 +4,34 @@
 
 ## 1. Introduction
 
-Appacadabra ("we", "our", or "app") is a web application generator that uses artificial intelligence to create personalized applications. This Privacy Policy describes how we collect, use, and protect your information.
+Appacadabra ("we", "our", or "the app") is a spell generation utility that uses artificial intelligence to create personalized tools. This Privacy Policy describes how we collect, use, and protect your information.
 
 ## 2. Information We Collect
 
 ### 2.1 Information You Provide
-- **App descriptions:** Text you provide to generate applications
-- **Generated code:** HTML/CSS/JavaScript applications created through the app
-- **Settings:** Preferences and customizations for your applications
+- **Spell descriptions:** Text you provide to generate spells
+- **Generated code:** HTML/CSS/JavaScript spells created through the app
+- **Settings:** Preferences and customizations for your spells
 
 ### 2.2 Information Accessed with Your Permission
 The app may request access to:
-- **Contacts:** Only when a generated app needs to access your contact list
-- **Calendar:** For creating events in generated applications
-- **Location:** When generated apps require geolocation
-- **Camera/Microphone:** For media features in generated apps
+- **Contacts:** Only when a generated spell needs to access your contact list
+- **Calendar:** For creating events in generated spells
+- **Location:** When generated spells require geolocation
+- **Camera/Microphone:** For media features in generated spells
 - **Notifications:** For sending reminders and alerts
 
 **Important:** These permissions are only requested when needed, and you can deny them at any time.
 
 ### 2.3 Data Stored Locally
-- All generated applications are stored **exclusively on your device**
-- Version history of your applications
+- All generated spells are stored **exclusively on your device**
+- Version history of your spells
 - Preferences and settings
 
 ## 3. How We Use Your Information
 
-- **App generation:** Your descriptions are sent to Google's Gemini API to generate code
-- **Local operation:** Generated apps run locally on your device
+- **Spell generation:** Your descriptions are sent to Google's Gemini API to generate code
+- **Local operation:** Generated spells run locally on your device
 - **Service improvement:** Anonymous analytics may be used to improve the app
 
 ## 4. Data Sharing
@@ -53,7 +53,7 @@ App descriptions are processed by Google's Gemini API. See [Google's Privacy Pol
 ## 6. Your Rights
 
 You have the right to:
-- Delete any generated app at any time
+- Delete any generated spell at any time
 - Revoke granted permissions in device settings
 - Uninstall the app, removing all local data
 

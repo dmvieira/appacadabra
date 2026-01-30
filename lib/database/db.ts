@@ -87,6 +87,13 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     } catch (e) {
         console.log('[DB] Migration error (backfill processed_jobs):', e);
     }
+
+    // Migration: Add requiresBiometric column
+    try {
+        await database.execAsync('ALTER TABLE generated_apps ADD COLUMN requiresBiometric INTEGER NOT NULL DEFAULT 0');
+    } catch (e) {
+        console.log('[DB] Migration error (requiresBiometric):', e);
+    }
 }
 
 // ============= App CRUD Operations =============
@@ -126,9 +133,9 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
     }
 
     const result = await database.runAsync(
-        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, jobId)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.totalManaCost || 0, app.jobId || null]
+        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, jobId, requiresBiometric)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.totalManaCost || 0, app.jobId || null, app.requiresBiometric ? 1 : 0]
     );
     return result.lastInsertRowId;
 }
@@ -136,15 +143,23 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
 export async function updateApp(app: GeneratedApp): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?, jobId = ?
+        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?, jobId = ?, requiresBiometric = ?
      WHERE id = ?`,
-        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.totalManaCost, app.jobId || null, app.id]
+        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.totalManaCost, app.jobId || null, app.requiresBiometric ? 1 : 0, app.id]
     );
 }
 
 export async function deleteApp(id: number): Promise<void> {
     const database = await getDatabase();
     await database.runAsync('DELETE FROM generated_apps WHERE id = ?', [id]);
+}
+
+export async function updateBiometricLock(appId: number, enabled: boolean): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'UPDATE generated_apps SET requiresBiometric = ? WHERE id = ?',
+        [enabled ? 1 : 0, appId]
+    );
 }
 
 // ============= Version Operations =============

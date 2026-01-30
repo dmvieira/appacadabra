@@ -10,6 +10,7 @@ export interface GeneratedApp {
     consoleLogs: string;
     totalManaCost: number; // New field to track total mana used by this app
     jobId?: string; // Link to the async job that created this app
+    requiresBiometric: boolean; // If true, requires biometric auth to open
 }
 
 export interface AppVersion {

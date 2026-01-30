@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
 import * as ShareIntent from 'share-intent';
+import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
@@ -30,6 +31,7 @@ import { GeneratedApp } from '../lib/database/types';
 import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
 import { t } from '../lib/i18n';
 import { ManaDisplay } from '../components/ManaDisplay';
+import * as db from '../lib/database/db';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -139,7 +141,57 @@ export default function HomeScreen() {
         return false;
     };
 
+    // Biometric authentication helper
+    const authenticateBiometric = async (): Promise<boolean> => {
+        try {
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+            if (!hasHardware || !isEnrolled) {
+                Alert.alert(t('error'), t('biometricsNotAvailable') || 'Biometrics not available');
+                return false;
+            }
+
+            const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: t('biometricRequired'),
+                fallbackLabel: t('usePassword'),
+                disableDeviceFallback: false,
+            });
+
+            if (!result.success) {
+                setStatusMessage(t('biometricUnlockFailed'));
+                return false;
+            }
+
+            return true;
+        } catch (e) {
+            console.error('Biometric auth error:', e);
+            return false;
+        }
+    };
+
+    // Toggle biometric lock for an app
+    const handleToggleBiometric = async (app: GeneratedApp) => {
+        // If already locked, require auth to unlock
+        if (app.requiresBiometric) {
+            const authResult = await authenticateBiometric();
+            if (!authResult) return;
+        }
+
+        // Toggle the setting
+        const newValue = !app.requiresBiometric;
+        await db.updateBiometricLock(app.id, newValue);
+        await loadApps(); // Refresh UI
+        setStatusMessage(newValue ? t('enableBiometric') : t('disableBiometric'));
+    };
+
     const handleRunApp = async (app: GeneratedApp) => {
+        // Check biometric lock
+        if (app.requiresBiometric) {
+            const authResult = await authenticateBiometric();
+            if (!authResult) return;
+        }
+
         // On iOS, we just navigate to the runner screen within the same window
         if (Platform.OS === 'ios') {
             router.push({ pathname: '/runner/[id]', params: { id: app.id } });
@@ -156,7 +208,13 @@ export default function HomeScreen() {
         }
     };
 
-    const handleEditApp = (app: GeneratedApp) => {
+    const handleEditApp = async (app: GeneratedApp) => {
+        // Check biometric lock
+        if (app.requiresBiometric) {
+            const authResult = await authenticateBiometric();
+            if (!authResult) return;
+        }
+
         openApp(app.id, 'edit');
         router.push({ pathname: '/runner/[id]', params: { id: app.id, edit: 'true' } });
     };
@@ -339,6 +397,7 @@ export default function HomeScreen() {
         lastUpdated: Date.now(),
         consoleLogs: '',
         totalManaCost: 0,
+        requiresBiometric: false,
         isPlaceholder: true, // Marker property
     } as GeneratedApp)); // Cast to satisfy type, we handle isPlaceholder in renderItem
 
@@ -382,6 +441,7 @@ export default function HomeScreen() {
                                 onRename={() => setRenameTarget(item)}
                                 onIconPress={() => setIconTarget(item)}
                                 onShortcut={() => handleCreateShortcut(item)}
+                                onToggleBiometric={() => handleToggleBiometric(item)}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
                             />
@@ -497,13 +557,6 @@ export default function HomeScreen() {
             {error && (
                 <TouchableOpacity style={styles.errorBar} onPress={clearError}>
                     <Text style={styles.errorText}>{error}</Text>
-                </TouchableOpacity>
-            )}
-
-            {/* Status Message Snackbar */}
-            {statusMessage && (
-                <TouchableOpacity style={styles.statusBar} onPress={clearStatusMessage}>
-                    <Text style={styles.statusText}>{statusMessage}</Text>
                 </TouchableOpacity>
             )}
 
@@ -742,21 +795,6 @@ const styles = StyleSheet.create({
     },
     errorText: {
         color: colors.onError,
-        textAlign: 'center',
-    },
-    statusBar: {
-        position: 'absolute',
-        bottom: spacing.xl * 3,
-        left: spacing.md,
-        right: spacing.md,
-        backgroundColor: colors.surface,
-        padding: spacing.md,
-        borderRadius: borderRadius.md,
-        borderWidth: 1,
-        borderColor: colors.primary,
-    },
-    statusText: {
-        color: colors.onSurface,
         textAlign: 'center',
     },
     iconSourceModal: {

@@ -15,7 +15,7 @@ Appacadabra is a **local tool generation utility** that uses AI to help users cr
 | Content Source | Downloaded from servers | Generated locally via AI |
 | Binary Execution | Native executables | HTML/CSS/JS in WebView |
 | Distribution | Third-party content | User's own creations |
-| Monetization | In-app purchases, subscriptions | None (user's personal apps) |
+| Monetization | In-app purchases, subscriptions | None (user's personal spells) |
 | Catalog | Pre-existing apps | Generated on-demand |
 
 ### Technical Architecture
@@ -69,7 +69,7 @@ Appacadabra is a **local tool generation utility** that uses AI to help users cr
 - **Notion** - Users create complex databases and automations
 - **Shortcuts (Apple)** - Users create automated scripts
 - **Scriptable** - Users write and run JavaScript
-- **Appacadabra** - Users describe apps in natural language, AI generates code
+- **Appacadabra** - Users describe spells in natural language, AI generates code
 
 ### Guideline 2.5.2 - Executable Code
 
@@ -82,7 +82,7 @@ Appacadabra is a **local tool generation utility** that uses AI to help users cr
 4. **Static functionality** - The app's native features never change
 
 **Technical Details:**
-- Generated apps are stored as TEXT in SQLite, not as executable files
+- Generated spells are stored as TEXT in SQLite, not as executable files
 - WebView uses `WKWebView` with standard security policies
 - No access to native APIs beyond what Appacadabra explicitly provides
 - Bridge communication is strictly controlled via `postMessage`
@@ -132,7 +132,7 @@ Appacadabra follows the same principle: empowering users to create their own con
 
 - **All data stored locally** on user's device
 - **No user accounts** required
-- **No server-side storage** of generated apps
+- **No server-side storage** of generated spells
 - Only API calls to Google Gemini for generation
 - Detailed Privacy Policy included
 

@@ -8,19 +8,19 @@ By using Appacadabra, you agree to these Terms of Service. If you don't agree, d
 
 ## 2. Service Description
 
-Appacadabra is a tool that uses artificial intelligence to generate web applications (HTML/CSS/JavaScript) based on your descriptions. Generated apps run locally on your device through WebViews.
+Appacadabra is a tool that uses artificial intelligence to generate web spells (HTML/CSS/JavaScript) based on your descriptions. Generated spells run locally on your device through WebViews.
 
 ## 3. Acceptable Use
 
 ### 3.1 You may:
-- Create apps for personal or commercial use
-- Modify and share generated apps
+- Create spells for personal or commercial use
+- Modify and share generated spells
 - Use available native features (contacts, calendar, etc.)
 
 ### 3.2 You may NOT:
-- Create apps with illegal, malicious, or harmful content
+- Create spells with illegal, malicious, or harmful content
 - Generate code intended for phishing, fraud, or data theft
-- Create apps that violate third-party copyrights
+- Create spells that violate third-party copyrights
 - Use the service to harass, defame, or harm others
 - Attempt to bypass system security filters
 - Create malware, viruses, or any malicious code
@@ -28,7 +28,7 @@ Appacadabra is a tool that uses artificial intelligence to generate web applicat
 ## 4. Generated Content
 
 ### 4.1 Your Responsibility
-- You are responsible for apps you create
+- You are responsible for spells you create
 - AI-generated content may contain errors or inaccuracies
 - Always review code before production use
 
@@ -40,7 +40,7 @@ Appacadabra is a tool that uses artificial intelligence to generate web applicat
 ## 5. Intellectual Property
 
 ### 5.1 Generated Code
-- Apps you generate are your property
+- Spells you generate are your property
 - You may use them commercially without royalties
 
 ### 5.2 The Application
@@ -58,9 +58,9 @@ The service is provided "as is". We don't guarantee:
 
 We are not responsible for:
 - Direct or indirect damages from service use
-- Data or app loss
-- Problems caused by generated apps
-- Third-party misuse of apps you created
+- Data or spell loss
+- Problems caused by generated spells
+- Third-party misuse of spells you created
 
 ## 8. Modifications
 

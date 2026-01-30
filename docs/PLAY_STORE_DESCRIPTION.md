@@ -10,7 +10,7 @@ Turn text into functional tools instantly. No code required. Generative AI on de
 
 **Imagine a tool. Describe it. Use it.** 🪄
 
-Appacadabra is the ultimate **AI Tool Generator** that turns your ideas into working utilities in seconds. Powered by the latest **Gemini 3 Flash Preview** models, it writes code so you don't have to.
+Appacadabra is the ultimate **AI Tool Generator** that turns your ideas into working utilities in seconds. Powered by the latest **AI** models, it writes code so you don't have to.
 
 Whether you need a custom productivity tool, a personalized tracker, a fun game, or a utility for your specific niche, just type it out and watch the magic happen.
 
@@ -31,9 +31,9 @@ Whether you need a custom productivity tool, a personalized tracker, a fun game,
 *   **Fast & Efficient**: Uses advanced Cloud/Async processing to handle even complex app requests without freezing your device.
 
 **🔒 Privacy First:**
-We believe in user ownership. Your apps live on your device. We don't resell your data or claim ownership of your creations.
+We believe in user ownership. Your spells live on your device. We don't resell your data or claim ownership of your creations.
 
-**Download Appacadabra today and start building your own app store, one spell at a time!**
+**Download Appacadabra today and start building your own spell book, one spell at a time!**
 
 ---
 *Powered by Google Gemini*

@@ -127,12 +127,7 @@ AppacadabraAI.generate("Hello", handleResult);
 }
 \`\`\`
 
-🔐 AUTH (AppacadabraAuth)
-- \`authenticate(reason, callback)\`
-    - **Return JSON**: \`{ "success": boolean, "error": string, "warning": string }\`
-    - **CRITICAL**: The outer callback \`success\` only means the dialog opened. You MUST check \`JSON.parse(result).success\` to see if user passed biometrics.
-
-📱 SENSORS (AppacadabraSensors)
+ SENSORS (AppacadabraSensors)
 - \`startAccelerometer(intervalMs, callback)\`
     - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number }\`
 - \`startGyroscope(intervalMs, callback)\`

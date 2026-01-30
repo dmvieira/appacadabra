@@ -10,10 +10,10 @@
     -   **Shortcuts**: Receive "Run Tool" intent shortcuts on Android home screen.
     -   **Biometrics**: Native authentication support.
     -   **Haptics & Sensors**: Access device vibration and sensors.
--   **Async Job Queue**: Handles complex app generation (creation/editing) in the background without timeouts, notifying the user when ready.
--   **Local Persistence**: Apps are stored locally (SQLite/FileSystem) and persist offline.
--   **Smart Editing**: Edit apps using natural language ("Make the button blue") or visual context.
--   **Direct Share**: Apps appear as share targets for other apps.
+-   **Async Job Queue**: Handles complex tool generation (creation/editing) in the background without timeouts, notifying the user when ready.
+-   **Local Persistence**: Tools are stored locally (SQLite/FileSystem) and persist offline.
+-   **Smart Editing**: Edit tools using natural language ("Make the button blue") or visual context.
+-   **Direct Share**: Tools appear as share targets for other apps.
 
 ## Technology Stack 🛠️
 
@@ -30,7 +30,7 @@
 -   **Result**: Code is compressed (GZIP) and stored in the Job document. Client polls/listens and updates local SQLite.
 
 ### 2. The "Wand" (Runtime)
--   Apps run in a simplified `WebView` environment.
+-   Tools run in a simplified `WebView` environment.
 -   A **Native Bridge** (`window.Appacadabra`) injects JavaScript APIs that communicate with React Native via `postMessage`.
 -   Security is handled via strict CSP and sandboxing.
 

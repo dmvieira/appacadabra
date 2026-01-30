@@ -36,6 +36,9 @@ interface AppState {
     // Async Job Management
     activeJobs: Job[];
     creatingApps: { jobId: string; description: string; timestamp: number }[];
+
+    // Signal for RunnerScreen to navigate back after edit completes
+    lastCompletedEditAppId: number | null;
     updatingAppIds: number[];
 
     initializeListeners: () => void;
@@ -45,6 +48,7 @@ interface AppState {
     openApp: (id: number, mode?: 'run' | 'edit') => void;
     closeApp: (id: number) => void;
     minimizeApp: () => void;
+    clearLastCompletedEdit: () => void;
     createApp: (description: string) => Promise<boolean>;
     updateAppWithAI: (app: GeneratedApp, instructions: string, selectedContext?: string) => Promise<boolean>;
     deleteApp: (id: number) => Promise<void>;
@@ -60,6 +64,7 @@ interface AppState {
     setSharedContent: (content: AppState['sharedContent']) => void;
     clearSharedContent: () => void;
     _processCompletedJob: (job: Job) => Promise<void>;
+    _processFailedJob: (job: Job) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -75,6 +80,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     activeJobs: [],
     creatingApps: [],
     updatingAppIds: [],
+    lastCompletedEditAppId: null,
 
     initializeListeners: () => {
         // Prevent double initialization if needed, but useEffect in App usually handles strict mode
@@ -86,10 +92,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             // Check for newly completed jobs to process results
             jobs.forEach(job => {
-                const wasCompleted = currentJobs.find(j => j.id === job.id)?.status === 'completed';
+                const previousJob = currentJobs.find(j => j.id === job.id);
+                const wasCompleted = previousJob?.status === 'completed';
+                const wasFailed = previousJob?.status === 'failed';
+
                 if (job.status === 'completed' && !wasCompleted) {
                     // Process the completed job
                     get()._processCompletedJob(job);
+                } else if (job.status === 'failed' && !wasFailed) {
+                    // Process the failed job
+                    get()._processFailedJob(job);
                 }
             });
 
@@ -150,7 +162,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                     lastUpdated: Date.now(),
                     consoleLogs: '',
                     totalManaCost: job.result.creditsUsed || 0,
-                    jobId: job.id
+                    jobId: job.id,
+                    requiresBiometric: false
                 };
 
                 // Insert into DB (idempotent check inside db.insertApp)
@@ -232,12 +245,56 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                         // Mark as processed in history to prevent zombies
                         await db.markJobAsProcessed(job.id, job.action);
+
+                        // Signal RunnerScreen to exit edit mode via router
+                        set({ lastCompletedEditAppId: appId });
                     }
                 }
             }
         } catch (e) {
             console.error('[Store] Error processing completed job:', e);
             set({ error: t('errorProcessingJob') });
+        }
+    },
+
+    // Internal helper to process job failures (especially mana-related)
+    _processFailedJob: (job: Job) => {
+        console.log('[Store] Processing failed job:', job.id, 'Error:', job.error);
+
+        // Cleanup placeholders/locks
+        if (job.action === 'create') {
+            set(state => ({
+                creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
+            }));
+        } else if (job.action === 'edit' && job.payload?.appId) {
+            set(state => ({
+                updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId)
+            }));
+        }
+
+        // Check if error is mana-related
+        const isManaError = job.error?.toLowerCase().includes('insufficient credits') ||
+            job.error?.toLowerCase().includes('insufficient mana');
+
+        if (isManaError) {
+            // Show special mana depletion notification
+            set({ statusMessage: t('manaDepletedMessage') });
+
+            // Schedule push notification
+            Notifications.scheduleNotificationAsync({
+                content: {
+                    title: t('manaDepletedTitle'),
+                    body: t('manaDepletedMessage'),
+                },
+                trigger: null,
+            });
+
+            // Auto-open the mana shop
+            useManaStore.getState().openShop();
+        } else {
+            // Generic job failure
+            const errorMsg = job.action === 'create' ? t('spellFailedCreate') : t('spellFailedEdit');
+            set({ error: errorMsg });
         }
     },
 
@@ -288,6 +345,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     minimizeApp: () => {
         set({ activeAppId: null });
+    },
+
+    clearLastCompletedEdit: () => {
+        set({ lastCompletedEditAppId: null });
     },
 
     createApp: async (description: string) => {
@@ -504,6 +565,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 lastUpdated: Date.now(),
                 consoleLogs: '',
                 totalManaCost: 0,
+                requiresBiometric: false,
             };
 
             const id = await db.insertApp(newApp);
@@ -529,10 +591,35 @@ export const useAppStore = create<AppState>((set, get) => ({
             return createdApp;
         } catch (error) {
             console.error('Failed to import project:', error);
-            set({
-                error: `${t('importError')} ${error instanceof Error ? error.message : t('unknownError')}`,
-                isImporting: false
-            });
+            const errorMsg = error instanceof Error ? error.message : t('unknownError');
+
+            // Check if error is mana-related
+            const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
+                errorMsg.toLowerCase().includes('insufficient mana');
+
+            if (isManaError) {
+                set({
+                    statusMessage: t('manaDepletedMessage'),
+                    isImporting: false
+                });
+
+                // Schedule push notification
+                Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: t('manaDepletedTitle'),
+                        body: t('manaDepletedMessage'),
+                    },
+                    trigger: null,
+                });
+
+                // Auto-open the mana shop
+                useManaStore.getState().openShop();
+            } else {
+                set({
+                    error: `${t('importError')} ${errorMsg}`,
+                    isImporting: false
+                });
+            }
             return null;
         }
     },

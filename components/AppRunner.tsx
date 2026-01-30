@@ -339,9 +339,11 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         if (!app || !editPrompt.trim()) return;
         setIsEditing(true);
         try {
-            const updatedApp = await updateAppWithAI(app, editPrompt, selectionContext);
-            if (updatedApp) {
-                setApp(updatedApp);
+            const success = await updateAppWithAI(app, editPrompt, selectionContext);
+            if (success) {
+                // Reload app from database to get updated version
+                const updatedApp = await db.getAppById(app.id);
+                if (updatedApp) setApp(updatedApp);
                 setShowEditSheet(false);
                 setEditPrompt('');
             }

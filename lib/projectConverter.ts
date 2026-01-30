@@ -101,7 +101,7 @@ async function convertSourceProjectWithAI(analysis: ProjectAnalysis): Promise<st
     if (allDeps?.angular) frameworkHint = 'Angular';
 
     // Convert via AI
-    const result = await gemini.convertNodeProject(sourceCode, frameworkHint);
+    const result = await ai.convertNodeProject(sourceCode, frameworkHint);
 
     return result.text;
 }

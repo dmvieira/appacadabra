@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
 import { colors, spacing, borderRadius, typography, shadows } from '../lib/theme';
 import { useAppStore } from '../lib/store';
+// @ts-expect-error - vector-icons type mismatch in newer Expo SDK
 import { Ionicons } from '@expo/vector-icons';
 
 export const Toast = () => {

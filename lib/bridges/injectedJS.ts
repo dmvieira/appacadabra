@@ -259,13 +259,6 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
 
 
 
-  // ============= Auth/SSO Bridge =============
-  window.AppacadabraAuth = {
-    authenticate: function(reason, callbackName) {
-        console.log('[AppacadabraAuth.authenticate] reason:', reason, 'callback:', callbackName);
-        sendMessage('AUTH_AUTHENTICATE', { reason }, callbackName);
-    }
-  };
 
   // ============= Sensors Bridge =============
   window.AppacadabraSensors = {

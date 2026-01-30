@@ -129,6 +129,7 @@ async function initializeAppCheckWrapper() {
     try {
         // Activate App Check with Debug provider
         // Using the injected CI token from MainApplication.kt
+        // @ts-ignore - Class is exported as type only in d.ts, but is a value at runtime
         const provider = new ReactNativeFirebaseAppCheckProvider();
         provider.configure({
             android: {
@@ -425,7 +426,7 @@ export function listenToActiveJobs(callback: (jobs: Job[]) => void): () => void 
 
             unsubscribeFirestore = onSnapshot(q, (snapshot) => {
                 const jobs: Job[] = [];
-                snapshot.forEach(doc => {
+                snapshot.forEach((doc: any) => {
                     const data = doc.data();
                     jobs.push({
                         id: doc.id,

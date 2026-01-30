@@ -21,11 +21,12 @@ interface AppCardProps {
     onRename: () => void;
     onIconPress?: () => void;
     onShortcut?: () => void;
+    onToggleBiometric?: () => void;
     isPlaceholder?: boolean;
     isLocked?: boolean;
 }
 
-export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, onShortcut, isPlaceholder, isLocked }: AppCardProps) {
+export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, onShortcut, onToggleBiometric, isPlaceholder, isLocked }: AppCardProps) {
     const [showMenu, setShowMenu] = useState(false);
 
     // Use device locale for date formatting
@@ -54,6 +55,11 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, o
                     <Text style={styles.iconText}>
                         {app.name.slice(0, 2).toUpperCase()}
                     </Text>
+                )}
+                {app.requiresBiometric && (
+                    <View style={styles.lockBadge}>
+                        <Text style={styles.lockBadgeIcon}>🔒</Text>
+                    </View>
                 )}
             </TouchableOpacity>
 
@@ -142,6 +148,17 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, o
                             <Text style={styles.menuItemIcon}>🖼️</Text>
                             <Text style={styles.menuItemText}>{t('chooseIcon')}</Text>
                         </TouchableOpacity>
+                        {onToggleBiometric && (
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => { setShowMenu(false); onToggleBiometric(); }}
+                            >
+                                <Text style={styles.menuItemIcon}>{app.requiresBiometric ? '🔓' : '🔒'}</Text>
+                                <Text style={styles.menuItemText}>
+                                    {app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                         <View style={styles.menuDivider} />
                         <TouchableOpacity
                             style={styles.menuItem}
@@ -282,5 +299,16 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: colors.surfaceVariant,
         marginVertical: spacing.xs,
+    },
+    lockBadge: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        backgroundColor: colors.surface,
+        borderRadius: 10,
+        padding: 2,
+    },
+    lockBadgeIcon: {
+        fontSize: 12,
     },
 });

@@ -74,7 +74,19 @@ export async function handleBridgeMessage(
                 }
             } catch (e) {
                 success = false;
-                result = e instanceof Error ? e.message : 'Error';
+                const errorMsg = e instanceof Error ? e.message : 'Error';
+
+                // Check if error is mana-related
+                const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
+                    errorMsg.toLowerCase().includes('insufficient mana');
+
+                if (isManaError) {
+                    // Open mana shop
+                    useManaStore.getState().openShop();
+                    result = t('manaDepletedMessage');
+                } else {
+                    result = errorMsg;
+                }
             }
             break;
 
@@ -447,30 +459,6 @@ export async function handleBridgeMessage(
             }
             break;
 
-        // ============= Auth Handlers =============
-
-
-        case 'AUTH_AUTHENTICATE':
-            try {
-                // Check availability internally
-                const hasHardware = await LocalAuthentication.hasHardwareAsync();
-                const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-                if (!hasHardware || !isEnrolled) {
-                    throw new Error(t('biometricsNotAvailable') || 'Biometric authentication not available');
-                }
-
-                const authResult = await LocalAuthentication.authenticateAsync({
-                    promptMessage: data.reason || t('confirmIdentity'),
-                    fallbackLabel: t('usePassword'),
-                    disableDeviceFallback: false,
-                });
-                result = JSON.stringify(authResult);
-            } catch (e) {
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
 
 
 
