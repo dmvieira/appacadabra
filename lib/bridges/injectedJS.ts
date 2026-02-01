@@ -144,6 +144,10 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     getEvents: function(startMs, endMs, callbackName) {
         console.log('[AppacadabraCalendar.getEvents] start:', new Date(startMs).toISOString(), 'end:', new Date(endMs).toISOString(), 'callback:', callbackName);
         sendMessage('CALENDAR_GET_EVENTS', { startTimeMs: startMs, endTimeMs: endMs }, callbackName);
+    },
+    deleteEvent: function(eventId, callbackName) {
+        console.log('[AppacadabraCalendar.deleteEvent] eventId:', eventId, 'callback:', callbackName);
+        sendMessage('CALENDAR_DELETE_EVENT', { eventId }, callbackName);
     }
   };
 

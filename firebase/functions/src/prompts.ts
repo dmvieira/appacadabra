@@ -57,7 +57,9 @@ AppacadabraAI.generate("Hello", handleResult);
 - \`createEvent(title, desc, startMs, endMs, callback)\`
 - \`createEventWithReminder(title, desc, startMs, endMs, minutes, callback)\`
 - \`getEvents(startMs, endMs, callback)\`
-    - **Return**: JSON String of event objects \`[{id, title, startDate, endDate, allDay, location, notes}, ...]\`
+    - **Return**: JSON String of event objects \`[{id, title, startDate, endDate, allDay, location, notes, calendarId, calendarName, attendees: [{name, email, status, isCurrentUser}]}, ...]\`
+- \`deleteEvent(eventId, callback)\`
+    - **Return**: "Event deleted" (string)
 - **Return for create**: "Calendar opened" (string)
 
 🔔 NOTIFICATION (AppacadabraNotify)

@@ -123,6 +123,9 @@ export async function handleBridgeMessage(
                 const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
                 const calendarIds = calendars.map(c => c.id);
 
+                // Create lookup map for calendar names
+                const calendarMap = new Map(calendars.map(c => [c.id, c.title]));
+
                 if (calendarIds.length === 0) {
                     result = JSON.stringify([]);
                     break;
@@ -134,18 +137,37 @@ export async function handleBridgeMessage(
 
                 const events = await Calendar.getEventsAsync(calendarIds, startDate, endDate);
 
-                // Simplify result to avoid circular ref / complex objects
-                const simplifiedEvents = events.map(e => ({
-                    id: e.id,
-                    title: e.title,
-                    startDate: e.startDate,
-                    endDate: e.endDate,
-                    allDay: e.allDay,
-                    location: e.location,
-                    notes: e.notes
+                // Build detailed events with attendees
+                const detailedEvents = await Promise.all(events.map(async (e) => {
+                    // Get attendees for this event
+                    let attendees: { name?: string; email?: string; status?: string; isCurrentUser?: boolean }[] = [];
+                    try {
+                        const rawAttendees = await Calendar.getAttendeesForEventAsync(e.id);
+                        attendees = rawAttendees.map(a => ({
+                            name: a.name,
+                            email: a.email,
+                            status: a.status,
+                            isCurrentUser: a.isCurrentUser
+                        }));
+                    } catch {
+                        // Some events may not support attendees
+                    }
+
+                    return {
+                        id: e.id,
+                        title: e.title,
+                        startDate: e.startDate,
+                        endDate: e.endDate,
+                        allDay: e.allDay,
+                        location: e.location,
+                        notes: e.notes,
+                        calendarId: e.calendarId,
+                        calendarName: calendarMap.get(e.calendarId) || 'Unknown',
+                        attendees
+                    };
                 }));
 
-                result = JSON.stringify(simplifiedEvents);
+                result = JSON.stringify(detailedEvents);
             } catch (e) {
                 console.error('Calendar get events error:', e);
                 success = false;
@@ -156,6 +178,24 @@ export async function handleBridgeMessage(
         case 'CALENDAR_HAS_PERMISSION':
             const calPerm = await Calendar.getCalendarPermissionsAsync();
             result = (calPerm.status === 'granted').toString();
+            break;
+
+        case 'CALENDAR_DELETE_EVENT':
+            try {
+                const { status } = await Calendar.requestCalendarPermissionsAsync();
+                if (status !== 'granted') {
+                    success = false;
+                    result = t('accessDenied') || 'Permission denied';
+                    break;
+                }
+
+                await Calendar.deleteEventAsync(data.eventId);
+                result = 'Event deleted';
+            } catch (e) {
+                console.error('Calendar delete event error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error deleting event';
+            }
             break;
 
         case 'CALENDAR_REQUEST_PERMISSION':
