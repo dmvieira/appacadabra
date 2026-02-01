@@ -140,6 +140,10 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     createEventWithReminder: function(title, description, startTimeMs, endTimeMs, reminderMinutes, callbackName) {
         console.log('[AppacadabraCalendar.createEventWithReminder] title:', title, 'reminder:', reminderMinutes, 'min, callback:', callbackName);
         sendMessage('CALENDAR_CREATE_EVENT_REMINDER', { title, description, startTimeMs, endTimeMs, reminderMinutes }, callbackName);
+    },
+    getEvents: function(startMs, endMs, callbackName) {
+        console.log('[AppacadabraCalendar.getEvents] start:', new Date(startMs).toISOString(), 'end:', new Date(endMs).toISOString(), 'callback:', callbackName);
+        sendMessage('CALENDAR_GET_EVENTS', { startTimeMs: startMs, endTimeMs: endMs }, callbackName);
     }
   };
 

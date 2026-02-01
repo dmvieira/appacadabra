@@ -111,6 +111,48 @@ export async function handleBridgeMessage(
             }
             break;
 
+        case 'CALENDAR_GET_EVENTS':
+            try {
+                const { status } = await Calendar.requestCalendarPermissionsAsync();
+                if (status !== 'granted') {
+                    success = false;
+                    result = t('accessDenied') || 'Permission denied';
+                    break;
+                }
+
+                const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+                const calendarIds = calendars.map(c => c.id);
+
+                if (calendarIds.length === 0) {
+                    result = JSON.stringify([]);
+                    break;
+                }
+
+                // Default range: 24h if not provided
+                const startDate = data.startTimeMs ? new Date(data.startTimeMs) : new Date();
+                const endDate = data.endTimeMs ? new Date(data.endTimeMs) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+                const events = await Calendar.getEventsAsync(calendarIds, startDate, endDate);
+
+                // Simplify result to avoid circular ref / complex objects
+                const simplifiedEvents = events.map(e => ({
+                    id: e.id,
+                    title: e.title,
+                    startDate: e.startDate,
+                    endDate: e.endDate,
+                    allDay: e.allDay,
+                    location: e.location,
+                    notes: e.notes
+                }));
+
+                result = JSON.stringify(simplifiedEvents);
+            } catch (e) {
+                console.error('Calendar get events error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error reading calendar';
+            }
+            break;
+
         case 'CALENDAR_HAS_PERMISSION':
             const calPerm = await Calendar.getCalendarPermissionsAsync();
             result = (calPerm.status === 'granted').toString();
@@ -244,18 +286,18 @@ export async function handleBridgeMessage(
         // ============= Share Handlers =============
         case 'SHARE_CONTENT':
             try {
-                if (await Sharing.isAvailableAsync()) {
-                    const content = data.text || data.url || '';
-                    const tempPath = FileSystem.cacheDirectory + 'share_temp.txt';
-                    await FileSystem.writeAsStringAsync(tempPath, content);
-                    await Sharing.shareAsync(tempPath, { mimeType: 'text/plain' });
-                    result = 'Shared';
-                } else {
-                    if (data.url) {
-                        await Linking.openURL(`mailto:?body=${encodeURIComponent(data.text || '')} ${data.url}`);
-                    }
-                    result = 'Shared via fallback';
+                const { Share } = require('react-native');
+                const shareContent: { message?: string; url?: string; title?: string } = {};
+
+                if (data.text) {
+                    shareContent.message = data.text;
                 }
+                if (data.url) {
+                    shareContent.url = data.url;
+                }
+
+                const shareResult = await Share.share(shareContent);
+                result = shareResult.action === Share.sharedAction ? 'Shared' : 'Dismissed';
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';

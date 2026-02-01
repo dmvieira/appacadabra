@@ -76,7 +76,7 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "O app precisa acessar o calendário para criar eventos."
+          "calendarPermission": "O app precisa acessar o calendário para ver e criar eventos."
         }
       ],
       [

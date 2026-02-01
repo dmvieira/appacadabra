@@ -56,7 +56,9 @@ AppacadabraAI.generate("Hello", handleResult);
 📅 CALENDAR (AppacadabraCalendar)
 - \`createEvent(title, desc, startMs, endMs, callback)\`
 - \`createEventWithReminder(title, desc, startMs, endMs, minutes, callback)\`
-- **Return**: "Calendar opened" (string)
+- \`getEvents(startMs, endMs, callback)\`
+    - **Return**: JSON String of event objects \`[{id, title, startDate, endDate, allDay, location, notes}, ...]\`
+- **Return for create**: "Calendar opened" (string)
 
 🔔 NOTIFICATION (AppacadabraNotify)
 - \`showNow(title, msg, callback)\`
