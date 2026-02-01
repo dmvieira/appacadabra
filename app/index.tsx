@@ -481,6 +481,10 @@ export default function HomeScreen() {
                             <Text style={styles.menuItemText}>{t('importBackup')}</Text>
                         </TouchableOpacity>
                         <View style={styles.menuDivider} />
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowOnboarding(true); }}>
+                            <Text style={styles.menuItemIcon}>📖</Text>
+                            <Text style={styles.menuItemText}>{t('replayOnboarding')}</Text>
+                        </TouchableOpacity>
                         <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowLegal(true); }}>
                             <Text style={styles.menuItemIcon}>📜</Text>
                             <Text style={styles.menuItemText}>{t('legal')}</Text>
@@ -612,7 +616,7 @@ export default function HomeScreen() {
                                 <Text style={styles.legalText}>You can delete any app at any time, revoke permissions, or uninstall the application to remove all local data.</Text>
 
                                 <Text style={styles.legalHeading}>6. Contact</Text>
-                                <Text style={styles.legalText}>For questions: privacy@appacadabra.com</Text>
+                                <Text style={styles.legalText}>For questions: support@appacadabra.ai</Text>
                             </>
                         ) : (
                             <>
@@ -636,7 +640,7 @@ export default function HomeScreen() {
                                 <Text style={styles.legalText}>The service is provided "as is". We do not guarantee that generated code will be perfect or secure.</Text>
 
                                 <Text style={styles.legalHeading}>6. Contact</Text>
-                                <Text style={styles.legalText}>For questions: legal@appacadabra.com</Text>
+                                <Text style={styles.legalText}>For questions: support@appacadabra.ai</Text>
                             </>
                         )}
                     </ScrollView>

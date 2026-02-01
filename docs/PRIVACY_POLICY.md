@@ -68,4 +68,4 @@ We may update this policy periodically. We will notify you of significant change
 ## 9. Contact
 
 For questions about this policy, contact us:
-- Email: privacy@appacadabra.com
+- Email: support@appacadabra.ai

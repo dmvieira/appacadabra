@@ -77,4 +77,4 @@ These terms are governed by Brazilian law.
 ## 11. Contact
 
 For questions about these terms:
-- Email: legal@appacadabra.com
+- Email: support@appacadabra.ai

@@ -141,6 +141,6 @@ Appacadabra follows the same principle: empowering users to create their own con
 ## Contact for Questions
 
 Developer: [Your Name]
-Email: developer@appacadabra.com
+Email: support@appacadabra.ai
 
 We are happy to provide additional technical documentation, source code excerpts, or video demonstrations upon request.

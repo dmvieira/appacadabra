@@ -14,6 +14,13 @@ import * as Sharing from 'expo-sharing';
 import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
+import {
+    initialize as initHealthConnect,
+    requestPermission,
+    readRecords,
+    getSdkStatus,
+    SdkAvailabilityStatus
+} from 'react-native-health-connect';
 import { WebView } from 'react-native-webview';
 import * as ai from '../api/ai';
 
@@ -617,6 +624,139 @@ export async function handleBridgeMessage(
             Gyroscope.removeAllListeners();
             Magnetometer.removeAllListeners();
             result = 'All sensors stopped';
+            break;
+
+        // ============= Health Connect Handlers =============
+        case 'HEALTH_INITIALIZE':
+            try {
+                const sdkStatus = await getSdkStatus();
+                if (sdkStatus !== SdkAvailabilityStatus.SDK_AVAILABLE) {
+                    success = false;
+                    result = 'Health Connect not available. Please install the Health Connect app.';
+                    break;
+                }
+
+                const initialized = await initHealthConnect();
+                if (!initialized) {
+                    success = false;
+                    result = 'Failed to initialize Health Connect';
+                    break;
+                }
+
+                // Request permissions for common health data
+                await requestPermission([
+                    { accessType: 'read', recordType: 'Steps' },
+                    { accessType: 'read', recordType: 'HeartRate' },
+                    { accessType: 'read', recordType: 'ExerciseSession' },
+                    { accessType: 'read', recordType: 'SleepSession' },
+                    { accessType: 'read', recordType: 'Distance' },
+                    { accessType: 'read', recordType: 'ActiveCaloriesBurned' }
+                ]);
+                result = 'Health Connect initialized';
+            } catch (e) {
+                console.error('Health init error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Health Connect error';
+            }
+            break;
+
+        case 'HEALTH_GET_STEPS':
+            try {
+                const stepsStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const stepsEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
+
+                const stepsRecords = await readRecords('Steps', {
+                    timeRangeFilter: {
+                        operator: 'between',
+                        startTime: stepsStart.toISOString(),
+                        endTime: stepsEnd.toISOString()
+                    }
+                });
+
+                const totalSteps = stepsRecords.records.reduce((sum: number, r: { count?: number }) => sum + (r.count || 0), 0);
+                result = JSON.stringify({ totalSteps, records: stepsRecords.records });
+            } catch (e) {
+                console.error('Health get steps error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error reading steps';
+            }
+            break;
+
+        case 'HEALTH_GET_HEART_RATE':
+            try {
+                const hrStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const hrEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
+
+                const hrRecords = await readRecords('HeartRate', {
+                    timeRangeFilter: {
+                        operator: 'between',
+                        startTime: hrStart.toISOString(),
+                        endTime: hrEnd.toISOString()
+                    }
+                });
+
+                result = JSON.stringify(hrRecords.records);
+            } catch (e) {
+                console.error('Health get heart rate error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error reading heart rate';
+            }
+            break;
+
+        case 'HEALTH_GET_EXERCISE':
+            try {
+                const exStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const exEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
+
+                const exRecords = await readRecords('ExerciseSession', {
+                    timeRangeFilter: {
+                        operator: 'between',
+                        startTime: exStart.toISOString(),
+                        endTime: exEnd.toISOString()
+                    }
+                });
+
+                // Map exercise type numbers to readable names
+                const exerciseTypeNames: Record<number, string> = {
+                    0: 'OTHER', 8: 'BIKING', 16: 'DANCING', 32: 'GOLF', 36: 'HIIT',
+                    37: 'HIKING', 44: 'MARTIAL_ARTS', 48: 'PILATES', 51: 'ROCK_CLIMBING',
+                    53: 'ROWING', 56: 'RUNNING', 64: 'SOCCER', 68: 'STAIR_CLIMBING',
+                    70: 'STRENGTH_TRAINING', 71: 'STRETCHING', 73: 'SWIMMING',
+                    76: 'TENNIS', 79: 'WALKING', 81: 'WEIGHTLIFTING', 83: 'YOGA'
+                };
+
+                const enrichedRecords = exRecords.records.map((r: { exerciseType?: number; startTime?: string; endTime?: string; title?: string; notes?: string }) => ({
+                    ...r,
+                    exerciseTypeName: exerciseTypeNames[r.exerciseType || 0] || 'OTHER'
+                }));
+
+                result = JSON.stringify(enrichedRecords);
+            } catch (e) {
+                console.error('Health get exercise error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error reading exercise';
+            }
+            break;
+
+        case 'HEALTH_GET_SLEEP':
+            try {
+                const sleepStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const sleepEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
+
+                const sleepRecords = await readRecords('SleepSession', {
+                    timeRangeFilter: {
+                        operator: 'between',
+                        startTime: sleepStart.toISOString(),
+                        endTime: sleepEnd.toISOString()
+                    }
+                });
+
+                result = JSON.stringify(sleepRecords.records);
+            } catch (e) {
+                console.error('Health get sleep error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error reading sleep';
+            }
             break;
 
         default:

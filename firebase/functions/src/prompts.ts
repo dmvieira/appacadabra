@@ -67,6 +67,20 @@ AppacadabraAI.generate("Hello", handleResult);
 - \`scheduleNotification(title, msg, minutes, callback)\`
 - **Return**: Notification ID (string)
 
+💪 HEALTH (AppacadabraHealth)
+- \`initialize(callback)\` - MUST call first to request permissions
+    - **Return**: "Health Connect initialized" or error message
+- \`getSteps(startMs, endMs, callback)\` - Get step count
+    - **Return**: JSON \`{totalSteps: number, records: [{startTime, endTime, count}]}\`
+- \`getHeartRate(startMs, endMs, callback)\` - Get heart rate
+    - **Return**: JSON \`[{startTime, endTime, samples: [{time, beatsPerMinute}]}]\`
+- \`getExercise(startMs, endMs, callback)\` - Get exercise sessions
+    - **Return**: JSON \`[{startTime, endTime, exerciseTypeName: "RUNNING"|"WALKING"|"YOGA"|"SWIMMING"|"BIKING"|"STRENGTH_TRAINING"|..., title?, notes?}]\`
+    - \`title\`: User-defined name for the workout (e.g., "Morning Run")
+    - \`notes\`: User notes about the session
+- \`getSleep(startMs, endMs, callback)\` - Get sleep sessions
+    - **Return**: JSON \`[{startTime, endTime, title?, notes?, stages?: [{startTime, endTime, stage: "AWAKE"|"LIGHT"|"DEEP"|"REM"}]}]\`
+
 🤖 AI (AppacadabraAI)
 - **Fluent Builder API**: Chain methods to configure generation.
 - **Methods**:

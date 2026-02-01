@@ -12,7 +12,7 @@ export interface InjectedTranslations {
   errorProcessingFile: string;
 }
 
-export function getInjectedJavaScript(appId: number, translations?: InjectedTranslations): string {
+export function getInjectedJavaScript(appId: number, translations?: InjectedTranslations, isEditMode?: boolean): string {
   // Default English translations
   const t = translations || {
     sharedTextInserted: 'Shared text inserted!',
@@ -26,6 +26,9 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
 
   return `
 (function() {
+  // Edit mode flag - prevents localStorage persistence
+  const __IS_EDIT_MODE__ = ${isEditMode ? 'true' : 'false'};
+  
   // Store pending callbacks
   const pendingCallbacks = {};
   let callbackId = 0;
@@ -181,6 +184,30 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     }
   };
 
+  // ============= Health Connect Bridge =============
+  window.AppacadabraHealth = {
+    initialize: function(callbackName) {
+        console.log('[AppacadabraHealth.initialize] callback:', callbackName);
+        sendMessage('HEALTH_INITIALIZE', {}, callbackName);
+    },
+    getSteps: function(startMs, endMs, callbackName) {
+        console.log('[AppacadabraHealth.getSteps] start:', new Date(startMs).toISOString(), 'end:', new Date(endMs).toISOString(), 'callback:', callbackName);
+        sendMessage('HEALTH_GET_STEPS', { startTimeMs: startMs, endTimeMs: endMs }, callbackName);
+    },
+    getHeartRate: function(startMs, endMs, callbackName) {
+        console.log('[AppacadabraHealth.getHeartRate] start:', new Date(startMs).toISOString(), 'end:', new Date(endMs).toISOString(), 'callback:', callbackName);
+        sendMessage('HEALTH_GET_HEART_RATE', { startTimeMs: startMs, endTimeMs: endMs }, callbackName);
+    },
+    getExercise: function(startMs, endMs, callbackName) {
+        console.log('[AppacadabraHealth.getExercise] start:', new Date(startMs).toISOString(), 'end:', new Date(endMs).toISOString(), 'callback:', callbackName);
+        sendMessage('HEALTH_GET_EXERCISE', { startTimeMs: startMs, endTimeMs: endMs }, callbackName);
+    },
+    getSleep: function(startMs, endMs, callbackName) {
+        console.log('[AppacadabraHealth.getSleep] start:', new Date(startMs).toISOString(), 'end:', new Date(endMs).toISOString(), 'callback:', callbackName);
+        sendMessage('HEALTH_GET_SLEEP', { startTimeMs: startMs, endTimeMs: endMs }, callbackName);
+    }
+  };
+
   // ============= Contacts Bridge =============
   // Helper to validate and sanitize contact object
   function validateContactObj(contact, isUpdate) {
@@ -301,23 +328,29 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   };
   
   // Storage (localStorage wrapper to sync with native DB)
-  // We hook into localStorage.setItem to persist data
+  // We hook into localStorage.setItem to persist data (only in runner mode, not edit mode)
   const originalSetItem = localStorage.setItem;
   localStorage.setItem = function(key, value) {
       originalSetItem.apply(this, arguments);
-      sendMessage('STORAGE_SET', { key, value });
+      if (!__IS_EDIT_MODE__) {
+          sendMessage('STORAGE_SET', { key, value });
+      }
   };
 
   const originalRemoveItem = localStorage.removeItem;
   localStorage.removeItem = function(key) {
       originalRemoveItem.apply(this, arguments);
-      sendMessage('STORAGE_REMOVE', { key });
+      if (!__IS_EDIT_MODE__) {
+          sendMessage('STORAGE_REMOVE', { key });
+      }
   };
 
   const originalClear = localStorage.clear;
   localStorage.clear = function() {
       originalClear.apply(this, arguments);
-      sendMessage('STORAGE_CLEAR', {});
+      if (!__IS_EDIT_MODE__) {
+          sendMessage('STORAGE_CLEAR', {});
+      }
   };
   
   // Selection mode for editing

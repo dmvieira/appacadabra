@@ -619,6 +619,7 @@ export default function RunnerScreen() {
     // Restore version
     const handleRestoreVersion = async (version: AppVersion) => {
         if (!app) return;
+        console.log('Restoring version:', version.version);
 
         await db.updateApp({
             ...app,
@@ -627,6 +628,8 @@ export default function RunnerScreen() {
             lastUpdated: Date.now(),
         });
 
+        // Sync store to prevent auto-revert
+        await useAppStore.getState().loadApps();
         const updatedApp = await db.getAppById(app.id);
         if (updatedApp) {
             setApp(updatedApp);
@@ -715,7 +718,7 @@ export default function RunnerScreen() {
     // Combine scripts
     const storageScript = createStorageRestoreScript(savedStorage);
     const combinedScript = `
-        ${getInjectedJavaScript(app.id, getWebViewTranslations())}
+        ${getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode)}
         ${storageScript}
     `;
 
@@ -731,18 +734,25 @@ export default function RunnerScreen() {
 
             {/* Header - Only in Edit Mode */}
             {isEditMode && (
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Text style={styles.backText}>← {t('yourApps')}</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.title} numberOfLines={1}>{app.name}</Text>
-                    <Text style={styles.version}>v{app.currentVersion}</Text>
-                </View>
+                <>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                            <Text style={styles.backText}>← {t('yourApps')}</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.title} numberOfLines={1}>{app.name}</Text>
+                        <Text style={styles.version}>v{app.currentVersion}</Text>
+                    </View>
+                    <View style={{ backgroundColor: colors.surfaceVariant, paddingVertical: spacing.xs, alignItems: 'center' }}>
+                        <Text style={{ color: colors.onSurfaceVariant, fontSize: 12 }}>
+                            ⚠️ {t('editModeNoSave')}
+                        </Text>
+                    </View>
+                </>
             )}
 
             {/* WebView */}
             <WebView
-                key={`${app.id}-${app.currentVersion}`}
+                key={`${app.id}-${app.currentVersion}-${isEditMode}`}
                 ref={webViewRef}
                 source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }} // baseUrl required for some permissions
                 style={styles.webview}

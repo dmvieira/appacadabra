@@ -97,6 +97,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);
     const [networkLogs, setNetworkLogs] = useState<{ url: string; method: string; status?: number; time: number }[]>([]);
+    const [webViewKey, setWebViewKey] = useState(0); // Key to force WebView recreation
 
     // Load app data
     useEffect(() => {
@@ -115,6 +116,13 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         }
         loadApp();
     }, [appId]);
+
+    // Force reload WebView when app code changes (e.g. from version restore)
+    useEffect(() => {
+        if (app?.code) {
+            setWebViewKey(prev => prev + 1);
+        }
+    }, [app?.code]);
 
     // Inject saved localStorage when WebView loads
     const handleLoadEnd = useCallback(() => {
@@ -439,7 +447,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     `;
 
     const storageScript = createStorageRestoreScript(savedStorage);
-    const combinedScript = `${getInjectedJavaScript(app.id, getWebViewTranslations())} ${storageScript}`;
+    const combinedScript = `${getInjectedJavaScript(app.id, getWebViewTranslations(), mode === 'edit')} ${storageScript}`;
 
     return (
         <SafeAreaView
@@ -458,8 +466,18 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 </View>
             )}
 
+            {/* Edit Mode Warning Banner */}
+            {mode === 'edit' && (
+                <View style={[styles.header, { backgroundColor: colors.surfaceVariant, paddingVertical: spacing.xs, minHeight: 0 }]}>
+                    <Text style={{ color: colors.onSurfaceVariant, fontSize: 12, textAlign: 'center', width: '100%' }}>
+                        ⚠️ {t('editModeNoSave')}
+                    </Text>
+                </View>
+            )}
+
             {/* WebView */}
             <WebView
+                key={webViewKey} // Force recreation on code change
                 ref={webViewRef}
                 source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }}
                 style={styles.webview}
@@ -510,29 +528,31 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             />
 
             {/* Toolbar */}
-            {mode === 'edit' && (
-                <View style={styles.toolbar}>
-                    <TouchableOpacity
-                        style={[styles.toolbarBtn, isSelectingElement && { backgroundColor: colors.primaryContainer }]}
-                        onPress={handleEditPress}
-                    >
-                        <Text style={styles.toolbarIcon}>{isSelectingElement ? '❌' : '✏️'}</Text>
-                        <Text style={styles.toolbarText}>{isSelectingElement ? t('cancel') : t('edit')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => { setManualCode(app.code); setShowManualEditor(true); }}>
-                        <Text style={styles.toolbarIcon}>💻</Text>
-                        <Text style={styles.toolbarText}>{t('code')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => { loadVersions(); setShowHistory(true); }}>
-                        <Text style={styles.toolbarIcon}>📜</Text>
-                        <Text style={styles.toolbarText}>{t('history')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => setShowDebugPanel(true)}>
-                        <Text style={styles.toolbarIcon}>🐛</Text>
-                        <Text style={styles.toolbarText}>{t('debug')}</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+            {
+                mode === 'edit' && (
+                    <View style={styles.toolbar}>
+                        <TouchableOpacity
+                            style={[styles.toolbarBtn, isSelectingElement && { backgroundColor: colors.primaryContainer }]}
+                            onPress={handleEditPress}
+                        >
+                            <Text style={styles.toolbarIcon}>{isSelectingElement ? '❌' : '✏️'}</Text>
+                            <Text style={styles.toolbarText}>{isSelectingElement ? t('cancel') : t('edit')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => { setManualCode(app.code); setShowManualEditor(true); }}>
+                            <Text style={styles.toolbarIcon}>💻</Text>
+                            <Text style={styles.toolbarText}>{t('code')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => { loadVersions(); setShowHistory(true); }}>
+                            <Text style={styles.toolbarIcon}>📜</Text>
+                            <Text style={styles.toolbarText}>{t('history')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => setShowDebugPanel(true)}>
+                            <Text style={styles.toolbarIcon}>🐛</Text>
+                            <Text style={styles.toolbarText}>{t('debug')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                )
+            }
 
             {/* Edit Sheet */}
             <Modal visible={showEditSheet} transparent animationType="slide">
@@ -635,7 +655,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 </View>
             </Modal>
 
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 

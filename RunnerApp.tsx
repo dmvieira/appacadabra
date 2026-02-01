@@ -234,7 +234,7 @@ function RunnerContent({ appId }: Props) {
 
     const storageScript = createStorageRestoreScript(savedStorage);
     const combinedScript = `
-        ${getInjectedJavaScript(app.id, getWebViewTranslations())}
+        ${getInjectedJavaScript(app.id, getWebViewTranslations(), false)}
         ${storageScript}
     `;
 

@@ -103,6 +103,17 @@
           "locationAlwaysAndWhenInUsePermission": "O app precisa acessar sua localização para apps que usam GPS."
         }
       ],
+      "expo-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 26
+          }
+        }
+      ],
       "./plugins/withAppacadabraNative"
     ]
   }
