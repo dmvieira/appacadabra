@@ -19,6 +19,7 @@ interface AppCardProps {
     onEdit: () => void;
     onDelete: () => void;
     onRename: () => void;
+    onShare?: () => void;
     onIconPress?: () => void;
     onShortcut?: () => void;
     onToggleBiometric?: () => void;
@@ -26,7 +27,7 @@ interface AppCardProps {
     isLocked?: boolean;
 }
 
-export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, onShortcut, onToggleBiometric, isPlaceholder, isLocked }: AppCardProps) {
+export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIconPress, onShortcut, onToggleBiometric, isPlaceholder, isLocked }: AppCardProps) {
     const [showMenu, setShowMenu] = useState(false);
 
     // Use device locale for date formatting
@@ -56,7 +57,7 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, o
                         {app.name.slice(0, 2).toUpperCase()}
                     </Text>
                 )}
-                {app.requiresBiometric && (
+                {!!app.requiresBiometric && (
                     <View style={styles.lockBadge}>
                         <Text style={styles.lockBadgeIcon}>🔒</Text>
                     </View>
@@ -141,6 +142,15 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onIconPress, o
                             <Text style={styles.menuItemIcon}>📝</Text>
                             <Text style={styles.menuItemText}>{t('rename')}</Text>
                         </TouchableOpacity>
+                        {onShare && (
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => { setShowMenu(false); onShare(); }}
+                            >
+                                <Text style={styles.menuItemIcon}>📤</Text>
+                                <Text style={styles.menuItemText}>{t('shareSpell')}</Text>
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             style={styles.menuItem}
                             onPress={() => { setShowMenu(false); if (onIconPress) onIconPress(); }}

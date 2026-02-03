@@ -49,10 +49,23 @@ export async function convertProject(zipUri: string): Promise<ConversionResult> 
         return { success: true, html, name };
 
     } catch (error) {
-        console.error('Project conversion error:', error);
+        let errorMessage = error instanceof Error ? error.message : t('conversionErrorUnknown');
+
+        // Detect JSZip invalid file error
+        if (errorMessage.includes("Can't find end of central directory") ||
+            errorMessage.includes("is this a zip file") ||
+            errorMessage.includes("corrupted")) {
+            console.warn('[ProjectConverter] Invalid ZIP file detected (User Error)');
+            errorMessage = `${t('invalidZipFile')}\n${t('projectFormatHint')}`;
+        }
+
+        if (!errorMessage.includes(t('invalidZipFile'))) {
+            console.error('Project conversion error:', error);
+        }
+
         return {
             success: false,
-            error: error instanceof Error ? error.message : t('conversionErrorUnknown')
+            error: errorMessage
         };
     }
 }

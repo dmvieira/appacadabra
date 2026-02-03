@@ -18,6 +18,7 @@ interface AppState {
     isImporting: boolean;
     error: string | null;
     statusMessage: string | null;
+    pendingImportUrl: string | null; // For confirming imports in UI context
 
     // Window Management (Multitasking)
     runningInstances: { id: number; mode: 'run' | 'edit' }[];
@@ -55,12 +56,13 @@ interface AppState {
     renameApp: (id: number, newName: string) => Promise<void>;
     updateAppIcon: (id: number, iconPath: string) => Promise<void>;
     updateAppCode: (id: number, code: string, instruction?: string) => Promise<void>;
-    exportBackup: (includeStorage?: boolean) => Promise<void>;
+    exportBackup: () => Promise<void>;
     importBackup: (uri?: string) => Promise<void>;
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
     clearStatusMessage: () => void;
     setStatusMessage: (message: string) => void;
+    setPendingImportUrl: (url: string | null) => void;
     setSharedContent: (content: AppState['sharedContent']) => void;
     clearSharedContent: () => void;
     _processCompletedJob: (job: Job) => Promise<void>;
@@ -74,6 +76,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     isImporting: false,
     error: null,
     statusMessage: null,
+    pendingImportUrl: null,
     runningInstances: [],
     activeAppId: null,
     sharedContent: null,
@@ -169,6 +172,14 @@ export const useAppStore = create<AppState>((set, get) => ({
                 // Insert into DB (idempotent check inside db.insertApp)
                 const id = await db.insertApp(newApp);
 
+                // Create a dedicated notification channel for this spell (Android)
+                await Notifications.setNotificationChannelAsync(`spell-${id}`, {
+                    name: appName,
+                    importance: Notifications.AndroidImportance.HIGH,
+                    vibrationPattern: [0, 250, 250, 250],
+                    lightColor: '#FF9500',
+                });
+
                 // Publish shortcut
                 const app = await db.getAppById(id);
                 if (app) {
@@ -194,7 +205,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                             title: t('appReadyTitle', { name: appName }),
                             body: t('appReadyBody', { name: appName }),
                             data: { appId: id },
-                        },
+                            channelId: `spell-${id}`, // Use spell-specific channel
+                        } as any, // channelId is valid on Android but types may lag
                         trigger: null, // Show immediately
                     });
 
@@ -239,7 +251,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                                 title: t('appUpdatedTitle', { name: app.name }),
                                 body: t('appUpdatedBody', { name: app.name }),
                                 data: { appId: appId },
-                            },
+                                channelId: `spell-${appId}`, // Use spell-specific channel
+                            } as any, // channelId is valid on Android but types may lag
                             trigger: null,
                         });
 
@@ -423,6 +436,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     deleteApp: async (id: number) => {
         try {
+            // Remove the notification channel for this spell (Android)
+            await Notifications.deleteNotificationChannelAsync(`spell-${id}`);
+
             await db.deleteApp(id);
             set(state => ({
                 apps: state.apps.filter(a => a.id !== id),
@@ -511,10 +527,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
-    exportBackup: async (includeStorage: boolean = true) => {
+    exportBackup: async () => {
         try {
             set({ statusMessage: t('exporting') });
-            const success = await backup.exportBackup(includeStorage);
+            const success = await backup.exportBackup();
             if (success) {
                 set({ statusMessage: t('backupExportedSuccess') });
             } else {
@@ -528,6 +544,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     importBackup: async (uri?: string) => {
         try {
+            if (get().isImporting) {
+                console.log('Store: Import already in progress, skipping.');
+                return;
+            }
             set({ isImporting: true, statusMessage: t('importing') });
             const result = await backup.importBackup(uri);
             set({ statusMessage: result.message, isImporting: false });
@@ -627,6 +647,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     clearError: () => set({ error: null }),
     clearStatusMessage: () => set({ statusMessage: null }),
     setStatusMessage: (message: string) => set({ statusMessage: message }),
+    setPendingImportUrl: (url: string | null) => {
+        const current = get().pendingImportUrl;
+        if (url === current) return; // Dedupe
+        // Also check if we just processed this URL to prevent loops if OS re-sends
+        // But we don't have 'lastImportedUrl' in store. 
+        // Let's just dedupe the pending state.
+        set({ pendingImportUrl: url });
+    },
     setSharedContent: (content: AppState['sharedContent']) => set({ sharedContent: content }),
     clearSharedContent: () => set({ sharedContent: null }),
 }));

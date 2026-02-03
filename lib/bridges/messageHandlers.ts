@@ -29,6 +29,77 @@ import { createCallbackScript } from './injectedJS';
 import { t } from '../i18n';
 import { useManaStore } from '../manaStore';
 
+// ============= Notification Limits (Native Protection) =============
+const MAX_NOTIFICATIONS_PER_SPELL = 10;
+
+/**
+ * Get all scheduled notifications for a specific spell
+ */
+async function getSpellNotifications(appId: number | null) {
+    if (!appId) return [];
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    return all.filter(n =>
+        (n.content as any).channelId === `spell-${appId}` ||
+        n.content.data?.appId === appId
+    );
+}
+
+/**
+ * Cancel duplicate notification (same title + body) for a spell
+ */
+async function cancelDuplicateNotification(appId: number | null, title: string, body: string) {
+    const existing = await getSpellNotifications(appId);
+    for (const n of existing) {
+        if (n.content.title === title && n.content.body === body) {
+            await Notifications.cancelScheduledNotificationAsync(n.identifier);
+            return true; // Cancelled a duplicate
+        }
+    }
+    return false;
+}
+
+/**
+ * Check if spell has reached notification limit
+ */
+async function isAtNotificationLimit(appId: number | null): Promise<boolean> {
+    const existing = await getSpellNotifications(appId);
+    return existing.length >= MAX_NOTIFICATIONS_PER_SPELL;
+}
+
+/**
+ * Helper to ensure Health Connect is ready and has permissions
+ */
+async function ensureHealthAccess(): Promise<{ ok: boolean; error?: string }> {
+    try {
+        const sdkStatus = await getSdkStatus();
+        if (sdkStatus !== SdkAvailabilityStatus.SDK_AVAILABLE) {
+            return { ok: false, error: 'Health Connect not available on this device' };
+        }
+
+        const initialized = await initHealthConnect();
+        if (!initialized) {
+            return { ok: false, error: 'Failed to initialize Health Connect' };
+        }
+
+        const permissions = [
+            { accessType: 'read', recordType: 'Steps' },
+            { accessType: 'read', recordType: 'HeartRate' },
+            { accessType: 'read', recordType: 'ExerciseSession' },
+            { accessType: 'read', recordType: 'SleepSession' },
+            { accessType: 'read', recordType: 'Distance' },
+            { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
+        ];
+
+        // This will show UI only if permissions are missing
+        await requestPermission(permissions as any);
+
+        return { ok: true };
+    } catch (e: any) {
+        console.error('Health Access Error:', e);
+        return { ok: false, error: e.message || 'Health Access Error' };
+    }
+}
+
 export interface HandlerContext {
     webViewRef: React.RefObject<WebView>;
     appId: number | null;
@@ -222,11 +293,22 @@ export async function handleBridgeMessage(
                     }
                 }
 
+                // Cancel existing if id provided (upsert behavior)
+                if (data.id) {
+                    try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
+                }
+
                 await Notifications.scheduleNotificationAsync({
-                    content: { title: data.title, body: data.message },
+                    identifier: data.id || undefined,
+                    content: {
+                        title: data.title,
+                        body: data.message,
+                        data: { appId: ctx.appId },
+                        channelId: `spell-${ctx.appId}`,
+                    } as any,
                     trigger: null,
                 });
-                result = 'Notification sent';
+                result = data.id || 'Notification sent';
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -245,8 +327,29 @@ export async function handleBridgeMessage(
                     }
                 }
 
+                // Native protection: auto-dedupe identical title+body
+                await cancelDuplicateNotification(ctx.appId, data.title, data.message);
+
+                // Native protection: check limit (unless upsert with existing id)
+                if (!data.id && await isAtNotificationLimit(ctx.appId)) {
+                    success = false;
+                    result = `Limit reached (max ${MAX_NOTIFICATIONS_PER_SPELL} notifications per spell)`;
+                    break;
+                }
+
+                // Cancel existing if id provided (upsert behavior)
+                if (data.id) {
+                    try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
+                }
+
                 const identifier = await Notifications.scheduleNotificationAsync({
-                    content: { title: data.title, body: data.message },
+                    identifier: data.id || undefined,
+                    content: {
+                        title: data.title,
+                        body: data.message,
+                        data: { appId: ctx.appId },
+                        channelId: `spell-${ctx.appId}`,
+                    } as any,
                     trigger: {
                         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
                         seconds: data.delayMinutes * 60,
@@ -271,8 +374,29 @@ export async function handleBridgeMessage(
                     }
                 }
 
+                // Native protection: auto-dedupe identical title+body
+                await cancelDuplicateNotification(ctx.appId, data.title, data.message);
+
+                // Native protection: check limit (unless upsert with existing id)
+                if (!data.id && await isAtNotificationLimit(ctx.appId)) {
+                    success = false;
+                    result = `Limit reached (max ${MAX_NOTIFICATIONS_PER_SPELL} notifications per spell)`;
+                    break;
+                }
+
+                // Cancel existing if id provided (upsert behavior)
+                if (data.id) {
+                    try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
+                }
+
                 const identifierAt = await Notifications.scheduleNotificationAsync({
-                    content: { title: data.title, body: data.message },
+                    identifier: data.id || undefined,
+                    content: {
+                        title: data.title,
+                        body: data.message,
+                        data: { appId: ctx.appId },
+                        channelId: `spell-${ctx.appId}`,
+                    } as any,
                     trigger: {
                         type: Notifications.SchedulableTriggerInputTypes.DATE,
                         date: new Date(data.timeMs),
@@ -292,6 +416,56 @@ export async function handleBridgeMessage(
 
         case 'NOTIFY_REQUEST_PERMISSION':
             await Notifications.requestPermissionsAsync();
+            break;
+
+        case 'NOTIFY_GET_SCHEDULED':
+            // Get all scheduled notifications for this spell
+            try {
+                const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+                // Filter to only this spell's notifications (by channelId or data.appId)
+                const spellNotifications = allScheduled.filter(n =>
+                    (n.content as any).channelId === `spell-${ctx.appId}` ||
+                    n.content.data?.appId === ctx.appId
+                );
+                result = JSON.stringify(spellNotifications.map(n => ({
+                    id: n.identifier,
+                    title: n.content.title,
+                    body: n.content.body,
+                    trigger: n.trigger
+                })));
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
+        case 'NOTIFY_CANCEL':
+            // Cancel a specific notification by ID
+            try {
+                await Notifications.cancelScheduledNotificationAsync(data.id);
+                result = 'Notification cancelled';
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
+        case 'NOTIFY_CANCEL_ALL':
+            // Cancel all notifications for this spell
+            try {
+                const allToCancel = await Notifications.getAllScheduledNotificationsAsync();
+                const spellToCancel = allToCancel.filter(n =>
+                    (n.content as any).channelId === `spell-${ctx.appId}` ||
+                    n.content.data?.appId === ctx.appId
+                );
+                for (const n of spellToCancel) {
+                    await Notifications.cancelScheduledNotificationAsync(n.identifier);
+                }
+                result = `Cancelled ${spellToCancel.length} notifications`;
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
             break;
 
         // ============= Storage Handlers =============
@@ -628,40 +802,23 @@ export async function handleBridgeMessage(
 
         // ============= Health Connect Handlers =============
         case 'HEALTH_INITIALIZE':
-            try {
-                const sdkStatus = await getSdkStatus();
-                if (sdkStatus !== SdkAvailabilityStatus.SDK_AVAILABLE) {
-                    success = false;
-                    result = 'Health Connect not available. Please install the Health Connect app.';
-                    break;
-                }
-
-                const initialized = await initHealthConnect();
-                if (!initialized) {
-                    success = false;
-                    result = 'Failed to initialize Health Connect';
-                    break;
-                }
-
-                // Request permissions for common health data
-                await requestPermission([
-                    { accessType: 'read', recordType: 'Steps' },
-                    { accessType: 'read', recordType: 'HeartRate' },
-                    { accessType: 'read', recordType: 'ExerciseSession' },
-                    { accessType: 'read', recordType: 'SleepSession' },
-                    { accessType: 'read', recordType: 'Distance' },
-                    { accessType: 'read', recordType: 'ActiveCaloriesBurned' }
-                ]);
+            const initAccess = await ensureHealthAccess();
+            if (initAccess.ok) {
                 result = 'Health Connect initialized';
-            } catch (e) {
-                console.error('Health init error:', e);
+            } else {
                 success = false;
-                result = e instanceof Error ? e.message : 'Health Connect error';
+                result = initAccess.error || 'Failed to initialize';
             }
             break;
 
         case 'HEALTH_GET_STEPS':
             try {
+                const access = await ensureHealthAccess();
+                if (!access.ok) {
+                    success = false;
+                    result = access.error || 'Health Access Denied';
+                    break;
+                }
                 const stepsStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 24 * 60 * 60 * 1000);
                 const stepsEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
 
@@ -684,6 +841,12 @@ export async function handleBridgeMessage(
 
         case 'HEALTH_GET_HEART_RATE':
             try {
+                const access = await ensureHealthAccess();
+                if (!access.ok) {
+                    success = false;
+                    result = access.error || 'Health Access Denied';
+                    break;
+                }
                 const hrStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 24 * 60 * 60 * 1000);
                 const hrEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
 
@@ -705,8 +868,24 @@ export async function handleBridgeMessage(
 
         case 'HEALTH_GET_EXERCISE':
             try {
+                const access = await ensureHealthAccess();
+                if (!access.ok) {
+                    success = false;
+                    result = access.error || 'Health Access Denied';
+                    break;
+                }
                 const exStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
                 const exEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
+
+                // Debug logs injected to WebView
+                const debugLog = (msg: string) => {
+                    if (ctx.webViewRef.current) {
+                        ctx.webViewRef.current.injectJavaScript(`console.log("[Native Health] ${msg}"); true;`);
+                    }
+                    console.log(`[Health] ${msg}`);
+                };
+
+                debugLog(`Querying ExerciseSession from ${exStart.toISOString()} to ${exEnd.toISOString()}`);
 
                 const exRecords = await readRecords('ExerciseSession', {
                     timeRangeFilter: {
@@ -716,10 +895,15 @@ export async function handleBridgeMessage(
                     }
                 });
 
+                debugLog(`Found ${exRecords.records.length} records.`);
+                if (exRecords.records.length > 0) {
+                    debugLog(`First record: ${JSON.stringify(exRecords.records[0])}`);
+                }
+
                 // Map exercise type numbers to readable names
                 const exerciseTypeNames: Record<number, string> = {
                     0: 'OTHER', 8: 'BIKING', 16: 'DANCING', 32: 'GOLF', 36: 'HIIT',
-                    37: 'HIKING', 44: 'MARTIAL_ARTS', 48: 'PILATES', 51: 'ROCK_CLIMBING',
+                    37: 'HIKING', 44: 'MARTIAL_ARTS', 46: 'ROWING', 48: 'PILATES', 51: 'ROCK_CLIMBING',
                     53: 'ROWING', 56: 'RUNNING', 64: 'SOCCER', 68: 'STAIR_CLIMBING',
                     70: 'STRENGTH_TRAINING', 71: 'STRETCHING', 73: 'SWIMMING',
                     76: 'TENNIS', 79: 'WALKING', 81: 'WEIGHTLIFTING', 83: 'YOGA'
@@ -740,6 +924,12 @@ export async function handleBridgeMessage(
 
         case 'HEALTH_GET_SLEEP':
             try {
+                const access = await ensureHealthAccess();
+                if (!access.ok) {
+                    success = false;
+                    result = access.error || 'Health Access Denied';
+                    break;
+                }
                 const sleepStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
                 const sleepEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
 

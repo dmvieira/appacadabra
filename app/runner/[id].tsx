@@ -320,7 +320,7 @@ export default function RunnerScreen() {
 
     const { updateAppCode, updateAppWithAI, sharedContent, clearSharedContent } = useAppStore();
 
-    console.log('RunnerScreen: RENDER id:', id, 'isFocused:', isFocused, 'appId:', app?.id);
+    console.log('RunnerScreen: RENDER id:', id, 'isFocused:', isFocused, 'appId:', app?.id || '(loading)');
 
     // CHECK DROP-BOX FILE on mount and on focus
     const checkDropBox = useCallback(async () => {

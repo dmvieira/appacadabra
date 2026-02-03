@@ -159,9 +159,29 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         console.log('[AppacadabraNotify.showNow] title:', title, 'message:', message, 'callback:', callbackName);
         sendMessage('NOTIFY_SHOW_NOW', { title, message }, callbackName);
     },
+    schedule: function(title, message, delayMinutes, callbackName, id) {
+        console.log('[AppacadabraNotify.schedule] title:', title, 'delay:', delayMinutes, 'min, id:', id, 'callback:', callbackName);
+        sendMessage('NOTIFY_SCHEDULE', { title, message, delayMinutes, id }, callbackName);
+    },
+    scheduleAt: function(title, message, timeMs, callbackName, id) {
+        console.log('[AppacadabraNotify.scheduleAt] title:', title, 'time:', new Date(timeMs).toISOString(), 'id:', id, 'callback:', callbackName);
+        sendMessage('NOTIFY_SCHEDULE_AT', { title, message, timeMs, id }, callbackName);
+    },
+    getScheduled: function(callbackName) {
+        console.log('[AppacadabraNotify.getScheduled] callback:', callbackName);
+        sendMessage('NOTIFY_GET_SCHEDULED', {}, callbackName);
+    },
+    cancel: function(id, callbackName) {
+        console.log('[AppacadabraNotify.cancel] id:', id, 'callback:', callbackName);
+        sendMessage('NOTIFY_CANCEL', { id }, callbackName);
+    },
+    cancelAll: function(callbackName) {
+        console.log('[AppacadabraNotify.cancelAll] callback:', callbackName);
+        sendMessage('NOTIFY_CANCEL_ALL', {}, callbackName);
+    },
+    // Legacy alias
     scheduleNotification: function(title, message, delayMinutes, callbackName) {
-        console.log('[AppacadabraNotify.scheduleNotification] title:', title, 'delay:', delayMinutes, 'min, callback:', callbackName);
-        sendMessage('NOTIFY_SCHEDULE', { title, message, delayMinutes }, callbackName);
+        this.schedule(title, message, delayMinutes, callbackName);
     }
   };
 
@@ -329,10 +349,12 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   
   // Storage (localStorage wrapper to sync with native DB)
   // We hook into localStorage.setItem to persist data (only in runner mode, not edit mode)
+  // Storage (localStorage wrapper to sync with native DB)
+  // We hook into localStorage.setItem to persist data (only in runner mode, not edit mode)
   const originalSetItem = localStorage.setItem;
   localStorage.setItem = function(key, value) {
       originalSetItem.apply(this, arguments);
-      if (!__IS_EDIT_MODE__) {
+      if (!__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
           sendMessage('STORAGE_SET', { key, value });
       }
   };
@@ -340,7 +362,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   const originalRemoveItem = localStorage.removeItem;
   localStorage.removeItem = function(key) {
       originalRemoveItem.apply(this, arguments);
-      if (!__IS_EDIT_MODE__) {
+      if (!__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
           sendMessage('STORAGE_REMOVE', { key });
       }
   };
@@ -348,7 +370,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   const originalClear = localStorage.clear;
   localStorage.clear = function() {
       originalClear.apply(this, arguments);
-      if (!__IS_EDIT_MODE__) {
+      if (!__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
           sendMessage('STORAGE_CLEAR', {});
       }
   };
@@ -544,7 +566,7 @@ export function createCallbackScript(callbackName: string, success: boolean, dat
 
 // Generate script to restore localStorage from saved database items
 export function createStorageRestoreScript(items: { key: string; value: string }[]): string {
-  if (items.length === 0) return '';
+  // if (items.length === 0) return ''; // Removed to ensure clearing happens even if empty
 
   const restoreStatements = items.map(item => {
     const escapedKey = item.key.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -555,8 +577,14 @@ export function createStorageRestoreScript(items: { key: string; value: string }
   return `
     (function() {
         // Restore saved localStorage data
-        ${restoreStatements}
-        console.log('Restored ${items.length} localStorage items');
+        window.__APPACADABRA_RESTORING__ = true;
+        try {
+            localStorage.clear(); // Ensure clean state preventing leaks between apps
+            ${restoreStatements}
+            console.log('Restored ${items.length} localStorage items');
+        } finally {
+            window.__APPACADABRA_RESTORING__ = false;
+        }
     })();
     `;
 }

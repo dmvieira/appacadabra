@@ -1,14 +1,22 @@
 import * as SQLite from 'expo-sqlite';
 import { GeneratedApp, AppVersion, AppStorage, NewGeneratedApp, NewAppVersion } from './types';
 
-let db: SQLite.SQLiteDatabase | null = null;
+let dbInstance: SQLite.SQLiteDatabase | null = null;
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-    if (db) return db;
+    if (dbInstance) return dbInstance;
 
-    db = await SQLite.openDatabaseAsync('appacadabra.db');
-    await initDatabase(db);
-    return db;
+    if (!dbPromise) {
+        dbPromise = (async () => {
+            const db = await SQLite.openDatabaseAsync('appacadabra.db');
+            await initDatabase(db);
+            dbInstance = db;
+            return db;
+        })();
+    }
+
+    return dbPromise;
 }
 
 async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
@@ -48,24 +56,23 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_app_storage_appId_key ON app_storage(appId, key);
   `);
 
-    // Migration: Attempt to add totalManaCost column if it doesn't exist
-    try {
-        await database.execAsync('ALTER TABLE generated_apps ADD COLUMN totalManaCost REAL NOT NULL DEFAULT 0');
-    } catch (e) {
-        // Ignore error if column already exists
-        console.log('[DB] Migration error (totalManaCost):', e);
-    }
+    // Helper to safely add column if missing
+    const addColumn = async (table: string, column: string, definition: string) => {
+        try {
+            const columns = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+            if (!columns.some(c => c.name === column)) {
+                await database.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+                console.log(`[DB] Added column ${table}.${column}`);
+            }
+        } catch (e) {
+            console.log(`[DB] Migration error (${table}.${column}):`, e);
+        }
+    };
 
-    // Migration: Attempt to add jobId columns
-    try {
-        await database.execAsync('ALTER TABLE generated_apps ADD COLUMN jobId TEXT');
-    } catch (e) {
-        console.log('[DB] Migration error (generated_apps.jobId):', e);
-    }
-
-    try {
-        await database.execAsync('ALTER TABLE app_versions ADD COLUMN jobId TEXT');
-    } catch (e) { }
+    await addColumn('generated_apps', 'totalManaCost', 'REAL NOT NULL DEFAULT 0');
+    await addColumn('generated_apps', 'jobId', 'TEXT');
+    await addColumn('generated_apps', 'requiresBiometric', 'INTEGER NOT NULL DEFAULT 0');
+    await addColumn('app_versions', 'jobId', 'TEXT');
 
     await database.execAsync(`
     CREATE TABLE IF NOT EXISTS processed_jobs (
@@ -75,24 +82,16 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     );
   `);
 
-    // Migration: Backfill processed_jobs from existing apps/versions to prevent processing old jobs
+    // Migration: Backfill processed_jobs
     try {
         await database.execAsync(`
       INSERT OR IGNORE INTO processed_jobs (jobId, action, timestamp)
       SELECT jobId, 'create', lastUpdated FROM generated_apps WHERE jobId IS NOT NULL;
-
       INSERT OR IGNORE INTO processed_jobs (jobId, action, timestamp)
       SELECT jobId, 'edit', createdAt FROM app_versions WHERE jobId IS NOT NULL;
     `);
     } catch (e) {
-        console.log('[DB] Migration error (backfill processed_jobs):', e);
-    }
-
-    // Migration: Add requiresBiometric column
-    try {
-        await database.execAsync('ALTER TABLE generated_apps ADD COLUMN requiresBiometric INTEGER NOT NULL DEFAULT 0');
-    } catch (e) {
-        console.log('[DB] Migration error (requiresBiometric):', e);
+        // Ignore backfill errors
     }
 }
 
@@ -132,12 +131,55 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         }
     }
 
-    const result = await database.runAsync(
-        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, jobId, requiresBiometric)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.totalManaCost || 0, app.jobId || null, app.requiresBiometric ? 1 : 0]
-    );
-    return result.lastInsertRowId;
+    const bindings = [
+        String(app.name ?? 'Untitled'),
+        String(app.code ?? ''),
+        Number(app.currentVersion ?? 1),
+        app.iconPath ? String(app.iconPath) : "", // Empty string instead of null
+        Number(app.lastUpdated ?? Date.now()),
+        String(app.consoleLogs ?? ''),
+        Number(app.totalManaCost ?? 0),
+        app.jobId ? String(app.jobId) : "", // Empty string instead of null to test NPE fix
+        app.requiresBiometric ? 1 : 0
+    ];
+
+    console.log('[DB] Inserting App. Bindings:', JSON.stringify(bindings));
+
+    try {
+        const result = await database.runAsync(
+            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, jobId, requiresBiometric)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            bindings as any[]
+        );
+        return result.lastInsertRowId;
+    } catch (e) {
+        console.error('[DB] Insert App Failed (Primary). Attempting Fallback...', e);
+
+        // Fallback: Try inserting without jobId (in case migration failed)
+        try {
+            const fallbackBindings = [
+                String(app.name ?? 'Untitled'),
+                String(app.code ?? ''),
+                Number(app.currentVersion ?? 1),
+                app.iconPath ? String(app.iconPath) : "",
+                Number(app.lastUpdated ?? Date.now()),
+                String(app.consoleLogs ?? ''),
+                Number(app.totalManaCost ?? 0),
+                app.requiresBiometric ? 1 : 0
+            ];
+
+            const result = await database.runAsync(
+                `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, requiresBiometric)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                fallbackBindings as any[]
+            );
+            console.log('[DB] Fallback Insert Success!');
+            return result.lastInsertRowId;
+        } catch (fallbackError) {
+            console.error('[DB] Fallback Insert Also Failed:', fallbackError);
+            throw e; // Throw original error
+        }
+    }
 }
 
 export async function updateApp(app: GeneratedApp): Promise<void> {
@@ -145,7 +187,18 @@ export async function updateApp(app: GeneratedApp): Promise<void> {
     await database.runAsync(
         `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?, jobId = ?, requiresBiometric = ?
      WHERE id = ?`,
-        [app.name, app.code, app.currentVersion, app.iconPath, app.lastUpdated, app.consoleLogs, app.totalManaCost, app.jobId || null, app.requiresBiometric ? 1 : 0, app.id]
+        [
+            app.name ?? 'Untitled',
+            app.code ?? '',
+            app.currentVersion ?? 1,
+            app.iconPath ?? "",
+            app.lastUpdated ?? Date.now(),
+            app.consoleLogs ?? '',
+            app.totalManaCost ?? 0,
+            app.jobId ?? "",
+            app.requiresBiometric ? 1 : 0,
+            app.id
+        ]
     );
 }
 
@@ -213,7 +266,15 @@ export async function insertVersion(version: NewAppVersion): Promise<number> {
     const result = await database.runAsync(
         `INSERT INTO app_versions (appId, version, code, instruction, selectedContext, createdAt, jobId)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [version.appId, version.version, version.code, version.instruction, version.selectedContext, version.createdAt, version.jobId || null]
+        [
+            version.appId,
+            version.version ?? 1,
+            version.code ?? '',
+            version.instruction ?? "",
+            version.selectedContext ?? "",
+            version.createdAt ?? Date.now(),
+            version.jobId ?? ""
+        ]
     );
     return result.lastInsertRowId;
 }

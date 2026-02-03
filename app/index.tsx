@@ -32,6 +32,7 @@ import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
 import { t } from '../lib/i18n';
 import { ManaDisplay } from '../components/ManaDisplay';
 import * as db from '../lib/database/db';
+import { exportSingleApp } from '../lib/backup';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -44,8 +45,10 @@ export default function HomeScreen() {
         isImporting,
         error,
         statusMessage,
-        creatingApps, // Add this
-        updatingAppIds, // Add this
+        creatingApps,
+        updatingAppIds,
+        pendingImportUrl, // Get pending import from store
+        setPendingImportUrl, // To clear it
         loadApps,
         openApp,
         createApp,
@@ -101,6 +104,12 @@ export default function HomeScreen() {
         setShowOnboarding(false);
     };
 
+    // Track last alert interaction to prevent ghost clicks or stacking
+    const lastAlertInteraction = React.useRef(0);
+
+    // (Old effect removed - now handled by /import_spell route)
+
+
     useFocusEffect(
         useCallback(() => {
             loadApps();
@@ -122,13 +131,9 @@ export default function HomeScreen() {
         }
     }, [statusMessage]);
 
-    // Show error Alert to user
-    useEffect(() => {
-        if (error) {
-            alert(error);
-            clearError();
-        }
-    }, [error, clearError]);
+    // Error handling is managed globally by Toast in _layout.tsx
+    // (Old alert effect removed to prevent conflict)
+
 
     const handleCreateApp = async (description: string) => {
         // Async: createApp returns true if job submitted
@@ -299,28 +304,19 @@ export default function HomeScreen() {
 
     const handleExport = () => {
         setShowMenu(false);
-        Alert.alert(
-            t('exportOptionsTitle'),
-            '',
-            [
-                {
-                    text: t('exportWithData'),
-                    onPress: async () => {
-                        await exportBackup(true);
-                    },
-                },
-                {
-                    text: t('exportWithoutData'),
-                    onPress: async () => {
-                        await exportBackup(false);
-                    },
-                },
-                {
-                    text: t('cancel'),
-                    style: 'cancel',
-                },
-            ]
-        );
+        // Direct call - global backup always includes data
+        exportBackup();
+    };
+
+    const handleShareApp = async (app: GeneratedApp) => {
+        // Share single app - clean export (no data)
+        setStatusMessage(t('exporting'));
+        const success = await exportSingleApp(app.id);
+        if (success) {
+            setStatusMessage(t('backupExportedSuccess'));
+        } else {
+            setStatusMessage(t('errorExportingBackup'));
+        }
     };
 
     const handleImport = () => {
@@ -331,7 +327,7 @@ export default function HomeScreen() {
         setTimeout(async () => {
             try {
                 const result = await DocumentPicker.getDocumentAsync({
-                    type: ['application/json', 'text/plain'],
+                    type: ['*/*'], // Allow .spell and .json
                     copyToCacheDirectory: true,
                 });
 
@@ -442,6 +438,7 @@ export default function HomeScreen() {
                                 onIconPress={() => setIconTarget(item)}
                                 onShortcut={() => handleCreateShortcut(item)}
                                 onToggleBiometric={() => handleToggleBiometric(item)}
+                                onShare={() => handleShareApp(item)}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
                             />
@@ -557,12 +554,7 @@ export default function HomeScreen() {
                 </View>
             </Modal>
 
-            {/* Error Snackbar */}
-            {error && (
-                <TouchableOpacity style={styles.errorBar} onPress={clearError}>
-                    <Text style={styles.errorText}>{error}</Text>
-                </TouchableOpacity>
-            )}
+
 
             {/* Legal Modal */}
             <Modal visible={showLegal} animationType="slide">

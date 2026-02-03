@@ -63,23 +63,28 @@ AppacadabraAI.generate("Hello", handleResult);
 - **Return for create**: "Calendar opened" (string)
 
 🔔 NOTIFICATION (AppacadabraNotify)
-- \`showNow(title, msg, callback)\`
-- \`scheduleNotification(title, msg, minutes, callback)\`
-- **Return**: Notification ID (string)
+- \`showNow(title, msg, callback)\` - Show notification immediately
+- \`schedule(title, msg, delayMinutes, callback, id?)\` - Schedule after delay
+- \`scheduleAt(title, msg, timeMs, callback, id?)\` - Schedule at specific time
+- \`getScheduled(callback)\` - List pending notifications
+    - **Return**: JSON \`[{id, title, body, trigger: { type: "timeInterval"|"date", value: number }}]\` (value is seconds for interval, or timestamp for date)
+- \`cancel(id, callback)\` - Cancel notification by ID
+- \`cancelAll(callback)\` - Cancel all notifications from this app
+- **Return for schedule**: Notification ID (string)
+- **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app. Use \`id\` to update existing notification.
 
 💪 HEALTH (AppacadabraHealth)
-- \`initialize(callback)\` - MUST call first to request permissions
+- \`initialize(callback)\` - Check/Request permissions (Optional: automatically called by getters if needed)
     - **Return**: "Health Connect initialized" or error message
 - \`getSteps(startMs, endMs, callback)\` - Get step count
-    - **Return**: JSON \`{totalSteps: number, records: [{startTime, endTime, count}]}\`
+    - **Return**: JSON Object: \`{ "totalSteps": number, "records": [{ "startTime": "ISO String", "endTime": "ISO String", "count": number }] }\`
 - \`getHeartRate(startMs, endMs, callback)\` - Get heart rate
-    - **Return**: JSON \`[{startTime, endTime, samples: [{time, beatsPerMinute}]}]\`
-- \`getExercise(startMs, endMs, callback)\` - Get exercise sessions
-    - **Return**: JSON \`[{startTime, endTime, exerciseTypeName: "RUNNING"|"WALKING"|"YOGA"|"SWIMMING"|"BIKING"|"STRENGTH_TRAINING"|..., title?, notes?}]\`
-    - \`title\`: User-defined name for the workout (e.g., "Morning Run")
-    - \`notes\`: User notes about the session
+    - **Return**: JSON Array of objects: \`[{ "startTime": "ISO String", "endTime": "ISO String", "samples": [{ "time": "ISO String", "beatsPerMinute": number }] }]\`
+- \`getExercise(startMs, endMs, callback)\` - Get exercise sessions. **Crucial**:
+    - **Return**: JSON Array: \`[{ "startTime": "ISO", "endTime": "ISO", "exerciseTypeName": "ROWING"|"WALKING"|..., "exerciseType": number, "title": string|null (often null! use typeName), "notes": string|null, "metadata": {...} }]\`
+    - **Note**: \`title\` is often null. Display \`exerciseTypeName\` as label. \`exerciseType\` 46 is "ROWING". Ignore internal metadata.
 - \`getSleep(startMs, endMs, callback)\` - Get sleep sessions
-    - **Return**: JSON \`[{startTime, endTime, title?, notes?, stages?: [{startTime, endTime, stage: "AWAKE"|"LIGHT"|"DEEP"|"REM"}]}]\`
+    - **Return**: JSON Array of objects: \`[{ "startTime": "ISO String", "endTime": "ISO String", "title": string|null, "notes": string|null, "stages": [{ "startTime": "ISO String", "endTime": "ISO String", "stage": "AWAKE"|"LIGHT"|"DEEP"|"REM"|"UNKNOWN" }] }]\`
 
 🤖 AI (AppacadabraAI)
 - **Fluent Builder API**: Chain methods to configure generation.
@@ -100,6 +105,7 @@ AppacadabraAI.generate("Hello", handleResult);
 
 📤 SHARE (AppacadabraShare)
 - \`share(text, url, callback)\`
+- \`shareFile(base64, mimeType, filename, callback)\`
 - **Return**: "Shared" (string)
 
 📇 CONTACTS (AppacadabraContacts): prefer search/update

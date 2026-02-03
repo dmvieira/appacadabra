@@ -47,6 +47,7 @@ const translations = {
 
         // Menu
         importProject: 'Import Scroll 📜',
+        shareSpell: 'Share Spell',
         exportBackup: 'Export Spell Stack',
         importBackup: 'Import Spell Stack',
         exportOptionsTitle: 'Export Options',
@@ -80,7 +81,7 @@ const translations = {
 
         // Import
         importing: 'Summoning...',
-        processing: 'Processing scroll...',
+        processing: 'Processing Spell...',
 
         // Editor/Runner
         console: 'Console',
@@ -125,6 +126,8 @@ const translations = {
         projectImported: 'Imported Project',
         projectTooLarge: 'Project too large for automatic conversion (limit: ~200KB of source code)',
         noIndexFound: 'No index.html found in build folder',
+        invalidZipFile: 'Invalid file format. Please import a .zip file.',
+        projectFormatHint: 'Supported: .zip containing index.html (web) or package.json (node)',
 
         // Content Filter
         contentBlockedReason: 'Content not allowed. Please describe a legitimate and useful spell.',
@@ -173,9 +176,9 @@ const translations = {
         manaDepletedTitle: '⚡ Out of Mana!',
         manaDepletedMessage: 'Your Mana is depleted. Recharge to continue using AI features.',
         manaShopTitle: 'Mana Shop',
-        manaPackage1: '100 Mana (Meditation)',
-        manaPackage2: '500 Mana (Short Rest)',
-        manaPackage3: '1200 Mana (Long Rest)',
+        manaPackage1: '10 Mana (Meditation)',
+        manaPackage2: '50 Mana (Short Rest)',
+        manaPackage3: '120 Mana (Long Rest)',
         purchaseSuccess: 'Purchase successful! +%{amount} Mana',
         purchaseCancelled: 'Purchase cancelled',
         watchAd: 'Watch Ad (+1 Mana)',
@@ -187,6 +190,8 @@ const translations = {
 
         // Backup
         exportBackupDialog: 'Export Backup',
+        importSpell: 'Import Spell?',
+        importSpellConfirm: 'Do you want to import this shared spell?',
         importCancelled: 'Import cancelled',
         invalidBackupFile: 'Invalid backup file',
         appsImportedSuccess: 'spells imported successfully!',
@@ -278,6 +283,7 @@ const translations = {
 
         // Menu
         importProject: 'Importar Pergaminho 📜',
+        shareSpell: 'Compartilhar Feitiço',
         exportBackup: 'Exportar Feitiços',
         importBackup: 'Importar Feitiços',
         exportOptionsTitle: 'Opções de Exportação',
@@ -311,7 +317,7 @@ const translations = {
 
         // Import
         importing: 'Invocando...',
-        processing: 'Processando pergaminho...',
+        processing: 'Processando Feitiço...',
 
         // Legal tabs (content is in English only)
         legalTitle: 'Legal',
@@ -361,6 +367,8 @@ const translations = {
         projectImported: 'Projeto Importado',
         projectTooLarge: 'Projeto muito grande para conversão automática (limite: ~200KB de código fonte)',
         noIndexFound: 'Nenhum index.html encontrado na pasta de build',
+        invalidZipFile: 'Formato inválido. Por favor, importe um arquivo .zip.',
+        projectFormatHint: 'Suportado: .zip contendo index.html (web) ou package.json (node)',
 
         // Content Filter
         contentBlockedReason: 'Conteúdo não permitido. Por favor, descreva um feitiço legítimo e útil.',
@@ -409,9 +417,9 @@ const translations = {
         manaDepletedTitle: '⚡ Mana Acabou!',
         manaDepletedMessage: 'Sua Mana acabou. Recarregue para continuar usando recursos de IA.',
         manaShopTitle: 'Loja de Mana',
-        manaPackage1: '100 Mana (Meditação)',
-        manaPackage2: '500 Mana (Descanso Curto)',
-        manaPackage3: '1200 Mana (Descanso Longo)',
+        manaPackage1: '10 Mana (Meditação)',
+        manaPackage2: '50 Mana (Descanso Curto)',
+        manaPackage3: '120 Mana (Descanso Longo)',
         purchaseSuccess: 'Compra com sucesso! +%{amount} Mana',
         purchaseCancelled: 'Compra cancelada',
         watchAd: 'Ver Anúncio (+1 Mana)',
@@ -423,6 +431,8 @@ const translations = {
 
         // Backup
         exportBackupDialog: 'Exportar Backup',
+        importSpell: 'Importar Feitiço?',
+        importSpellConfirm: 'Deseja importar este feitiço compartilhado?',
         importCancelled: 'Importação cancelada',
         invalidBackupFile: 'Arquivo de backup inválido',
         appsImportedSuccess: 'feitiços importados com sucesso!',
@@ -501,6 +511,7 @@ const translations = {
         save: 'Guardar',
         close: 'Cerrar',
         importProject: 'Importar Pergamino 📜',
+        shareSpell: 'Compartir Hechizo',
         exportBackup: 'Exportar Hechizos',
         importBackup: 'Importar Hechizos',
         legal: 'Legal',
@@ -519,7 +530,7 @@ const translations = {
         renameTitle: 'Renombrar Hechizo',
         renamePlaceholder: 'Nuevo nombre',
         importing: 'Invocando...',
-        processing: 'Procesando pergamino...',
+        processing: 'Procesando Hechizo...',
         // Legal - uses EN fallback
         contentBlocked: 'Contenido no permitido. Por favor, describe un hechizo legítimo y útil.',
         console: 'Consola',
@@ -538,6 +549,8 @@ const translations = {
         projectImported: 'Proyecto Importado',
         projectTooLarge: 'Proyecto demasiado grande para conversión (límite: ~200KB)',
         noIndexFound: 'No se encontró index.html en build',
+        invalidZipFile: 'Formato inválido. Por favor, importe un archivo .zip.',
+        projectFormatHint: 'Soportado: .zip con index.html (web) o package.json (node)',
 
         // Content
         contentBlockedReason: 'Contenido no permitido. Describe un hechizo legítimo.',
@@ -584,9 +597,9 @@ const translations = {
         manaDepletedTitle: '⚡ ¡Sin Mana!',
         manaDepletedMessage: 'Tu Mana se agotó. Recarga para seguir usando funciones de IA.',
         manaShopTitle: 'Tienda de Mana',
-        manaPackage1: '100 Mana (Meditación)',
-        manaPackage2: '500 Mana (Descanso Corto)',
-        manaPackage3: '1200 Mana (Descanso Largo)',
+        manaPackage1: '10 Mana (Meditación)',
+        manaPackage2: '50 Mana (Descanso Corto)',
+        manaPackage3: '120 Mana (Descanso Largo)',
         purchaseSuccess: '¡Compra exitosa! +%{amount} Mana',
         purchaseCancelled: 'Compra cancelada',
         watchAd: 'Ver Anuncio (+1 Mana)',
@@ -677,6 +690,7 @@ const translations = {
         save: 'Enregistrer',
         close: 'Fermer',
         importProject: 'Importer Parchemin 📜',
+        shareSpell: 'Partager Sort',
         exportBackup: 'Exporter Grimoire',
         importBackup: 'Importer Grimoire',
         legal: 'Légal',
@@ -714,6 +728,8 @@ const translations = {
         projectImported: 'Projet Importé',
         projectTooLarge: 'Projet trop volumineux (limite ~200KB)',
         noIndexFound: 'Aucun index.html dans build',
+        invalidZipFile: 'Format invalide. Veuillez importer un fichier .zip.',
+        projectFormatHint: 'Supporté : .zip contenant index.html (web) ou package.json (node)',
 
         // Content
         contentBlockedReason: 'Contenu non autorisé.',
@@ -760,9 +776,9 @@ const translations = {
         manaDepletedTitle: '⚡ Plus de Mana !',
         manaDepletedMessage: 'Votre Mana est épuisé. Rechargez pour continuer à utiliser les fonctions IA.',
         manaShopTitle: 'Boutique Mana',
-        manaPackage1: '100 Mana (Méditation)',
-        manaPackage2: '500 Mana (Repos Court)',
-        manaPackage3: '1200 Mana (Repos Long)',
+        manaPackage1: '10 Mana (Méditation)',
+        manaPackage2: '50 Mana (Repos Court)',
+        manaPackage3: '120 Mana (Repos Long)',
         purchaseSuccess: 'Achat réussi ! +%{amount} Mana',
         purchaseCancelled: 'Achat annulé',
         watchAd: 'Regarder Pub (+1 Mana)',
@@ -773,7 +789,10 @@ const translations = {
         watchingAd: 'Regarder Pub...',
 
         // Backup
+        // Backup
         exportBackupDialog: 'Exporter Sauvegarde',
+        importSpell: 'Importer Sort ?',
+        importSpellConfirm: 'Voulez-vous importer ce sort partagé ?',
         importCancelled: 'Annulé',
         invalidBackupFile: 'Fichier invalide',
         appsImportedSuccess: 'sorts importés!',

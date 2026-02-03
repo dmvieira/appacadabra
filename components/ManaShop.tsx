@@ -70,7 +70,7 @@ export function ManaShop() {
 
                         <Text style={styles.sectionTitle}>{t('buyMana')}</Text>
 
-                        <TouchableOpacity style={styles.packageCard} onPress={() => handlePurchase(100)}>
+                        <TouchableOpacity style={styles.packageCard} onPress={() => handlePurchase(10)}>
                             <View>
                                 <Text style={styles.packageTitle}>{t('manaPackage1')}</Text>
                                 <Text style={styles.packageSub}>$0.99</Text>
@@ -78,23 +78,23 @@ export function ManaShop() {
                             <Text style={styles.buyBtn}>$0.99</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={[styles.packageCard, styles.popularCard]} onPress={() => handlePurchase(500)}>
+                        <TouchableOpacity style={[styles.packageCard, styles.popularCard]} onPress={() => handlePurchase(50)}>
                             <View>
                                 <Text style={styles.packageTitle}>{t('manaPackage2')}</Text>
-                                <Text style={styles.packageSub}>$3.99</Text>
+                                <Text style={styles.packageSub}>$4.99</Text>
                             </View>
                             <View style={styles.badge}>
                                 <Text style={styles.badgeText}>POPULAR</Text>
                             </View>
-                            <Text style={styles.buyBtn}>$3.99</Text>
+                            <Text style={styles.buyBtn}>$4.99</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.packageCard} onPress={() => handlePurchase(1200)}>
+                        <TouchableOpacity style={styles.packageCard} onPress={() => handlePurchase(120)}>
                             <View>
                                 <Text style={styles.packageTitle}>{t('manaPackage3')}</Text>
-                                <Text style={styles.packageSub}>$9.99</Text>
+                                <Text style={styles.packageSub}>$10.99</Text>
                             </View>
-                            <Text style={styles.buyBtn}>$9.99</Text>
+                            <Text style={styles.buyBtn}>$10.99</Text>
                         </TouchableOpacity>
 
                         <Text style={styles.sectionTitle}>{t('freeMana')}</Text>
