@@ -18,6 +18,7 @@ import {
     initialize as initHealthConnect,
     requestPermission,
     readRecords,
+    getGrantedPermissions,
     getSdkStatus,
     SdkAvailabilityStatus
 } from 'react-native-health-connect';
@@ -66,38 +67,60 @@ async function isAtNotificationLimit(appId: number | null): Promise<boolean> {
     return existing.length >= MAX_NOTIFICATIONS_PER_SPELL;
 }
 
-/**
- * Helper to ensure Health Connect is ready and has permissions
- */
+// Singleton promise to prevent parallel permission requests
+let healthInitPromise: Promise<{ ok: boolean; error?: string }> | null = null;
+
+// Helper to ensure Health Connect is ready and has permissions
 async function ensureHealthAccess(): Promise<{ ok: boolean; error?: string }> {
-    try {
-        const sdkStatus = await getSdkStatus();
-        if (sdkStatus !== SdkAvailabilityStatus.SDK_AVAILABLE) {
-            return { ok: false, error: 'Health Connect not available on this device' };
-        }
-
-        const initialized = await initHealthConnect();
-        if (!initialized) {
-            return { ok: false, error: 'Failed to initialize Health Connect' };
-        }
-
-        const permissions = [
-            { accessType: 'read', recordType: 'Steps' },
-            { accessType: 'read', recordType: 'HeartRate' },
-            { accessType: 'read', recordType: 'ExerciseSession' },
-            { accessType: 'read', recordType: 'SleepSession' },
-            { accessType: 'read', recordType: 'Distance' },
-            { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
-        ];
-
-        // This will show UI only if permissions are missing
-        await requestPermission(permissions as any);
-
-        return { ok: true };
-    } catch (e: any) {
-        console.error('Health Access Error:', e);
-        return { ok: false, error: e.message || 'Health Access Error' };
+    if (healthInitPromise) {
+        return healthInitPromise;
     }
+
+    healthInitPromise = (async () => {
+        try {
+            const sdkStatus = await getSdkStatus();
+            if (sdkStatus !== SdkAvailabilityStatus.SDK_AVAILABLE) {
+                return { ok: false, error: 'Health Connect not available on this device' };
+            }
+
+            const initialized = await initHealthConnect();
+            if (!initialized) {
+                return { ok: false, error: 'Failed to initialize Health Connect' };
+            }
+
+            const permissions = [
+                { accessType: 'read', recordType: 'Steps' },
+                { accessType: 'read', recordType: 'HeartRate' },
+                { accessType: 'read', recordType: 'ExerciseSession' },
+                { accessType: 'read', recordType: 'SleepSession' },
+                { accessType: 'read', recordType: 'Distance' },
+                { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
+            ];
+
+            // Optimize: Check if we already have these permissions
+            const granted = await getGrantedPermissions();
+            const missing = permissions.filter(p =>
+                !granted.some(g => g.recordType === p.recordType && g.accessType === p.accessType)
+            );
+
+            if (missing.length > 0) {
+                // Only request if something is missing
+                await requestPermission(permissions as any);
+            }
+
+            return { ok: true };
+        } catch (e: any) {
+            console.error('Health Access Error:', e);
+            return { ok: false, error: e.message || 'Health Access Error' };
+        }
+    })();
+
+    // Clear promise after 5 seconds to allow retries later if needed
+    healthInitPromise.finally(() => {
+        setTimeout(() => { healthInitPromise = null; }, 5000);
+    });
+
+    return healthInitPromise;
 }
 
 export interface HandlerContext {
@@ -124,9 +147,21 @@ export async function handleBridgeMessage(
     let success = true;
     let result = '';
 
+    // Helper to log to both native console and WebView console
+    const debugLog = (msg: string) => {
+        const prefix = '[Native Bridge]';
+        const fullMsg = `${prefix} ${msg}`;
+        if (ctx.webViewRef.current) {
+            // Use JSON.stringify to safely escape the string for JS execution
+            ctx.webViewRef.current.injectJavaScript(`console.log(${JSON.stringify(fullMsg)}); true;`);
+        }
+        console.log(fullMsg);
+    };
+
     switch (type) {
         // ============= AI Handler =============
         case 'AI_GENERATE':
+            debugLog(`AI Generate request: ${data.prompt?.substring(0, 50)}...`);
             try {
                 // Mana check is handled by server now, but we could add a check if we fetched balance
                 // For now, let's trust the server response or generic error
@@ -171,6 +206,7 @@ export async function handleBridgeMessage(
         // ============= Calendar Handlers =============
         case 'CALENDAR_CREATE_EVENT':
         case 'CALENDAR_CREATE_EVENT_REMINDER':
+            debugLog(`Calendar create event: ${data.title}`);
             try {
                 const startMs = data.startTimeMs;
                 const endMs = data.endTimeMs;
@@ -190,6 +226,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'CALENDAR_GET_EVENTS':
+            debugLog(`Calendar get events request`);
             try {
                 const { status } = await Calendar.requestCalendarPermissionsAsync();
                 if (status !== 'granted') {
@@ -245,6 +282,7 @@ export async function handleBridgeMessage(
                     };
                 }));
 
+                debugLog(`Found ${detailedEvents.length} events`);
                 result = JSON.stringify(detailedEvents);
             } catch (e) {
                 console.error('Calendar get events error:', e);
@@ -259,6 +297,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'CALENDAR_DELETE_EVENT':
+            debugLog(`Calendar delete event: ${data.eventId}`);
             try {
                 const { status } = await Calendar.requestCalendarPermissionsAsync();
                 if (status !== 'granted') {
@@ -282,6 +321,7 @@ export async function handleBridgeMessage(
 
         // ============= Notification Handlers =============
         case 'NOTIFY_SHOW_NOW':
+            debugLog(`Notify show now: ${data.title}`);
             try {
                 const showNowPerm = await Notifications.getPermissionsAsync();
                 if (showNowPerm.status !== 'granted') {
@@ -316,6 +356,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'NOTIFY_SCHEDULE':
+            debugLog(`Notify schedule: ${data.title} in ${data.delayMinutes}min`);
             try {
                 const schedulePerm = await Notifications.getPermissionsAsync();
                 if (schedulePerm.status !== 'granted') {
@@ -363,6 +404,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'NOTIFY_SCHEDULE_AT':
+            debugLog(`Notify schedule at: ${data.title} at ${new Date(data.timeMs).toISOString()}`);
             try {
                 const scheduleAtPerm = await Notifications.getPermissionsAsync();
                 if (scheduleAtPerm.status !== 'granted') {
@@ -419,6 +461,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'NOTIFY_GET_SCHEDULED':
+            debugLog(`Notify get scheduled request`);
             // Get all scheduled notifications for this spell
             try {
                 const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
@@ -433,6 +476,7 @@ export async function handleBridgeMessage(
                     body: n.content.body,
                     trigger: n.trigger
                 })));
+                debugLog(`Found ${spellNotifications.length} scheduled notifications`);
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -440,6 +484,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'NOTIFY_CANCEL':
+            debugLog(`Notify cancel: ${data.id}`);
             // Cancel a specific notification by ID
             try {
                 await Notifications.cancelScheduledNotificationAsync(data.id);
@@ -451,6 +496,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'NOTIFY_CANCEL_ALL':
+            debugLog(`Notify cancel all`);
             // Cancel all notifications for this spell
             try {
                 const allToCancel = await Notifications.getAllScheduledNotificationsAsync();
@@ -470,18 +516,21 @@ export async function handleBridgeMessage(
 
         // ============= Storage Handlers =============
         case 'STORAGE_SET':
+            debugLog(`Storage set: ${data.key}`);
             if (ctx.appId) {
                 await db.setStorageItem(ctx.appId, data.key, data.value);
             }
             break;
 
         case 'STORAGE_REMOVE':
+            debugLog(`Storage remove: ${data.key}`);
             if (ctx.appId) {
                 await db.removeStorageItem(ctx.appId, data.key);
             }
             break;
 
         case 'STORAGE_CLEAR':
+            debugLog(`Storage clear`);
             if (ctx.appId) {
                 await db.clearStorageForApp(ctx.appId);
             }
@@ -489,10 +538,12 @@ export async function handleBridgeMessage(
 
         // ============= Location Handler =============
         case 'LOCATION_GET_CURRENT_POSITION':
+            debugLog(`Location get current position`);
             try {
                 const locStatus = await Location.requestForegroundPermissionsAsync();
                 if (locStatus.status === 'granted') {
                     const loc = await Location.getCurrentPositionAsync({});
+                    debugLog(`Location found: ${loc.coords.latitude}, ${loc.coords.longitude}`);
                     result = JSON.stringify(loc);
                 } else {
                     result = 'Permission denied';
@@ -506,6 +557,7 @@ export async function handleBridgeMessage(
 
         // ============= Share Handlers =============
         case 'SHARE_CONTENT':
+            debugLog(`Share content request`);
             try {
                 const { Share } = require('react-native');
                 const shareContent: { message?: string; url?: string; title?: string } = {};
@@ -526,6 +578,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'SHARE_FILE':
+            debugLog(`Share file: ${data.filename}`);
             try {
                 if (await Sharing.isAvailableAsync()) {
                     const tempPath = FileSystem.cacheDirectory + (data.filename || 'shared_file');
@@ -546,6 +599,7 @@ export async function handleBridgeMessage(
 
 
         case 'CONTACTS_SEARCH':
+            debugLog(`Contacts search: ${data.query}`);
             try {
                 const searchPerm = await Contacts.requestPermissionsAsync();
                 if (searchPerm.status === 'granted') {
@@ -582,6 +636,7 @@ export async function handleBridgeMessage(
 
                     // Return native structure directly (slice to 50 max)
                     // The AI prompt will be updated to understand this native schema (arrays for phones, emails, etc.)
+                    debugLog(`Found ${filtered.length} contacts`);
                     result = JSON.stringify(filtered.slice(0, 50));
                 } else {
                     success = false;
@@ -594,6 +649,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'CONTACTS_ADD':
+            debugLog(`Contacts add request`);
             try {
                 const addPerm = await Contacts.requestPermissionsAsync();
                 if (addPerm.status === 'granted') {
@@ -643,6 +699,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'CONTACTS_UPDATE':
+            debugLog(`Contacts update request: ${data.contact?.id}`);
             try {
                 const updatePerm = await Contacts.requestPermissionsAsync();
                 if (updatePerm.status === 'granted') {
@@ -727,6 +784,7 @@ export async function handleBridgeMessage(
 
         // ============= Sensors Handlers =============
         case 'SENSORS_START_ACCELEROMETER':
+            debugLog(`Sensors start accelerometer: ${data.intervalMs}ms`);
             try {
                 Accelerometer.setUpdateInterval(data.intervalMs || 100);
                 Accelerometer.addListener(sensorData => {
@@ -743,6 +801,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'SENSORS_START_GYROSCOPE':
+            debugLog(`Sensors start gyroscope: ${data.intervalMs}ms`);
             try {
                 Gyroscope.setUpdateInterval(data.intervalMs || 100);
                 Gyroscope.addListener(sensorData => {
@@ -759,6 +818,7 @@ export async function handleBridgeMessage(
             break;
 
         case 'SENSORS_START_MAGNETOMETER':
+            debugLog(`Sensors start magnetometer: ${data.intervalMs}ms`);
             try {
                 Magnetometer.setUpdateInterval(data.intervalMs || 100);
                 Magnetometer.addListener(sensorData => {
@@ -802,13 +862,9 @@ export async function handleBridgeMessage(
 
         // ============= Health Connect Handlers =============
         case 'HEALTH_INITIALIZE':
-            const initAccess = await ensureHealthAccess();
-            if (initAccess.ok) {
-                result = 'Health Connect initialized';
-            } else {
-                success = false;
-                result = initAccess.error || 'Failed to initialize';
-            }
+            // Optimization: Initialization is now lazy. We return success immediately
+            // so the web app can proceed, but we don't trigger permissions here.
+            result = 'Health Connect initialized';
             break;
 
         case 'HEALTH_GET_STEPS':
@@ -822,6 +878,8 @@ export async function handleBridgeMessage(
                 const stepsStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 24 * 60 * 60 * 1000);
                 const stepsEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
 
+                debugLog(`Querying Steps from ${stepsStart.toISOString()} to ${stepsEnd.toISOString()}`);
+
                 const stepsRecords = await readRecords('Steps', {
                     timeRangeFilter: {
                         operator: 'between',
@@ -831,6 +889,7 @@ export async function handleBridgeMessage(
                 });
 
                 const totalSteps = stepsRecords.records.reduce((sum: number, r: { count?: number }) => sum + (r.count || 0), 0);
+                debugLog(`Found total steps: ${totalSteps}`);
                 result = JSON.stringify({ totalSteps, records: stepsRecords.records });
             } catch (e) {
                 console.error('Health get steps error:', e);
@@ -850,6 +909,8 @@ export async function handleBridgeMessage(
                 const hrStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 24 * 60 * 60 * 1000);
                 const hrEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
 
+                debugLog(`Querying HeartRate from ${hrStart.toISOString()} to ${hrEnd.toISOString()}`);
+
                 const hrRecords = await readRecords('HeartRate', {
                     timeRangeFilter: {
                         operator: 'between',
@@ -858,6 +919,7 @@ export async function handleBridgeMessage(
                     }
                 });
 
+                debugLog(`Found ${hrRecords.records.length} heart rate records.`);
                 result = JSON.stringify(hrRecords.records);
             } catch (e) {
                 console.error('Health get heart rate error:', e);
@@ -876,14 +938,6 @@ export async function handleBridgeMessage(
                 }
                 const exStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
                 const exEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
-
-                // Debug logs injected to WebView
-                const debugLog = (msg: string) => {
-                    if (ctx.webViewRef.current) {
-                        ctx.webViewRef.current.injectJavaScript(`console.log("[Native Health] ${msg}"); true;`);
-                    }
-                    console.log(`[Health] ${msg}`);
-                };
 
                 debugLog(`Querying ExerciseSession from ${exStart.toISOString()} to ${exEnd.toISOString()}`);
 
@@ -933,6 +987,8 @@ export async function handleBridgeMessage(
                 const sleepStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
                 const sleepEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
 
+                debugLog(`Querying SleepSession from ${sleepStart.toISOString()} to ${sleepEnd.toISOString()}`);
+
                 const sleepRecords = await readRecords('SleepSession', {
                     timeRangeFilter: {
                         operator: 'between',
@@ -941,6 +997,7 @@ export async function handleBridgeMessage(
                     }
                 });
 
+                debugLog(`Found ${sleepRecords.records.length} sleep records.`);
                 result = JSON.stringify(sleepRecords.records);
             } catch (e) {
                 console.error('Health get sleep error:', e);

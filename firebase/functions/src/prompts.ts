@@ -74,8 +74,6 @@ AppacadabraAI.generate("Hello", handleResult);
 - **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app. Use \`id\` to update existing notification.
 
 💪 HEALTH (AppacadabraHealth)
-- \`initialize(callback)\` - Check/Request permissions (Optional: automatically called by getters if needed)
-    - **Return**: "Health Connect initialized" or error message
 - \`getSteps(startMs, endMs, callback)\` - Get step count
     - **Return**: JSON Object: \`{ "totalSteps": number, "records": [{ "startTime": "ISO String", "endTime": "ISO String", "count": number }] }\`
 - \`getHeartRate(startMs, endMs, callback)\` - Get heart rate
