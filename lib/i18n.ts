@@ -187,6 +187,11 @@ const translations = {
         purchaseConfirmMessage: 'Buy %{amount} Mana?',
         currentBalance: 'Current Balance',
         watchingAd: 'Watching Ad...',
+        loading: 'Loading',
+        adLoading: 'Ad is loading, please wait...',
+        adNotReady: 'Ad Not Ready',
+        adLoadingRetry: 'Please wait while we load an ad...',
+        rewardEarned: 'Reward Earned!',
 
         // Backup
         exportBackupDialog: 'Export Backup',
@@ -428,6 +433,11 @@ const translations = {
         purchaseConfirmMessage: 'Comprar %{amount} Mana?',
         currentBalance: 'Saldo Atual',
         watchingAd: 'Assistindo Anúncio...',
+        loading: 'Carregando',
+        adLoading: 'Anúncio carregando, aguarde...',
+        adNotReady: 'Anúncio Não Pronto',
+        adLoadingRetry: 'Aguarde enquanto carregamos um anúncio...',
+        rewardEarned: 'Recompensa Recebida!',
 
         // Backup
         exportBackupDialog: 'Exportar Backup',

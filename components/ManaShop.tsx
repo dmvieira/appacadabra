@@ -1,12 +1,151 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, ActivityIndicator, ToastAndroid } from 'react-native';
 import { useManaStore } from '../lib/manaStore';
 import { t } from '../lib/i18n';
 import { colors, borderRadius, spacing } from '../lib/theme';
 import * as firebase from '../lib/firebase';
+import { RewardedAd, RewardedAdEventType, AdEventType } from 'react-native-google-mobile-ads';
+
+// Production Ad Unit ID (always use real ads)
+const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/6934996167';
+
+
+// Conversion rate: 1 mana = $0.09 USD
+// Formula: mana = revenueUSD / 0.09
+const MANA_COST_USD = 0.09;
+
+// Maximum mana reward cap (to prevent exploits)
+const MAX_MANA_REWARD = 5;
+
 
 export function ManaShop() {
     const { addMana, balance, isShopOpen, closeShop } = useManaStore();
+    const [isAdLoading, setIsAdLoading] = useState(false);
+    const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
+
+    // Track the revenue earned from the current ad impression
+    const adRevenueRef = useRef<number>(0);
+
+    // Load a new rewarded ad when shop opens
+    useEffect(() => {
+        if (isShopOpen) {
+            loadRewardedAd();
+        }
+        return () => {
+            // Cleanup ad listeners when shop closes
+            if (rewardedAd) {
+                rewardedAd.removeAllListeners();
+            }
+        };
+    }, [isShopOpen]);
+
+    const loadRewardedAd = () => {
+        // Reset revenue for new ad
+        adRevenueRef.current = 0;
+
+        const ad = RewardedAd.createForAdRequest(REWARDED_AD_UNIT_ID, {
+            requestNonPersonalizedAdsOnly: true,
+        });
+
+        const unsubscribeLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+            console.log('Rewarded ad loaded');
+            setRewardedAd(ad);
+            setIsAdLoading(false);
+        });
+
+        // Listen to paid events to get actual revenue
+        const unsubscribePaid = ad.addAdEventListener(AdEventType.PAID, (event: any) => {
+            if (!event) return;
+            // event contains: value (micros), currency, precision
+            const revenueUSD = (event.value || 0) / 1_000_000; // Convert micros to dollars
+            adRevenueRef.current = revenueUSD;
+            console.log(`Ad Paid Event: $${revenueUSD.toFixed(6)} USD (precision: ${event.precision || 'unknown'})`);
+        });
+
+
+
+        const unsubscribeEarned = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, async (reward) => {
+            console.log('User earned reward:', reward);
+
+            // Calculate mana based on actual revenue (no fallback - if ad didn't pay, user gets 0)
+            let manaToGive = adRevenueRef.current / MANA_COST_USD;
+
+            // Apply max bound
+            if (manaToGive > MAX_MANA_REWARD) {
+                manaToGive = MAX_MANA_REWARD;
+            }
+
+            // Round to 2 decimal places
+            manaToGive = Math.round(manaToGive * 100) / 100;
+
+            console.log(`Giving ${manaToGive} mana (revenue: $${adRevenueRef.current.toFixed(4)})`);
+
+
+
+            try {
+                // Only add credits if there's something to add
+                if (manaToGive > 0) {
+                    await firebase.addCredits(manaToGive, 'ad_reward');
+                }
+
+                // Festive messages based on mana amount
+                let emoji = '✨';
+                let celebration = '';
+                let toastMessage = '';
+
+                if (manaToGive >= 1) {
+                    emoji = '🎉🔥';
+                    celebration = 'Incrível!';
+                    toastMessage = `${emoji} ${celebration} +${manaToGive.toFixed(2)} Mana!`;
+                } else if (manaToGive >= 0.5) {
+                    emoji = '🎉';
+                    celebration = 'Ótimo!';
+                    toastMessage = `${emoji} ${celebration} +${manaToGive.toFixed(2)} Mana!`;
+                } else if (manaToGive > 0) {
+                    emoji = '⚡';
+                    celebration = 'Legal!';
+                    toastMessage = `${emoji} ${celebration} +${manaToGive.toFixed(2)} Mana!`;
+                } else {
+                    toastMessage = '👀 Este anúncio não gerou recompensa';
+                }
+
+                ToastAndroid.show(toastMessage, ToastAndroid.LONG);
+
+
+
+
+            } catch (error) {
+                console.error('Failed to add reward:', error);
+                Alert.alert('Error', 'Failed to add reward. Please try again.');
+            }
+
+        });
+
+        const unsubscribeClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+            console.log('Ad closed, loading new ad');
+            // Load a new ad for next time
+            loadRewardedAd();
+        });
+
+        const unsubscribeError = ad.addAdEventListener(AdEventType.ERROR, (error) => {
+            console.error('Rewarded ad error:', error);
+            setIsAdLoading(false);
+            setRewardedAd(null);
+        });
+
+        setIsAdLoading(true);
+        ad.load();
+
+        // Return cleanup function
+        return () => {
+            unsubscribeLoaded();
+            unsubscribePaid();
+            unsubscribeEarned();
+            unsubscribeClosed();
+            unsubscribeError();
+        };
+    };
+
 
     if (!isShopOpen) return null;
 
@@ -35,21 +174,17 @@ export function ManaShop() {
     };
 
     const handleWatchAd = async () => {
-        // Simulate Ad
-        Alert.alert(t('watchAd'), t('watchingAd'), [
-            {
-                text: 'OK', onPress: async () => {
-                    try {
-                        await firebase.addCredits(1, 'ad_reward');
-                        Alert.alert(t('purchaseSuccess', { amount: 1 }));
-                    } catch (error) {
-                        console.error(error);
-                        Alert.alert('Error', 'Failed to add reward');
-                    }
-                }
-            }
-        ]);
+        if (rewardedAd && rewardedAd.loaded) {
+            rewardedAd.show();
+        } else if (isAdLoading) {
+            Alert.alert(t('loading'), t('adLoading'));
+        } else {
+            // Try to load an ad
+            Alert.alert(t('adNotReady'), t('adLoadingRetry'));
+            loadRewardedAd();
+        }
     };
+
 
     return (
         <Modal visible={isShopOpen} transparent animationType="slide" onRequestClose={closeShop}>

@@ -72,10 +72,30 @@
     ```
 
 5.  **Build for Android**:
+    
+    > ⚠️ **IMPORTANT**: Always use `npm run prebuild` or `npm run prebuild:clean` instead of calling `npx expo prebuild` directly. This ensures the `local.properties` file (containing Android SDK path) is properly regenerated.
+
     ```bash
-    npx expo prebuild
-    npx expo run:android
+    # First time or after clean:
+    npm run prebuild:clean
+    
+    # Subsequent prebuilds (faster):
+    npm run prebuild
+    
+    # Build release APK:
+    cd android
+    ./gradlew assembleRelease
+    cd ..
+    
+    # Install on connected device:
+    adb install -r android/app/build/outputs/apk/release/app-release.apk
     ```
+
+    **Quick Build & Install (PowerShell)**:
+    ```powershell
+    cd android; .\gradlew.bat assembleRelease; cd ..; & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r android/app/build/outputs/apk/release/app-release.apk
+    ```
+
 
 ## Project Structure 📂
 
