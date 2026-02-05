@@ -140,6 +140,19 @@ export interface HandlerResult {
  * Returns { handled: false } if the message type is not recognized,
  * allowing the caller to handle it locally.
  */
+// Map numeric sleep stages to prompt-compatible strings
+const mapSleepStage = (stage: number): string => {
+    switch (stage) {
+        case 1: return 'AWAKE'; // AWAKE
+        case 2: return 'LIGHT'; // SLEEPING (Generic) -> Map to Light as fallback
+        case 3: return 'AWAKE'; // OUT_OF_BED -> Map to Awake
+        case 4: return 'LIGHT'; // LIGHT
+        case 5: return 'DEEP'; // DEEP
+        case 6: return 'REM'; // REM
+        default: return 'UNKNOWN';
+    }
+};
+
 export async function handleBridgeMessage(
     type: string,
     data: any,
@@ -1014,7 +1027,31 @@ export async function handleBridgeMessage(
                 });
 
                 debugLog(`Found ${sleepRecords.records.length} sleep records.`);
-                result = JSON.stringify(sleepRecords.records);
+
+                // Map records to match prompt contract (convert numeric stages to strings)
+                const mappedRecords = sleepRecords.records.map((r: any) => {
+                    const stages = r.stages?.map((s: any) => ({
+                        startTime: s.startTime,
+                        endTime: s.endTime,
+                        stage: mapSleepStage(s.stage)
+                    })) || [];
+
+                    // Log first session's stages for debugging
+                    if (r === sleepRecords.records[0]) {
+                        debugLog(`First session stages count: ${stages.length}`);
+                        if (stages.length > 0) debugLog(`First stage: ${JSON.stringify(stages[0])}`);
+                    }
+
+                    return {
+                        startTime: r.startTime,
+                        endTime: r.endTime,
+                        title: r.title,
+                        notes: r.notes,
+                        stages: stages
+                    };
+                });
+
+                result = JSON.stringify(mappedRecords);
             } catch (e) {
                 console.error('Health get sleep error:', e);
                 success = false;
