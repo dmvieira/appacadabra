@@ -18,6 +18,7 @@ import {
     initialize as initHealthConnect,
     requestPermission,
     readRecords,
+    aggregateRecord,
     getGrantedPermissions,
     getSdkStatus,
     SdkAvailabilityStatus
@@ -880,15 +881,30 @@ export async function handleBridgeMessage(
 
                 debugLog(`Querying Steps from ${stepsStart.toISOString()} to ${stepsEnd.toISOString()}`);
 
-                const stepsRecords = await readRecords('Steps', {
-                    timeRangeFilter: {
-                        operator: 'between',
-                        startTime: stepsStart.toISOString(),
-                        endTime: stepsEnd.toISOString()
-                    }
-                });
+                // Parallel fetch: Aggregation (for accurate total) and Records (for details)
+                const [stepsRecords, stepsAgg] = await Promise.all([
+                    readRecords('Steps', {
+                        timeRangeFilter: {
+                            operator: 'between',
+                            startTime: stepsStart.toISOString(),
+                            endTime: stepsEnd.toISOString()
+                        }
+                    }),
+                    aggregateRecord({
+                        recordType: 'Steps',
+                        timeRangeFilter: {
+                            operator: 'between',
+                            startTime: stepsStart.toISOString(),
+                            endTime: stepsEnd.toISOString()
+                        }
+                    })
+                ]);
 
-                const totalSteps = stepsRecords.records.reduce((sum: number, r: { count?: number }) => sum + (r.count || 0), 0);
+
+                debugLog(`Aggregation Result: ${JSON.stringify(stepsAgg)}`);
+                // Use COUNT_TOTAL from native result, fallback to count/total or manual sum
+                const totalSteps = (stepsAgg as any).COUNT_TOTAL || (stepsAgg as any).count || (stepsAgg as any).total || stepsRecords.records.reduce((sum: number, r: { count?: number }) => sum + (r.count || 0), 0) || 0;
+
                 debugLog(`Found total steps: ${totalSteps}`);
                 result = JSON.stringify({ totalSteps, records: stepsRecords.records });
             } catch (e) {
