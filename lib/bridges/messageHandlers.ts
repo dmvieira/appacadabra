@@ -901,7 +901,7 @@ export async function handleBridgeMessage(
                 ]);
 
 
-                debugLog(`Aggregation Result: ${JSON.stringify(stepsAgg)}`);
+                //debugLog(`Aggregation Result: ${JSON.stringify(stepsAgg)}`);
                 // Use COUNT_TOTAL from native result, fallback to count/total or manual sum
                 const totalSteps = (stepsAgg as any).COUNT_TOTAL || (stepsAgg as any).count || (stepsAgg as any).total || stepsRecords.records.reduce((sum: number, r: { count?: number }) => sum + (r.count || 0), 0) || 0;
 
