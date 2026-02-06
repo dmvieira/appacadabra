@@ -371,6 +371,8 @@ export default function RunnerScreen() {
     // Saved localStorage items
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
     const [storageLoaded, setStorageLoaded] = useState(false);
+    // Use ref to ensure storage is available synchronously for script creation
+    const savedStorageRef = useRef<{ key: string; value: string }[]>([]);
 
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);
@@ -380,12 +382,17 @@ export default function RunnerScreen() {
     useEffect(() => {
         async function loadApp() {
             if (!id) return;
+            console.log('RunnerScreen: Loading app and storage for id:', id);
             const appData = await db.getAppById(parseInt(id));
             if (appData) {
                 setApp(appData);
                 // Load stored localStorage data
                 const storage = await db.getStorageForApp(appData.id);
-                setSavedStorage(storage.map(s => ({ key: s.key, value: s.value })));
+                const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
+                console.log('RunnerScreen: Loaded', storageItems.length, 'storage items');
+                // Update both ref and state
+                savedStorageRef.current = storageItems;
+                setSavedStorage(storageItems);
                 setStorageLoaded(true);
             } else {
                 setStorageLoaded(true); // Mark as loaded even if no app found
@@ -395,16 +402,18 @@ export default function RunnerScreen() {
         loadApp();
     }, [id]);
 
+
     // Inject saved localStorage and shared content (File or Store)
     const handleLoadEnd = useCallback(() => {
         console.log('Runner: handleLoadEnd called');
 
         if (webViewRef.current) {
-            // Inject saved storage
-            if (savedStorage.length > 0) {
-                const script = createStorageRestoreScript(savedStorage);
-                webViewRef.current.injectJavaScript(script);
-            }
+            // Always inject saved storage from ref (more reliable than state)
+            const storageToRestore = savedStorageRef.current;
+            console.log('Runner: Injecting', storageToRestore.length, 'storage items from ref');
+            const script = createStorageRestoreScript(storageToRestore);
+            webViewRef.current.injectJavaScript(script);
+
 
             // CHECK BOTH SOURCES: Local File Payload OR Global Store
             const contentToInject = localSharedContent || sharedContent;
@@ -432,7 +441,7 @@ export default function RunnerScreen() {
                 }, 500);
             }
         }
-    }, [savedStorage, localSharedContent, sharedContent, clearSharedContent, isFocused]);
+    }, [localSharedContent, sharedContent, clearSharedContent, isFocused]);
 
     // Handle incoming share when already loaded (hot update)
     useEffect(() => {
@@ -715,12 +724,14 @@ export default function RunnerScreen() {
     </html>
   `;
 
-    // Combine scripts
-    const storageScript = createStorageRestoreScript(savedStorage);
+    // Combine scripts - use ref for storage to ensure data is available
+    console.log('RunnerScreen: Creating combinedScript with', savedStorageRef.current.length, 'storage items');
+    const storageScript = createStorageRestoreScript(savedStorageRef.current);
     const combinedScript = `
         ${getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode)}
         ${storageScript}
     `;
+
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -754,7 +765,7 @@ export default function RunnerScreen() {
             <WebView
                 key={`${app.id}-${app.currentVersion}-${isEditMode}`}
                 ref={webViewRef}
-                source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }} // baseUrl required for some permissions
+                source={{ html: htmlContent, baseUrl: `https://app-${app.id}.appacadabra.local/` }} // baseUrl required for some permissions
                 style={styles.webview}
                 originWhitelist={['*']}
                 javaScriptEnabled
@@ -779,7 +790,7 @@ export default function RunnerScreen() {
                     // External URLs - open in browser
                     // External URLs - open in browser
                     if (url.startsWith('http://') || url.startsWith('https://')) {
-                        if (!url.includes('localhost') && !url.includes('appacadabra.local')) {
+                        if (!url.includes('localhost') && !url.includes('.appacadabra.local')) {
                             Linking.openURL(url);
                             return false;
                         }

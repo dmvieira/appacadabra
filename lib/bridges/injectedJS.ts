@@ -571,23 +571,34 @@ export function createStorageRestoreScript(items: { key: string; value: string }
   const restoreStatements = items.map(item => {
     const escapedKey = item.key.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     const escapedValue = item.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
-    return `localStorage.setItem("${escapedKey}", "${escapedValue}");`;
+    return `
+            try {
+                localStorage.setItem("${escapedKey}", "${escapedValue}");
+                console.log('[Storage] Restored key: ${escapedKey}');
+            } catch (e) {
+                console.error('[Storage] Failed to restore key: ${escapedKey}', e);
+            }`;
   }).join('\n        ');
 
   return `
     (function() {
-        // Restore saved localStorage data
+        console.log('[Storage] Starting restoration of ${items.length} items...');
         window.__APPACADABRA_RESTORING__ = true;
         try {
-            localStorage.clear(); // Ensure clean state preventing leaks between apps
+            console.log('[Storage] Clearing localStorage...');
+            localStorage.clear();
+            console.log('[Storage] localStorage cleared, now restoring items...');
             ${restoreStatements}
-            console.log('Restored ${items.length} localStorage items');
+            console.log('[Storage] Restoration complete! Total items: ${items.length}');
+        } catch (err) {
+            console.error('[Storage] Restoration error:', err);
         } finally {
             window.__APPACADABRA_RESTORING__ = false;
         }
     })();
     `;
 }
+
 
 // Interface for shared content
 interface SharedContent {

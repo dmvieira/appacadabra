@@ -19,6 +19,7 @@ import * as db from './lib/database/db';
 import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
 import { getWebViewTranslations } from './lib/i18n';
+import { getStorageFromCache, isCacheLoaded, reloadStorageForApp, StorageItem } from './lib/storageCache';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -40,6 +41,9 @@ function RunnerContent({ appId }: Props) {
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
+    const [storageLoaded, setStorageLoaded] = useState(false);
+    // Use ref to ensure storage is available synchronously for script creation
+    const savedStorageRef = useRef<{ key: string; value: string }[]>([]);
     const [sharedContent, setSharedContent] = useState<any>(null);
     const [webViewReady, setWebViewReady] = useState(false);
     const [webViewKey, setWebViewKey] = useState(0); // Key to force WebView recreation
@@ -78,20 +82,45 @@ function RunnerContent({ appId }: Props) {
 
     // Load app data and storage - also reload when webViewKey changes (WebView recreation)
     useEffect(() => {
+        // Reset state for this specific appId
+        setIsLoading(true);
+        setStorageLoaded(false);
+        savedStorageRef.current = [];
+
         async function loadApp() {
             if (!appId) return;
+            console.log(`RunnerApp[${appId}]: Loading app and storage...`);
             const appData = await db.getAppById(appId);
             if (appData) {
+                // Try to get storage from cache first (fast path when opened via main app)
+                // Fallback to DB if cache not loaded (e.g., when opened via shortcut)
+                let storageItems: StorageItem[];
+                if (isCacheLoaded()) {
+                    storageItems = getStorageFromCache(appData.id);
+                    console.log(`RunnerApp[${appId}]: Got ${storageItems.length} items from cache`);
+                } else {
+                    console.log(`RunnerApp[${appId}]: Cache not loaded, loading from DB...`);
+                    const storage = await db.getStorageForApp(appData.id);
+                    storageItems = storage.map(s => ({ key: s.key, value: s.value }));
+                    console.log(`RunnerApp[${appId}]: Got ${storageItems.length} items from DB`);
+                }
+
+                // Update ref FIRST (synchronously)
+                savedStorageRef.current = storageItems;
+
+                // Then update state atomically
                 setApp(appData);
-                // Reload storage from database (critical for WebView recreation)
-                const storage = await db.getStorageForApp(appData.id);
-                console.log('RunnerApp: Loaded storage from DB, items:', storage.length);
-                setSavedStorage(storage.map(s => ({ key: s.key, value: s.value })));
+                setSavedStorage(storageItems);
+                setStorageLoaded(true);
+                setIsLoading(false);
+            } else {
+                setStorageLoaded(true);
+                setIsLoading(false);
             }
-            setIsLoading(false);
         }
         loadApp();
     }, [appId, webViewKey]); // webViewKey added to reload storage on WebView recreation
+
 
     // Detect when app comes to foreground and check if WebView is still alive
     const heartbeatReceivedRef = useRef(false);
@@ -141,6 +170,7 @@ function RunnerContent({ appId }: Props) {
                                 console.log('RunnerApp: No heartbeat response, WebView is dead - forcing reload');
                                 setWebViewKey(k => k + 1);
                             } else {
+                                // WebView is healthy - no reload needed since localStorage is now isolated per-app
                                 console.log('RunnerApp: Heartbeat received, WebView is healthy');
                             }
                         }, 300);
@@ -208,7 +238,7 @@ function RunnerContent({ appId }: Props) {
         }
     }, [app]);
 
-    if (isLoading || !app) {
+    if (isLoading || !app || !storageLoaded) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -232,7 +262,9 @@ function RunnerContent({ appId }: Props) {
     </html>
   `;
 
-    const storageScript = createStorageRestoreScript(savedStorage);
+    // Use ref for storage to ensure data is available synchronously
+    console.log(`RunnerApp[${appId}]: Creating combinedScript with ${savedStorageRef.current.length} storage items`);
+    const storageScript = createStorageRestoreScript(savedStorageRef.current);
     const combinedScript = `
         ${getInjectedJavaScript(app.id, getWebViewTranslations(), false)}
         ${storageScript}
@@ -242,7 +274,7 @@ function RunnerContent({ appId }: Props) {
         <WebView
             key={webViewKey}
             ref={webViewRef}
-            source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }}
+            source={{ html: htmlContent, baseUrl: `https://app-${appId}.appacadabra.local/` }}
             style={styles.webview}
             originWhitelist={['*']}
             javaScriptEnabled
@@ -292,7 +324,7 @@ function RunnerContent({ appId }: Props) {
                 }
                 if (url.startsWith('http://') || url.startsWith('https://')) {
                     // Keep navigation internal for our local baseUrl and localhost
-                    if (url.includes('localhost') || url.includes('appacadabra.local')) {
+                    if (url.includes('localhost') || url.includes('.appacadabra.local')) {
                         return true;
                     }
                     // External URLs - open in system browser

@@ -93,6 +93,8 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     // Saved localStorage items
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
     const [storageLoaded, setStorageLoaded] = useState(false);
+    // Use ref to ensure storage is available synchronously
+    const savedStorageRef = useRef<{ key: string; value: string }[]>([]);
 
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);
@@ -102,12 +104,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     // Load app data
     useEffect(() => {
         async function loadApp() {
+            console.log('AppRunner: Loading app and storage for id:', appId);
             const appData = await db.getAppById(appId);
             if (appData) {
                 setApp(appData);
                 // Load stored localStorage data
                 const storage = await db.getStorageForApp(appData.id);
-                setSavedStorage(storage.map(s => ({ key: s.key, value: s.value })));
+                const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
+                console.log('AppRunner: Loaded', storageItems.length, 'storage items');
+                // Update both ref and state
+                savedStorageRef.current = storageItems;
+                setSavedStorage(storageItems);
                 setStorageLoaded(true);
             } else {
                 setStorageLoaded(true); // Mark as loaded even if no app found
@@ -126,11 +133,14 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
     // Inject saved localStorage when WebView loads
     const handleLoadEnd = useCallback(() => {
-        if (webViewRef.current && savedStorage.length > 0) {
-            const script = createStorageRestoreScript(savedStorage);
+        if (webViewRef.current) {
+            // Always inject from ref (more reliable than state)
+            const storageToRestore = savedStorageRef.current;
+            console.log('AppRunner: handleLoadEnd injecting', storageToRestore.length, 'storage items');
+            const script = createStorageRestoreScript(storageToRestore);
             webViewRef.current.injectJavaScript(script);
         }
-    }, [savedStorage]);
+    }, []);
 
     // Load version history
     const loadVersions = useCallback(async () => {
@@ -446,8 +456,10 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     </html>
     `;
 
-    const storageScript = createStorageRestoreScript(savedStorage);
+    console.log('AppRunner: Creating combinedScript with', savedStorageRef.current.length, 'storage items');
+    const storageScript = createStorageRestoreScript(savedStorageRef.current);
     const combinedScript = `${getInjectedJavaScript(app.id, getWebViewTranslations(), mode === 'edit')} ${storageScript}`;
+
 
     return (
         <SafeAreaView
@@ -479,7 +491,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <WebView
                 key={webViewKey} // Force recreation on code change
                 ref={webViewRef}
-                source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }}
+                source={{ html: htmlContent, baseUrl: `https://app-${app.id}.appacadabra.local/` }}
                 style={styles.webview}
                 originWhitelist={['*']}
                 javaScriptEnabled
@@ -505,7 +517,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     }
                     if (url.startsWith('http://') || url.startsWith('https://')) {
                         // Keep navigation internal for our local baseUrl and localhost
-                        if (url.includes('localhost') || url.includes('appacadabra.local')) {
+                        if (url.includes('localhost') || url.includes('.appacadabra.local')) {
                             return true;
                         }
                         // External URLs - open in system browser
