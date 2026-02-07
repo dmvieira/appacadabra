@@ -49,7 +49,7 @@ const withNativeFiles = (config) => {
             const assetRoot = path.join(projectRoot, 'native-assets');
 
             // Destination paths
-            const packagePath = path.join(androidAppPath, 'src', 'main', 'java', 'com', 'dmvieira', 'appacadabra');
+            const packagePath = path.join(androidAppPath, 'src', 'main', 'java', 'ai', 'appacadabra', 'app');
             const resXmlPath = path.join(androidAppPath, 'src', 'main', 'res', 'xml');
 
             // Ensure dest dirs exist
@@ -65,7 +65,7 @@ const withNativeFiles = (config) => {
 
             for (const file of filesToCopy) {
                 try {
-                    const srcPath = path.join(assetRoot, 'android', 'app', 'src', 'main', 'java', 'com', 'dmvieira', 'appacadabra', file.src);
+                    const srcPath = path.join(assetRoot, 'android', 'app', 'src', 'main', 'java', 'ai', 'appacadabra', 'app', file.src);
                     // Note: Adjust srcPath if your native-assets structure is flat or deep. 
                     // Using deep structure based on previous copy commands: native-assets/android/app/src/main/java...
 

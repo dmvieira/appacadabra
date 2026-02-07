@@ -2,7 +2,7 @@ import ExpoModulesCore
 import Foundation
 
 public class ShareIntentModule: Module {
-  let appGroupId = "group.com.dmvieira.appacadabra"
+  let appGroupId = "group.ai.appacadabra.app"
   
   public func definition() -> ModuleDefinition {
     Name("ShareIntent")

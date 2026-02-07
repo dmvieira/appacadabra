@@ -1,4 +1,4 @@
-package com.dmvieira.appacadabra
+package ai.appacadabra.app
 
 import android.content.Intent
 import android.graphics.Bitmap
@@ -24,7 +24,7 @@ class SharingShortcutsModule(reactContext: ReactApplicationContext) : ReactConte
             val intent = Intent(context, MainActivity::class.java).apply {
                 action = Intent.ACTION_SEND
                 putExtra("shortcut_id", id)
-                addCategory("com.dmvieira.appacadabra.category.SHARE_TARGET")
+                addCategory("ai.appacadabra.app.category.SHARE_TARGET")
             }
             
             // Build shortcut
@@ -32,7 +32,7 @@ class SharingShortcutsModule(reactContext: ReactApplicationContext) : ReactConte
                 .setShortLabel(name)
                 .setLongLabel(name)
                 .setIntent(intent)
-                .setCategories(setOf("com.dmvieira.appacadabra.category.SHARE_TARGET"))
+                .setCategories(setOf("ai.appacadabra.app.category.SHARE_TARGET"))
                 .setLongLived(true)
             
             // Add icon if available

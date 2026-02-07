@@ -1,4 +1,4 @@
-package com.dmvieira.appacadabra
+package ai.appacadabra.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

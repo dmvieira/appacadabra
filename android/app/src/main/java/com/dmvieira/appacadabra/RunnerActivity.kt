@@ -1,4 +1,4 @@
-package com.dmvieira.appacadabra
+package ai.appacadabra.app
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -77,7 +77,7 @@ class RunnerActivity : ReactActivity() {
         super.onCreate(null) // Pass null to avoid state restoration crash
         
         // Register receiver to listen for finish broadcast
-        val filter = IntentFilter("com.dmvieira.appacadabra.FINISH_RUNNER")
+        val filter = IntentFilter("ai.appacadabra.app.FINISH_RUNNER")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(finishReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {

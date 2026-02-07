@@ -68,7 +68,7 @@ class ShareIntentModule : Module() {
             try {
                 // Use explicit class intent to avoid any URI-based interception
                 val intent = Intent()
-                intent.setClassName(currentActivity.packageName, "com.dmvieira.appacadabra.RunnerActivity")
+                intent.setClassName(currentActivity.packageName, "ai.appacadabra.app.RunnerActivity")
                 intent.putExtra("appId", appId)
                 // NEW_DOCUMENT creates separate tasks per unique data URI
                 // documentLaunchMode="intoExisting" in manifest reuses existing task for same URI
@@ -89,7 +89,7 @@ class ShareIntentModule : Module() {
             Log.d(TAG, "finishRunnerActivity called for appId: $appId")
             try {
                 val context = appContext.reactContext ?: return@Function false
-                val intent = Intent("com.dmvieira.appacadabra.FINISH_RUNNER")
+                val intent = Intent("ai.appacadabra.app.FINISH_RUNNER")
                 intent.putExtra("appId", appId)
                 intent.setPackage(context.packageName)
                 context.sendBroadcast(intent)

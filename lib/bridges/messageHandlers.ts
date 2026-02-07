@@ -30,6 +30,7 @@ import * as db from '../database/db';
 import { createCallbackScript } from './injectedJS';
 import { t } from '../i18n';
 import { useManaStore } from '../manaStore';
+import { updateStorageCache, removeFromStorageCache } from '../storageCache';
 
 // ============= Notification Limits (Native Protection) =============
 const MAX_NOTIFICATIONS_PER_SPELL = 10;
@@ -533,6 +534,8 @@ export async function handleBridgeMessage(
             debugLog(`Storage set: ${data.key}`);
             if (ctx.appId) {
                 await db.setStorageItem(ctx.appId, data.key, data.value);
+                // Keep cache in sync so returning from background doesn't overwrite new data
+                updateStorageCache(ctx.appId, data.key, data.value);
             }
             break;
 
@@ -540,6 +543,8 @@ export async function handleBridgeMessage(
             debugLog(`Storage remove: ${data.key}`);
             if (ctx.appId) {
                 await db.removeStorageItem(ctx.appId, data.key);
+                // Keep cache in sync so returning from background doesn't overwrite new data
+                removeFromStorageCache(ctx.appId, data.key);
             }
             break;
 

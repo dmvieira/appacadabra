@@ -41,7 +41,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>appacadabra</string>
-				<string>com.dmvieira.appacadabra</string>
+				<string>ai.appacadabra.app</string>
 			</array>
 		</dict>
 	</array>

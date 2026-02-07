@@ -362,7 +362,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dmvieira.appacadabra;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.appacadabra.app;
 				PRODUCT_NAME = Appacadabra;
 				SWIFT_OBJC_BRIDGING_HEADER = "Appacadabra/Appacadabra-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -395,7 +395,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.dmvieira.appacadabra;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.appacadabra.app;
 				PRODUCT_NAME = Appacadabra;
 				SWIFT_OBJC_BRIDGING_HEADER = "Appacadabra/Appacadabra-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

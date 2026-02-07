@@ -9,7 +9,7 @@ public class ShortcutsModule: Module {
 
     AsyncFunction("createShortcut") { (id: String, name: String, iconPath: String?) -> Bool in
         // Donate Siri Shortcut (NSUserActivity)
-        let activity = NSUserActivity(activityType: "com.dmvieira.appacadabra.run")
+        let activity = NSUserActivity(activityType: "ai.appacadabra.app.run")
         activity.title = name
         activity.userInfo = ["appId": id]
         activity.isEligibleForSearch = true
@@ -57,7 +57,7 @@ public class ShortcutsModule: Module {
                 guard let id = item["id"] as? String,
                       let name = item["name"] as? String else { continue }
                 
-                let type = "com.dmvieira.appacadabra.shortcut.run"
+                let type = "ai.appacadabra.app.shortcut.run"
                 let icon = UIApplicationShortcutIcon(type: .play) 
                 
                 let shortcut = UIApplicationShortcutItem(

@@ -47,7 +47,7 @@ public class AppDelegate: ExpoAppDelegate {
     continue userActivity: NSUserActivity,
     restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
   ) -> Bool {
-    if userActivity.activityType == "com.dmvieira.appacadabra.run",
+    if userActivity.activityType == "ai.appacadabra.app.run",
        let appId = userActivity.userInfo?["appId"] as? String,
        let url = URL(string: "appacadabra://runner/\(appId)") {
         return RCTLinkingManager.application(application, open: url, options: [:])

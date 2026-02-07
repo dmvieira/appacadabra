@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.dmvieira.appacadabra'
+    namespace 'ai.appacadabra.app'
     defaultConfig {
-        applicationId 'com.dmvieira.appacadabra'
+        applicationId 'ai.appacadabra.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

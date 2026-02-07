@@ -1,4 +1,4 @@
-package com.dmvieira.appacadabra
+package ai.appacadabra.app
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

@@ -5,9 +5,10 @@ import { t } from '../lib/i18n';
 import { colors, borderRadius, spacing } from '../lib/theme';
 import * as firebase from '../lib/firebase';
 import { RewardedAd, RewardedAdEventType, AdEventType } from 'react-native-google-mobile-ads';
+// import * as iap from '../lib/iapService';
 
 // Production Ad Unit ID (always use real ads)
-const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/6934996167';
+const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
 
 
 // Conversion rate: 1 mana = $0.09 USD
@@ -17,11 +18,33 @@ const MANA_COST_USD = 0.09;
 // Maximum mana reward cap (to prevent exploits)
 const MAX_MANA_REWARD = 5;
 
+interface IAPProduct {
+    productId: string;
+    title: string;
+    description: string;
+    price: string;
+    localizedPrice: string;
+    currency: string;
+    manaAmount: number;
+}
+
+// Fallback products if Play Store fetch fails
+const FALLBACK_PRODUCTS: IAPProduct[] = [
+    { productId: 'mana_10', title: '10 Mana ⚡', description: '', price: '4.90', localizedPrice: 'R$ 4,90', currency: 'BRL', manaAmount: 10 },
+    { productId: 'mana_50', title: '50 Mana ⚡', description: '', price: '19.90', localizedPrice: 'R$ 19,90', currency: 'BRL', manaAmount: 50 },
+    { productId: 'mana_120', title: '120 Mana ⚡', description: '', price: '44.90', localizedPrice: 'R$ 44,90', currency: 'BRL', manaAmount: 120 },
+];
+
 
 export function ManaShop() {
     const { addMana, balance, isShopOpen, closeShop } = useManaStore();
     const [isAdLoading, setIsAdLoading] = useState(false);
     const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
+
+    // IAP State
+    const [products, setProducts] = useState<IAPProduct[]>(FALLBACK_PRODUCTS);
+    const [isPurchasing, setIsPurchasing] = useState(false);
+    // const [iapInitialized, setIapInitialized] = useState(false);
 
     // Track the revenue earned from the current ad impression
     const adRevenueRef = useRef<number>(0);
@@ -62,8 +85,6 @@ export function ManaShop() {
             console.log(`Ad Paid Event: $${revenueUSD.toFixed(6)} USD (precision: ${event.precision || 'unknown'})`);
         });
 
-
-
         const unsubscribeEarned = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, async (reward) => {
             console.log('User earned reward:', reward);
 
@@ -79,8 +100,6 @@ export function ManaShop() {
             manaToGive = Math.round(manaToGive * 100) / 100;
 
             console.log(`Giving ${manaToGive} mana (revenue: $${adRevenueRef.current.toFixed(4)})`);
-
-
 
             try {
                 // Only add credits if there's something to add
@@ -110,9 +129,6 @@ export function ManaShop() {
                 }
 
                 ToastAndroid.show(toastMessage, ToastAndroid.LONG);
-
-
-
 
             } catch (error) {
                 console.error('Failed to add reward:', error);
@@ -149,7 +165,12 @@ export function ManaShop() {
 
     if (!isShopOpen) return null;
 
-    const handlePurchase = async (amount: number) => {
+    const handlePurchase = async (productId: string) => {
+        const product = products.find(p => p.productId === productId);
+        if (!product) return;
+
+        const amount = product.manaAmount;
+
         // Simulate purchase
         Alert.alert(
             t('confirmPurchase'),
@@ -205,32 +226,33 @@ export function ManaShop() {
 
                         <Text style={styles.sectionTitle}>{t('buyMana')}</Text>
 
-                        <TouchableOpacity style={styles.packageCard} onPress={() => handlePurchase(10)}>
-                            <View>
-                                <Text style={styles.packageTitle}>{t('manaPackage1')}</Text>
-                                <Text style={styles.packageSub}>$0.99</Text>
-                            </View>
-                            <Text style={styles.buyBtn}>$0.99</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={[styles.packageCard, styles.popularCard]} onPress={() => handlePurchase(50)}>
-                            <View>
-                                <Text style={styles.packageTitle}>{t('manaPackage2')}</Text>
-                                <Text style={styles.packageSub}>$4.99</Text>
-                            </View>
-                            <View style={styles.badge}>
-                                <Text style={styles.badgeText}>POPULAR</Text>
-                            </View>
-                            <Text style={styles.buyBtn}>$4.99</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.packageCard} onPress={() => handlePurchase(120)}>
-                            <View>
-                                <Text style={styles.packageTitle}>{t('manaPackage3')}</Text>
-                                <Text style={styles.packageSub}>$10.99</Text>
-                            </View>
-                            <Text style={styles.buyBtn}>$10.99</Text>
-                        </TouchableOpacity>
+                        {products.map((product, index) => (
+                            <TouchableOpacity
+                                key={product.productId}
+                                style={[
+                                    styles.packageCard,
+                                    index === 1 && styles.popularCard,
+                                    isPurchasing && styles.disabledCard
+                                ]}
+                                onPress={() => handlePurchase(product.productId)}
+                                disabled={isPurchasing}
+                            >
+                                <View>
+                                    <Text style={styles.packageTitle}>{product.manaAmount} Mana ⚡</Text>
+                                    <Text style={styles.packageSub}>{product.localizedPrice}</Text>
+                                </View>
+                                {index === 1 && (
+                                    <View style={styles.badge}>
+                                        <Text style={styles.badgeText}>POPULAR</Text>
+                                    </View>
+                                )}
+                                {isPurchasing ? (
+                                    <ActivityIndicator size="small" color={colors.primary} />
+                                ) : (
+                                    <Text style={styles.buyBtn}>{product.localizedPrice}</Text>
+                                )}
+                            </TouchableOpacity>
+                        ))}
 
                         <Text style={styles.sectionTitle}>{t('freeMana')}</Text>
                         <TouchableOpacity style={styles.adCard} onPress={handleWatchAd}>
@@ -315,6 +337,9 @@ const styles = StyleSheet.create({
     popularCard: {
         borderColor: '#FFD700',
         backgroundColor: 'rgba(255, 215, 0, 0.05)',
+    },
+    disabledCard: {
+        opacity: 0.6,
     },
     packageTitle: {
         fontSize: 16,

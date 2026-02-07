@@ -19,7 +19,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dmvieira.appacadabra",
+      "bundleIdentifier": "ai.appacadabra.app",
       "infoPlist": {
         "LSSupportsOpeningDocumentsInPlace": true,
         "CFBundleDocumentTypes": [
@@ -34,14 +34,14 @@
       }
     },
     "web": {
-      "package": "com.dmvieira.appacadabra",
+      "package": "ai.appacadabra.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a2e"
       }
     },
     "android": {
-      "package": "com.dmvieira.appacadabra",
+      "package": "ai.appacadabra.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a2e"
@@ -117,8 +117,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-2256826632523784~2180636588",
-          "iosAppId": "ca-app-pub-2256826632523784~2180636588"
+          "androidAppId": "ca-app-pub-2256826632523784~6570613208",
+          "iosAppId": "ca-app-pub-2256826632523784~6570613208"
         }
       ],
       "./plugins/withAppacadabraNative"
