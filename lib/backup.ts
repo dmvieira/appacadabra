@@ -4,6 +4,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import { GeneratedApp, AppVersion, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
+import { reloadStorageForApp } from './storageCache';
 import { t } from './i18n';
 
 
@@ -312,6 +313,13 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
                 for (const item of backup.storage[originalId]) {
                     await db.setStorageItem(newId, item.key, item.value);
                 }
+            }
+
+            // Sync cache so RunnerApp sees the data immediately
+            try {
+                await reloadStorageForApp(newId);
+            } catch (e) {
+                console.warn('Failed to reload storage cache after import:', e);
             }
 
             importedCount++;
