@@ -192,6 +192,12 @@ const translations = {
         adNotReady: 'Ad Not Ready',
         adLoadingRetry: 'Please wait while we load an ad...',
         rewardEarned: 'Reward Earned!',
+        rewardAmazing: 'Amazing!',
+        rewardGreat: 'Great!',
+        rewardNice: 'Nice!',
+        rewardNone: "This ad didn't generate a reward",
+        rewardError: 'Failed to add reward. Please try again.',
+        tapToLoad: 'Tap to load',
 
         // Backup
         exportBackupDialog: 'Export Backup',
@@ -438,6 +444,12 @@ const translations = {
         adNotReady: 'Anúncio Não Pronto',
         adLoadingRetry: 'Aguarde enquanto carregamos um anúncio...',
         rewardEarned: 'Recompensa Recebida!',
+        rewardAmazing: 'Incrível!',
+        rewardGreat: 'Ótimo!',
+        rewardNice: 'Legal!',
+        rewardNone: 'Este anúncio não gerou recompensa',
+        rewardError: 'Falha ao adicionar recompensa. Tente novamente.',
+        tapToLoad: 'Toque para carregar',
 
         // Backup
         exportBackupDialog: 'Exportar Backup',

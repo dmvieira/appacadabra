@@ -215,6 +215,15 @@ export async function updateBiometricLock(appId: number, enabled: boolean): Prom
     );
 }
 
+export async function incrementManaCost(appId: number, amount: number): Promise<void> {
+    if (amount <= 0) return;
+    const database = await getDatabase();
+    await database.runAsync(
+        'UPDATE generated_apps SET totalManaCost = totalManaCost + ? WHERE id = ?',
+        [amount, appId]
+    );
+}
+
 // ============= Version Operations =============
 
 export async function getVersionsForApp(appId: number): Promise<AppVersion[]> {

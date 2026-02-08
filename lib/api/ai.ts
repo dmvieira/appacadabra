@@ -104,7 +104,7 @@ export interface AIGenerateOptions {
 }
 
 // Used by WebView Bridge
-export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: string, usage: any }> {
+export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerate (via Firebase)', JSON.stringify({ ...options, image: options.image ? '<base64>' : null, audio: options.audio ? '<base64>' : null }));
 
     const { prompt, search, schema, image, audio } = options;
@@ -123,7 +123,8 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
 
         return {
             text: result.text,
-            usage: result.usage
+            usage: result.usage,
+            creditsUsed: result.creditsUsed || 0
         };
     });
 }

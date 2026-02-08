@@ -174,13 +174,9 @@ export async function handleBridgeMessage(
     };
 
     switch (type) {
-        // ============= AI Handler =============
         case 'AI_GENERATE':
             debugLog(`AI Generate request: ${data.prompt?.substring(0, 50)}...`);
             try {
-                // Mana check is handled by server now, but we could add a check if we fetched balance
-                // For now, let's trust the server response or generic error
-
                 const genResult = await ai.aiGenerate({
                     prompt: data.prompt,
                     search: data.search,
@@ -190,15 +186,18 @@ export async function handleBridgeMessage(
                 });
                 result = genResult.text;
 
-                // Log cost (optional)
-                console.log(`[Bridge] AI generated. Usage:`, genResult.usage);
+                // Log cost and update app's totalManaCost
+                const creditsUsed = genResult.creditsUsed || 0;
+                console.log(`[Bridge] AI generated. Credits used: ${creditsUsed}`);
 
-                // Update App Total Mana Cost if we have appId
-                // Assuming we can get cost from usage if server provides it in response
-                if (ctx.appId) {
-                    // Similar to [id].tsx, we might skip this update if we don't have exact cost
-                    // or rely on server to update the app record if possible (but server func usually doesn't update app doc unless specified)
-                    // We will leave this as is for now, maybe just skipping cost update locally
+                // Update App Total Mana Cost atomically
+                if (ctx.appId && creditsUsed > 0) {
+                    try {
+                        await db.incrementManaCost(ctx.appId, creditsUsed);
+                        debugLog(`App ${ctx.appId} mana cost increased by ${creditsUsed}`);
+                    } catch (e) {
+                        console.warn('Failed to update app mana cost:', e);
+                    }
                 }
             } catch (e) {
                 success = false;

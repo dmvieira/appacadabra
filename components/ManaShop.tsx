@@ -108,31 +108,23 @@ export function ManaShop() {
                 }
 
                 // Festive messages based on mana amount
-                let emoji = '✨';
-                let celebration = '';
                 let toastMessage = '';
 
                 if (manaToGive >= 1) {
-                    emoji = '🎉🔥';
-                    celebration = 'Incrível!';
-                    toastMessage = `${emoji} ${celebration} +${manaToGive.toFixed(2)} Mana!`;
+                    toastMessage = `🎉🔥 ${t('rewardAmazing')} +${manaToGive.toFixed(2)} Mana!`;
                 } else if (manaToGive >= 0.5) {
-                    emoji = '🎉';
-                    celebration = 'Ótimo!';
-                    toastMessage = `${emoji} ${celebration} +${manaToGive.toFixed(2)} Mana!`;
+                    toastMessage = `🎉 ${t('rewardGreat')} +${manaToGive.toFixed(2)} Mana!`;
                 } else if (manaToGive > 0) {
-                    emoji = '⚡';
-                    celebration = 'Legal!';
-                    toastMessage = `${emoji} ${celebration} +${manaToGive.toFixed(2)} Mana!`;
+                    toastMessage = `⚡ ${t('rewardNice')} +${manaToGive.toFixed(2)} Mana!`;
                 } else {
-                    toastMessage = '👀 Este anúncio não gerou recompensa';
+                    toastMessage = `👀 ${t('rewardNone')}`;
                 }
 
                 ToastAndroid.show(toastMessage, ToastAndroid.LONG);
 
             } catch (error) {
                 console.error('Failed to add reward:', error);
-                Alert.alert('Error', 'Failed to add reward. Please try again.');
+                ToastAndroid.show(t('rewardError'), ToastAndroid.SHORT);
             }
 
         });
@@ -197,13 +189,11 @@ export function ManaShop() {
     const handleWatchAd = async () => {
         if (rewardedAd && rewardedAd.loaded) {
             rewardedAd.show();
-        } else if (isAdLoading) {
-            Alert.alert(t('loading'), t('adLoading'));
-        } else {
-            // Try to load an ad
-            Alert.alert(t('adNotReady'), t('adLoadingRetry'));
+        } else if (!isAdLoading) {
+            // Start loading if not already loading
             loadRewardedAd();
         }
+        // If already loading, do nothing - UI shows loading state
     };
 
 
@@ -255,8 +245,21 @@ export function ManaShop() {
                         ))}
 
                         <Text style={styles.sectionTitle}>{t('freeMana')}</Text>
-                        <TouchableOpacity style={styles.adCard} onPress={handleWatchAd}>
-                            <Text style={styles.adText}>📺 {t('watchAd')}</Text>
+                        <TouchableOpacity
+                            style={[styles.adCard, isAdLoading && styles.adCardLoading]}
+                            onPress={handleWatchAd}
+                            disabled={isAdLoading}
+                        >
+                            {isAdLoading ? (
+                                <View style={styles.adLoadingRow}>
+                                    <ActivityIndicator size="small" color={colors.primary} />
+                                    <Text style={styles.adLoadingText}>{t('adLoading')}</Text>
+                                </View>
+                            ) : rewardedAd && rewardedAd.loaded ? (
+                                <Text style={styles.adText}>📺 {t('watchAd')}</Text>
+                            ) : (
+                                <Text style={styles.adTextRetry}>📺 {t('watchAd')} — {t('tapToLoad')}</Text>
+                            )}
                         </TouchableOpacity>
 
                     </ScrollView>
@@ -382,9 +385,26 @@ const styles = StyleSheet.create({
         borderColor: colors.primaryContainer,
         borderStyle: 'dashed',
     },
+    adCardLoading: {
+        opacity: 0.7,
+    },
     adText: {
         color: colors.primary,
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    adTextRetry: {
+        color: colors.onSurfaceVariant,
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    adLoadingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+    },
+    adLoadingText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 14,
     }
 });
