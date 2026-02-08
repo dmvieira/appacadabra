@@ -19,16 +19,15 @@ Need a habit tracker? A workout timer? A budget calculator? A study planner? A n
 *   **Describe & Create**: Just type “A Pomodoro timer with a space theme” or “A tip calculator for groups” and get a fully functional tool in seconds.
 *   **Persistent & Private**: Your spells are stored locally on your device. They work offline and are completely yours.
 *   **Native Device Powers**: Unlike basic web wrappers, your spells can access real device features:
-    *   📅 **Calendar**: Create events or view your schedule.
-    *   🔔 **Notifications**: Schedule reminders and alerts.
-    *   📍 **Location**: Use GPS for location-aware tools.
-    *   👤 **Contacts**: Pick phone numbers or emails directly.
-    *   🦿 **Health Connect**: Access steps, heart rate, sleep, and workouts.
-    *   🤖 **AI**: Use AI inside your spells for smart features.
-    *   🧭 **Sensors**: Accelerometer, gyroscope, compass.
-    *   📳 **Haptics**: Feel feedback with device vibration.
-    *   🔒 **Biometric Lock**: Protect sensitive spells.
-    *   🏠 **Shortcuts**: Add spells to your Home Screen.
+    *   📅 **Calendar**: "Schedule study sessions based on my availability."
+    *   🔔 **Notifications**: "Remind me to drink water every hour."
+    *   📍 **Location**: "Show my current coordinates and altitude."
+    *   👤 **Contacts**: "A personal CRM to remember birthdays."
+    *   🦿 **Health Connect**: "Track my weekly steps and graph the results."
+    *   🤖 **AI**: "Summarize this text" or "Generate a workout plan."
+    *   🧭 **Sensors**: "A tilt-controlled maze game using the accelerometer."
+    *   🔒 **Biometric Lock**: Protect sensitive spells with FaceID/Fingerprint.
+    *   🏠 **Home Screen Shortcuts**: Launch your tools instantly.
     *   *...and more coming!*
 *   **Open Other Apps**: Your spells can launch WhatsApp, Telegram, Notion, Spotify—any app that supports sharing or deep links!
 *   **Edit with AI**: Want to change something? Just say “Make the background blue” or “Add a reset button,” and the AI updates it in real-time.
