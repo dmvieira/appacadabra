@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appacadabra - AI Tool Generator</title>
+    <meta name="description" content="Turn your ideas into working tools instantly. No coding required. Just describe what you need and the AI creates it.">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Appacadabra - AI Tool Generator">
+    <meta property="og:description" content="What do you need help with? Describe it. The AI creates it.">
+    <meta property="og:image" content="img/icon.png">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-XXXXXXXXXX');
+    </script>
+</head>
+<body>
+    <!-- Language Selector (floating) -->
+    <div class="lang-selector">
+        <select id="lang-select" onchange="setLanguage(this.value)">
+            <option value="en">🇺🇸 EN</option>
+            <option value="pt">🇧🇷 PT</option>
+            <option value="es">🇪🇸 ES</option>
+            <option value="fr">🇫🇷 FR</option>
+            <option value="de">🇩🇪 DE</option>
+            <option value="it">🇮🇹 IT</option>
+        </select>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <img src="img/icon.png" alt="Appacadabra Logo" class="hero-logo">
+            <h1 class="hero-title">Appacadabra</h1>
+            <p class="hero-tagline" data-i18n="tagline">What do you need help with? Describe it. The AI creates it. 🪄</p>
+            <p class="hero-subtitle" data-i18n="subtitle">Turn your ideas into working tools in seconds. No coding required.</p>
+            
+            <div class="cta-buttons">
+                <a href="#" id="play-store-btn" class="cta-btn cta-android" onclick="trackDownload('android')">
+                    <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.5,12.92 20.16,13.19L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/></svg>
+                    <span data-i18n="getAndroid">Get it on Google Play</span>
+                </a>
+                <button class="cta-btn cta-ios" onclick="showIOSModal()">
+                    <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z"/></svg>
+                    <span data-i18n="notifyIOS">Notify me for iOS</span>
+                </button>
+            </div>
+        </div>
+        <div class="hero-glow"></div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <h2 class="section-title" data-i18n="featuresTitle">✨ What can you create?</h2>
+        <p class="section-subtitle" data-i18n="featuresSubtitle">Need a habit tracker? A workout timer? A budget calculator? A study planner? A game? Just describe it!</p>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3 data-i18n="feature1Title">Describe & Create</h3>
+                <p data-i18n="feature1Desc">Just type "A Pomodoro timer with a space theme" and get a fully functional tool in seconds.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3 data-i18n="feature2Title">Native Device Powers</h3>
+                <p data-i18n="feature2Desc">Calendar, Notifications, Location, Contacts, Health, Sensors, and more!</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔗</div>
+                <h3 data-i18n="feature3Title">Open Other Apps</h3>
+                <p data-i18n="feature3Desc">Launch WhatsApp, Telegram, Notion, Spotify—any app that supports deep links!</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✏️</div>
+                <h3 data-i18n="feature4Title">Edit with AI</h3>
+                <p data-i18n="feature4Desc">Say "Make the background blue" or "Add a reset button" and the AI updates it instantly.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 data-i18n="feature5Title">Private & Offline</h3>
+                <p data-i18n="feature5Desc">Your spells are stored locally. They work offline and are completely yours.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📤</div>
+                <h3 data-i18n="feature6Title">Share Your Spells</h3>
+                <p data-i18n="feature6Desc">Export your creations to share with friends—your data stays private.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <h2 class="section-title" data-i18n="howTitle">🪄 How It Works</h2>
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-icon">💬</div>
+                <h3 data-i18n="step1Title">Describe</h3>
+                <p data-i18n="step1Desc">Tell the AI what you need help with</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-icon">🤖</div>
+                <h3 data-i18n="step2Title">AI Creates</h3>
+                <p data-i18n="step2Desc">The AI builds your tool instantly</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-icon">🚀</div>
+                <h3 data-i18n="step3Title">Use It</h3>
+                <p data-i18n="step3Desc">Your tool is ready to use!</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Integrations -->
+    <section class="integrations">
+        <h2 class="section-title" data-i18n="integrationsTitle">📱 Native Integrations</h2>
+        <div class="integrations-grid">
+            <div class="integration-item"><span>📅</span> <span data-i18n="intCalendar">Calendar</span></div>
+            <div class="integration-item"><span>🔔</span> <span data-i18n="intNotifications">Notifications</span></div>
+            <div class="integration-item"><span>📍</span> <span data-i18n="intLocation">Location</span></div>
+            <div class="integration-item"><span>👤</span> <span data-i18n="intContacts">Contacts</span></div>
+            <div class="integration-item"><span>🦿</span> <span data-i18n="intHealth">Health Connect</span></div>
+            <div class="integration-item"><span>🤖</span> <span data-i18n="intAI">AI</span></div>
+            <div class="integration-item"><span>🧭</span> <span data-i18n="intSensors">Sensors</span></div>
+            <div class="integration-item"><span>📳</span> <span data-i18n="intHaptics">Haptics</span></div>
+            <div class="integration-item"><span>🔒</span> <span data-i18n="intBiometric">Biometric Lock</span></div>
+            <div class="integration-item"><span>🏠</span> <span data-i18n="intShortcuts">Shortcuts</span></div>
+        </div>
+        <p class="integrations-more" data-i18n="intMore">...and more coming!</p>
+    </section>
+
+    <!-- Privacy Section -->
+    <section class="privacy">
+        <div class="privacy-content">
+            <h2 class="section-title" data-i18n="privacyTitle">🔒 Privacy First</h2>
+            <p data-i18n="privacyText">Your spells live on your device. We don't resell your data or claim ownership of your creations.</p>
+            <p class="powered-by">Powered by <strong>Google Gemini</strong></p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <img src="img/icon.png" alt="Appacadabra" class="footer-logo">
+                <span>Appacadabra</span>
+            </div>
+            <div class="footer-links">
+                <a href="privacy.html" data-i18n="footerPrivacy">Privacy Policy</a>
+                <a href="terms.html" data-i18n="footerTerms">Terms of Service</a>
+                <a href="mailto:support@appacadabra.ai" data-i18n="footerContact">Contact</a>
+            </div>
+            <p class="footer-copyright">© 2026 Appacadabra. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- iOS Waitlist Modal -->
+    <div id="ios-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeIOSModal()">×</button>
+            <h3 data-i18n="modalTitle">🍎 Get notified when iOS is ready!</h3>
+            <p data-i18n="modalSubtitle">Be the first to know when Appacadabra launches on iOS.</p>
+            <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST" class="waitlist-form" onsubmit="trackIOSSignup()">
+                <input type="email" name="email" placeholder="your@email.com" required data-i18n-placeholder="emailPlaceholder">
+                <input type="hidden" name="platform" value="ios">
+                <input type="hidden" name="language" id="form-language" value="en">
+                <button type="submit" data-i18n="modalSubmit">Notify Me</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/translations.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

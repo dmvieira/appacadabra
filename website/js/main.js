@@ -1,0 +1,182 @@
+// ============================================
+// Appacadabra Landing Page - Main JavaScript
+// ============================================
+
+// Default language
+let currentLang = 'en';
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Detect browser language
+    const browserLang = navigator.language.split('-')[0];
+    const supportedLangs = ['en', 'pt', 'es', 'fr', 'de', 'it'];
+
+    // Check URL param first, then localStorage, then browser language
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    const savedLang = localStorage.getItem('appacadabra_lang');
+
+    if (urlLang && supportedLangs.includes(urlLang)) {
+        currentLang = urlLang;
+    } else if (savedLang && supportedLangs.includes(savedLang)) {
+        currentLang = savedLang;
+    } else if (supportedLangs.includes(browserLang)) {
+        currentLang = browserLang;
+    }
+
+    // Set language selector
+    document.getElementById('lang-select').value = currentLang;
+    document.getElementById('form-language').value = currentLang;
+
+    // Apply translations
+    applyTranslations(currentLang);
+});
+
+// Change language
+function setLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem('appacadabra_lang', lang);
+    document.getElementById('form-language').value = lang;
+    applyTranslations(lang);
+
+    // Track language change
+    if (typeof gtag === 'function') {
+        gtag('event', 'language_change', {
+            'language': lang
+        });
+    }
+}
+
+// Apply translations to all elements with data-i18n attribute
+function applyTranslations(lang) {
+    const t = translations[lang] || translations['en'];
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key]) {
+            el.textContent = t[key];
+        }
+    });
+
+    // Handle placeholder translations
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (t[key]) {
+            el.placeholder = t[key];
+        }
+    });
+
+    // Update HTML lang attribute
+    document.documentElement.lang = lang;
+}
+
+// ============================================
+// iOS Modal
+// ============================================
+
+function showIOSModal() {
+    document.getElementById('ios-modal').classList.add('active');
+
+    // Track modal open
+    if (typeof gtag === 'function') {
+        gtag('event', 'ios_modal_open', {
+            'language': currentLang
+        });
+    }
+}
+
+function closeIOSModal() {
+    document.getElementById('ios-modal').classList.remove('active');
+}
+
+// Close modal on outside click
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('ios-modal');
+    if (e.target === modal) {
+        closeIOSModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeIOSModal();
+    }
+});
+
+// ============================================
+// Analytics Tracking
+// ============================================
+
+function trackDownload(platform) {
+    if (typeof gtag === 'function') {
+        gtag('event', 'download_click', {
+            'platform': platform,
+            'language': currentLang
+        });
+    }
+
+    // For now, show alert since Play Store URL is not ready
+    // TODO: Replace with actual Play Store URL
+    alert('Coming soon to Google Play! 🚀');
+
+    // When ready, uncomment this and add the real URL:
+    // window.open('https://play.google.com/store/apps/details?id=com.appacadabra', '_blank');
+}
+
+function trackIOSSignup() {
+    if (typeof gtag === 'function') {
+        gtag('event', 'ios_waitlist_signup', {
+            'language': currentLang
+        });
+    }
+
+    // Close modal after a short delay (form is already submitting)
+    setTimeout(() => {
+        closeIOSModal();
+    }, 100);
+}
+
+// ============================================
+// Smooth scroll for anchor links
+// ============================================
+
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
+    });
+});
+
+// ============================================
+// Intersection Observer for animations
+// ============================================
+
+const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+};
+
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+        }
+    });
+}, observerOptions);
+
+// Animate feature cards and steps on scroll
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.feature-card, .step').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        observer.observe(el);
+    });
+});
