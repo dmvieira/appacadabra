@@ -47,13 +47,14 @@ const screens: OnboardingScreen[] = [
     {
         titleKey: 'onboardingBackupTitle',
         bodyKey: 'onboardingBackupBody',
-        emoji: '📖',
+        emoji: '📚',
     },
-    {
-        titleKey: 'onboardingScrollTitle',
-        bodyKey: 'onboardingScrollBody',
-        emoji: '📜',
-    },
+    // TODO: Uncomment when Import Scroll feature is ready
+    // {
+    //     titleKey: 'onboardingScrollTitle',
+    //     bodyKey: 'onboardingScrollBody',
+    //     emoji: '📜',
+    // },
 ];
 
 export function Onboarding({ visible, onComplete }: OnboardingProps) {

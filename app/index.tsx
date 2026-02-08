@@ -464,11 +464,13 @@ export default function HomeScreen() {
                     onPress={() => setShowMenu(false)}
                 >
                     <View style={styles.menuSheet}>
+                        {/* TODO: Uncomment when Import Scroll feature is ready
                         <TouchableOpacity style={styles.menuItem} onPress={handleImportProject}>
                             <Text style={styles.menuItemIcon}>📦</Text>
                             <Text style={styles.menuItemText}>{t('importProject')}</Text>
                         </TouchableOpacity>
                         <View style={styles.menuDivider} />
+                        */}
                         <TouchableOpacity style={styles.menuItem} onPress={handleExport}>
                             <Text style={styles.menuItemIcon}>📤</Text>
                             <Text style={styles.menuItemText}>{t('exportBackup')}</Text>
