@@ -62,6 +62,8 @@ google-services.json
 .cxx/
 android/app/.cxx/
 android/app/build/generated/
+android/keystore.properties
+android/app/release.keystore
 
 # =====================
 # IDE & Editors
