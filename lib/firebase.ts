@@ -4,7 +4,10 @@ import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, que
 import { getApp } from '@react-native-firebase/app';
 // @ts-ignore - Index.d.ts exports class as type, but it is a value in runtime. Import from root to ensure module registration.
 import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
+import Constants from 'expo-constants';
 import pako from 'pako';
+
+const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
 
 // Compression Utils
 function uint8ArrayToBase64(bytes: Uint8Array): string {
@@ -201,7 +204,7 @@ async function submitJobAndWait(action: 'create' | 'edit', payload: any): Promis
         const db = getFirestore();
         const jobsRef = collection(db, 'jobs');
 
-        const cleanPayload = sanitizePayload(payload);
+        const cleanPayload = sanitizePayload({ ...payload, appVersion: APP_VERSION });
         console.error(`[DEBUG] Adding doc to jobs collection with payload:`, JSON.stringify(cleanPayload));
 
         // Create a new job document
@@ -293,6 +296,7 @@ export async function generateSpellConvert(
         action: 'convert',
         sourceCode: compressContent(sourceCode), // Compress source (zip base64 or huge text)
         frameworkHint,
+        appVersion: APP_VERSION,
     });
 
     if (result.data && result.data.text) {
@@ -317,6 +321,7 @@ export async function generateSpellWebviewAI(
     const result = await generateSpell({
         action: 'webview_ai',
         prompt: compressContent(prompt),
+        appVersion: APP_VERSION,
         ...options,
     });
 
@@ -382,7 +387,7 @@ export async function submitJob(action: 'create' | 'edit', payload: any): Promis
         const db = getFirestore();
         const jobsRef = collection(db, 'jobs');
 
-        const cleanPayload = sanitizePayload(payload);
+        const cleanPayload = sanitizePayload({ ...payload, appVersion: APP_VERSION });
 
         const jobDoc = await addDoc(jobsRef, {
             userId,

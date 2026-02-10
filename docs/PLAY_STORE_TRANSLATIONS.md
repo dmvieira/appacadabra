@@ -6,7 +6,7 @@
 Appacadabra: AI Tool Generator
 
 ### Short Description (80 chars)
-What do you need help with? Describe it. The AI creates it. No code required.
+Turn your desire into functional tools instantly. No code required, just AI
 
 ### Full Description (4000 chars)
 **What do you need help with?** Describe it. The AI creates it. 🪄
@@ -22,6 +22,11 @@ Need a habit tracker? A workout timer? A budget calculator? A study planner? A n
 • **Native Device Powers**: Unlike basic web wrappers, your spells can access real device features:
   📅 Calendar • 🔔 Notifications • 📍 Location • 👤 Contacts • 🦿 Health Connect • 🤖 AI • 🧭 Sensors • 🔒 Biometric Lock • 🏠 Shortcuts
 • **Open Other Apps**: Your spells can launch WhatsApp, Telegram, Notion, Spotify—any app that supports sharing or deep links!
+• **📥 Share TO Spells**: Share files directly from other apps for instant processing:
+  📱 WhatsApp exports → Summarize key topics
+  📄 PDFs → Extract important data
+  🎤 Audio → Transcribe & analyze
+  📸 Images → Extract text or generate reports
 • **Edit with AI**: Want to change something? Just say "Make the background blue" or "Add a reset button," and the AI updates it in real-time.
 • **Share Your Spells**: Export your creations to share with friends—your data stays private.
 
@@ -30,17 +35,15 @@ We believe in user ownership. Your spells live on your device. We don't resell y
 
 **Download Appacadabra today and start building your own spell book, one spell at a time!**
 
-*Powered by Google Gemini*
-
 ---
 
 ## Português (pt-BR)
 
 ### App Name
-Appacadabra: Gerador de Apps
+Appacadabra: Gerador de Ferramentas
 
 ### Short Description
-No que você precisa de ajuda? Descreva. A IA cria. Sem programação.
+Transforme desejos em ferramentas funcionais. Sem código, apenas IA
 
 ### Full Description
 **No que você precisa de ajuda?** Descreva. A IA cria. 🪄
@@ -56,6 +59,11 @@ Precisa de um rastreador de hábitos? Timer de treino? Calculadora de orçamento
 • **Poderes Nativos**: Diferente de wrappers web básicos, seus feitiços podem acessar recursos reais do dispositivo:
   📅 Calendário • 🔔 Notificações • 📍 Localização • 👤 Contatos • 🦿 Health Connect • 🤖 IA • 🧭 Sensores • 🔒 Bloqueio Biométrico • 🏠 Atalhos
 • **Abra Outros Apps**: Seus feitiços podem abrir WhatsApp, Telegram, Notion, Spotify—qualquer app com deep links!
+• **📥 Compartilhe COM Feitiços**: Compartilhe arquivos de outros apps para processamento instantâneo:
+  📱 Exportações do WhatsApp → Resuma os principais tópicos
+  📄 PDFs → Extraia dados importantes
+  🎤 Áudio → Transcreva e analise
+  📸 Imagens → Extraia texto ou gere relatórios
 • **Edite com IA**: Quer mudar algo? Diga "Mude o fundo para azul" ou "Adicione um botão de reset" e a IA atualiza na hora.
 • **Compartilhe**: Exporte suas criações para compartilhar com amigos—seus dados ficam privados.
 
@@ -63,8 +71,6 @@ Precisa de um rastreador de hábitos? Timer de treino? Calculadora de orçamento
 Acreditamos na propriedade do usuário. Seus feitiços ficam no seu dispositivo. Não vendemos seus dados nem reivindicamos propriedade das suas criações.
 
 **Baixe Appacadabra hoje e comece a construir seu próprio livro de feitiços!**
-
-*Powered by Google Gemini*
 
 ---
 
@@ -74,7 +80,7 @@ Acreditamos na propriedade do usuário. Seus feitiços ficam no seu dispositivo.
 Appacadabra: Generador IA
 
 ### Short Description
-¿Con qué necesitas ayuda? Descríbelo. La IA lo crea. Sin programar.
+Convierte tus deseos en herramientas funcionales. Sin código, solo IA
 
 ### Full Description
 **¿Con qué necesitas ayuda?** Descríbelo. La IA lo crea. 🪄
@@ -90,6 +96,11 @@ Appacadabra es un **Generador de Herramientas con IA** que convierte tus ideas e
 • **Poderes Nativos**: Accede a funciones reales del dispositivo:
   📅 Calendario • 🔔 Notificaciones • 📍 Ubicación • 👤 Contactos • 🦿 Health Connect • 🤖 IA • 🧭 Sensores • 📳 Vibración • 🔒 Bloqueo Biométrico • 🏠 Atajos
 • **Abre Otras Apps**: ¡Lanza WhatsApp, Telegram, Notion, Spotify—cualquier app con deep links!
+• **📥 Comparte CON Hechizos**: Comparte archivos de otras apps para procesamiento instantáneo:
+  📱 Exportaciones de WhatsApp → Resume los temas clave
+  📄 PDFs → Extrae datos importantes
+  🎤 Audio → Transcribe y analiza
+  📸 Imágenes → Extrae texto o genera reportes
 • **Edita con IA**: Di "Cambia el fondo a azul" o "Agrega un botón de reset" y la IA lo actualiza al instante.
 • **Comparte**: Exporta tus creaciones—tus datos permanecen privados.
 
@@ -97,8 +108,6 @@ Appacadabra es un **Generador de Herramientas con IA** que convierte tus ideas e
 Tus hechizos viven en tu dispositivo. No vendemos tus datos ni reclamamos propiedad.
 
 **¡Descarga Appacadabra hoy y empieza a construir tu propio libro de hechizos!**
-
-*Powered by Google Gemini*
 
 ---
 
@@ -108,7 +117,7 @@ Tus hechizos viven en tu dispositivo. No vendemos tus datos ni reclamamos propie
 Appacadabra: Générateur IA
 
 ### Short Description
-De quoi avez-vous besoin ? Décrivez-le. L'IA le crée. Sans code.
+Transformez vos désirs en outils fonctionnels. Sans code, juste l'IA
 
 ### Full Description
 **De quoi avez-vous besoin ?** Décrivez-le. L'IA le crée. 🪄
@@ -124,6 +133,11 @@ Besoin d'un suivi d'habitudes ? Timer d'entraînement ? Calculatrice de budget ?
 • **Pouvoirs Natifs**: Accédez aux vraies fonctionnalités de l'appareil:
   📅 Calendrier • 🔔 Notifications • 📍 Localisation • 👤 Contacts • 🦿 Health Connect • 🤖 IA • 🧭 Capteurs • 🔒 Verrou Biométrique • 🏠 Raccourcis
 • **Ouvrez D'autres Apps**: Lancez WhatsApp, Telegram, Notion, Spotify—toute app avec deep links !
+• **📥 Partagez VERS vos Sorts**: Partagez des fichiers d'autres apps pour un traitement instantané :
+  📱 Exports WhatsApp → Résumez les sujets clés
+  📄 PDFs → Extrayez les données importantes
+  🎤 Audio → Transcrivez et analysez
+  📸 Images → Extrayez du texte ou générez des rapports
 • **Modifiez avec l'IA**: Dites « Mettez le fond en bleu » et l'IA met à jour instantanément.
 • **Partagez**: Exportez vos créations—vos données restent privées.
 
@@ -131,8 +145,6 @@ Besoin d'un suivi d'habitudes ? Timer d'entraînement ? Calculatrice de budget ?
 Vos sorts restent sur votre appareil. Nous ne vendons pas vos données.
 
 **Téléchargez Appacadabra aujourd'hui !**
-
-*Powered by Google Gemini*
 
 ---
 
@@ -142,7 +154,7 @@ Vos sorts restent sur votre appareil. Nous ne vendons pas vos données.
 Appacadabra: KI-Generator
 
 ### Short Description
-Wobei brauchst du Hilfe? Beschreibe es. Die KI erschafft es. Ohne Code.
+Verwandle Wünsche sofort in Tools. Kein Code erforderlich, nur KI
 
 ### Full Description
 **Wobei brauchst du Hilfe?** Beschreibe es. Die KI erschafft es. 🪄
@@ -158,6 +170,11 @@ Brauchst du einen Habit-Tracker? Workout-Timer? Budget-Rechner? Ein Spiel? Tippe
 • **Native Kräfte**: Zugriff auf echte Gerätefunktionen:
   📅 Kalender • 🔔 Benachrichtigungen • 📍 Standort • 👤 Kontakte • 🦿 Health Connect • 🤖 KI • 🧭 Sensoren • 🔒 Biometrische Sperre • 🏠 Verknüpfungen
 • **Andere Apps Öffnen**: Starte WhatsApp, Telegram, Notion, Spotify—jede App mit Deep Links!
+• **📥 Teile MIT Zaubern**: Teile Dateien von anderen Apps für sofortige Verarbeitung:
+  📱 WhatsApp-Exporte → Fasse Schlüsselthemen zusammen
+  📄 PDFs → Extrahiere wichtige Daten
+  🎤 Audio → Transkribiere & analysiere
+  📸 Bilder → Extrahiere Text oder erstelle Berichte
 • **Mit KI Bearbeiten**: Sage "Mache den Hintergrund blau" und die KI aktualisiert sofort.
 • **Teilen**: Exportiere deine Kreationen—deine Daten bleiben privat.
 
@@ -165,8 +182,6 @@ Brauchst du einen Habit-Tracker? Workout-Timer? Budget-Rechner? Ein Spiel? Tippe
 Deine Zauber bleiben auf deinem Gerät. Wir verkaufen deine Daten nicht.
 
 **Lade Appacadabra heute herunter!**
-
-*Powered by Google Gemini*
 
 ---
 
@@ -176,7 +191,7 @@ Deine Zauber bleiben auf deinem Gerät. Wir verkaufen deine Daten nicht.
 Appacadabra: Generatore IA
 
 ### Short Description
-Di cosa hai bisogno? Descrivilo. L'IA lo crea. Senza programmare.
+Trasforma i desideri in strumenti funzionali. Niente codice, solo IA
 
 ### Full Description
 **Di cosa hai bisogno?** Descrivilo. L'IA lo crea. 🪄
@@ -192,6 +207,11 @@ Ti serve un tracker di abitudini? Timer allenamento? Calcolatrice budget? Un gio
 • **Poteri Nativi**: Accedi alle vere funzionalità del dispositivo:
   📅 Calendario • 🔔 Notifiche • 📍 Posizione • 👤 Contatti • 🦿 Health Connect • 🤖 IA • 🧭 Sensori • 🔒 Blocco Biometrico • 🏠 Scorciatoie
 • **Apri Altre App**: Lancia WhatsApp, Telegram, Notion, Spotify—qualsiasi app con deep links!
+• **📥 Condividi CON gli Incantesimi**: Condividi file da altre app per elaborazione istantanea:
+  📱 Esportazioni WhatsApp → Riassumi gli argomenti chiave
+  📄 PDF → Estrai dati importanti
+  🎤 Audio → Trascrivi e analizza
+  📸 Immagini → Estrai testo o genera report
 • **Modifica con IA**: Di' "Cambia lo sfondo in blu" e l'IA aggiorna subito.
 • **Condividi**: Esporta le tue creazioni—i tuoi dati restano privati.
 
@@ -199,5 +219,78 @@ Ti serve un tracker di abitudini? Timer allenamento? Calcolatrice budget? Un gio
 I tuoi incantesimi restano sul tuo dispositivo. Non vendiamo i tuoi dati.
 
 **Scarica Appacadabra oggi!**
+---
 
-*Powered by Google Gemini*
+## 日本語 (ja-JP)
+
+### App Name
+Appacadabra: AIツールジェネレーター
+
+### Short Description
+あなたの願いを即座に機能するツールへ。コード不要、AIだけ。
+
+### Full Description
+**何かお困りですか？** 説明するだけで、AIが作成します。
+
+Appacadabraは、あなたのアイデアを数秒で機能するツールに変える**AIツールジェネレーター**です。プログラミングは不要。必要なものを説明するだけで、魔法のように生成されます。
+
+習慣トラッカー、筋トレタイマー、予算計算機、学習プランナー、自分だけのゲームが必要ですか？欲しいものを入力するだけで、AIが即座に作成します。
+
+** 主な機能:**
+
+ **説明して作成**: 「宇宙テーマのポモドーロタイマー」や「割り勘計算機」と入力するだけで、数秒で機能するツールが手に入ります。
+ **保存＆プライベート**: 生成された「魔法（ツール）」はデバイスにローカル保存されます。オフラインで動作し、完全にあなたのものです。
+ **ネイティブ機能**: 一般的なウェブアプリとは異なり、あなたの魔法はデバイスの機能にアクセスできます：
+   カレンダー   通知   位置情報   連絡先   ヘルスコネクト   AI   センサー   生体認証   ショートカット
+ **他のアプリを開く**: WhatsApp、Telegram、Notion、Spotifyなど、ディープリンク対応アプリを起動可能！
+ ** 魔法へ共有 (Share TO Spells)**: 他のアプリからファイルを直接共有して即座に処理：
+   WhatsAppのエクスポート  会話の要約
+   PDF  重要データの抽出
+   音声  文字起こしと分析
+   画像  テキスト抽出やレポート作成
+ **AIで編集**: 変えたい箇所がありますか？「背景を青にして」や「リセットボタンを追加して」と言うだけで、AIがリアルタイムに更新します。
+ **共有**: 作った魔法をエクスポートして友達に共有できます（データはプライベートのまま）。
+
+** プライバシー第一:**
+ユーザーの所有権を尊重します。魔法はあなたのデバイス上に存在します。データを販売したり、作成物の所有権を主張したりすることはありません。
+
+**今すぐAppacadabraをダウンロードして、あなただけの魔法の書を作り始めましょう！**
+
+
+---
+
+## 中文 (zh-CN)
+
+### App Name
+Appacadabra: AI工具生成器
+
+### Short Description
+将您的愿望立即转化为实用工具。无需代码，仅需AI。
+
+### Full Description
+**你需要什么帮助？** 描述一下。AI 就会为你创造。
+
+Appacadabra 是一款**AI工具生成器**，能在几秒钟内将你的想法转化为实用的工具。无需编程只需描述你的需求，就能见证奇迹发生。
+
+需要习惯追踪器？健身计时器？预算计算器？学习计划表？还是为你量身定制的游戏？只需输入你想要的，AI 就会立刻为你构建。
+
+** 主要功能:**
+
+ **描述即创造**: 只需输入以太空为主题的番茄钟或AA制计算器，几秒钟内就能获得完全可用的工具。
+ **本地保存 & 隐私保护**: 你的魔法（工具）存储在本地设备上。离线可用，完全属于你。
+ **原生设备能力**: 与普通的网页应用不同，你的魔法可以访问真实的设备功能：
+  日历  通知  位置  联系人  健康连接 (Health Connect)  AI  传感器  生物识别锁  桌面快捷方式
+ **打开其它应用**: 你的魔法可以启动 WhatsApp, Telegram, Notion, Spotify任何支持深度链接的应用！
+ ** 分享到魔法 (Share TO Spells)**: 从其它应用直接分享文件进行即时处理：
+   WhatsApp 聊天记录 总结关键话题
+   PDF 提取重要数据
+   音频 转录和分析
+   图片 提取文本或生成报告
+ **AI辅助编辑**: 想要修改什么？只需说把背景改成蓝色或添加重置按钮，AI 会实时更新。
+ **分享**: 导出你的作品与朋友分享你的数据始终保密。
+
+** 隐私优先:**
+我们尊重用户所有权。你的魔法存在于你的设备上。我们不出售你的数据，也不主张对你创作的所有权。
+
+**立即下载 Appacadabra，开始构建你自己的魔法书吧！**
+

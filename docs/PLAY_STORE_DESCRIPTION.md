@@ -4,7 +4,7 @@
 Appacadabra: AI Tool Generator
 
 ## Short Description (80 chars)
-Turn text into functional tools instantly. No code required. Generative AI on device.
+Turn your desire into functional tools instantly. No code required, just AI
 
 ## Full Description
 
@@ -30,6 +30,12 @@ Need a habit tracker? A workout timer? A budget calculator? A study planner? A n
     *   🏠 **Home Screen Shortcuts**: Launch your tools instantly.
     *   *...and more coming!*
 *   **Open Other Apps**: Your spells can launch WhatsApp, Telegram, Notion, Spotify—any app that supports sharing or deep links!
+*   **📥 Share TO Your Spells**: Share files directly from other apps to your spells for instant processing:
+    *   📱 Share a WhatsApp export → Get a summary of key topics and suggested replies.
+    *   📄 Share a PDF → Extract important information automatically.
+    *   🎤 Share audio files → Transcribe and summarize content.
+    *   📸 Share images → Analyze and extract text or data.
+    *   📝 Share text → Generate reports, schedule meetings, or automate any routine task!
 *   **Edit with AI**: Want to change something? Just say “Make the background blue” or “Add a reset button,” and the AI updates it in real-time.
 *   **Share Your Spells**: Export your creations to share with friends—your data stays private.
 
@@ -42,6 +48,3 @@ Need a habit tracker? A workout timer? A budget calculator? A study planner? A n
 We believe in user ownership. Your spells live on your device. We don't resell your data or claim ownership of your creations.
 
 **Download Appacadabra today and start building your own spell book, one spell at a time!**
-
----
-*Powered by Google Gemini*

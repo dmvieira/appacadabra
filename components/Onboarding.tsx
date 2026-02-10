@@ -40,6 +40,11 @@ const screens: OnboardingScreen[] = [
         emoji: '🧪',
     },
     {
+        titleKey: 'onboardingProductivityTitle',
+        bodyKey: 'onboardingProductivityBody',
+        emoji: '📥',
+    },
+    {
         titleKey: 'onboardingManaTitle',
         bodyKey: 'onboardingManaBody',
         emoji: '⚡',

@@ -91,7 +91,10 @@
             <li><strong>Contacts:</strong> Only when a generated spell needs to access your contact list</li>
             <li><strong>Calendar:</strong> For creating events in generated spells</li>
             <li><strong>Location:</strong> When generated spells require geolocation</li>
-            <li><strong>Camera/Microphone:</strong> For media features in generated spells</li>
+            <li><strong>Camera:</strong> Used only when a generated spell requests it (e.g., scanning QR codes, taking
+                photos). We do not access the camera without your explicit action within a spell.</li>
+            <li><strong>Microphone:</strong> Used only for voice commands or audio recording spells. We do not record
+                audio without your explicit action.</li>
             <li><strong>Notifications:</strong> For sending reminders and alerts</li>
         </ul>
         <p><strong>Important:</strong> These permissions are only requested when needed, and you can deny them at any
@@ -148,7 +151,8 @@
 
         <h2>9. Contact</h2>
         <p>For questions about this policy, contact us:</p>
-        <p>Email: <a href="mailto:support@appacadabra.ai">support@appacadabra.ai</a></p>
+        <p>Email: <a href="#" onclick="openEmail(); return false;" data-i18n="footerContact">Contact</a>
+        </p>
     </div>
 
     <footer class="footer">
@@ -160,6 +164,9 @@
             <p class="footer-copyright">© 2026 Appacadabra. All rights reserved.</p>
         </div>
     </footer>
+    <!-- Scripts -->
+    <script src="js/translations.js"></script>
+    <script src="js/main.js"></script>
 </body>
 
 </html>

@@ -173,7 +173,6 @@
             <h2 class="section-title" data-i18n="privacyTitle">🔒 Privacy First</h2>
             <p data-i18n="privacyText">Your spells live on your device. We don't resell your data or claim ownership of
                 your creations.</p>
-            <p class="powered-by">Powered by <strong>Google Gemini</strong></p>
         </div>
     </section>
 
@@ -187,7 +186,7 @@
             <div class="footer-links">
                 <a href="privacy.html" data-i18n="footerPrivacy">Privacy Policy</a>
                 <a href="terms.html" data-i18n="footerTerms">Terms of Service</a>
-                <a href="mailto:support@appacadabra.ai" data-i18n="footerContact">Contact</a>
+                <a href="#" onclick="openEmail(); return false;" data-i18n="footerContact">Contact</a>
             </div>
             <p class="footer-copyright">© 2026 Appacadabra. All rights reserved.</p>
         </div>
@@ -199,8 +198,7 @@
             <button class="modal-close" onclick="closeIOSModal()">×</button>
             <h3 data-i18n="modalTitle">🍎 Get notified when iOS is ready!</h3>
             <p data-i18n="modalSubtitle">Be the first to know when Appacadabra launches on iOS.</p>
-            <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST" class="waitlist-form"
-                onsubmit="trackIOSSignup()">
+            <form action="https://formspree.io/f/xdalkbra" method="POST" class="waitlist-form" id="ios-waitlist-form">
                 <input type="email" name="email" placeholder="your@email.com" required
                     data-i18n-placeholder="emailPlaceholder">
                 <input type="hidden" name="platform" value="ios">

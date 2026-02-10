@@ -99,7 +99,11 @@ Appacadabra is a **local tool generation utility** that uses AI to help users cr
    - Biometric authentication
    - Sensor access (accelerometer, gyroscope)
 3. **Version history and editing**
-4. **Share target functionality**
+4. **Share target functionality** - Users can share files (PDFs, images, audio, text exports) directly to spells for automatic processing:
+   - Summarize WhatsApp conversation exports
+   - Extract data from PDFs
+   - Transcribe and analyze audio files
+   - Process images and generate reports
 
 ---
 

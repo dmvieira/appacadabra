@@ -18,7 +18,8 @@ The app may request access to:
 - **Contacts:** Only when a generated spell needs to access your contact list
 - **Calendar:** For creating events in generated spells
 - **Location:** When generated spells require geolocation
-- **Camera/Microphone:** For media features in generated spells
+- **Camera:** Used only when a generated spell requests it (e.g., scanning QR codes, taking photos). We do not access the camera without your explicit action within a spell.
+- **Microphone:** Used only for voice commands or audio recording spells. We do not record audio without your explicit action.
 - **Notifications:** For sending reminders and alerts
 
 **Important:** These permissions are only requested when needed, and you can deny them at any time.

@@ -124,18 +124,64 @@ function trackDownload(platform) {
     // window.open('https://play.google.com/store/apps/details?id=com.appacadabra', '_blank');
 }
 
-function trackIOSSignup() {
-    if (typeof gtag === 'function') {
-        gtag('event', 'ios_waitlist_signup', {
-            'language': currentLang
+// Handle iOS Waitlist Form (AJAX)
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('ios-waitlist-form');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const button = form.querySelector('button');
+            const originalText = button.textContent;
+
+            // Loading state
+            button.disabled = true;
+            button.textContent = "Sending...";
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    // Success
+                    button.textContent = "Thanks! ✨";
+                    form.reset();
+
+                    // Track event
+                    if (typeof gtag === 'function') {
+                        gtag('event', 'ios_waitlist_signup', {
+                            'language': currentLang
+                        });
+                    }
+
+                    // Close after delay
+                    setTimeout(() => {
+                        closeIOSModal();
+                        // Reset button for next time
+                        setTimeout(() => {
+                            button.disabled = false;
+                            button.textContent = originalText;
+                        }, 500);
+                    }, 2000);
+                } else {
+                    throw new Error('Network response was not ok');
+                }
+            } catch (error) {
+                // Error
+                console.error('Error:', error);
+                button.textContent = "Error 😕";
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }, 3000);
+            }
         });
     }
-
-    // Close modal after a short delay (form is already submitting)
-    setTimeout(() => {
-        closeIOSModal();
-    }, 100);
-}
+});
 
 // ============================================
 // Smooth scroll for anchor links
@@ -178,5 +224,26 @@ document.addEventListener('DOMContentLoaded', () => {
         el.style.transform = 'translateY(20px)';
         el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
         observer.observe(el);
+    });
+});
+
+// ============================================
+// Email Obfuscation
+// ============================================
+
+function openEmail() {
+    const user = 'support';
+    const domain = 'appacadabra.ai';
+    const email = user + '@' + domain;
+    window.location.href = 'mailto:' + email;
+}
+
+// Render obfuscated email text
+document.addEventListener('DOMContentLoaded', () => {
+    const emailElements = document.querySelectorAll('.obfuscated-email');
+    emailElements.forEach(el => {
+        const user = 'support';
+        const domain = 'appacadabra.ai';
+        el.textContent = user + '@' + domain;
     });
 });
