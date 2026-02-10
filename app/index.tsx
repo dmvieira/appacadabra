@@ -595,10 +595,10 @@ export default function HomeScreen() {
                                 <Text style={styles.legalText}>Last updated: January 2026</Text>
 
                                 <Text style={styles.legalHeading}>1. Introduction</Text>
-                                <Text style={styles.legalText}>Appacadabra is a web app generator that uses artificial intelligence to create personalized applications. This Privacy Policy describes how we collect, use, and protect your information.</Text>
+                                <Text style={styles.legalText}>Appacadabra is a tool generator that uses artificial intelligence to create personalized applications. This Privacy Policy describes how we collect, use, and protect your information.</Text>
 
                                 <Text style={styles.legalHeading}>2. Information We Collect</Text>
-                                <Text style={styles.legalText}>• App descriptions you provide{'\n'}• Generated code (stored locally){'\n'}• Permissions accessed only when needed (contacts, calendar, location)</Text>
+                                <Text style={styles.legalText}>• Tool descriptions you provide{'\n'}• Generated code (stored locally){'\n'}• Permissions accessed only when needed (contacts, calendar, location)</Text>
 
                                 <Text style={styles.legalHeading}>3. Storage</Text>
                                 <Text style={styles.legalText}>All data is stored exclusively on your device. We do not maintain servers with your personal data.</Text>

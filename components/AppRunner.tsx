@@ -105,6 +105,11 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     useEffect(() => {
         async function loadApp() {
             console.log('AppRunner: Loading app and storage for id:', appId);
+            // Reset state to force reload
+            setIsLoading(true);
+            setStorageLoaded(false);
+            setApp(null);
+
             const appData = await db.getAppById(appId);
             if (appData) {
                 setApp(appData);
@@ -504,6 +509,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 mixedContentMode="always"
                 geolocationEnabled
                 injectedJavaScriptBeforeContentLoaded={combinedScript}
+                onLoadEnd={handleLoadEnd}
                 onMessage={handleMessage}
                 onNavigationStateChange={(navState) => {
                     canGoBackRef.current = navState.canGoBack;
