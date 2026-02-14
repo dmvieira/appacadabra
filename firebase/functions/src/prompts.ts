@@ -62,16 +62,22 @@ AppacadabraAI.generate("Hello", handleResult);
     - **Return**: "Event deleted" (string)
 - **Return for create**: "Calendar opened" (string)
 
-🔔 NOTIFICATION (AppacadabraNotify)
+🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app. Use \`id\` to update existing notification.
 - \`showNow(title, msg, callback)\` - Show notification immediately
+    - **Return**: Notification ID (string)
 - \`schedule(title, msg, delayMinutes, callback, id?)\` - Schedule after delay
+    - **Return**: Notification ID (string)
 - \`scheduleAt(title, msg, timeMs, callback, id?)\` - Schedule at specific time
+    - **Return**: Notification ID (string)
 - \`getScheduled(callback)\` - List pending notifications
     - **Return**: JSON \`[{id, title, body, trigger: { type: "timeInterval"|"date", value: number }}]\` (value is seconds for interval, or timestamp for date)
 - \`cancel(id, callback)\` - Cancel notification by ID
+    - **Return**: "Cancelled" (string)
 - \`cancelAll(callback)\` - Cancel all notifications from this app
-- **Return for schedule**: Notification ID (string)
-- **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app. Use \`id\` to update existing notification.
+    - **Return**: "All cancelled" (string)
+- \`alert(message)\` - Show custom alert dialog (Promise<void>)
+- \`confirm(message)\` - Show custom confirm dialog (Promise<boolean>)
+- \`prompt(message, defaultValue)\` - Show custom prompt dialog (Promise<string|null>)
 
 💪 HEALTH (AppacadabraHealth)
 - \`getSteps(startMs, endMs, callback)\` - Get step count

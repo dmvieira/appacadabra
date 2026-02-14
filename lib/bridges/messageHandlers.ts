@@ -1167,60 +1167,62 @@ export async function handleBridgeMessage(
             console.log(`[Native Bridge] VIBRATE command received. Input: ${JSON.stringify(pattern)}`);
 
             try {
-                // Try native vibration first
-                // RN Android interprets pattern as [wait, vibrate, wait, vibrate...]
-                // Web API sends [vibrate, wait, vibrate, wait...]
-                // So we need to prepend 0 for Android to start immediately.
+                // Cancel any previous vibration to ensure a clean slate
+                Vibration.cancel();
+
                 if (Array.isArray(pattern)) {
                     // ARRAY PATTERN
-                    // Native array support can be flaky. Manual execution via setTimeout.
+                    // Android supports patterns natively: [0, vibrate, wait, vibrate, ...]
+                    // iOS does not support patterns natively -> use manual loop or fallback
 
-                    console.log(`[Native Bridge] Manual pattern execution: ${JSON.stringify(pattern)}`);
+                    // Using require here to avoid top-level import issues if platform specific
+                    const { Platform } = require('react-native');
 
-                    // Cancel any previous vibration to ensure a clean slate
-                    Vibration.cancel();
+                    if (Platform.OS === 'android') {
+                        // Native Android Pattern
+                        // Prepend 0 to start immediately if the first element is duration
+                        // Web/User pattern: [vibrate, wait, vibrate, wait...]
+                        // Android pattern: [wait, vibrate, wait, vibrate...]
+                        const androidPattern = [0, ...pattern];
+                        console.log(`[Native Bridge] Android Native Pattern: ${JSON.stringify(androidPattern)}`);
+                        Vibration.vibrate(androidPattern);
+                    } else {
+                        // iOS / Other - Manual Loop
+                        // Note: iOS Vibration.vibrate() ignores duration and pattern (fixed 400ms)
+                        // So we use Haptics for short durations or just best effort
+                        console.log(`[Native Bridge] Manual pattern execution (iOS/Other)`);
 
-                    // Loop through the pattern
-                    let currentTime = 0;
+                        let currentTime = 0;
+                        for (let i = 0; i < pattern.length; i++) {
+                            const duration = pattern[i];
+                            const triggerTime = currentTime;
 
-                    // Web pattern is [vibrate, wait, vibrate, wait...]
-                    for (let i = 0; i < pattern.length; i++) {
-                        const duration = pattern[i];
-
-                        // Capture time for closure
-                        const triggerTime = currentTime;
-
-                        // Even index = VIBRATE
-                        if (i % 2 === 0) {
-                            if (duration > 0) {
-                                setTimeout(() => {
-                                    console.log(`[Native Bridge] Manual Vibrate: ${duration}ms (at ${triggerTime}ms)`);
-                                    Vibration.vibrate(duration);
-
-                                    // Safety haptic for short pulses
-                                    if (duration <= 100) {
-                                        // Use Notification Success - often stronger/distinct
-                                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
-                                    }
-                                }, triggerTime + 50); // Add tiny 50ms buffer for initial cancel to settle
+                            if (i % 2 === 0) {
+                                // VIBRATE
+                                if (duration > 0) {
+                                    setTimeout(() => {
+                                        console.log(`[Native Bridge] Manual Vibrate: ${duration}ms`);
+                                        // On iOS, vibrate() is fixed length, so we rely more on Haptics for short bursts
+                                        if (duration < 1000) {
+                                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
+                                            // Fallback to standar vibrate if very long?
+                                        } else {
+                                            Vibration.vibrate();
+                                        }
+                                    }, triggerTime);
+                                }
                             }
-                        } else {
-                            // Odd index = WAIT (Just adds to the next timestamp)
-                            // console.log(`[Native Bridge] Wait: ${duration}ms`);
+                            currentTime += duration;
                         }
-
-                        currentTime += duration;
                     }
 
                 } else if (typeof pattern === 'number') {
-                    // Cancel prev
-                    Vibration.cancel();
-
+                    // SINGLE DURATION
+                    console.log(`[Native Bridge] Single Vibrate: ${pattern}ms`);
                     if (pattern > 0) {
-                        console.log(`[Native Bridge] Vibrate: ${pattern}ms`);
-                        setTimeout(() => Vibration.vibrate(pattern), 50); // Tiny buffer
+                        Vibration.vibrate(pattern);
                     }
-                    // Safety/Enhancement haptic
+                    // Safety/Enhancement haptic for short bursts
                     if (pattern <= 100) {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
                             .catch(e => console.error('[Native Bridge] Haptics error:', e));

@@ -590,11 +590,12 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   console.info = interceptConsole('info');
 
   // ============= Non-blocking Alert/Confirm/Prompt =============
-  // Native JS dialogs (alert/confirm/prompt) block the WebView thread.
-  // On Android, multiple WebViews share the same process, so a blocking
-  // dialog in one runner freezes ALL runners. We replace them with
-  // custom HTML modals that are completely non-blocking.
-
+  // User Request:
+  // 1. window.alert -> PROXY to AppacadabraNotify.alert (Custom UI, Async/Non-blocking)
+  //    "It doesn't wait for answer" -> acceptable to be non-blocking.
+  // 2. window.confirm -> NATIVE (Sync/Blocking)
+  // 3. window.prompt -> NATIVE (Sync/Blocking)
+  
   (function() {
     var dialogOverlay = null;
     var dialogResolve = null;
@@ -603,7 +604,8 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       if (dialogOverlay) return dialogOverlay;
       dialogOverlay = document.createElement('div');
       dialogOverlay.id = '__appacadabra_dialog_overlay__';
-      dialogOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999999;backdrop-filter:blur(2px);';
+      // High z-index to stay on top
+      dialogOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999999;backdrop-filter:blur(2px);';
       return dialogOverlay;
     }
 
@@ -614,14 +616,14 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     }
 
     function createButton(text, isPrimary) {
-      var btn = document.createElement('button');
-      btn.textContent = text;
-      btn.style.cssText = 'border:none;border-radius:8px;padding:10px 24px;font-size:15px;font-weight:600;cursor:pointer;min-width:80px;' +
-        (isPrimary
-          ? 'background:#89b4fa;color:#1e1e2e;'
-          : 'background:#313244;color:#cdd6f4;');
-      btn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-      return btn;
+        var btn = document.createElement('button');
+        btn.textContent = text;
+        btn.style.cssText = 'border:none;border-radius:8px;padding:10px 24px;font-size:15px;font-weight:600;cursor:pointer;min-width:80px;' +
+          (isPrimary
+            ? 'background:#89b4fa;color:#1e1e2e;'
+            : 'background:#313244;color:#cdd6f4;');
+        btn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+        return btn;
     }
 
     function removeDialog() {
@@ -632,8 +634,10 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       dialogResolve = null;
     }
 
-    // ---- alert() ----
-    window.alert = function(message) {
+    // Extend AppacadabraNotify with Custom Dialogs (Async)
+    
+    // AppacadabraNotify.alert(message)
+    window.AppacadabraNotify.alert = function(message) {
       return new Promise(function(resolve) {
         var overlay = createOverlay();
         var dialog = createDialog();
@@ -657,8 +661,8 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       });
     };
 
-    // ---- confirm() ----
-    window.confirm = function(message) {
+    // AppacadabraNotify.confirm(message)
+    window.AppacadabraNotify.confirm = function(message) {
       return new Promise(function(resolve) {
         var overlay = createOverlay();
         var dialog = createDialog();
@@ -685,8 +689,8 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       });
     };
 
-    // ---- prompt() ----
-    window.prompt = function(message, defaultValue) {
+    // AppacadabraNotify.prompt(message, defaultValue)
+    window.AppacadabraNotify.prompt = function(message, defaultValue) {
       return new Promise(function(resolve) {
         var overlay = createOverlay();
         var dialog = createDialog();
@@ -724,6 +728,12 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         input.focus();
       });
     };
+
+    // Global Overrides
+    // alert IS overridden (proxy to AppacadabraNotify.alert)
+    window.alert = window.AppacadabraNotify.alert;
+    
+    // confirm and prompt are NOT overridden (remain native/sync)
   })();
 
   // ============= Network Request Interception =============

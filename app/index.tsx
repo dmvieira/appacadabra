@@ -320,7 +320,7 @@ export default function HomeScreen() {
             const firstVersion = versions.length > 0 ? versions[versions.length - 1] : null;
             const creationPrompt = firstVersion?.instruction || '';
 
-            const prompt = `App icon for "${iconTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} . REALLY simple, easy to understand, clean, colorful, minimalist, rounded square icon suitable for a mobile app. No text. Recognizable symbol, without a lot of information because the icon is small. Professional quality that describes the app.`;
+            const prompt = `App icon for "${iconTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} . REALLY simple, easy to understand, clean, colorful, minimalist, rounded square, borderless icon suitable for a mobile app. No text. Recognizable symbol, without a lot of information because the icon is small. Professional quality that describes the app.`;
 
             const result = await firebase.generateSpellImageGen(prompt);
             const base64Image = result.text;
@@ -361,6 +361,7 @@ export default function HomeScreen() {
                 errorMsg.toLowerCase().includes('insufficient credits') ||
                 errorMsg.toLowerCase().includes('insufficient mana') ||
                 errorMsg.toLowerCase().includes('no credits') ||
+                errorMsg.toLowerCase().includes('no user data') ||
                 errorMsg.toLowerCase().includes('out of mana');
 
             if (isManaError) {
@@ -384,7 +385,7 @@ export default function HomeScreen() {
                     ]
                 );
             } else {
-                Alert.alert(t('error'), `${t('iconGenError')}\n${errorMsg}`);
+                Alert.alert(`${t('iconGenError')}`);
             }
         } finally {
             setIsGeneratingIcon(false);
