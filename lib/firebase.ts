@@ -331,6 +331,25 @@ export async function generateSpellWebviewAI(
     return result.data;
 }
 
+// Image Generation via Gemini
+export async function generateSpellImageGen(
+    prompt: string
+): Promise<GenerationResult> {
+    await ensureAuthenticated();
+
+    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
+    const result = await generateSpell({
+        action: 'webview_ai_image',
+        prompt: compressContent(prompt),
+        appVersion: APP_VERSION,
+    });
+
+    if (result.data && result.data.text) {
+        result.data.text = decompressContent(result.data.text);
+    }
+    return result.data;
+}
+
 // Credits
 export async function getCredits(): Promise<number> {
     await ensureAuthenticated();

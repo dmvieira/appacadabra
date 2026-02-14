@@ -172,6 +172,7 @@ export function ManaShop() {
                 {
                     text: t('confirm'),
                     onPress: async () => {
+                        setIsPurchasing(true);
                         try {
                             const result = await firebase.addCredits(amount, 'purchase_simulator');
                             Alert.alert(t('purchaseSuccess', { amount }));
@@ -179,6 +180,8 @@ export function ManaShop() {
                         } catch (error) {
                             console.error(error);
                             Alert.alert('Error', 'Failed to add credits');
+                        } finally {
+                            setIsPurchasing(false);
                         }
                     }
                 }

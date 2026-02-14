@@ -148,9 +148,9 @@ export async function exportSingleApp(appId: number): Promise<boolean> {
 
         if (await Sharing.isAvailableAsync()) {
             await Sharing.shareAsync(file.uri, {
-                mimeType: 'application/vnd.appacadabra.spell', // Custom MIME type for better intent handling
+                mimeType: 'application/json', // application/json for better compatibility
                 dialogTitle: `Share ${backup.apps[0].name}`,
-                UTI: 'com.appacadabra.spell', // iOS Uniform Type Identifier (would need config in Info.plist too)
+                UTI: 'public.json', // iOS Uniform Type Identifier
             });
             return true;
         } else {

@@ -11,6 +11,7 @@ import {
     ScrollView,
     Linking as RNLinking,
     Alert,
+    RefreshControl,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
 import * as ShareIntent from 'share-intent';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
@@ -33,6 +35,9 @@ import { t } from '../lib/i18n';
 import { ManaDisplay } from '../components/ManaDisplay';
 import * as db from '../lib/database/db';
 import { exportSingleApp } from '../lib/backup';
+import * as firebase from '../lib/firebase';
+import { ScheduledNotifications } from '../components/ScheduledNotifications';
+import { useManaStore } from '../lib/manaStore';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -55,6 +60,7 @@ export default function HomeScreen() {
         deleteApp,
         renameApp,
         updateAppIcon,
+        incrementAppManaCost,
         exportBackup,
         importBackup,
         importProject,
@@ -74,6 +80,9 @@ export default function HomeScreen() {
     const [showLegal, setShowLegal] = useState(false);
     const [legalTab, setLegalTab] = useState<'privacy' | 'terms'>('privacy');
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [scheduleTarget, setScheduleTarget] = useState<GeneratedApp | null>(null);
+    const [isGeneratingIcon, setIsGeneratingIcon] = useState(false);
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -115,6 +124,12 @@ export default function HomeScreen() {
             loadApps();
         }, [])
     );
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadApps();
+        setRefreshing(false);
+    }, []);
 
     useEffect(() => {
         if (apps.length > 0) {
@@ -293,6 +308,89 @@ export default function HomeScreen() {
         setIconTarget(null);
     };
 
+    const handleGenerateIconWithAI = async () => {
+        if (!iconTarget || isGeneratingIcon) return;
+
+        try {
+            setIsGeneratingIcon(true);
+
+            // Get the original creation prompt from versions
+            const versions = await db.getVersionsForApp(iconTarget.id);
+            // Versions are sorted DESC, so the last one is v1 (original)
+            const firstVersion = versions.length > 0 ? versions[versions.length - 1] : null;
+            const creationPrompt = firstVersion?.instruction || '';
+
+            const prompt = `App icon for "${iconTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} . REALLY simple, easy to understand, clean, colorful, minimalist, rounded square icon suitable for a mobile app. No text. Recognizable symbol, without a lot of information because the icon is small. Professional quality that describes the app.`;
+
+            const result = await firebase.generateSpellImageGen(prompt);
+            const base64Image = result.text;
+            const creditsUsed = result.creditsUsed || 0;
+
+            if (base64Image) {
+                // Save base64 to a temp file
+                const iconDir = `${FileSystem.documentDirectory}icons/`;
+                const dirInfo = await FileSystem.getInfoAsync(iconDir);
+                if (!dirInfo.exists) {
+                    await FileSystem.makeDirectoryAsync(iconDir, { intermediates: true });
+                }
+                const iconPath = `${iconDir}ai_icon_${iconTarget.id}_${Date.now()}.png`;
+                await FileSystem.writeAsStringAsync(iconPath, base64Image, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+
+                await updateAppIcon(iconTarget.id, iconPath);
+
+                // Update per-spell mana cost in real-time
+                if (creditsUsed > 0) {
+                    await incrementAppManaCost(iconTarget.id, creditsUsed);
+                }
+
+                setStatusMessage(t('iconGenerated'));
+
+                // Only close on success
+                setIconTarget(null);
+            }
+        } catch (e: any) {
+            console.error('Error generating icon with AI:', e);
+
+            // Extract error message safely
+            const errorMsg = e?.message || String(e);
+
+            // Check for various forms of credit/mana errors
+            const isManaError =
+                errorMsg.toLowerCase().includes('insufficient credits') ||
+                errorMsg.toLowerCase().includes('insufficient mana') ||
+                errorMsg.toLowerCase().includes('no credits') ||
+                errorMsg.toLowerCase().includes('out of mana');
+
+            if (isManaError) {
+                // Close the icon picker modal so the shop can be seen clearly
+                setIconTarget(null);
+
+                Alert.alert(
+                    t('manaDepletedTitle') || 'Out of Mana',
+                    t('manaDepletedMessage') || 'You need more Mana to generate icons.',
+                    [
+                        {
+                            text: t('getMana') || 'Get Mana',
+                            onPress: () => {
+                                // Small delay to ensure modal close animation finishes
+                                setTimeout(() => {
+                                    useManaStore.getState().openShop();
+                                }, 300);
+                            }
+                        },
+                        { text: t('cancel'), style: 'cancel' }
+                    ]
+                );
+            } else {
+                Alert.alert(t('error'), `${t('iconGenError')}\n${errorMsg}`);
+            }
+        } finally {
+            setIsGeneratingIcon(false);
+        }
+    };
+
     const handleCreateShortcut = async (app: GeneratedApp) => {
         const result = await createShortcut(app.id, app.name, app.iconPath || null);
         if (result) {
@@ -419,6 +517,14 @@ export default function HomeScreen() {
                     data={allApps}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.list}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[colors.primary]}
+                            tintColor={colors.primary}
+                        />
+                    }
                     ListHeaderComponent={
                         <Text style={styles.sectionTitle}>{t('yourApps')}</Text>
                     }
@@ -439,6 +545,7 @@ export default function HomeScreen() {
                                 onShortcut={() => handleCreateShortcut(item)}
                                 onToggleBiometric={() => handleToggleBiometric(item)}
                                 onShare={() => handleShareApp(item)}
+                                onViewSchedules={() => setScheduleTarget(item)}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
                             />
@@ -509,6 +616,20 @@ export default function HomeScreen() {
                         <TouchableOpacity style={styles.iconBtn} onPress={handleSearchIconOnGoogle}>
                             <Text style={styles.iconBtnIcon}>🔍</Text>
                             <Text style={styles.iconBtnText}>{t('searchGoogle')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.iconBtn}
+                            onPress={handleGenerateIconWithAI}
+                            disabled={isGeneratingIcon}
+                        >
+                            {isGeneratingIcon ? (
+                                <ActivityIndicator size="small" color={colors.onPrimaryContainer} style={{ marginRight: 12 }} />
+                            ) : (
+                                <Text style={styles.iconBtnIcon}>✨</Text>
+                            )}
+                            <Text style={styles.iconBtnText}>
+                                {isGeneratingIcon ? t('generatingIcon') : t('generateWithAI')}
+                            </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={styles.cancelBtn}
@@ -640,6 +761,14 @@ export default function HomeScreen() {
                     </ScrollView>
                 </SafeAreaView>
             </Modal>
+
+            {/* Scheduled Notifications */}
+            <ScheduledNotifications
+                visible={!!scheduleTarget}
+                appId={scheduleTarget?.id || null}
+                appName={scheduleTarget?.name || ''}
+                onClose={() => setScheduleTarget(null)}
+            />
 
             {/* Onboarding */}
             <Onboarding visible={showOnboarding} onComplete={handleOnboardingComplete} />
@@ -777,6 +906,11 @@ const styles = StyleSheet.create({
     },
     cancelBtn: {
         padding: spacing.md,
+    },
+    iconBtnAI: {
+        borderWidth: 1,
+        borderColor: colors.primary,
+        backgroundColor: `${colors.primary}15`,
     },
     cancelText: {
         color: colors.onSurfaceVariant,

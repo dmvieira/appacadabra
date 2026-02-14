@@ -66,6 +66,10 @@ const translations = {
         fromGallery: 'Choose from Gallery',
         fromFiles: 'Choose from Files',
         searchGoogle: 'Search on Google',
+        generateWithAI: 'Generate with AI',
+        generatingIcon: 'Generating...',
+        iconGenerated: 'Icon generated with AI!',
+        iconGenError: 'Could not generate icon. Try again.',
 
         // Shortcuts
         shortcutCreated: 'Added to home:',
@@ -205,6 +209,12 @@ const translations = {
         rewardError: 'Failed to add reward. Please try again.',
         tapToLoad: 'Tap to load',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Scheduled Notifications',
+        noScheduledNotifications: 'No scheduled notifications',
+        cancelNotification: 'Cancel Notification',
+        cancelNotificationConfirm: 'Remove this scheduled notification?',
+
         // Backup
         exportBackupDialog: 'Export Backup',
         importSpell: 'Import Spell?',
@@ -320,6 +330,10 @@ const translations = {
         fromGallery: 'Escolher da Galeria',
         fromFiles: 'Escolher dos Arquivos',
         searchGoogle: 'Buscar no Google',
+        generateWithAI: 'Gerar com IA',
+        generatingIcon: 'Gerando...',
+        iconGenerated: 'Ícone gerado com IA!',
+        iconGenError: 'Não foi possível gerar o ícone. Tente novamente.',
 
         // Shortcuts
         shortcutCreated: 'Adicionado à tela inicial:',
@@ -459,6 +473,12 @@ const translations = {
         rewardError: 'Falha ao adicionar recompensa. Tente novamente.',
         tapToLoad: 'Toque para carregar',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Notificações Agendadas',
+        noScheduledNotifications: 'Nenhuma notificação agendada',
+        cancelNotification: 'Cancelar Notificação',
+        cancelNotificationConfirm: 'Remover esta notificação agendada?',
+
         // Backup
         exportBackupDialog: 'Exportar Backup',
         importSpell: 'Importar Feitiço?',
@@ -564,6 +584,10 @@ const translations = {
         fromGallery: 'Elegir de Galería',
         fromFiles: 'Elegir de Archivos',
         searchGoogle: 'Buscar en Google',
+        generateWithAI: 'Generar con IA',
+        generatingIcon: 'Generando...',
+        iconGenerated: '¡Icono generado con IA!',
+        iconGenError: 'No se pudo generar el icono. Inténtalo de nuevo.',
         shortcutCreated: 'Añadido a inicio:',
         shortcutError: 'Error al crear atajo',
         createShortcut: 'Añadir a Inicio',
@@ -684,6 +708,12 @@ const translations = {
         rewardError: 'Error al añadir recompensa. Intenta de nuevo.',
         tapToLoad: 'Toca para cargar',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Notificaciones Programadas',
+        noScheduledNotifications: 'No hay notificaciones programadas',
+        cancelNotification: 'Cancelar Notificación',
+        cancelNotificationConfirm: '¿Eliminar esta notificación programada?',
+
         // Backup
         exportBackupDialog: 'Exportar Respaldo',
         importCancelled: 'Importación cancelada',
@@ -788,6 +818,10 @@ const translations = {
         fromGallery: 'Depuis la Galerie',
         fromFiles: 'Depuis les Fichiers',
         searchGoogle: 'Rechercher sur Google',
+        generateWithAI: 'Générer avec l\'IA',
+        generatingIcon: 'Génération...',
+        iconGenerated: 'Icône générée par IA !',
+        iconGenError: 'Impossible de générer l\'icône. Réessayez.',
         shortcutCreated: 'Ajouté à l\'écran:',
         shortcutError: 'Erreur création raccourci',
         createShortcut: 'Ajouter à l\'Écran',
@@ -908,6 +942,12 @@ const translations = {
         rewardError: 'Échec ajout récompense. Réessayez.',
         tapToLoad: 'Appuyer pour charger',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Notifications Programmées',
+        noScheduledNotifications: 'Aucune notification programmée',
+        cancelNotification: 'Annuler la Notification',
+        cancelNotificationConfirm: 'Supprimer cette notification programmée ?',
+
         // Backup
         // Backup
         exportBackupDialog: 'Exporter Sauvegarde',
@@ -1014,6 +1054,10 @@ const translations = {
         fromGallery: 'Aus Galerie',
         fromFiles: 'Aus Dateien',
         searchGoogle: 'Bei Google Suchen',
+        generateWithAI: 'Mit KI generieren',
+        generatingIcon: 'Generierung...',
+        iconGenerated: 'Symbol mit KI generiert!',
+        iconGenError: 'Symbol konnte nicht generiert werden. Versuchen Sie es erneut.',
         shortcutCreated: 'Zum Startbildschirm hinzugefügt:',
         shortcutError: 'Fehler beim Erstellen der Verknüpfung',
         createShortcut: 'Zum Startbildschirm',
@@ -1086,6 +1130,12 @@ const translations = {
         rewardNone: 'Diese Werbung hat keine Belohnung generiert',
         rewardError: 'Fehler beim Hinzufügen der Belohnung. Bitte erneut versuchen.',
         tapToLoad: 'Tippen zum Laden',
+
+        // Scheduled Notifications
+        scheduledNotifications: 'Geplante Benachrichtigungen',
+        noScheduledNotifications: 'Keine geplanten Benachrichtigungen',
+        cancelNotification: 'Benachrichtigung Abbrechen',
+        cancelNotificationConfirm: 'Diese geplante Benachrichtigung entfernen?',
 
         // Onboarding
         onboardingWelcomeTitle: 'Willkommen! 🧙',
@@ -1161,6 +1211,10 @@ const translations = {
         fromGallery: 'Dalla Galleria',
         fromFiles: 'Dai File',
         searchGoogle: 'Cerca su Google',
+        generateWithAI: 'Genera con IA',
+        generatingIcon: 'Generazione...',
+        iconGenerated: 'Icona generata con IA!',
+        iconGenError: 'Impossibile generare l\'icona. Riprova.',
         shortcutCreated: 'Aggiunto alla home:',
         shortcutError: 'Errore creazione scorciatoia',
         createShortcut: 'Aggiungi a Home',
@@ -1234,6 +1288,12 @@ const translations = {
         rewardError: 'Errore aggiunta ricompensa. Riprova.',
         tapToLoad: 'Tocca per caricare',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Notifiche Programmate',
+        noScheduledNotifications: 'Nessuna notifica programmata',
+        cancelNotification: 'Annulla Notifica',
+        cancelNotificationConfirm: 'Rimuovere questa notifica programmata?',
+
         // Onboarding
         onboardingWelcomeTitle: 'Ti diamo il benvenuto! 🧙',
         onboardingWelcomeBody: 'Appacadabra trasforma le tue idee in mini-strumenti chiamati **Incantesimi**. Descrivi cosa ti serve!',
@@ -1305,6 +1365,10 @@ const translations = {
         fromGallery: 'ギャラリーから',
         fromFiles: 'ファイルから',
         searchGoogle: 'Googleで検索',
+        generateWithAI: 'AIで生成',
+        generatingIcon: '生成中...',
+        iconGenerated: 'AIでアイコンを生成しました！',
+        iconGenError: 'アイコンを生成できませんでした。もう一度お試しください。',
         shortcutCreated: 'ショートカットを作成しました',
         shortcutError: 'ショートカット作成エラー',
         createShortcut: 'ショートカットを作成',
@@ -1383,6 +1447,12 @@ const translations = {
         rewardError: '報酬の追加に失敗しました。再試行してください。',
         tapToLoad: 'タップして読み込む',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'スケジュールされた通知',
+        noScheduledNotifications: 'スケジュールされた通知はありません',
+        cancelNotification: '通知をキャンセル',
+        cancelNotificationConfirm: 'このスケジュールされた通知を削除しますか？',
+
         // Onboarding
         onboardingWelcomeTitle: 'ようこそ！ 🧙',
         onboardingWelcomeBody: 'Appacadabraはあなたのアイデアを**呪文**と呼ばれるミニツールに変えます。必要なものを説明するだけです！',
@@ -1455,6 +1525,10 @@ const translations = {
         fromGallery: '从相册选择',
         fromFiles: '从文件选择',
         searchGoogle: '在Google搜索',
+        generateWithAI: 'AI生成',
+        generatingIcon: '生成中...',
+        iconGenerated: 'AI生成图标成功！',
+        iconGenError: '无法生成图标，请重试。',
         shortcutCreated: '已创建快捷方式',
         shortcutError: '创建快捷方式失败',
         createShortcut: '创建快捷方式',
@@ -1533,6 +1607,12 @@ const translations = {
         rewardError: '添加奖励时出错。请重试。',
         tapToLoad: '点击加载',
 
+        // Scheduled Notifications
+        scheduledNotifications: '计划通知',
+        noScheduledNotifications: '没有计划通知',
+        cancelNotification: '取消通知',
+        cancelNotificationConfirm: '要删除此计划通知吗？',
+
         // Onboarding
         onboardingWelcomeTitle: '欢迎！ 🧙',
         onboardingWelcomeBody: 'Appacadabra 将你的想法转化为迷你工具。只需描述你需要什么！',
@@ -1605,6 +1685,10 @@ const translations = {
         fromGallery: '갤러리에서',
         fromFiles: '파일에서',
         searchGoogle: 'Google에서 검색',
+        generateWithAI: 'AI로 생성',
+        generatingIcon: '생성 중...',
+        iconGenerated: 'AI로 아이콘 생성 완료!',
+        iconGenError: '아이콘을 생성할 수 없습니다. 다시 시도해주세요.',
         shortcutCreated: '바로가기 생성됨',
         shortcutError: '바로가기 생성 오류',
         createShortcut: '바로가기 만들기',
@@ -1683,6 +1767,12 @@ const translations = {
         rewardError: '보상 추가 오류. 다시 시도해주세요.',
         tapToLoad: '탭하여 로드',
 
+        // Scheduled Notifications
+        scheduledNotifications: '예약된 알림',
+        noScheduledNotifications: '예약된 알림이 없습니다',
+        cancelNotification: '알림 취소',
+        cancelNotificationConfirm: '이 예약된 알림을 삭제하시겠습니까?',
+
         // Onboarding
         onboardingWelcomeTitle: '환영합니다! 🧙',
         onboardingWelcomeBody: 'Appacadabra는 당신의 아이디어를 **주문(Spell)**이라는 미니 도구로 바꿔줍니다. 필요한 것을 설명해 보세요!',
@@ -1755,6 +1845,10 @@ const translations = {
         fromGallery: 'من المعرض',
         fromFiles: 'من الملفات',
         searchGoogle: 'البحث في Google',
+        generateWithAI: 'توليد بالذكاء الاصطناعي',
+        generatingIcon: 'جاري التوليد...',
+        iconGenerated: 'تم توليد الأيقونة بالذكاء الاصطناعي!',
+        iconGenError: 'تعذر توليد الأيقونة. حاول مرة أخرى.',
         shortcutCreated: 'تم إنشاء الاختصار',
         shortcutError: 'خطأ في إنشاء الاختصار',
         createShortcut: 'إنشاء اختصار',
@@ -1833,6 +1927,12 @@ const translations = {
         rewardError: 'خطأ في إضافة المكافأة. يرجى المحاولة مرة أخرى.',
         tapToLoad: 'اضغط للتحميل',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'الإشعارات المجدولة',
+        noScheduledNotifications: 'لا توجد إشعارات مجدولة',
+        cancelNotification: 'إلغاء الإشعار',
+        cancelNotificationConfirm: 'هل تريد إزالة هذا الإشعار المجدول؟',
+
         // Onboarding
         onboardingWelcomeTitle: 'أهلاً بك! 🧙',
         onboardingWelcomeBody: 'Appacadabra يحول أفكارك إلى أدوات صغيرة تسمى **تعويذات**. فقط صف ما تحتاجه!',
@@ -1905,6 +2005,10 @@ const translations = {
         fromGallery: 'गैलरी से',
         fromFiles: 'फाइल से',
         searchGoogle: 'Google पर खोजें',
+        generateWithAI: 'AI से बनाएं',
+        generatingIcon: 'बना रहा है...',
+        iconGenerated: 'AI से आइकन बनाया गया!',
+        iconGenError: 'आइकन नहीं बन सका। पुनः प्रयास करें।',
         shortcutCreated: 'शॉर्टकट बनाया गया',
         shortcutError: 'शॉर्टकट बनाने में त्रुटि',
         createShortcut: 'शॉर्टकट बनाएं',
@@ -1983,6 +2087,12 @@ const translations = {
         rewardError: 'इनाम जोड़ने में त्रुटि। कृपया पुनः प्रयास करें।',
         tapToLoad: 'लोड करने के लिए टैप करें',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'अनुसूचित सूचनाएं',
+        noScheduledNotifications: 'कोई अनुसूचित सूचना नहीं',
+        cancelNotification: 'सूचना रद्द करें',
+        cancelNotificationConfirm: 'क्या आप इस अनुसूचित सूचना को हटाना चाहते हैं?',
+
         // Onboarding
         onboardingWelcomeTitle: 'स्वागत है! 🧙',
         onboardingWelcomeBody: 'Appacadabra आपके विचारों को **मंत्र (Spell)** नामक मिनी-टूल में बदल देता है। बस वर्णन करें कि आपको क्या चाहिए!',
@@ -2055,6 +2165,10 @@ const translations = {
         fromGallery: 'Из галереи',
         fromFiles: 'Из файлов',
         searchGoogle: 'Искать в Google',
+        generateWithAI: 'Сгенерировать с ИИ',
+        generatingIcon: 'Генерация...',
+        iconGenerated: 'Иконка сгенерирована ИИ!',
+        iconGenError: 'Не удалось сгенерировать иконку. Попробуйте ещё раз.',
         shortcutCreated: 'Ярлык создан для',
         shortcutError: 'Ошибка создания ярлыка',
         createShortcut: 'Создать ярлык',
@@ -2133,6 +2247,12 @@ const translations = {
         rewardError: 'Ошибка добавления награды. Пожалуйста, попробуйте снова.',
         tapToLoad: 'Нажмите для загрузки',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Запланированные уведомления',
+        noScheduledNotifications: 'Нет запланированных уведомлений',
+        cancelNotification: 'Отменить уведомление',
+        cancelNotificationConfirm: 'Удалить это запланированное уведомление?',
+
         // Onboarding
         onboardingWelcomeTitle: 'Добро пожаловать! 🧙',
         onboardingWelcomeBody: 'Appacadabra превращает ваши идеи в мини-инструменты под названием **Заклинания**. Просто опишите, что вам нужно!',
@@ -2205,6 +2325,10 @@ const translations = {
         fromGallery: 'Galeriden',
         fromFiles: 'Dosyalardan',
         searchGoogle: "Google'da Ara",
+        generateWithAI: 'Yapay Zeka ile Oluştur',
+        generatingIcon: 'Oluşturuluyor...',
+        iconGenerated: 'Yapay zeka ile simge oluşturuldu!',
+        iconGenError: 'Simge oluşturulamadı. Tekrar deneyin.',
         shortcutCreated: 'Kısayol oluşturuldu',
         shortcutError: 'Kısayol oluşturma hatası',
         createShortcut: 'Kısayol Oluştur',
@@ -2283,6 +2407,12 @@ const translations = {
         rewardError: 'Ödül eklenirken hata. Lütfen tekrar deneyin.',
         tapToLoad: 'Yüklemek için dokunun',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Planlanmış Bildirimler',
+        noScheduledNotifications: 'Planlanmış bildirim yok',
+        cancelNotification: 'Bildirimi İptal Et',
+        cancelNotificationConfirm: 'Bu planlanmış bildirimi kaldırmak istiyor musunuz?',
+
         // Onboarding
         onboardingWelcomeTitle: 'Hoş Geldiniz! 🧙',
         onboardingWelcomeBody: 'Appacadabra fikirlerinizi **Büyü (Spell)** dediğimiz mini araçlara dönüştürür. Sadece neye ihtiyacınız olduğunu tarif edin!',
@@ -2355,6 +2485,10 @@ const translations = {
         fromGallery: 'Uit Galerij',
         fromFiles: 'Uit Bestanden',
         searchGoogle: 'Zoeken op Google',
+        generateWithAI: 'Genereren met AI',
+        generatingIcon: 'Genereren...',
+        iconGenerated: 'Icoon gegenereerd met AI!',
+        iconGenError: 'Kon icoon niet genereren. Probeer opnieuw.',
         shortcutCreated: 'Snelkoppeling gemaakt voor',
         shortcutError: 'Fout bij maken snelkoppeling',
         createShortcut: 'Snelkoppeling maken',
@@ -2433,6 +2567,12 @@ const translations = {
         rewardError: 'Fout bij toevoegen beloning. Probeer het opnieuw.',
         tapToLoad: 'Tik om te laden',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Geplande Meldingen',
+        noScheduledNotifications: 'Geen geplande meldingen',
+        cancelNotification: 'Melding Annuleren',
+        cancelNotificationConfirm: 'Deze geplande melding verwijderen?',
+
         // Onboarding
         onboardingWelcomeTitle: 'Welkom! 🧙',
         onboardingWelcomeBody: 'Appacadabra zet jouw ideeën om in minitools genaamd **Spreuken**. Beschrijf gewoon wat je nodig hebt!',
@@ -2505,6 +2645,10 @@ const translations = {
         fromGallery: 'Z Galerii',
         fromFiles: 'Z Plików',
         searchGoogle: 'Szukaj w Google',
+        generateWithAI: 'Generuj za pomocą AI',
+        generatingIcon: 'Generowanie...',
+        iconGenerated: 'Ikona wygenerowana przez AI!',
+        iconGenError: 'Nie udało się wygenerować ikony. Spróbuj ponownie.',
         shortcutCreated: 'Skrót utworzony dla',
         shortcutError: 'Błąd tworzenia skrótu',
         createShortcut: 'Utwórz skrót',
@@ -2583,6 +2727,12 @@ const translations = {
         rewardError: 'Błąd dodawania nagrody. Spróbuj ponownie.',
         tapToLoad: 'Dotknij, aby załadować',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Zaplanowane Powiadomienia',
+        noScheduledNotifications: 'Brak zaplanowanych powiadomień',
+        cancelNotification: 'Anuluj Powiadomienie',
+        cancelNotificationConfirm: 'Usunąć to zaplanowane powiadomienie?',
+
         // Onboarding
         onboardingWelcomeTitle: 'Witaj! 🧙',
         onboardingWelcomeBody: 'Appacadabra zamienia Twoje pomysły w mini-narzędzia zwane **Zaklęciami**. Po prostu opisz, czego potrzebujesz!',
@@ -2655,6 +2805,10 @@ const translations = {
         fromGallery: 'Từ Thư Viện',
         fromFiles: 'Từ Tệp',
         searchGoogle: 'Tìm trên Google',
+        generateWithAI: 'Tạo bằng AI',
+        generatingIcon: 'Đang tạo...',
+        iconGenerated: 'Đã tạo biểu tượng bằng AI!',
+        iconGenError: 'Không thể tạo biểu tượng. Hãy thử lại.',
         shortcutCreated: 'Đã tạo lối tắt cho',
         shortcutError: 'Lỗi tạo lối tắt',
         createShortcut: 'Tạo lối tắt',
@@ -2733,6 +2887,12 @@ const translations = {
         rewardError: 'Lỗi thêm phần thưởng. Vui lòng thử lại.',
         tapToLoad: 'Nhấn để tải',
 
+        // Scheduled Notifications
+        scheduledNotifications: 'Thông báo đã lên lịch',
+        noScheduledNotifications: 'Không có thông báo nào được lên lịch',
+        cancelNotification: 'Hủy thông báo',
+        cancelNotificationConfirm: 'Xóa thông báo đã lên lịch này?',
+
         // Onboarding
         onboardingWelcomeTitle: 'Chào mừng! 🧙',
         onboardingWelcomeBody: 'Appacadabra biến ý tưởng của bạn thành các công cụ nhỏ gọi là **Phép thuật**. Chỉ cần mô tả những gì bạn cần!',
@@ -2805,6 +2965,10 @@ const translations = {
         fromGallery: 'จากแกลเลอรี',
         fromFiles: 'จากไฟล์',
         searchGoogle: 'ค้นหาใน Google',
+        generateWithAI: 'สร้างด้วย AI',
+        generatingIcon: 'กำลังสร้าง...',
+        iconGenerated: 'สร้างไอคอนด้วย AI แล้ว!',
+        iconGenError: 'ไม่สามารถสร้างไอคอนได้ ลองอีกครั้ง',
         shortcutCreated: 'สร้างทางลัดสำหรับ',
         shortcutError: 'เกิดข้อผิดพลาดในการสร้างทางลัด',
         createShortcut: 'สร้างทางลัด',
@@ -2882,6 +3046,12 @@ const translations = {
         rewardNone: 'โฆษณานี้ไม่ได้ให้รางวัล',
         rewardError: 'เกิดข้อผิดพลาดในการเพิ่มรางวัล โปรดลองอีกครั้ง',
         tapToLoad: 'แตะเพื่อโหลด',
+
+        // Scheduled Notifications
+        scheduledNotifications: 'การแจ้งเตือนที่กำหนดเวลาไว้',
+        noScheduledNotifications: 'ไม่มีการแจ้งเตือนที่กำหนดเวลาไว้',
+        cancelNotification: 'ยกเลิกการแจ้งเตือน',
+        cancelNotificationConfirm: 'ลบการแจ้งเตือนที่กำหนดเวลาไว้นี้หรือไม่?',
 
         // Onboarding
         onboardingWelcomeTitle: 'ยินดีต้อนรับ! 🧙',

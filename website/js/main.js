@@ -9,7 +9,7 @@ let currentLang = 'en';
 document.addEventListener('DOMContentLoaded', () => {
     // Detect browser language
     const browserLang = navigator.language.split('-')[0];
-    const supportedLangs = ['en', 'pt', 'es', 'fr', 'de', 'it'];
+    const supportedLangs = ['en', 'pt', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ko', 'ar', 'hi', 'ru', 'tr', 'nl', 'pl', 'vi', 'th'];
 
     // Check URL param first, then localStorage, then browser language
     const urlParams = new URLSearchParams(window.location.search);

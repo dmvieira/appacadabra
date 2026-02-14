@@ -131,7 +131,11 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       withSchema: function(s) { return new AIBuilder().withSchema(s); },
       fromImage: function(b) { return new AIBuilder().fromImage(b); },
       fromAudio: function(b) { return new AIBuilder().fromAudio(b); },
-      generate: function(prompt, cb) { return new AIBuilder().generate(prompt, cb); }
+      generate: function(prompt, cb) { return new AIBuilder().generate(prompt, cb); },
+      generateImage: function(prompt, callbackName) {
+        console.log('[AppacadabraAI.generateImage] prompt:', prompt?.substring(0, 80), 'callback:', callbackName);
+        sendMessage('AI_GENERATE_IMAGE', { prompt: prompt }, callbackName);
+      }
     };
   })();
 
@@ -346,6 +350,140 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         sendMessage('SENSORS_STOP_ALL', {});
     }
   };
+
+
+
+  // ============= Web API Wrappers (Consistent Namespace) =============
+  
+  // Clipboard
+  window.AppacadabraClipboard = {
+    setString: function(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).catch(e => console.error('Clipboard error:', e));
+        } else {
+            console.warn('Clipboard API not available');
+        }
+    },
+    getString: function(callbackName) {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText()
+                .then(text => sendCallback(callbackName, text))
+                .catch(e => sendCallback(callbackName, null, e.message));
+        } else {
+            sendCallback(callbackName, null, 'Clipboard API not available');
+        }
+    }
+  };
+
+  // Device (Battery, Network, Vibration, Info)
+  window.AppacadabraDevice = {
+    // Battery
+    getBatteryLevel: function(callbackName) {
+         if (navigator.getBattery) {
+            navigator.getBattery().then(function(battery) {
+                sendCallback(callbackName, battery.level);
+            }).catch(function(e) {
+                sendCallback(callbackName, null, e.message);
+            });
+         } else {
+             sendCallback(callbackName, null, 'Battery API not supported');
+         }
+    },
+    isCharging: function(callbackName) {
+         if (navigator.getBattery) {
+            navigator.getBattery().then(function(battery) {
+                sendCallback(callbackName, battery.charging);
+            }).catch(function(e) {
+                sendCallback(callbackName, null, e.message);
+            });
+         } else {
+             sendCallback(callbackName, null, 'Battery API not supported');
+         }
+    },
+    // Network
+    isOnline: function() {
+        return navigator.onLine;
+    },
+    getNetworkType: function() {
+        // @ts-ignore
+        var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        return conn ? conn.effectiveType : 'unknown';
+    },
+    // Vibration
+    vibrate: function(pattern) {
+        console.log('[AppacadabraDevice.vibrate] pattern:', pattern);
+        sendMessage('VIBRATE', { pattern: pattern });
+    },
+    cancelVibration: function() {
+        console.log('[AppacadabraDevice.cancelVibration]');
+        sendMessage('VIBRATE', { pattern: 0 }); // Native vibration 0 stops it
+    },
+    // Info
+    language: navigator.language,
+    userAgent: navigator.userAgent,
+    // Browser
+    openBrowser: function(url) {
+        window.open(url, '_blank');
+    }
+  };
+
+  // Override standard navigator.vibrate to use our bridge
+  if (navigator) {
+      navigator.vibrate = function(pattern) {
+          window.AppacadabraDevice.vibrate(pattern);
+          return true;
+      };
+  }
+
+  // UI (Browser, Print) -> Screen
+  window.AppacadabraScreen = {
+      print: function() {
+          // Send message to native for printing via expo-print
+          // We pass the current HTML content
+          sendMessage('PRINT', { html: document.documentElement.outerHTML });
+      },
+      capture: function(callbackName) {
+          sendMessage('SCREEN_CAPTURE', {}, callbackName);
+      },
+      screenshot: function(callbackName) {
+          sendMessage('SCREEN_CAPTURE', {}, callbackName);
+      }
+  };
+
+  // ============= Camera (Photo & Scan) =============
+  window.AppacadabraCamera = {
+      takePhoto: function(callbackName) {
+          sendMessage('CAMERA_TAKE_PHOTO', {}, callbackName);
+      },
+      scan: function(callbackName) {
+          sendMessage('SCANNER_SCAN', {}, callbackName);
+      }
+  };
+
+  // ============= Audio (Recording & TTS) =============
+  window.AppacadabraAudio = {
+      // Recording
+      recordStart: function(callbackName) {
+          sendMessage('AUDIO_RECORD_START', {}, callbackName);
+      },
+      recordStop: function(callbackName) {
+          sendMessage('AUDIO_RECORD_STOP', {}, callbackName);
+      },
+      // Text-to-Speech
+      speak: function(text, options, callbackName) {
+        console.log('[AppacadabraAudio.speak] text:', text?.substring(0, 50), 'callback:', callbackName);
+        var opts = options || {};
+        sendMessage('TTS_SPEAK', { text: text, language: opts.language, pitch: opts.pitch, rate: opts.rate, volume: opts.volume }, callbackName);
+      },
+      stopSpeaking: function(callbackName) {
+        console.log('[AppacadabraAudio.stopSpeaking] callback:', callbackName);
+        sendMessage('TTS_STOP', {}, callbackName);
+      },
+      isSpeaking: function(callbackName) {
+        console.log('[AppacadabraAudio.isSpeaking] callback:', callbackName);
+        sendMessage('TTS_IS_SPEAKING', {}, callbackName);
+      }
+  };
   
   // Storage (localStorage wrapper to sync with native DB)
   // We hook into localStorage.setItem to persist data (only in runner mode, not edit mode)
@@ -450,6 +588,143 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   console.warn = interceptConsole('warn');
   console.error = interceptConsole('error');
   console.info = interceptConsole('info');
+
+  // ============= Non-blocking Alert/Confirm/Prompt =============
+  // Native JS dialogs (alert/confirm/prompt) block the WebView thread.
+  // On Android, multiple WebViews share the same process, so a blocking
+  // dialog in one runner freezes ALL runners. We replace them with
+  // custom HTML modals that are completely non-blocking.
+
+  (function() {
+    var dialogOverlay = null;
+    var dialogResolve = null;
+
+    function createOverlay() {
+      if (dialogOverlay) return dialogOverlay;
+      dialogOverlay = document.createElement('div');
+      dialogOverlay.id = '__appacadabra_dialog_overlay__';
+      dialogOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999999;backdrop-filter:blur(2px);';
+      return dialogOverlay;
+    }
+
+    function createDialog() {
+      var dialog = document.createElement('div');
+      dialog.style.cssText = 'background:#1e1e2e;color:#cdd6f4;border-radius:16px;padding:24px;min-width:280px;max-width:85vw;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:-apple-system,system-ui,sans-serif;';
+      return dialog;
+    }
+
+    function createButton(text, isPrimary) {
+      var btn = document.createElement('button');
+      btn.textContent = text;
+      btn.style.cssText = 'border:none;border-radius:8px;padding:10px 24px;font-size:15px;font-weight:600;cursor:pointer;min-width:80px;' +
+        (isPrimary
+          ? 'background:#89b4fa;color:#1e1e2e;'
+          : 'background:#313244;color:#cdd6f4;');
+      btn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      return btn;
+    }
+
+    function removeDialog() {
+      if (dialogOverlay && dialogOverlay.parentNode) {
+        dialogOverlay.parentNode.removeChild(dialogOverlay);
+      }
+      dialogOverlay = null;
+      dialogResolve = null;
+    }
+
+    // ---- alert() ----
+    window.alert = function(message) {
+      return new Promise(function(resolve) {
+        var overlay = createOverlay();
+        var dialog = createDialog();
+
+        var msgEl = document.createElement('p');
+        msgEl.style.cssText = 'margin:0 0 20px 0;font-size:15px;line-height:1.5;word-wrap:break-word;';
+        msgEl.textContent = String(message);
+        dialog.appendChild(msgEl);
+
+        var btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;';
+        var okBtn = createButton('OK', true);
+        okBtn.onclick = function() { removeDialog(); resolve(); };
+        btnRow.appendChild(okBtn);
+        dialog.appendChild(btnRow);
+
+        overlay.innerHTML = '';
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        okBtn.focus();
+      });
+    };
+
+    // ---- confirm() ----
+    window.confirm = function(message) {
+      return new Promise(function(resolve) {
+        var overlay = createOverlay();
+        var dialog = createDialog();
+
+        var msgEl = document.createElement('p');
+        msgEl.style.cssText = 'margin:0 0 20px 0;font-size:15px;line-height:1.5;word-wrap:break-word;';
+        msgEl.textContent = String(message);
+        dialog.appendChild(msgEl);
+
+        var btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:12px;';
+        var cancelBtn = createButton('Cancel', false);
+        cancelBtn.onclick = function() { removeDialog(); resolve(false); };
+        var okBtn = createButton('OK', true);
+        okBtn.onclick = function() { removeDialog(); resolve(true); };
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(okBtn);
+        dialog.appendChild(btnRow);
+
+        overlay.innerHTML = '';
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        okBtn.focus();
+      });
+    };
+
+    // ---- prompt() ----
+    window.prompt = function(message, defaultValue) {
+      return new Promise(function(resolve) {
+        var overlay = createOverlay();
+        var dialog = createDialog();
+
+        var msgEl = document.createElement('p');
+        msgEl.style.cssText = 'margin:0 0 12px 0;font-size:15px;line-height:1.5;word-wrap:break-word;';
+        msgEl.textContent = String(message);
+        dialog.appendChild(msgEl);
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.value = defaultValue != null ? String(defaultValue) : '';
+        input.style.cssText = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #45475a;border-radius:8px;background:#313244;color:#cdd6f4;font-size:15px;margin-bottom:20px;outline:none;';
+        input.addEventListener('focus', function() { this.style.borderColor = '#89b4fa'; });
+        input.addEventListener('blur', function() { this.style.borderColor = '#45475a'; });
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { removeDialog(); resolve(input.value); }
+          if (e.key === 'Escape') { removeDialog(); resolve(null); }
+        });
+        dialog.appendChild(input);
+
+        var btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:12px;';
+        var cancelBtn = createButton('Cancel', false);
+        cancelBtn.onclick = function() { removeDialog(); resolve(null); };
+        var okBtn = createButton('OK', true);
+        okBtn.onclick = function() { removeDialog(); resolve(input.value); };
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(okBtn);
+        dialog.appendChild(btnRow);
+
+        overlay.innerHTML = '';
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        input.focus();
+      });
+    };
+  })();
 
   // ============= Network Request Interception =============
   const originalFetch = window.fetch;
@@ -589,7 +864,13 @@ export function createStorageRestoreScript(items: { key: string; value: string }
             localStorage.clear();
             console.log('[Storage] localStorage cleared, now restoring items...');
             ${restoreStatements}
-            console.log('[Storage] Restoration complete! Total items: ${items.length}');
+            if (${items.length} === 0) {
+                console.log('[Storage] No items to restore.');
+            } else {
+                console.log('[Storage] Restoration complete! Total items: ${items.length}');
+                // Verify
+                console.log('[Storage] Verify key count:', localStorage.length);
+            }
         } catch (err) {
             console.error('[Storage] Restoration error:', err);
         } finally {

@@ -92,6 +92,7 @@ AppacadabraAI.generate("Hello", handleResult);
     - \`withSchema(jsonSchemaObj)\`: Force Structured JSON output.
     - \`fromImage(base64String)\`: Input an image for analysis.
     - \`fromAudio(base64String)\`: Input audio for transcription/analysis.
+    - \`generateImage(prompt, callback)\`: Generate an image from a text description using AI. **Not chainable** — call directly.
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`
     - Search: \`AppacadabraAI.withSearch().generate("Who won the game?", callback)\`
@@ -99,7 +100,9 @@ AppacadabraAI.generate("Hello", handleResult);
     - Vision: \`AppacadabraAI.fromImage(base64).generate("Describe this", callback)\`
     - Audio: \`AppacadabraAI.fromAudio(base64).generate("Transcribe", callback)\`
     - *Chained*: \`AppacadabraAI.withSearch().withSchema(schema).generate("Find phone numbers...", callback)\`
+    - Image Gen: \`AppacadabraAI.generateImage("A cute cat wearing a hat", "onImageReady")\`
 - **Return**: Generated text (string). If \`withSchema\` is used, result is a JSON string.
+- **Return (generateImage)**: base64 PNG string. Use as img src: \`"data:image/png;base64," + result\`. Uses mana credits.
 
 📤 SHARE (AppacadabraShare)
 - \`share(text, url, callback)\`
@@ -156,6 +159,61 @@ AppacadabraAI.generate("Hello", handleResult);
     - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number }\`
 - \`startMagnetometer(intervalMs, callback)\`
     - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number, "heading": number }\`
+
+📋 CLIPBOARD (AppacadabraClipboard)
+- \`setString(text)\` - Copy text to clipboard
+- \`getString(callback)\` - Get text from clipboard
+    - **Return**: Clipboard text (string)
+
+📱 DEVICE (AppacadabraDevice)
+- \`vibrate(pattern)\` - Vibrate device (number or array of numbers). **No callback**.
+- \`cancelVibration()\` - Stop vibration. **No callback**.
+- \`getBatteryLevel(callback)\` - Get battery level.
+    - **Callback Data**: Battery level (number 0.0 - 1.0)
+- \`isCharging(callback)\` - Check if charging.
+    - **Callback Data**: Charging status (boolean)
+- \`isOnline()\` - Check if online. **Synchronous**.
+    - **Return**: \`true\` or \`false\` (boolean)
+- \`getNetworkType()\` - Get connection info. **Synchronous**.
+    - **Return**: Connection type string ('wifi', '4g', 'unknown')
+- \`language\` - **Property** (string). Device language (e.g. "en-US")
+- \`userAgent\` - **Property** (string). User agent string
+- \`openBrowser(url)\` - Open URL in system browser
+
+🎨 SCREEN (AppacadabraScreen)
+- \`print()\` - Open native print dialog
+- \`capture(callback)\` - Capture screenshot of current view
+    - **Callback Data (string)**: Base64 encoded PNG image
+    - **Example**: \`AppacadabraScreen.capture("onScreenshotTaken")\`
+
+📸 CAMERA (AppacadabraCamera)
+- \`takePhoto(callback)\` - Take a photo using the device camera
+    - **Callback Data (string)**: Base64 encoded image string (without prefix, append 'data:image/jpeg;base64,' to use)
+    - **Example**: \`AppacadabraCamera.takePhoto("onPhotoTaken")\`
+- \`scan(callback)\` - Open QR/Barcode scanner overlay
+    - **Callback Data (string)**: Scanned content string
+    - **Example**: \`AppacadabraCamera.scan("onCodeScanned")\`
+
+🎙️ AUDIO (AppacadabraAudio)
+- \`recordStart(callback)\` - Start audio recording
+    - **Return**: "Recording started"
+- \`recordStop(callback)\` - Stop recording and get result
+    - **Callback Data (string)**: Base64 encoded audio string (M4A/AAC)
+    - **Example**: \`AppacadabraAudio.recordStop("onAudioRecorded")\`
+- \`speak(text, options, callback)\` - Speak text aloud using device TTS engine
+    - **options** (object, optional): \`{ language?: "en-US"|"pt-BR"|..., pitch?: 0.5-2.0, rate?: 0.5-2.0, volume?: 0.0-1.0 }\`
+    - **Return**: "Speaking" (string)
+    - **Example**: \`AppacadabraAudio.speak("Hello world", { language: "en-US", rate: 1.0 }, "onSpeakDone")\`
+- \`stopSpeaking(callback)\` - Stop ALL speech (current + queued)
+    - **Return**: "Stopped" (string)
+- \`isSpeaking(callback)\` - Check if currently speaking
+    - **Return**: "true" or "false" (string)
+
+✅ STANDARD WEB APIS (Supported Natively)
+- **Audio/Video**: Use HTML5 \`<audio>\` and \`<video>\` tags.
+- **Geolocation**: Use \`navigator.geolocation.getCurrentPosition()\` (permission handled).
+- **LocalStorage**: Use \`localStorage.setItem/getItem\` (persisted automatically).
+- **File Picker**: Use \`<input type="file">\` (file access enabled).
 `;
 
 
@@ -163,16 +221,16 @@ AppacadabraAI.generate("Hello", handleResult);
 export const SMART_PATCH_INSTRUCTIONS = `
 Task: Return a JSON object with a list of "changes" to apply to the code.
 Each change must have:
-- "startLine": The 1-based line number where the change starts (inclusive).
-- "endLine": The 1-based line number where the change ends (inclusive).
+- "startLine": The 1 - based line number where the change starts(inclusive).
+- "endLine": The 1 - based line number where the change ends(inclusive).
 - "content": The new code to replace these lines with.
 
-Rules:
+  Rules:
 1. Use the line numbers provided in the source.
 2. To DELETE lines, set the "content" field to an empty string "".
 3. To INSERT lines, target the specific line(s) the new code should replace.
    - Example: To insert after line 10, target line 10 and include the original content + new content.
-   - OR target lines 10-10 and provide "original line 10\\nnew line".
+   - OR target lines 10 - 10 and provide "original line 10\\nnew line".
 4. If the user selected a specific context, make sure your changes align with that selection.
 5. Return ONLY valid JSON.
 6. Generate the app's user interface changes (labels, buttons, messages, placeholder texts) in THE SAME LANGUAGE the app already is.
@@ -186,17 +244,17 @@ Schema:
 `;
 
 // Prompt for converting Node/React projects to standalone HTML
-export const CONVERT_PROJECT_PROMPT = `You are a code conversion expert. Convert the following project source code into a SINGLE standalone HTML file that works in a WebView.
+export const CONVERT_PROJECT_PROMPT = `You are a code conversion expert.Convert the following project source code into a SINGLE standalone HTML file that works in a WebView.
 
 IMPORTANT RULES:
-1. ALL JavaScript/TypeScript must be converted to vanilla ES6 JavaScript inside a <script> tag
-2. ALL CSS/SCSS/styled-components must be converted to vanilla CSS inside a <style> tag
-3. React/Vue/Svelte components must be rewritten as vanilla DOM manipulation
+1. ALL JavaScript / TypeScript must be converted to vanilla ES6 JavaScript inside a < script > tag
+2. ALL CSS / SCSS / styled - components must be converted to vanilla CSS inside a < style > tag
+3. React / Vue / Svelte components must be rewritten as vanilla DOM manipulation
 4. Remove all import/export statements - everything must be self-contained
 5. Replace any npm package dependencies with vanilla JavaScript equivalents
 6. Preserve the original functionality and user interface as closely as possible
-7. Use localStorage for any data persistence (as the original might use)
-8. Make sure the app is responsive and mobile-friendly
+7. Use localStorage for any data persistence(as the original might use)
+8. Make sure the app is responsive and mobile - friendly
 9. Make sure that ALL APP FEATURES ARE WORKING well with Appacadabra WebView
 
 Return ONLY the complete HTML code wrapped in \`\`\`html ... \`\`\`.
@@ -240,7 +298,7 @@ Rules:
 2. Select ONLY necessary APIs.
 3. Plan for a complete, working product.
 4. IMPORTANT: Plan for all text content to be in THE SAME LANGUAGE as the user's request.
-5. DEEP LINKS: Whenever possible, use Universal Links (standard HTTPS URLs like 'https://www.notion.so/...') instead of custom schemes ('notion://'). HTTPS links open the app if installed, or fallback to the website automatically. Custom schemes often fail silently if the app is not installed.
+5. DEEP LINKS: Whenever possible, use Universal Links (standard HTTPS URLs like 'https://www.notion.so/...'). HTTPS links open the app if installed, or fallback to the website automatically. Custom schemes often fail silently if the app is not installed. ALWAYS use \`AppacadabraDevice.openBrowser(url)\` to open these links.
 `;
 
 // CREATE STEP 2: Unified Code Generator

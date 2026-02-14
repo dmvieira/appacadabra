@@ -8,6 +8,7 @@ import * as ShareIntent from 'share-intent';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Linking from 'expo-linking';
 import { colors, spacing, borderRadius } from '../lib/theme';
+import { t } from '../lib/i18n';
 
 // Module-level variables to sync across all instances
 let globalLastProcessedContentId: string | null = null;
@@ -18,7 +19,7 @@ let appSelectionInProgress = false; // Stop polling when app is selected
 export default function ShareReceiver() {
     const [sharedContent, setSharedContent] = useState<ShareIntent.SharedContent | null>(null);
     const router = useRouter();
-    const { apps, setSharedContent: storeSharedContent, clearSharedContent: storeClearSharedContent } = useAppStore();
+    const { apps, setSharedContent: storeSharedContent, clearSharedContent: storeClearSharedContent, importBackup } = useAppStore();
 
     // Helper to check and lock content
     const tryLockContent = (content: ShareIntent.SharedContent): boolean => {
@@ -194,6 +195,28 @@ export default function ShareReceiver() {
         });
     };
 
+    const handleImportSpell = async () => {
+        if (!sharedContent || !sharedContent.uri) return;
+
+        console.log('ShareReceiver: Importing spell from:', sharedContent.uri);
+
+        // Close modal immediately to indicate action taken
+        setSharedContent(null);
+        ShareIntent.clearSharedContent();
+
+        // Call store import action
+        // We pass the URI directly - importBackup handles it
+        // But for content:// URIs, importBackup might need help if it doesn't have permission?
+        // Actually importBackup has logic for content://.
+        // But let's copy to cache here just in case, similar to handleSelectApp logic?
+        // importBackup (in backup.ts) already has robust fallback logic (readAsString, copyAsync, fetch).
+        // Let's try passing URI directly first.
+
+        await importBackup(sharedContent.uri);
+
+        storeClearSharedContent();
+    };
+
     const handleClose = () => {
         // Clear everything to prevent the modal from coming back
         ShareIntent.clearSharedContent();
@@ -215,26 +238,69 @@ export default function ShareReceiver() {
 
                     <Text style={styles.sectionHeader}>Escolha um App:</Text>
 
-                    <FlatList
-                        data={apps}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity style={styles.appItem} onPress={() => handleSelectApp(item)}>
-                                {item.iconPath ? (
-                                    <Image source={{ uri: item.iconPath }} style={styles.appIcon} />
-                                ) : (
-                                    <View style={[styles.appIcon, styles.appIconPlaceholder]}>
-                                        <Text style={styles.appIconText}>📱</Text>
-                                    </View>
-                                )}
-                                <Text style={styles.appName}>{item.name}</Text>
-                            </TouchableOpacity>
-                        )}
-                        style={styles.list}
-                        ListEmptyComponent={
-                            <Text style={styles.emptyText}>Nenhum app criado ainda</Text>
-                        }
-                    />
+                    {(() => {
+                        const uri = sharedContent.uri?.toLowerCase() || '';
+                        const mime = sharedContent.mimeType?.toLowerCase() || '';
+                        const name = sharedContent.fileName?.toLowerCase() || uri.split('/').pop()?.toLowerCase() || '';
+
+                        const isSpell = uri.endsWith('.spell') ||
+                            name.endsWith('.spell') ||
+                            mime === 'application/vnd.appacadabra.spell' ||
+                            mime === 'application/json' ||
+                            mime === 'text/plain' || // Allow text/plain if extension matches (or user can try to import anything)
+                            (mime === 'application/octet-stream' && name.endsWith('.spell'));
+
+                        // Prepare data with optional import item at the top
+                        const listData = isSpell
+                            ? [{ id: -1, isImport: true, name: t('importSpell') } as any, ...apps]
+                            : apps;
+
+                        return (
+                            <FlatList
+                                data={listData}
+                                keyExtractor={(item) => item.id.toString()}
+                                renderItem={({ item }) => {
+                                    if (item.isImport) {
+                                        return (
+                                            <TouchableOpacity
+                                                style={[styles.appItem, { backgroundColor: colors.primaryContainer }]}
+                                                onPress={handleImportSpell}
+                                            >
+                                                <View style={[styles.appIcon, styles.appIconPlaceholder, { backgroundColor: colors.primary }]}>
+                                                    <Text style={styles.appIconText}>✨</Text>
+                                                </View>
+                                                <View>
+                                                    <Text style={[styles.appName, { color: colors.onPrimaryContainer, fontWeight: 'bold' }]}>
+                                                        {item.name}
+                                                    </Text>
+                                                    <Text style={{ fontSize: 12, color: colors.onPrimaryContainer }}>
+                                                        {t('newApp')}
+                                                    </Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    }
+
+                                    return (
+                                        <TouchableOpacity style={styles.appItem} onPress={() => handleSelectApp(item)}>
+                                            {item.iconPath ? (
+                                                <Image source={{ uri: item.iconPath }} style={styles.appIcon} />
+                                            ) : (
+                                                <View style={[styles.appIcon, styles.appIconPlaceholder]}>
+                                                    <Text style={styles.appIconText}>📱</Text>
+                                                </View>
+                                            )}
+                                            <Text style={styles.appName}>{item.name}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                }}
+                                style={styles.list}
+                                ListEmptyComponent={
+                                    <Text style={styles.emptyText}>{apps.length === 0 ? 'Nenhum app criado ainda' : ''}</Text>
+                                }
+                            />
+                        );
+                    })()}
 
                     <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
                         <Text style={styles.cancelText}>Cancelar</Text>

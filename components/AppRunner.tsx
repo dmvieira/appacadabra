@@ -508,6 +508,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 allowUniversalAccessFromFileURLs
                 mixedContentMode="always"
                 geolocationEnabled
+                pullToRefreshEnabled={mode === 'run'}
                 injectedJavaScriptBeforeContentLoaded={combinedScript}
                 onLoadEnd={handleLoadEnd}
                 onMessage={handleMessage}

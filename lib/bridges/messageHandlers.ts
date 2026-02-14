@@ -13,7 +13,17 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Speech from 'expo-speech';
+import * as Print from 'expo-print';
+import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
+import { useBridgeUIStore } from '../bridgeUIStore';
+import { Vibration } from 'react-native';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
+import * as Haptics from 'expo-haptics';
+
+// State for Audio Recording
+let currentRecording: Audio.Recording | null = null;
 import {
     initialize as initHealthConnect,
     requestPermission,
@@ -30,6 +40,7 @@ import * as db from '../database/db';
 import { createCallbackScript } from './injectedJS';
 import { t } from '../i18n';
 import { useManaStore } from '../manaStore';
+import { useAppStore } from '../store';
 import { updateStorageCache, removeFromStorageCache } from '../storageCache';
 
 // ============= Notification Limits (Native Protection) =============
@@ -127,13 +138,16 @@ async function ensureHealthAccess(): Promise<{ ok: boolean; error?: string }> {
 
 export interface HandlerContext {
     webViewRef: React.RefObject<WebView>;
+    viewContainerRef?: React.RefObject<any>; // Useful for screen capture
     appId: number | null;
+    callbackName?: string; // Callback name from the message wrapper
 }
 
 export interface HandlerResult {
     success: boolean;
     result: string;
     handled: boolean;  // false if message type was not recognized
+    deferredCallback?: boolean;
 }
 
 /**
@@ -157,7 +171,7 @@ const mapSleepStage = (stage: number): string => {
 export async function handleBridgeMessage(
     type: string,
     data: any,
-    ctx: HandlerContext
+    ctx: HandlerContext & { callbackName?: string }
 ): Promise<HandlerResult> {
     let success = true;
     let result = '';
@@ -193,7 +207,7 @@ export async function handleBridgeMessage(
                 // Update App Total Mana Cost atomically
                 if (ctx.appId && creditsUsed > 0) {
                     try {
-                        await db.incrementManaCost(ctx.appId, creditsUsed);
+                        await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
                         debugLog(`App ${ctx.appId} mana cost increased by ${creditsUsed}`);
                     } catch (e) {
                         console.warn('Failed to update app mana cost:', e);
@@ -1062,6 +1076,299 @@ export async function handleBridgeMessage(
                 result = e instanceof Error ? e.message : 'Error reading sleep';
             }
             break;
+
+        // ============= Text-to-Speech Handlers =============
+        case 'TTS_SPEAK': {
+            try {
+                const { text, language, pitch, rate, volume } = data;
+                if (!text) {
+                    success = false;
+                    result = 'Text is required';
+                    break;
+                }
+                const options: Speech.SpeechOptions = {};
+                if (language) options.language = language;
+                if (pitch !== undefined) options.pitch = pitch;
+                if (rate !== undefined) options.rate = rate;
+                if (volume !== undefined) options.volume = volume;
+                options.onDone = () => {
+                    debugLog('TTS finished speaking');
+                };
+                Speech.speak(text, options);
+                result = 'Speaking';
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'TTS Error';
+            }
+            break;
+        }
+
+        case 'TTS_STOP': {
+            try {
+                Speech.stop();
+                result = 'Stopped';
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'TTS Stop Error';
+            }
+            break;
+        }
+
+        case 'TTS_IS_SPEAKING': {
+            try {
+                const speaking = await Speech.isSpeakingAsync();
+                result = speaking ? 'true' : 'false';
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'TTS Error';
+            }
+            break;
+        }
+
+        // ============= AI Image Generation Handler =============
+        case 'AI_GENERATE_IMAGE': {
+            debugLog(`AI Image Gen request: ${data.prompt?.substring(0, 50)}...`);
+            try {
+                const imgResult = await ai.aiGenerateImage(data.prompt);
+                result = imgResult.imageBase64;
+
+                // Log cost and update mana
+                const creditsUsed = imgResult.creditsUsed || 0;
+                console.log(`[Bridge] AI image generated. Credits used: ${creditsUsed}`);
+
+                if (ctx.appId && creditsUsed > 0) {
+                    try {
+                        await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
+                        debugLog(`App ${ctx.appId} mana cost increased by ${creditsUsed}`);
+                    } catch (e) {
+                        console.warn('Failed to update app mana cost:', e);
+                    }
+                }
+            } catch (e) {
+                success = false;
+                const errorMsg = e instanceof Error ? e.message : 'Error';
+
+                const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
+                    errorMsg.toLowerCase().includes('insufficient mana');
+
+                if (isManaError) {
+                    useManaStore.getState().openShop();
+                    result = t('manaDepletedMessage');
+                } else {
+                    result = errorMsg;
+                }
+            }
+            break;
+        }
+
+        // ============= Vibration Handler =============
+        case 'VIBRATE': {
+            const pattern = data.pattern !== undefined ? data.pattern : 400;
+            console.log(`[Native Bridge] VIBRATE command received. Input: ${JSON.stringify(pattern)}`);
+
+            try {
+                // Try native vibration first
+                // RN Android interprets pattern as [wait, vibrate, wait, vibrate...]
+                // Web API sends [vibrate, wait, vibrate, wait...]
+                // So we need to prepend 0 for Android to start immediately.
+                if (Array.isArray(pattern)) {
+                    // ARRAY PATTERN
+                    // Native array support can be flaky. Manual execution via setTimeout.
+
+                    console.log(`[Native Bridge] Manual pattern execution: ${JSON.stringify(pattern)}`);
+
+                    // Cancel any previous vibration to ensure a clean slate
+                    Vibration.cancel();
+
+                    // Loop through the pattern
+                    let currentTime = 0;
+
+                    // Web pattern is [vibrate, wait, vibrate, wait...]
+                    for (let i = 0; i < pattern.length; i++) {
+                        const duration = pattern[i];
+
+                        // Capture time for closure
+                        const triggerTime = currentTime;
+
+                        // Even index = VIBRATE
+                        if (i % 2 === 0) {
+                            if (duration > 0) {
+                                setTimeout(() => {
+                                    console.log(`[Native Bridge] Manual Vibrate: ${duration}ms (at ${triggerTime}ms)`);
+                                    Vibration.vibrate(duration);
+
+                                    // Safety haptic for short pulses
+                                    if (duration <= 100) {
+                                        // Use Notification Success - often stronger/distinct
+                                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
+                                    }
+                                }, triggerTime + 50); // Add tiny 50ms buffer for initial cancel to settle
+                            }
+                        } else {
+                            // Odd index = WAIT (Just adds to the next timestamp)
+                            // console.log(`[Native Bridge] Wait: ${duration}ms`);
+                        }
+
+                        currentTime += duration;
+                    }
+
+                } else if (typeof pattern === 'number') {
+                    // Cancel prev
+                    Vibration.cancel();
+
+                    if (pattern > 0) {
+                        console.log(`[Native Bridge] Vibrate: ${pattern}ms`);
+                        setTimeout(() => Vibration.vibrate(pattern), 50); // Tiny buffer
+                    }
+                    // Safety/Enhancement haptic
+                    if (pattern <= 100) {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+                            .catch(e => console.error('[Native Bridge] Haptics error:', e));
+                    }
+                }
+
+                result = 'Vibrated';
+            } catch (e) {
+                console.error('[Native Bridge] Vibration failed:', e);
+                success = false;
+                result = String(e);
+            }
+            break;
+        }
+
+        // ============= Screen Capture Handler =============
+        case 'SCREEN_CAPTURE':
+            debugLog('Capturing screen...');
+            // First choice: viewContainerRef (usually more reliable for capturing WebView content on Android)
+            // Second choice: webViewRef
+            const captureTarget = (ctx.viewContainerRef && ctx.viewContainerRef.current)
+                ? ctx.viewContainerRef.current
+                : (ctx.webViewRef && ctx.webViewRef.current ? ctx.webViewRef.current : null);
+
+            if (captureTarget) {
+                try {
+                    const { captureRef } = require('react-native-view-shot');
+                    const uri = await captureRef(captureTarget, {
+                        format: 'png',
+                        quality: 0.8,
+                        result: 'base64'
+                    });
+                    result = uri.replace(/(\r\n|\n|\r)/gm, "");
+                } catch (e) {
+                    success = false;
+                    result = e instanceof Error ? e.message : 'Screen capture failed';
+                }
+            } else {
+                success = false;
+                result = 'Capture target not available';
+            }
+            break;
+
+        // ============= Print Handler =============
+        case 'PRINT': {
+            debugLog('Requesting print dialog...');
+            try {
+                if (data.html) {
+                    await Print.printAsync({
+                        html: data.html
+                    });
+                    result = 'Print dialog opened';
+                } else {
+                    success = false;
+                    result = 'No content to print';
+                }
+            } catch (e) {
+                console.error('Print error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Print failed';
+            }
+            break;
+        }
+
+        // ============= Camera/Multimedia Handler =============
+        case 'CAMERA_TAKE_PHOTO': {
+            debugLog('Taking photo...');
+            try {
+                const permission = await ImagePicker.requestCameraPermissionsAsync();
+                if (!permission.granted) throw new Error('Camera permission denied');
+
+                const resultPicker = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    base64: true,
+                    quality: 0.8,
+                });
+
+                if (!resultPicker.canceled && resultPicker.assets[0].base64) {
+                    result = resultPicker.assets[0].base64;
+                } else {
+                    success = false;
+                    result = 'Cancelled';
+                }
+            } catch (e) {
+                console.error('Camera error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Camera failed';
+            }
+            break;
+        }
+
+        // ============= QR Scanner Handler =============
+        case 'SCANNER_SCAN': {
+            debugLog('Opening QR scanner...');
+            // Support both direct data.callback and wrapper's callbackName
+            const callbackName = data.callback || ctx.callbackName;
+
+            // Open scanner via store
+            useBridgeUIStore.getState().openScanner(callbackName);
+
+            // Result is technically "Scanner opened", but we defer the callback
+            // so the webview doesn't receive this string as the scan result.
+            // The actual result will be injected by QRScannerOverlay.
+            result = 'Scanner opened';
+            return { success: true, result, handled: true, deferredCallback: true };
+        }
+
+        case 'AUDIO_RECORD_START': {
+            debugLog('Starting audio recording...');
+            try {
+                const perm = await Audio.requestPermissionsAsync();
+                if (!perm.granted) throw new Error('Audio permission denied');
+
+                await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+                if (currentRecording) { await currentRecording.stopAndUnloadAsync(); currentRecording = null; }
+
+                const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+                currentRecording = recording;
+                result = 'Recording started';
+            } catch (e) {
+                console.error('Audio start error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Audio start failed';
+            }
+            break;
+        }
+
+        case 'AUDIO_RECORD_STOP': {
+            debugLog('Stopping audio recording...');
+            try {
+                if (!currentRecording) throw new Error('No recording active');
+                await currentRecording.stopAndUnloadAsync();
+                const uri = currentRecording.getURI();
+                currentRecording = null;
+
+                if (uri) {
+                    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+                    result = base64;
+                } else {
+                    throw new Error('No recording URI');
+                }
+            } catch (e) {
+                console.error('Audio stop error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Audio stop failed';
+            }
+            break;
+        }
 
         default:
             // Message type not handled by shared module

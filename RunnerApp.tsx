@@ -20,6 +20,8 @@ import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
 import { getWebViewTranslations } from './lib/i18n';
 import { getStorageFromCache, isCacheLoaded, reloadStorageForApp, StorageItem } from './lib/storageCache';
+import QRScannerOverlay from './components/QRScannerOverlay';
+import { useBridgeUIStore } from './lib/bridgeUIStore';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -38,6 +40,7 @@ interface Props {
 
 function RunnerContent({ appId }: Props) {
     const webViewRef = useRef<WebView>(null);
+    const viewContainerRef = useRef<View>(null);
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
@@ -79,6 +82,13 @@ function RunnerContent({ appId }: Props) {
         }
         checkDropBox();
     }, [appId]);
+
+    // Set global webViewRef for overlays - critical for scanner to work
+    useEffect(() => {
+        if (webViewRef) {
+            useBridgeUIStore.getState().setWebViewRef(webViewRef as any);
+        }
+    }, []);
 
     // Load app data and storage - also reload when webViewKey changes (WebView recreation)
     useEffect(() => {
@@ -221,11 +231,13 @@ function RunnerContent({ appId }: Props) {
             // Delegate to shared handlers
             const handlerResult = await handleBridgeMessage(type, data, {
                 webViewRef: webViewRef as React.RefObject<WebView>,
+                viewContainerRef: viewContainerRef,
                 appId: app?.id || null,
+                callbackName, // Pass callbackName for scanner/handlers
             });
 
-            // Send callback if needed
-            if (callbackName && webViewRef.current) {
+            // Send callback if needed, unless deferred (e.g. scanner)
+            if (callbackName && webViewRef.current && !handlerResult.deferredCallback) {
                 const script = createCallbackScript(callbackName, handlerResult.success, handlerResult.result);
                 webViewRef.current.injectJavaScript(script);
             }
@@ -271,81 +283,86 @@ function RunnerContent({ appId }: Props) {
     `;
 
     return (
-        <WebView
-            key={webViewKey}
-            ref={webViewRef}
-            source={{ html: htmlContent, baseUrl: `https://app-${appId}.appacadabra.local/` }}
-            style={styles.webview}
-            originWhitelist={['*']}
-            javaScriptEnabled
-            domStorageEnabled
-            mediaPlaybackRequiresUserAction={false}
-            allowsInlineMediaPlayback
-            allowFileAccess
-            allowFileAccessFromFileURLs
-            allowUniversalAccessFromFileURLs
-            mixedContentMode="always"
-            geolocationEnabled
-            injectedJavaScriptBeforeContentLoaded={combinedScript}
-            onMessage={handleMessage}
-            onError={(e) => console.error('WebView error:', e.nativeEvent)}
-            onLoadEnd={() => {
-                console.log('RunnerApp: WebView loaded, checking for shared content');
-                setWebViewReady(true);
+        <>
+            <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
+                <WebView
+                    key={webViewKey}
+                    ref={webViewRef}
+                    source={{ html: htmlContent, baseUrl: `https://app-${appId}.appacadabra.local/` }}
+                    style={styles.webview}
+                    originWhitelist={['*']}
+                    javaScriptEnabled
+                    domStorageEnabled
+                    mediaPlaybackRequiresUserAction={false}
+                    allowsInlineMediaPlayback
+                    allowFileAccess
+                    allowFileAccessFromFileURLs
+                    allowUniversalAccessFromFileURLs
+                    mixedContentMode="always"
+                    geolocationEnabled
+                    injectedJavaScriptBeforeContentLoaded={combinedScript}
+                    onMessage={handleMessage}
+                    onError={(e) => console.error('WebView error:', e.nativeEvent)}
+                    onLoadEnd={() => {
+                        console.log('RunnerApp: WebView loaded, checking for shared content');
+                        setWebViewReady(true);
 
-                // Inject shared content if available
-                if (sharedContent && webViewRef.current) {
-                    console.log('RunnerApp: Injecting shared content, fileName:', sharedContent.fileName);
+                        // Inject shared content if available
+                        if (sharedContent && webViewRef.current) {
+                            console.log('RunnerApp: Injecting shared content, fileName:', sharedContent.fileName);
 
-                    // Setup the shared content handler in WebView
-                    const setupScript = createSharedContentSetupScript(getWebViewTranslations());
-                    webViewRef.current.injectJavaScript(setupScript);
+                            // Setup the shared content handler in WebView
+                            const setupScript = createSharedContentSetupScript(getWebViewTranslations());
+                            webViewRef.current.injectJavaScript(setupScript);
 
-                    // Post the content after a short delay to ensure handler is ready
-                    setTimeout(() => {
-                        if (webViewRef.current && sharedContent) {
-                            console.log('RunnerApp: Posting shared content message');
-                            webViewRef.current.postMessage(JSON.stringify({
-                                type: 'SET_SHARED_CONTENT',
-                                payload: sharedContent
-                            }));
+                            // Post the content after a short delay to ensure handler is ready
+                            setTimeout(() => {
+                                if (webViewRef.current && sharedContent) {
+                                    console.log('RunnerApp: Posting shared content message');
+                                    webViewRef.current.postMessage(JSON.stringify({
+                                        type: 'SET_SHARED_CONTENT',
+                                        payload: sharedContent
+                                    }));
 
-                            // Clear after injection to prevent re-injection
-                            setSharedContent(null);
+                                    // Clear after injection to prevent re-injection
+                                    setSharedContent(null);
+                                }
+                            }, 500);
                         }
-                    }, 500);
-                }
-            }}
-            onShouldStartLoadWithRequest={(request) => {
-                const { url } = request;
-                // Allow internal URLs (localhost, appacadabra.local, data:, about:)
-                if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
-                    return true;
-                }
-                if (url.startsWith('http://') || url.startsWith('https://')) {
-                    // Keep navigation internal for our local baseUrl and localhost
-                    if (url.includes('localhost') || url.includes('.appacadabra.local')) {
+                    }}
+                    onShouldStartLoadWithRequest={(request) => {
+                        const { url } = request;
+                        // Allow internal URLs (localhost, appacadabra.local, data:, about:)
+                        if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
+                            return true;
+                        }
+                        if (url.startsWith('http://') || url.startsWith('https://')) {
+                            // Keep navigation internal for our local baseUrl and localhost
+                            if (url.includes('localhost') || url.includes('.appacadabra.local')) {
+                                return true;
+                            }
+                            // External URLs - open in system browser
+                            Linking.openURL(url);
+                            return false;
+                        }
                         return true;
-                    }
-                    // External URLs - open in system browser
-                    Linking.openURL(url);
-                    return false;
-                }
-                return true;
-            }}
-            // @ts-ignore
-            androidOnGeolocationPermissionsShowPrompt={async (origin: string, callback: (origin: string, allow: boolean, retain: boolean) => void) => {
-                console.log('RunnerApp: Geolocation permission requested for origin:', origin);
-                try {
-                    const { status } = await Location.requestForegroundPermissionsAsync();
-                    console.log('RunnerApp: Permission status:', status);
-                    callback(origin, status === 'granted', true);
-                } catch (e) {
-                    console.error('RunnerApp: Geolocation permission error:', e);
-                    callback(origin, false, false);
-                }
-            }}
-        />
+                    }}
+                    // @ts-ignore
+                    androidOnGeolocationPermissionsShowPrompt={async (origin: string, callback: (origin: string, allow: boolean, retain: boolean) => void) => {
+                        console.log('RunnerApp: Geolocation permission requested for origin:', origin);
+                        try {
+                            const { status } = await Location.requestForegroundPermissionsAsync();
+                            console.log('RunnerApp: Permission status:', status);
+                            callback(origin, status === 'granted', true);
+                        } catch (e) {
+                            console.error('RunnerApp: Geolocation permission error:', e);
+                            callback(origin, false, false);
+                        }
+                    }}
+                />
+            </View>
+            <QRScannerOverlay webviewRef={webViewRef} />
+        </>
     );
 }
 

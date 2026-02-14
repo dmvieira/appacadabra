@@ -11,6 +11,7 @@ import {
     Alert,
     Platform,
     KeyboardAvoidingView,
+    RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
@@ -18,6 +19,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
+import { Audio } from 'expo-av';
+import { useBridgeUIStore } from '../../lib/bridgeUIStore';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -35,7 +38,9 @@ import { colors, spacing, borderRadius } from '../../lib/theme';
 import { GeneratedApp, AppVersion } from '../../lib/database/types';
 import { useSpeechToText } from '../../lib/useSpeech';
 import { t, getWebViewTranslations } from '../../lib/i18n';
+import QRScannerOverlay from '../../components/QRScannerOverlay';
 import { useManaStore } from '../../lib/manaStore';
+import { reloadStorageForApp } from '../../lib/storageCache';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -54,58 +59,95 @@ export default function RunnerScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const webViewRef = useRef<WebView>(null);
+    const viewContainerRef = useRef<View>(null);
     const [localSharedContent, setLocalSharedContent] = useState<any>(null);
     const [lastProcessedPayload, setLastProcessedPayload] = useState<string | null>(null);
+
+    // Set global webViewRef for overlays
+    useEffect(() => {
+        // We pass the ref object itself, not the current value immediately, 
+        // but store expects RefObject so it's fine.
+        // Actually, we want to update the store whenever the ref attaches.
+        // But since we pass the RefObject, the store holds the RefObject which always has .current
+        useBridgeUIStore.getState().setWebViewRef(webViewRef as any);
+    }, []); // Run once, the ref object is stable
 
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isLocked, setIsLocked] = useState(false);
     const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
 
     // Initial load
+    // Initial load - App + Storage + Biometrics
     useEffect(() => {
-        const loadApp = async () => {
+        const loadAppData = async () => {
             if (!id) return;
-            const loadedApp = await db.getAppById(Number(id));
-            setApp(loadedApp);
+            console.log('RunnerScreen: Loading app data for id:', id);
 
-            // Check biometric authentication
-            if (loadedApp?.requiresBiometric) {
-                // Determine if we should authenticate immediately
-                try {
-                    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-                    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+            try {
+                const loadedApp = await db.getAppById(Number(id));
 
-                    if (hasHardware && isEnrolled) {
-                        const result = await LocalAuthentication.authenticateAsync({
-                            promptMessage: t('biometricRequired'),
-                            fallbackLabel: t('usePassword') || 'Use Password',  // Fallback if key missing
-                            disableDeviceFallback: false,
-                        });
+                if (loadedApp) {
+                    setApp(loadedApp);
 
-                        if (!result.success) {
+                    // Load storage immediately - CRITICAL for injection
+                    try {
+                        console.log('RunnerScreen: Pre-loading storage for app', loadedApp.id);
+                        const storageItems = await reloadStorageForApp(loadedApp.id);
+                        console.log('RunnerScreen: Storage loaded:', storageItems.length, 'items');
+
+                        // Set both ref (for sync injection) and state (for debug UI)
+                        savedStorageRef.current = storageItems;
+                        setSavedStorage(storageItems);
+                        setStorageLoaded(true);
+                    } catch (e) {
+                        console.error('RunnerScreen: Error loading storage:', e);
+                        // Still mark as loaded so we don't block
+                        setStorageLoaded(true);
+                    }
+
+                    // Check biometric authentication
+                    if (loadedApp.requiresBiometric) {
+                        // Determine if we should authenticate immediately
+                        try {
+                            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+                            if (hasHardware && isEnrolled) {
+                                const result = await LocalAuthentication.authenticateAsync({
+                                    promptMessage: t('biometricRequired'),
+                                    fallbackLabel: t('usePassword') || 'Use Password',  // Fallback if key missing
+                                    disableDeviceFallback: false,
+                                });
+
+                                if (!result.success) {
+                                    setIsLocked(true);
+                                }
+                            } else {
+                                // If biometric is required but not available on device, we lock it
+                                setIsLocked(true);
+                                Alert.alert(t('error'), t('biometricsNotAvailable') || 'Biometrics not available');
+                            }
+                        } catch (e) {
+                            console.error('Biometric init error:', e);
                             setIsLocked(true);
                         }
-                    } else {
-                        // If biometric is required but not available on device, we still lock it?
-                        // For security, yes. Or we assume without enrollment it's owner?
-                        // No, if I set a lock I expect it to lock. 
-                        // If I remove fingerprints, I should be locked out until I add them back or use password.
-                        setIsLocked(true);
-                        Alert.alert(t('error'), t('biometricsNotAvailable') || 'Biometrics not available');
                     }
-                } catch (e) {
-                    console.error('Biometric init error:', e);
-                    setIsLocked(true);
+                } else {
+                    console.error('RunnerScreen: App not found for id:', id);
                 }
+            } catch (err) {
+                console.error('RunnerScreen: Error loading app data:', err);
+            } finally {
+                setIsLoading(false);
             }
-
-            setIsLoading(false);
         };
-        loadApp();
+
+        loadAppData();
     }, [id]);
 
     // Authentication helper
@@ -132,6 +174,25 @@ export default function RunnerScreen() {
             console.error('Biometric retry error:', e);
         }
     };
+
+    const onRefresh = useCallback(async () => {
+        if (!app) return;
+        setRefreshing(true);
+        try {
+            const loadedApp = await db.getAppById(app.id);
+            if (loadedApp) {
+                setApp(loadedApp);
+                // Also reload storage
+                const storageItems = await reloadStorageForApp(loadedApp.id);
+                savedStorageRef.current = storageItems;
+                setSavedStorage(storageItems);
+            }
+        } catch (e) {
+            console.error('RunnerScreen: Refresh error:', e);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [app]);
 
     // React to store updates (e.g. async job finished)
     useEffect(() => {
@@ -379,28 +440,7 @@ export default function RunnerScreen() {
     const [networkLogs, setNetworkLogs] = useState<{ url: string; method: string; status?: number; time: number; duration?: number; responseBody?: string }[]>([]);
 
     // Load app data
-    useEffect(() => {
-        async function loadApp() {
-            if (!id) return;
-            console.log('RunnerScreen: Loading app and storage for id:', id);
-            const appData = await db.getAppById(parseInt(id));
-            if (appData) {
-                setApp(appData);
-                // Load stored localStorage data
-                const storage = await db.getStorageForApp(appData.id);
-                const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
-                console.log('RunnerScreen: Loaded', storageItems.length, 'storage items');
-                // Update both ref and state
-                savedStorageRef.current = storageItems;
-                setSavedStorage(storageItems);
-                setStorageLoaded(true);
-            } else {
-                setStorageLoaded(true); // Mark as loaded even if no app found
-            }
-            setIsLoading(false);
-        }
-        loadApp();
-    }, [id]);
+    // REDUNDANT LOAD REMOVED - merged into primary load effect above
 
 
     // Inject saved localStorage and shared content (File or Store)
@@ -498,6 +538,7 @@ export default function RunnerScreen() {
 
             let success = true;
             let result = '';
+            let deferredCallback = false;
 
             switch (type) {
                 // ============= AI Handlers =============
@@ -513,9 +554,6 @@ export default function RunnerScreen() {
                     setSelectedElement({ html, tagName, preview });
                     setEditPrompt('');  // Clear prompt for new instruction
                     setShowEditSheet(true);
-                    break;
-
-
                     break;
 
                 // ============= Console Log =============
@@ -539,18 +577,21 @@ export default function RunnerScreen() {
                     // Delegate to shared handlers for common message types
                     const handlerResult = await handleBridgeMessage(type, data, {
                         webViewRef: webViewRef as React.RefObject<WebView>,
+                        viewContainerRef: viewContainerRef,
                         appId: app?.id || null,
+                        callbackName,
                     });
                     if (handlerResult.handled) {
                         success = handlerResult.success;
                         result = handlerResult.result;
+                        deferredCallback = !!handlerResult.deferredCallback;
                     } else {
                         console.log('Unknown message type:', type);
                     }
             }
 
-            // Send callback if needed
-            if (callbackName && webViewRef.current) {
+            // Send callback if needed (unless deferred, e.g. for scanner which will call back via overlay)
+            if (callbackName && webViewRef.current && !deferredCallback) {
                 const script = createCallbackScript(callbackName, success, result);
                 webViewRef.current.injectJavaScript(script);
             }
@@ -696,17 +737,7 @@ export default function RunnerScreen() {
         );
     }
 
-    // Prepare localStorage injection script
-    const getStorageInitScript = async () => {
-        const storage = await db.getStorageForApp(app.id);
-        if (storage.length === 0) return '';
 
-        const items = storage.map(s =>
-            `localStorage.setItem(${JSON.stringify(s.key)}, ${JSON.stringify(s.value)});`
-        ).join('\n');
-
-        return `(function() { ${items} })();`;
-    };
 
     const htmlContent = `
     <!DOCTYPE html>
@@ -761,58 +792,76 @@ export default function RunnerScreen() {
                 </>
             )}
 
-            {/* WebView */}
-            <WebView
-                key={`${app.id}-${app.currentVersion}-${isEditMode}`}
-                ref={webViewRef}
-                source={{ html: htmlContent, baseUrl: `https://app-${app.id}.appacadabra.local/` }} // baseUrl required for some permissions
-                style={styles.webview}
-                originWhitelist={['*']}
-                javaScriptEnabled
-                domStorageEnabled
-                mediaPlaybackRequiresUserAction={false}
-                allowsInlineMediaPlayback
-                allowFileAccess
-                allowFileAccessFromFileURLs
-                allowUniversalAccessFromFileURLs
-                mixedContentMode="always"
-                geolocationEnabled
-                injectedJavaScriptBeforeContentLoaded={combinedScript}
-                onLoadEnd={handleLoadEnd}
-                onMessage={handleMessage}
-                onError={(e) => console.error('WebView error:', e.nativeEvent)}
-                onShouldStartLoadWithRequest={(request) => {
-                    const { url } = request;
-                    // Allow internal URLs (localhost, appacadabra.local, data:, about:, blob:)
-                    if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
-                        return true;
+            {/* WebView wrapped in ScrollView for Pull-to-Refresh */}
+            <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
+                <ScrollView
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[colors.primary]}
+                            tintColor={colors.primary}
+                        />
                     }
-                    // External URLs - open in browser
-                    // External URLs - open in browser
-                    if (url.startsWith('http://') || url.startsWith('https://')) {
-                        if (!url.includes('localhost') && !url.includes('.appacadabra.local')) {
-                            Linking.openURL(url);
-                            return false;
-                        }
-                        return true;
-                    }
+                    contentContainerStyle={{ flex: 1 }}
+                    scrollEnabled={isEditMode} // Usually only enable outer scroll if we want PR, but WebView scrolls itself. 
+                // However, to trigger PR the outer ScrollView must be scrollable.
+                >
+                    <WebView
+                        key={`${app.id}-${app.currentVersion}-${isEditMode}`}
+                        ref={webViewRef}
+                        source={{ html: htmlContent, baseUrl: `https://app-${app.id}.appacadabra.local/` }} // baseUrl required for some permissions
+                        style={styles.webview}
+                        originWhitelist={['*']}
+                        javaScriptEnabled
+                        domStorageEnabled
+                        mediaPlaybackRequiresUserAction={false}
+                        allowsInlineMediaPlayback
+                        allowFileAccess
+                        allowFileAccessFromFileURLs
+                        allowUniversalAccessFromFileURLs
+                        mixedContentMode="always"
+                        geolocationEnabled
+                        injectedJavaScriptBeforeContentLoaded={combinedScript}
+                        onLoadEnd={handleLoadEnd}
+                        onMessage={handleMessage}
+                        onError={(e) => console.error('WebView error:', e.nativeEvent)}
+                        onShouldStartLoadWithRequest={(request) => {
+                            const { url } = request;
+                            // Allow internal URLs (localhost, appacadabra.local, data:, about:, blob:)
+                            if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
+                                return true;
+                            }
+                            // External URLs - open in browser
+                            if (url.startsWith('http://') || url.startsWith('https://')) {
+                                if (!url.includes('localhost') && !url.includes('.appacadabra.local')) {
+                                    Linking.openURL(url);
+                                    return false;
+                                }
+                                return true;
+                            }
 
-                    return true;
-                }}
-                // Handle geolocation permission requests from WebView
-                // @ts-ignore - androidOnGeolocationPermissionsShowPrompt is available on Android
-                androidOnGeolocationPermissionsShowPrompt={async (origin: string, callback: (origin: string, allow: boolean, retain: boolean) => void) => {
-                    console.log('WebView requesting geolocation permission for origin:', origin);
-                    try {
-                        const { status } = await Location.requestForegroundPermissionsAsync();
-                        console.log('Geolocation permission status:', status);
-                        callback(origin, status === 'granted', true);
-                    } catch (e) {
-                        console.error('Error requesting geolocation permission:', e);
-                        callback(origin, false, false);
-                    }
-                }}
-            />
+                            return true;
+                        }}
+                        // Handle geolocation permission requests from WebView
+                        // @ts-ignore - androidOnGeolocationPermissionsShowPrompt is available on Android
+                        androidOnGeolocationPermissionsShowPrompt={async (origin: string, callback: (origin: string, allow: boolean, retain: boolean) => void) => {
+                            console.log('WebView requesting geolocation permission for origin:', origin);
+                            try {
+                                const { status } = await Location.requestForegroundPermissionsAsync();
+                                console.log('Geolocation permission status:', status);
+                                callback(origin, status === 'granted', true);
+                            } catch (e) {
+                                console.error('Error requesting geolocation permission:', e);
+                                callback(origin, false, false);
+                            }
+                        }}
+                    />
+                </ScrollView>
+            </View>
+
+            {/* Overlays */}
+            <QRScannerOverlay webviewRef={webViewRef} />
 
             {/* Edit Mode Toolbar */}
             {isEditMode && (

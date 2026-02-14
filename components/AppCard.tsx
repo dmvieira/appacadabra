@@ -23,11 +23,12 @@ interface AppCardProps {
     onIconPress?: () => void;
     onShortcut?: () => void;
     onToggleBiometric?: () => void;
+    onViewSchedules?: () => void;
     isPlaceholder?: boolean;
     isLocked?: boolean;
 }
 
-export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIconPress, onShortcut, onToggleBiometric, isPlaceholder, isLocked }: AppCardProps) {
+export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIconPress, onShortcut, onToggleBiometric, onViewSchedules, isPlaceholder, isLocked }: AppCardProps) {
     const [showMenu, setShowMenu] = useState(false);
 
     // Use device locale for date formatting
@@ -167,6 +168,15 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIco
                                 <Text style={styles.menuItemText}>
                                     {app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
                                 </Text>
+                            </TouchableOpacity>
+                        )}
+                        {onViewSchedules && (
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => { setShowMenu(false); onViewSchedules(); }}
+                            >
+                                <Text style={styles.menuItemIcon}>🔔</Text>
+                                <Text style={styles.menuItemText}>{t('scheduledNotifications')}</Text>
                             </TouchableOpacity>
                         )}
                         <View style={styles.menuDivider} />

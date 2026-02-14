@@ -56,6 +56,7 @@ interface AppState {
     renameApp: (id: number, newName: string) => Promise<void>;
     updateAppIcon: (id: number, iconPath: string) => Promise<void>;
     updateAppCode: (id: number, code: string, instruction?: string) => Promise<void>;
+    incrementAppManaCost: (id: number, amount: number) => Promise<void>;
     exportBackup: () => Promise<void>;
     importBackup: (uri?: string) => Promise<void>;
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
@@ -483,6 +484,19 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to update app icon:', error);
             set({ error: t('errorUpdatingIcon') });
+        }
+    },
+
+    incrementAppManaCost: async (id: number, amount: number) => {
+        try {
+            await db.incrementManaCost(id, amount);
+            set(state => ({
+                apps: state.apps.map(a =>
+                    a.id === id ? { ...a, totalManaCost: (a.totalManaCost || 0) + amount } : a
+                ),
+            }));
+        } catch (error) {
+            console.warn('Failed to increment app mana cost:', error);
         }
     },
 

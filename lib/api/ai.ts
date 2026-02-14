@@ -128,3 +128,18 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
         };
     });
 }
+
+// Used by WebView Bridge - Generate Image
+export async function aiGenerateImage(prompt: string): Promise<{ imageBase64: string, usage: any, creditsUsed: number }> {
+    console.log('[AI] aiGenerateImage (via Firebase)', prompt?.substring(0, 80));
+
+    return withTimeoutAndRetry(async () => {
+        const result = await firebase.generateSpellImageGen(prompt);
+
+        return {
+            imageBase64: result.text, // Server returns base64 image data in text field
+            usage: result.usage,
+            creditsUsed: result.creditsUsed || 0
+        };
+    });
+}
