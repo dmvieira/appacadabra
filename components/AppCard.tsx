@@ -90,6 +90,11 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIco
                         <Text style={styles.manaUsage}>
                             {t('manaUsed')}: {(app.totalManaCost || 0).toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                         </Text>
+                        {!!app.shortDescription && (
+                            <Text style={styles.description} numberOfLines={2}>
+                                {app.shortDescription}
+                            </Text>
+                        )}
                     </>
                 )}
             </TouchableOpacity>
@@ -141,7 +146,7 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIco
                             onPress={() => { setShowMenu(false); onRename(); }}
                         >
                             <Text style={styles.menuItemIcon}>📝</Text>
-                            <Text style={styles.menuItemText}>{t('rename')}</Text>
+                            <Text style={styles.menuItemText}>{t('editAppDetails')}</Text>
                         </TouchableOpacity>
                         {onShare && (
                             <TouchableOpacity
@@ -240,6 +245,12 @@ const styles = StyleSheet.create({
         color: colors.onSurface,
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    description: {
+        color: colors.onSurfaceVariant,
+        fontSize: 11,
+        marginBottom: 2,
+        opacity: 0.8,
     },
     meta: {
         color: colors.onSurfaceVariant,

@@ -164,12 +164,13 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         sendMessage('NOTIFY_SHOW_NOW', { title, message }, callbackName);
     },
     schedule: function(title, message, delayMinutes, callbackName, id) {
-        console.log('[AppacadabraNotify.schedule] title:', title, 'delay:', delayMinutes, 'min, id:', id, 'callback:', callbackName);
-        sendMessage('NOTIFY_SCHEDULE', { title, message, delayMinutes, id }, callbackName);
+        var timeMs = Date.now() + (delayMinutes * 60 * 1000);
+        console.log('[AppacadabraNotify.schedule] title:', title, 'delay:', delayMinutes, 'min (converted to:', new Date(timeMs).toISOString(), '), id:', id, 'callback:', callbackName);
+        sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id }, callbackName);
     },
     scheduleAt: function(title, message, timeMs, callbackName, id) {
         console.log('[AppacadabraNotify.scheduleAt] title:', title, 'time:', new Date(timeMs).toISOString(), 'id:', id, 'callback:', callbackName);
-        sendMessage('NOTIFY_SCHEDULE_AT', { title, message, timeMs, id }, callbackName);
+        sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id }, callbackName);
     },
     getScheduled: function(callbackName) {
         console.log('[AppacadabraNotify.getScheduled] callback:', callbackName);
@@ -229,6 +230,10 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     getSleep: function(startMs, endMs, callbackName) {
         console.log('[AppacadabraHealth.getSleep] start:', new Date(startMs).toISOString(), 'end:', new Date(endMs).toISOString(), 'callback:', callbackName);
         sendMessage('HEALTH_GET_SLEEP', { startTimeMs: startMs, endTimeMs: endMs }, callbackName);
+    },
+    getCalories: function(startMs, endMs, callbackName) {
+        console.log('[AppacadabraHealth.getCalories] start:', new Date(startMs).toISOString(), 'end:', new Date(endMs).toISOString(), 'callback:', callbackName);
+        sendMessage('HEALTH_GET_CALORIES', { startTimeMs: startMs, endTimeMs: endMs }, callbackName);
     }
   };
 
@@ -379,35 +384,27 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   window.AppacadabraDevice = {
     // Battery
     getBatteryLevel: function(callbackName) {
-         if (navigator.getBattery) {
-            navigator.getBattery().then(function(battery) {
-                sendCallback(callbackName, battery.level);
-            }).catch(function(e) {
-                sendCallback(callbackName, null, e.message);
-            });
-         } else {
-             sendCallback(callbackName, null, 'Battery API not supported');
-         }
+         sendMessage('DEVICE_GET_BATTERY_LEVEL', {}, callbackName);
     },
     isCharging: function(callbackName) {
-         if (navigator.getBattery) {
-            navigator.getBattery().then(function(battery) {
-                sendCallback(callbackName, battery.charging);
-            }).catch(function(e) {
-                sendCallback(callbackName, null, e.message);
-            });
-         } else {
-             sendCallback(callbackName, null, 'Battery API not supported');
-         }
+         sendMessage('DEVICE_IS_CHARGING', {}, callbackName);
     },
     // Network
-    isOnline: function() {
-        return navigator.onLine;
+    isOnline: function(callbackName) {
+        if (callbackName) {
+            sendMessage('DEVICE_IS_ONLINE', {}, callbackName);
+        } else {
+            // Fallback for synchronous calls (deprecated but safe)
+            return navigator.onLine;
+        }
     },
-    getNetworkType: function() {
-        // @ts-ignore
-        var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        return conn ? conn.effectiveType : 'unknown';
+    getNetworkType: function(callbackName) {
+        // Redirect to async bridge if callback provided, else log error
+        if (callbackName) {
+             sendMessage('DEVICE_GET_NETWORK_INFO', {}, callbackName);
+        } else {
+             console.error('[AppacadabraDevice.getNetworkType] Missing callback');
+        }
     },
     // Vibration
     vibrate: function(pattern) {
@@ -451,6 +448,34 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   };
 
   // ============= Camera (Photo & Scan) =============
+  
+  // ============= Sensors (Accelerometer, Gyroscope, Magnetometer) =============
+  window.AppacadabraSensors = {
+      startAccelerometer: function(intervalMs, callbackName) {
+          console.log('[AppacadabraSensors.startAccelerometer] interval:', intervalMs, 'callback:', callbackName);
+          sendMessage('SENSORS_START_ACCELEROMETER', { intervalMs }, callbackName);
+      },
+      startGyroscope: function(intervalMs, callbackName) {
+          console.log('[AppacadabraSensors.startGyroscope] interval:', intervalMs, 'callback:', callbackName);
+          sendMessage('SENSORS_START_GYROSCOPE', { intervalMs }, callbackName);
+      },
+      startMagnetometer: function(intervalMs, callbackName) {
+          console.log('[AppacadabraSensors.startMagnetometer] interval:', intervalMs, 'callback:', callbackName);
+          sendMessage('SENSORS_START_MAGNETOMETER', { intervalMs }, callbackName);
+      },
+      stopAccelerometer: function() {
+          sendMessage('SENSORS_STOP_ACCELEROMETER', {});
+      },
+      stopGyroscope: function() {
+          sendMessage('SENSORS_STOP_GYROSCOPE', {});
+      },
+      stopMagnetometer: function() {
+          sendMessage('SENSORS_STOP_MAGNETOMETER', {});
+      },
+      stopAll: function() {
+          sendMessage('SENSORS_STOP_ALL', {});
+      }
+  };
   window.AppacadabraCamera = {
       takePhoto: function(callbackName) {
           sendMessage('CAMERA_TAKE_PHOTO', {}, callbackName);
@@ -839,11 +864,16 @@ export function createCallbackScript(callbackName: string, success: boolean, dat
   return `
     (function() {
       // Log the return from Native Bridge so it appears in debug console
-      var dataPreview = "${escapedData}".length > 100 ? "${escapedData}".substring(0, 100) + "..." : "${escapedData}";
-      console.log("[BridgeReturn] ${callbackName} | Success: ${success} | Data: " + dataPreview);
+      if ("${callbackName}" && "${callbackName}" !== "undefined") {
+          var dataPreview = "${escapedData}".length > 100 ? "${escapedData}".substring(0, 100) + "..." : "${escapedData}";
+          console.log("[BridgeReturn] ${callbackName} | Success: ${success} | Data: " + dataPreview);
 
-      if (typeof ${callbackName} === 'function') {
-        ${callbackName}(${success}, "${escapedData}");
+          if (typeof ${callbackName} === 'function') {
+            ${callbackName}(${success}, "${escapedData}");
+          }
+      } else {
+          var dataPreview = "${escapedData}".length > 100 ? "${escapedData}".substring(0, 100) + "..." : "${escapedData}";
+          console.log("[BridgeReturn] No callback name provided, but operation succeeded. Data: " + dataPreview);
       }
     })();
   `;

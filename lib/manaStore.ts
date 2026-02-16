@@ -6,6 +6,8 @@ import * as firebase from './firebase';
 interface ManaState {
     balance: number;
     isShopOpen: boolean;
+    userEmail: string | null;
+    isAnonymous: boolean;
 
     // Actions
     init: () => void; // Start listening
@@ -24,12 +26,20 @@ export const useManaStore = create<ManaState>()(
         (set, get) => ({
             balance: 0,
             isShopOpen: false,
+            userEmail: null,
+            isAnonymous: true,
 
             init: () => {
                 console.log('ManaStore: Initializing firebase sync...');
 
                 // Listen for Auth changes first
                 firebase.onAuthStateChanged((userId) => {
+                    const user = firebase.getCurrentUser();
+                    set({
+                        userEmail: user?.email || null,
+                        isAnonymous: user?.isAnonymous ?? true
+                    });
+
                     if (userId) {
                         console.log('ManaStore: User authenticated, listening to credits for', userId);
                         // Setup credits listener

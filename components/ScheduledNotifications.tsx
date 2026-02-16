@@ -41,10 +41,35 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
         setLoading(true);
         try {
             const all = await Notifications.getAllScheduledNotificationsAsync();
-            const filtered = all.filter(n =>
-                (n.content as any).channelId === `spell-${appId}` ||
-                n.content.data?.appId === appId
-            );
+            console.log('[ScheduledNotifications] All notifications raw:', JSON.stringify(all, null, 2));
+
+            const filtered = all.filter(n => {
+                const content = n.content as any;
+                // Channel ID check
+                const channelMatch = content.channelId === `spell-${appId}`;
+
+                // Data payload check (handle both direct object and stringified payload workaround)
+                let dataAppId = content.data?.appId;
+
+                if (!dataAppId && content.data?.payload) {
+                    try {
+                        const parsed = typeof content.data.payload === 'string'
+                            ? JSON.parse(content.data.payload)
+                            : content.data.payload;
+                        dataAppId = parsed.appId;
+                    } catch (e) {
+                        console.warn('Failed to parse notification payload', e);
+                    }
+                }
+
+                const dataMatch = String(dataAppId) === String(appId);
+
+                // Fallback: Check badge for App ID (primitive number hack)
+                const badgeMatch = content.badge === Number(appId);
+
+                return channelMatch || dataMatch || badgeMatch;
+            });
+
             setNotifications(filtered.map(n => ({
                 identifier: n.identifier,
                 title: n.content.title,
@@ -82,9 +107,18 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
 
     const formatTrigger = (trigger: any): string => {
         if (!trigger) return t('immediate') || 'Immediate';
-        if (trigger.type === 'date' && trigger.timestamp) {
-            return new Date(trigger.timestamp).toLocaleString();
+
+        // Android often uses 'value' for timestamp in some contexts
+        if (trigger.value && (typeof trigger.value === 'number')) {
+            return new Date(trigger.value).toLocaleString();
         }
+
+        if (trigger.type === 'date') {
+            if (trigger.timestamp) return new Date(trigger.timestamp).toLocaleString();
+            if (trigger.value) return new Date(trigger.value).toLocaleString();
+            if (trigger.date) return new Date(trigger.date).toLocaleString();
+        }
+
         if (trigger.type === 'timeInterval' && trigger.seconds) {
             const mins = Math.round(trigger.seconds / 60);
             return `${mins} min`;
@@ -96,7 +130,9 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                 return new Date(year, month - 1, day, hour || 0, minute || 0).toLocaleString();
             }
         }
-        return JSON.stringify(trigger);
+
+        // Debug fallback
+        return JSON.stringify(trigger).substring(0, 50);
     };
 
     if (!visible) return null;

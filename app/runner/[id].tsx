@@ -796,16 +796,17 @@ export default function RunnerScreen() {
             <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
                 <ScrollView
                     refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            colors={[colors.primary]}
-                            tintColor={colors.primary}
-                        />
+                        !isEditMode ? (
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                colors={[colors.primary]}
+                                tintColor={colors.primary}
+                            />
+                        ) : undefined
                     }
                     contentContainerStyle={{ flex: 1 }}
-                    scrollEnabled={isEditMode} // Usually only enable outer scroll if we want PR, but WebView scrolls itself. 
-                // However, to trigger PR the outer ScrollView must be scrollable.
+                    scrollEnabled={!isEditMode} // Disable outer scroll in Edit Mode to let WebView handle scrolling exclusively
                 >
                     <WebView
                         key={`${app.id}-${app.currentVersion}-${isEditMode}`}

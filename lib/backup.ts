@@ -31,6 +31,7 @@ interface BackupApp {
     consoleLogs?: string;
     totalManaCost?: number;
     jobId?: string; // Add this
+    shortDescription?: string; // Add this
     // Android nested format
     versions?: { version: number; code: string; instruction: string; selectedContext: string; createdAt: number; jobId?: string }[];
     localStorage?: Record<string, string>;
@@ -81,6 +82,7 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             lastUpdated: app.lastUpdated,
             consoleLogs: app.consoleLogs || '',
             totalManaCost: includeStorage ? (app.totalManaCost || 0) : undefined,
+            shortDescription: app.shortDescription,
             versions: versions.map(v => ({
                 version: v.version,
                 code: v.code,
@@ -279,6 +281,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
                 totalManaCost: app.totalManaCost || 0,
                 jobId: app.jobId || undefined,
                 requiresBiometric: false, // Imported apps start unlocked
+                shortDescription: app.shortDescription || undefined,
             };
 
             const newId = await db.insertApp(newApp);

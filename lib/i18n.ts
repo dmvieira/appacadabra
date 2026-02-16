@@ -83,6 +83,9 @@ const translations = {
         // Rename
         renameTitle: 'Rename Spell',
         renamePlaceholder: 'New name',
+        editAppDetails: 'Edit Spell Details',
+        spellNameLabel: 'Spell Name',
+        shortDescriptionLabel: 'Short Description (used for AI & Context)',
 
         // Import
         importing: 'Summoning...',
@@ -180,6 +183,20 @@ const translations = {
         // Mana
         mana: 'Mana',
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Account',
+        linkAccount: 'Link Google Account',
+        linkAccountDesc: 'Backup your mana to the cloud',
+        linkedAs: 'Signed in as %{email}',
+        signInGoogle: 'Sign in with Google',
+        linkError: 'Link failed. Try again.',
+        linkSuccess: 'Account linked successfully!',
+        signOut: 'Sign Out',
+        accountConflict: 'Account already exists. Sign in instead? (Current mana will be replaced by cloud mana)',
+        success: 'Success',
+        error: 'Error',
+        signInFailed: 'Sign in failed',
+
         buyMana: 'Buy Mana',
         insufficientMana: 'Insufficient Mana',
         insufficientManaMessage: 'You need %{cost} Mana to perform this action. Your balance is %{balance}.',
@@ -208,6 +225,14 @@ const translations = {
         rewardNone: "This ad didn't generate a reward",
         rewardError: 'Failed to add reward. Please try again.',
         tapToLoad: 'Tap to load',
+
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Cellular Data',
+        network_none: 'No Connection',
+        network_unknown: 'Unknown Network',
+
+
 
         // Scheduled Notifications
         scheduledNotifications: 'Scheduled Notifications',
@@ -266,6 +291,28 @@ const translations = {
         onboardingStart: 'Start Casting!',
         replayOnboarding: 'Replay Tutorial',
         editModeNoSave: 'Note: Data changes in Edit Mode are not saved.',
+
+        // Exercises
+        exercise_other: 'Other',
+        exercise_biking: 'Biking',
+        exercise_dancing: 'Dancing',
+        exercise_golf: 'Golf',
+        exercise_hiit: 'HIIT',
+        exercise_hiking: 'Hiking',
+        exercise_martial_arts: 'Martial Arts',
+        exercise_rowing: 'Rowing',
+        exercise_pilates: 'Pilates',
+        exercise_rock_climbing: 'Rock Climbing',
+        exercise_running: 'Running',
+        exercise_soccer: 'Soccer',
+        exercise_stair_climbing: 'Stair Climbing',
+        exercise_strength_training: 'Strength Training',
+        exercise_stretching: 'Stretching',
+        exercise_swimming: 'Swimming',
+        exercise_tennis: 'Tennis',
+        exercise_walking: 'Walking',
+        exercise_weightlifting: 'Weightlifting',
+        exercise_yoga: 'Yoga',
     },
     pt: {
         // App
@@ -347,6 +394,9 @@ const translations = {
         // Rename
         renameTitle: 'Renomear Feitiço',
         renamePlaceholder: 'Novo nome',
+        editAppDetails: 'Editar Detalhes do Feitiço',
+        spellNameLabel: 'Nome do Feitiço',
+        shortDescriptionLabel: 'Descrição Curta (usada para IA e Contexto)',
 
         // Import
         importing: 'Invocando...',
@@ -367,6 +417,20 @@ const translations = {
         applyEdit: 'Aplicar',
         debug: 'Debug',
         search: 'Buscar',
+
+        // Account
+        account: 'Conta',
+        linkAccount: 'Vincular Conta Google',
+        linkAccountDesc: 'Salve sua mana na nuvem',
+        linkedAs: 'Conectado como %{email}',
+        signInGoogle: 'Entrar com Google',
+        linkError: 'Falha ao vincular. Tente novamente.',
+        linkSuccess: 'Conta vinculada com sucesso!',
+        signOut: 'Sair',
+        accountConflict: 'Esta conta já existe. Deseja entrar nela? (A mana atual será substituída pela mana na nuvem)',
+        success: 'Sucesso',
+        error: 'Erro',
+        signInFailed: 'Falha ao entrar',
 
         // Content filter
         contentBlocked: 'Conteúdo não permitido. Por favor, descreva um feitiço legítimo e útil.',
@@ -473,6 +537,12 @@ const translations = {
         rewardError: 'Falha ao adicionar recompensa. Tente novamente.',
         tapToLoad: 'Toque para carregar',
 
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Dados Móveis',
+        network_none: 'Sem Conexão',
+        network_unknown: 'Rede Desconhecida',
+
         // Scheduled Notifications
         scheduledNotifications: 'Notificações Agendadas',
         noScheduledNotifications: 'Nenhuma notificação agendada',
@@ -530,6 +600,28 @@ const translations = {
         onboardingStart: 'Começar a Conjurar!',
         replayOnboarding: 'Rever Tutorial',
         editModeNoSave: 'Nota: Alterações de dados no Modo Edição não são salvas.',
+
+        // Exercícios
+        exercise_other: 'Outro',
+        exercise_biking: 'Ciclismo',
+        exercise_dancing: 'Dança',
+        exercise_golf: 'Golfe',
+        exercise_hiit: 'HIIT',
+        exercise_hiking: 'Trilha',
+        exercise_martial_arts: 'Artes Marciais',
+        exercise_rowing: 'Remo',
+        exercise_pilates: 'Pilates',
+        exercise_rock_climbing: 'Escalada',
+        exercise_running: 'Corrida',
+        exercise_soccer: 'Futebol',
+        exercise_stair_climbing: 'Subida de Escada',
+        exercise_strength_training: 'Musculação',
+        exercise_stretching: 'Alongamento',
+        exercise_swimming: 'Natação',
+        exercise_tennis: 'Tênis',
+        exercise_walking: 'Caminhada',
+        exercise_weightlifting: 'Levantamento de Peso',
+        exercise_yoga: 'Yoga',
     },
     es: {
         appName: 'Appacadabra',
@@ -595,6 +687,9 @@ const translations = {
         deleteMessage: "¿Seguro que quieres eliminar '%{name}'? Acción irreversible.",
         renameTitle: 'Renombrar Hechizo',
         renamePlaceholder: 'Nuevo nombre',
+        editAppDetails: 'Editar Detalles del Hechizo',
+        spellNameLabel: 'Nombre del Hechizo',
+        shortDescriptionLabel: 'Descripción Corta (usada para IA y Contexto)',
         importing: 'Invocando...',
         processing: 'Procesando Hechizo...',
         // Legal - uses EN fallback
@@ -679,6 +774,19 @@ const translations = {
         // Mana
         mana: 'Mana',
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Cuenta',
+        linkAccount: 'Vincular cuenta de Google',
+        linkAccountDesc: 'Guarda tu mana en la nube',
+        linkedAs: 'Sesión iniciada como %{email}',
+        signInGoogle: 'Iniciar sesión con Google',
+        linkError: 'Error al vincular. Inténtalo de nuevo.',
+        linkSuccess: '¡Cuenta vinculada con successo!',
+        signOut: 'Cerrar sesión',
+        accountConflict: 'La cuenta ya existe. ¿Iniciar sesión en su lugar? (El maná actual será reemplazado por el maná en la nube)',
+        success: 'Éxito',
+        error: 'Error',
+        signInFailed: 'Fallo al iniciar sesión',
         buyMana: 'Comprar Mana',
         insufficientMana: 'Mana Insuficiente',
         insufficientManaMessage: 'Necesitas %{cost} Mana para esta acción. Tu saldo es %{balance}.',
@@ -707,6 +815,14 @@ const translations = {
         rewardNone: 'Este anuncio no generó recompensa',
         rewardError: 'Error al añadir recompensa. Intenta de nuevo.',
         tapToLoad: 'Toca para cargar',
+
+
+
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Datos Móviles',
+        network_none: 'Sin Conexión',
+        network_unknown: 'Red Desconocida',
 
         // Scheduled Notifications
         scheduledNotifications: 'Notificaciones Programadas',
@@ -764,6 +880,28 @@ const translations = {
         onboardingStart: '¡Empezar a Conjurar!',
         replayOnboarding: 'Repetir Tutorial',
         editModeNoSave: 'Nota: Los cambios de datos en Modo Edición no se guardan.',
+
+        // Ejercicios
+        exercise_other: 'Otro',
+        exercise_biking: 'Ciclismo',
+        exercise_dancing: 'Baile',
+        exercise_golf: 'Golf',
+        exercise_hiit: 'HIIT',
+        exercise_hiking: 'Senderismo',
+        exercise_martial_arts: 'Artes Marciales',
+        exercise_rowing: 'Remo',
+        exercise_pilates: 'Pilates',
+        exercise_rock_climbing: 'Escalada',
+        exercise_running: 'Correr',
+        exercise_soccer: 'Fútbol',
+        exercise_stair_climbing: 'Subir Escaleras',
+        exercise_strength_training: 'Entrenamiento de Fuerza',
+        exercise_stretching: 'Estiramiento',
+        exercise_swimming: 'Natación',
+        exercise_tennis: 'Tenis',
+        exercise_walking: 'Caminata',
+        exercise_weightlifting: 'Levantamiento de Pesas',
+        exercise_yoga: 'Yoga',
     },
     fr: {
         appName: 'Appacadabra',
@@ -913,6 +1051,19 @@ const translations = {
         // Mana
         mana: 'Mana',
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Compte',
+        linkAccount: 'Lier le compte Google',
+        linkAccountDesc: 'Sauvegardez votre mana dans le cloud',
+        linkedAs: 'Connecté en tant que %{email}',
+        signInGoogle: 'Se connecter avec Google',
+        linkError: 'Échec de la liaison. Réessayez.',
+        linkSuccess: 'Compte lié avec succès !',
+        signOut: 'Se déconnecter',
+        accountConflict: 'Le compte existe déjà. Se connecter à la place ? (Le mana actuel sera remplacé par le mana du cloud)',
+        success: 'Succès',
+        error: 'Erreur',
+        signInFailed: 'Échec de la connexion',
         buyMana: 'Acheter Mana',
         insufficientMana: 'Mana Insuffisant',
         insufficientManaMessage: 'Vous avez besoin de %{cost} Mana pour cette action. Votre solde est de %{balance}.',
@@ -942,13 +1093,19 @@ const translations = {
         rewardError: 'Échec ajout récompense. Réessayez.',
         tapToLoad: 'Appuyer pour charger',
 
+
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Données Mobiles',
+        network_none: 'Aucune Connexion',
+        network_unknown: 'Réseau Inconnu',
+
         // Scheduled Notifications
         scheduledNotifications: 'Notifications Programmées',
         noScheduledNotifications: 'Aucune notification programmée',
         cancelNotification: 'Annuler la Notification',
         cancelNotificationConfirm: 'Supprimer cette notification programmée ?',
 
-        // Backup
         // Backup
         exportBackupDialog: 'Exporter Sauvegarde',
         importSpell: 'Importer Sort ?',
@@ -1001,6 +1158,28 @@ const translations = {
         onboardingStart: 'Commencer à Lancer !',
         replayOnboarding: 'Revoir le Tutoriel',
         editModeNoSave: 'Note : Les modifications de données en Mode Édition ne sont pas sauvegardées.',
+
+        // Exercices
+        exercise_other: 'Autre',
+        exercise_biking: 'Vélo',
+        exercise_dancing: 'Danse',
+        exercise_golf: 'Golf',
+        exercise_hiit: 'HIIT',
+        exercise_hiking: 'Randonnée',
+        exercise_martial_arts: 'Arts Martiaux',
+        exercise_rowing: 'Aviron',
+        exercise_pilates: 'Pilates',
+        exercise_rock_climbing: 'Escalade',
+        exercise_running: 'Course',
+        exercise_soccer: 'Football',
+        exercise_stair_climbing: 'Montée d\'escaliers',
+        exercise_strength_training: 'Musculation',
+        exercise_stretching: 'Étirements',
+        exercise_swimming: 'Natation',
+        exercise_tennis: 'Tennis',
+        exercise_walking: 'Marche',
+        exercise_weightlifting: 'Haltérophilie',
+        exercise_yoga: 'Yoga',
     },
     de: {
         appName: 'Appacadabra',
@@ -1100,8 +1279,21 @@ const translations = {
         applyEdit: 'Anwenden',
         debug: 'Debug',
         search: 'Suchen',
-        manaUsed: 'Mana Verbraucht',
+
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Konto',
+        linkAccount: 'Google-Konto verknüpfen',
+        linkAccountDesc: 'Sichere dein Mana in der Cloud',
+        linkedAs: 'Angemeldet als %{email}',
+        signInGoogle: 'Mit Google anmelden',
+        linkError: 'Verknüpfung fehlgeschlagen. Erneut versuchen.',
+        linkSuccess: 'Konto erfolgreich verknüpft!',
+        signOut: 'Abmelden',
+        accountConflict: 'Konto existiert bereits. Stattdessen anmelden? (Das aktuelle Mana wird durch Cloud-Mana ersetzt)',
+        success: 'Erfolg',
+        error: 'Fehler',
+        signInFailed: 'Anmeldung fehlgeschlagen',
         buyMana: 'Mana Kaufen',
         insufficientMana: 'Nicht Genug Mana',
         insufficientManaMessage: 'Du benötigst %{cost} Mana für diese Aktion. Dein Guthaben ist %{balance}.',
@@ -1131,6 +1323,12 @@ const translations = {
         rewardError: 'Fehler beim Hinzufügen der Belohnung. Bitte erneut versuchen.',
         tapToLoad: 'Tippen zum Laden',
 
+        // Network
+        network_wifi: 'WLAN',
+        network_cellular: 'Mobile Daten',
+        network_none: 'Keine Verbindung',
+        network_unknown: 'Unbekanntes Netz',
+
         // Scheduled Notifications
         scheduledNotifications: 'Geplante Benachrichtigungen',
         noScheduledNotifications: 'Keine geplanten Benachrichtigungen',
@@ -1157,6 +1355,28 @@ const translations = {
         onboardingStart: 'Los Zaubern!',
         replayOnboarding: 'Tutorial Wiederholen',
         editModeNoSave: 'Hinweis: Datenänderungen im Bearbeitungsmodus werden nicht gespeichert.',
+
+        // Übungen
+        exercise_other: 'Andere',
+        exercise_biking: 'Radfahren',
+        exercise_dancing: 'Tanzen',
+        exercise_golf: 'Golf',
+        exercise_hiit: 'HIIT',
+        exercise_hiking: 'Wandern',
+        exercise_martial_arts: 'Kampfsport',
+        exercise_rowing: 'Rudern',
+        exercise_pilates: 'Pilates',
+        exercise_rock_climbing: 'Klettern',
+        exercise_running: 'Laufen',
+        exercise_soccer: 'Fußball',
+        exercise_stair_climbing: 'Treppensteigen',
+        exercise_strength_training: 'Krafttraining',
+        exercise_stretching: 'Dehnen',
+        exercise_swimming: 'Schwimmen',
+        exercise_tennis: 'Tennis',
+        exercise_walking: 'Gehen',
+        exercise_weightlifting: 'Gewichtheben',
+        exercise_yoga: 'Yoga',
     },
     it: {
         appName: 'Appacadabra',
@@ -1257,8 +1477,17 @@ const translations = {
         applyEdit: 'Applica',
         debug: 'Debug',
         search: 'Cerca',
-        manaUsed: 'Mana Usato',
+
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Account',
+        linkAccount: 'Collega account Google',
+        linkAccountDesc: 'Salva il tuo mana nel cloud',
+        linkedAs: 'Accesso effettuato come %{email}',
+        signInGoogle: 'Accedi con Google',
+        linkError: 'Collegamento fallito. Riprova.',
+        linkSuccess: 'Account collegato con successo!',
+        signOut: 'Esci',
         buyMana: 'Compra Mana',
         insufficientMana: 'Mana Insufficiente',
         insufficientManaMessage: 'Hai bisogno di %{cost} Mana per questa azione. Il tuo saldo è %{balance}.',
@@ -1288,6 +1517,12 @@ const translations = {
         rewardError: 'Errore aggiunta ricompensa. Riprova.',
         tapToLoad: 'Tocca per caricare',
 
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Dati Mobili',
+        network_none: 'Nessuna Connessione',
+        network_unknown: 'Rete Sconosciuta',
+
         // Scheduled Notifications
         scheduledNotifications: 'Notifiche Programmate',
         noScheduledNotifications: 'Nessuna notifica programmata',
@@ -1314,6 +1549,28 @@ const translations = {
         onboardingStart: 'Inizia a Lanciare!',
         replayOnboarding: 'Rivedi Tutorial',
         editModeNoSave: 'Nota: Le modifiche ai dati in Modalità Modifica non vengono salvate.',
+
+        // Esercizi
+        exercise_other: 'Altro',
+        exercise_biking: 'Ciclismo',
+        exercise_dancing: 'Danza',
+        exercise_golf: 'Golf',
+        exercise_hiit: 'HIIT',
+        exercise_hiking: 'Escursionismo',
+        exercise_martial_arts: 'Arti Marziali',
+        exercise_rowing: 'Canottaggio',
+        exercise_pilates: 'Pilates',
+        exercise_rock_climbing: 'Arrampicata',
+        exercise_running: 'Corsa',
+        exercise_soccer: 'Calcio',
+        exercise_stair_climbing: 'Salire Scale',
+        exercise_strength_training: 'Allenamento Forza',
+        exercise_stretching: 'Stretching',
+        exercise_swimming: 'Nuoto',
+        exercise_tennis: 'Tennis',
+        exercise_walking: 'Camminata',
+        exercise_weightlifting: 'Sollevamento Pesi',
+        exercise_yoga: 'Yoga',
     },
     ja: {
         appName: 'Appacadabra',
@@ -1418,6 +1675,19 @@ const translations = {
         search: '検索',
 
         manaBalance: 'マナ: %{amount}',
+        // Account
+        account: 'アカウント',
+        linkAccount: 'Googleアカウントを連携',
+        linkAccountDesc: 'マナをクラウドにバックアップ',
+        linkedAs: '%{email} としてサインイン中',
+        signInGoogle: 'Googleでサインイン',
+        linkError: '連携に失敗しました。もう一度お試しください。',
+        linkSuccess: 'アカウントが正常に連携されました！',
+        signOut: 'サインアウト',
+        accountConflict: 'アカウントは既に存在します。代わりにサインインしますか？（現在のマナはクラウドのマナに置き換えられます）',
+        success: '成功',
+        error: 'エラー',
+        signInFailed: 'サインインに失敗しました',
         buyMana: 'マナを購入',
         insufficientMana: 'マナ不足',
         insufficientManaMessage: 'このアクションには %{cost} マナが必要です。残高は %{balance} です。',
@@ -1446,6 +1716,12 @@ const translations = {
         rewardNone: 'この広告では報酬が発生しませんでした',
         rewardError: '報酬の追加に失敗しました。再試行してください。',
         tapToLoad: 'タップして読み込む',
+
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'モバイルデータ',
+        network_none: '接続なし',
+        network_unknown: '不明なネットワーク',
 
         // Scheduled Notifications
         scheduledNotifications: 'スケジュールされた通知',
@@ -1578,6 +1854,19 @@ const translations = {
         search: '搜索',
 
         manaBalance: '魔力: %{amount}',
+        // Account
+        account: '账户',
+        linkAccount: '关联 Google 账户',
+        linkAccountDesc: '将您的魔力备份到云端',
+        linkedAs: '已登录为 %{email}',
+        signInGoogle: '使用 Google 登录',
+        linkError: '关联失败。请重试。',
+        linkSuccess: '账户关联成功！',
+        signOut: '退出登录',
+        accountConflict: '账号已存在。要改为登录吗？（当前魔力将被云端魔力替换）',
+        success: '成功',
+        error: '错误',
+        signInFailed: '登录失败',
         buyMana: '购买魔力',
         insufficientMana: '魔力不足',
         insufficientManaMessage: '此操作需要 %{cost} 魔力。你的余额是 %{balance}。',
@@ -1606,6 +1895,12 @@ const translations = {
         rewardNone: '此广告未产生奖励',
         rewardError: '添加奖励时出错。请重试。',
         tapToLoad: '点击加载',
+
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: '移动数据',
+        network_none: '无连接',
+        network_unknown: '未知网络',
 
         // Scheduled Notifications
         scheduledNotifications: '计划通知',
@@ -1652,6 +1947,12 @@ const translations = {
         appUpdatedNotify: '✨ 앱 업데이트됨: %{name}!',
         appUpdatedTitle: '✨ 앱 업데이트 완료!',
         appUpdatedBody: '"%{name}" 변경 사항이 적용되었습니다.',
+
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: '모바일 데이터',
+        network_none: '연결 안 됨',
+        network_unknown: '알 수 없는 네트워크',
         errorProcessingJob: '앱 생성 실패! 마법이 흩어졌습니다.',
         generatingApp: '앱 소환 중...',
         updatingApp: '앱 개선 중...',
@@ -1738,6 +2039,19 @@ const translations = {
         search: '검색',
 
         manaBalance: '마나: %{amount}',
+        // Account
+        account: '계정',
+        linkAccount: 'Google 계정 연동',
+        linkAccountDesc: '마나를 클라우드에 백업',
+        linkedAs: '%{email}(으)로 로그인됨',
+        signInGoogle: 'Google로 로그인',
+        linkError: '연동 실패. 다시 시도해 주세요.',
+        linkSuccess: '계정이 성공적으로 연동되었습니다!',
+        signOut: '로그아웃',
+        accountConflict: '이미 계정이 존재합니다. 대신 로그인하시겠습니까? (현재 마나는 클라우드 마나로 대체됩니다)',
+        success: '성공',
+        error: '오류',
+        signInFailed: '로그인 실패',
         buyMana: '마나 구매',
         insufficientMana: '마나 부족',
         insufficientManaMessage: '이 작업을 수행하려면 %{cost} 마나가 필요합니다. 현재 잔액: %{balance}.',
@@ -1897,7 +2211,26 @@ const translations = {
         debug: 'تصحيح',
         search: 'بحث',
 
+        // Network
+        network_wifi: 'واي فاي',
+        network_cellular: 'بيانات خلوية',
+        network_none: 'لا يوجد اتصال',
+        network_unknown: 'شبكة غير معروفة',
+
         manaBalance: 'المانا: %{amount}',
+        // Account
+        account: 'الحساب',
+        linkAccount: 'ربط حساب Google',
+        linkAccountDesc: 'نسخ المانا احتياطيًا إلى السحابة',
+        linkedAs: 'تم تسجيل الدخول باسم %{email}',
+        signInGoogle: 'تسجيل الدخول باستخدام Google',
+        linkError: 'فشل الربط. حاول مرة أخرى.',
+        linkSuccess: 'تم ربط الحساب بنجاح!',
+        signOut: 'تسجيل الخروج',
+        accountConflict: 'الحساب موجود بالفعل. هل تريد تسجيل الدخول بدلاً من ذلك؟ (سيتم استبدال المانا الحالية بمانا السحاب)',
+        success: 'نجاح',
+        error: 'خطأ',
+        signInFailed: 'فشل تسجيل الدخول',
         buyMana: 'شراء المانا',
         insufficientMana: 'المانا غير كافية',
         insufficientManaMessage: 'تحتاج إلى %{cost} مانا لهذا الإجراء. رصيدك هو %{balance}.',
@@ -2057,7 +2390,26 @@ const translations = {
         debug: 'डीबग',
         search: 'खोजें',
 
+        // Network
+        network_wifi: 'वाई-फाई',
+        network_cellular: 'सेल्युलर डेटा',
+        network_none: 'कोई कनेक्शन नहीं',
+        network_unknown: 'अज्ञात नेटवर्क',
+
         manaBalance: 'माना: %{amount}',
+        // Account
+        account: 'खाता',
+        linkAccount: 'Google खाता लिंक करें',
+        linkAccountDesc: 'क्लाउड पर अपना माना बैकअप लें',
+        linkedAs: '%{email} के रूप में लॉग इन किया गया',
+        signInGoogle: 'Google के साथ साइन इन करें',
+        linkError: 'लिंक विफल रहा. पुनः प्रयास करें।',
+        linkSuccess: 'खाता सफलतापूर्वक लिंक किया गया!',
+        signOut: 'साइन आउट',
+        accountConflict: 'अकाउंट पहले से मौजूद है। इसके बजाय साइन इन करें? (मौजूदा माना को क्लाउड माना से बदल दिया जाएगा)',
+        success: 'सफलता',
+        error: 'त्रुटि',
+        signInFailed: 'साइन इन विफल रहा',
         buyMana: 'माना खरीदें',
         insufficientMana: 'अपर्याप्त माना',
         insufficientManaMessage: 'इस क्रिया के लिए आपको %{cost} माना की आवश्यकता है। आपका शेष %{balance} है।',
@@ -2217,7 +2569,26 @@ const translations = {
         debug: 'Отладка',
         search: 'Поиск',
 
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Мобильные данные',
+        network_none: 'Нет соединения',
+        network_unknown: 'Неизвестная сеть',
+
         manaBalance: 'Мана: %{amount}',
+        // Account
+        account: 'Аккаунт',
+        linkAccount: 'Привязать аккаунт Google',
+        linkAccountDesc: 'Резервное копирование маны в облако',
+        linkedAs: 'Вы вошли как %{email}',
+        signInGoogle: 'Войти через Google',
+        linkError: 'Ошибка привязки. Попробуйте еще раз.',
+        linkSuccess: 'Аккаунт успешно привязан!',
+        signOut: 'Выйти',
+        accountConflict: 'Аккаунт уже существует. Войти вместо этого? (Текущая мана будет заменена на облачную ману)',
+        success: 'Успех',
+        error: 'Ошибка',
+        signInFailed: 'Ошибка входа',
         buyMana: 'Купить ману',
         insufficientMana: 'Недостаточно маны',
         insufficientManaMessage: 'Для этого действия требуется %{cost} маны. Ваш баланс %{balance}.',
@@ -2377,7 +2748,26 @@ const translations = {
         debug: 'Hata Ayıkla',
         search: 'Ara',
 
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Hücresel Veri',
+        network_none: 'Bağlantı Yok',
+        network_unknown: 'Bilinmeyen Ağ',
+
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Hesap',
+        linkAccount: 'Google Hesabını Bağla',
+        linkAccountDesc: 'Mananızı buluta yedekleyin',
+        linkedAs: '%{email} olarak oturum açıldı',
+        signInGoogle: 'Google ile oturum aç',
+        linkError: 'Bağlama hatası. Tekrar deneyin.',
+        linkSuccess: 'Hesap başarıyla bağlandı!',
+        signOut: 'Oturumu Kapat',
+        accountConflict: 'Hesap zaten mevcut. Bunun yerine oturum açmak ister misiniz? (Mevcut mana bulut manasıyla değiştirilecek)',
+        success: 'Başarılı',
+        error: 'Hata',
+        signInFailed: 'Oturum açma başarısız',
         buyMana: 'Mana Satın Al',
         insufficientMana: 'Yetersiz Mana',
         insufficientManaMessage: 'Bu işlem için %{cost} mana gerekiyor. Bakiyeniz: %{balance}.',
@@ -2537,7 +2927,26 @@ const translations = {
         debug: 'Debug',
         search: 'Zoeken',
 
+        // Network
+        network_wifi: 'Wifi',
+        network_cellular: 'Mobiele Data',
+        network_none: 'Geen Verbinding',
+        network_unknown: 'Onbekend Netwerk',
+
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Account',
+        linkAccount: 'Google-account koppelen',
+        linkAccountDesc: 'Back-up je mana naar de cloud',
+        linkedAs: 'Ingelogd als %{email}',
+        signInGoogle: 'Inloggen met Google',
+        linkError: 'Koppelen mislukt. Probeer het opnieuw.',
+        linkSuccess: 'Account succesvol gekoppeld!',
+        signOut: 'Uitloggen',
+        accountConflict: 'Account bestaat al. In plaats daarvan inloggen? (Huidige mana wordt vervangen door cloudmana)',
+        success: 'Succes',
+        error: 'Fout',
+        signInFailed: 'Inloggen mislukt',
         buyMana: 'Koop Mana',
         insufficientMana: 'Onvoldoende Mana',
         insufficientManaMessage: 'Je hebt %{cost} mana nodig voor deze actie. Je saldo is %{balance}.',
@@ -2697,7 +3106,26 @@ const translations = {
         debug: 'Debuguj',
         search: 'Szukaj',
 
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Dane Mobilne',
+        network_none: 'Brak Połączenia',
+        network_unknown: 'Nieznana Sieć',
+
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Konto',
+        linkAccount: 'Połącz konto Google',
+        linkAccountDesc: 'Utwórz kopię zapasową many w chmurze',
+        linkedAs: 'Zalogowano jako %{email}',
+        signInGoogle: 'Zaloguj się przez Google',
+        linkError: 'Połączenie nieudane. Spróbuj ponownie.',
+        linkSuccess: 'Konto połączone pomyślnie!',
+        signOut: 'Wyloguj się',
+        accountConflict: 'Konto już istnieje. Zalogować się zamiast tego? (Obecna mana zostanie zastąpiona maną z chmury)',
+        success: 'Sukces',
+        error: 'Błąd',
+        signInFailed: 'Logowanie nieudane',
         buyMana: 'Kup Manę',
         insufficientMana: 'Niewystarczająca Mana',
         insufficientManaMessage: 'Potrzebujesz %{cost} many do tej akcji. Twoje saldo wynosi %{balance}.',
@@ -2857,7 +3285,26 @@ const translations = {
         debug: 'Gỡ Lỗi',
         search: 'Tìm Kiếm',
 
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'Dữ Liệu Di Động',
+        network_none: 'Không Có Kết Nối',
+        network_unknown: 'Mạng Không Xác Định',
+
         manaBalance: 'Mana: %{amount}',
+        // Account
+        account: 'Tài khoản',
+        linkAccount: 'Liên kết tài khoản Google',
+        linkAccountDesc: 'Sao lưu mana lên đám mây',
+        linkedAs: 'Đã đăng nhập với %{email}',
+        signInGoogle: 'Đăng nhập với Google',
+        linkError: 'Liên kết thất bại. Hãy thử lại.',
+        linkSuccess: 'Liên kết tài khoản thành công!',
+        signOut: 'Đăng xuất',
+        accountConflict: 'Tài khoản đã tồn tại. Đăng nhập thay thế? (Mana hiện tại sẽ được thay thế bằng mana đám mây)',
+        success: 'Thành công',
+        error: 'Lỗi',
+        signInFailed: 'Đăng nhập thất bại',
         buyMana: 'Mua Mana',
         insufficientMana: 'Không đủ Mana',
         insufficientManaMessage: 'Bạn cần %{cost} mana cho hành động này. Số dư của bạn là %{balance}.',
@@ -3017,7 +3464,26 @@ const translations = {
         debug: 'ดีบัก',
         search: 'ค้นหา',
 
+        // Network
+        network_wifi: 'Wi-Fi',
+        network_cellular: 'ข้อมูลมือถือ',
+        network_none: 'ไม่มีการเชื่อมต่อ',
+        network_unknown: 'ไม่ทราบเครือข่าย',
+
         manaBalance: 'มานา: %{amount}',
+        // Account
+        account: 'บัญชี',
+        linkAccount: 'เชื่อมต่อบัญชี Google',
+        linkAccountDesc: 'สำรองข้อมูลมานาของคุณไปยังคลาวด์',
+        linkedAs: 'ลงชื่อเข้าใช้เป็น %{email}',
+        signInGoogle: 'ลงชื่อเข้าใช้ด้วย Google',
+        linkError: 'เชื่อมต่อไม่สำเร็จ ลองอีกครั้ง',
+        linkSuccess: 'เชื่อมต่อบัญชีสำเร็จ!',
+        signOut: 'ลงชื่อออก',
+        accountConflict: 'บัญชีมีอยู่แล้ว ลงชื่อเข้าใช้แทนหรือไม่? (มานาปัจจุบันจะถูกแทนที่ด้วยมานาบนคลาวด์)',
+        success: 'สำเร็จ',
+        error: 'ข้อผิดพลาด',
+        signInFailed: 'ลงชื่อเข้าใช้ไม่สำเร็จ',
         buyMana: 'ซื้อมานา',
         insufficientMana: 'มานาไม่พอ',
         insufficientManaMessage: 'คุณต้องใช้มานา %{cost} สำหรับการดำเนินการนี้ ยอดคงเหลือของคุณคือ %{balance}',

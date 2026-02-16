@@ -21,9 +21,13 @@ import { useBridgeUIStore } from '../bridgeUIStore';
 import { Vibration } from 'react-native';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
+import * as Battery from 'expo-battery';
+import * as Network from 'expo-network';
 
 // State for Audio Recording
 let currentRecording: Audio.Recording | null = null;
+let audioRecordingTimeout: NodeJS.Timeout | null = null;
+let scannerTimeout: NodeJS.Timeout | null = null;
 import {
     initialize as initHealthConnect,
     requestPermission,
@@ -51,25 +55,33 @@ const MAX_NOTIFICATIONS_PER_SPELL = 10;
  */
 async function getSpellNotifications(appId: number | null) {
     if (!appId) return [];
-    const all = await Notifications.getAllScheduledNotificationsAsync();
-    return all.filter(n =>
-        (n.content as any).channelId === `spell-${appId}` ||
-        n.content.data?.appId === appId
-    );
+    try {
+        const all = await Notifications.getAllScheduledNotificationsAsync();
+        return all.filter(n => {
+            const content = n.content as any;
+            return content.channelId === `spell-${appId}` ||
+                content.data?.appId == appId || // Loose equality to match string/number
+                (content.data && content.data.appId && content.data.appId.toString() === appId.toString());
+        });
+    } catch (e) {
+        console.error('Error fetching notifications:', e);
+        return [];
+    }
 }
 
 /**
  * Cancel duplicate notification (same title + body) for a spell
  */
 async function cancelDuplicateNotification(appId: number | null, title: string, body: string) {
+    console.log(`[Bridge] cancelDuplicateNotification: appId=${appId}, title=${title}`);
     const existing = await getSpellNotifications(appId);
     for (const n of existing) {
         if (n.content.title === title && n.content.body === body) {
+            console.log(`[Bridge] Cancelling duplicate notification: ${n.identifier}`);
             await Notifications.cancelScheduledNotificationAsync(n.identifier);
-            return true; // Cancelled a duplicate
+            // Don't return true immediately, let's cancel ALL duplicates just in case
         }
     }
-    return false;
 }
 
 /**
@@ -107,7 +119,7 @@ async function ensureHealthAccess(): Promise<{ ok: boolean; error?: string }> {
                 { accessType: 'read', recordType: 'ExerciseSession' },
                 { accessType: 'read', recordType: 'SleepSession' },
                 { accessType: 'read', recordType: 'Distance' },
-                { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
+                { accessType: 'read', recordType: 'TotalCaloriesBurned' },
             ];
 
             // Optimize: Check if we already have these permissions
@@ -175,6 +187,7 @@ export async function handleBridgeMessage(
 ): Promise<HandlerResult> {
     let success = true;
     let result = '';
+    let deferredCallback = false;
 
     // Helper to log to both native console and WebView console
     const debugLog = (msg: string) => {
@@ -366,13 +379,18 @@ export async function handleBridgeMessage(
                     try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
                 }
 
+                const titleStr = typeof data.title === 'string' ? data.title : String(data.title || '');
+                const bodyStr = typeof data.message === 'string' ? data.message : String(data.message || t('appName'));
+                const appIdStr = ctx.appId ? String(ctx.appId) : '0';
+                const channelId = ctx.appId ? `spell-${ctx.appId}` : 'default';
+
                 await Notifications.scheduleNotificationAsync({
-                    identifier: data.id || undefined,
+                    identifier: (data.id && String(data.id)) || undefined,
                     content: {
-                        title: data.title,
-                        body: data.message,
-                        data: { appId: ctx.appId },
-                        channelId: `spell-${ctx.appId}`,
+                        title: titleStr,
+                        body: bodyStr,
+                        data: { appId: appIdStr },
+                        channelId: channelId,
                     } as any,
                     trigger: null,
                 });
@@ -384,7 +402,9 @@ export async function handleBridgeMessage(
             break;
 
         case 'NOTIFY_SCHEDULE':
-            debugLog(`Notify schedule: ${data.title} in ${data.delayMinutes}min`);
+            const scheduleDate = new Date(data.timeMs || Date.now());
+            debugLog(`Notify schedule: ${data.title} at ${scheduleDate.toISOString()}`);
+
             try {
                 const schedulePerm = await Notifications.getPermissionsAsync();
                 if (schedulePerm.status !== 'granted') {
@@ -396,6 +416,14 @@ export async function handleBridgeMessage(
                     }
                 }
 
+                // Ensure channel exists (idempotent)
+                await Notifications.setNotificationChannelAsync(`spell-${ctx.appId}`, {
+                    name: `Spell ${ctx.appId}`,
+                    importance: Notifications.AndroidImportance.HIGH,
+                    vibrationPattern: [0, 250, 250, 250],
+                    lightColor: '#FF9500',
+                });
+
                 // Native protection: auto-dedupe identical title+body
                 await cancelDuplicateNotification(ctx.appId, data.title, data.message);
 
@@ -411,71 +439,66 @@ export async function handleBridgeMessage(
                     try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
                 }
 
-                const identifier = await Notifications.scheduleNotificationAsync({
-                    identifier: data.id || undefined,
-                    content: {
-                        title: data.title,
-                        body: data.message,
-                        data: { appId: ctx.appId },
-                        channelId: `spell-${ctx.appId}`,
-                    } as any,
-                    trigger: {
-                        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                        seconds: data.delayMinutes * 60,
-                    },
-                });
+                const titleStr = typeof data.title === 'string' ? data.title : String(data.title || '');
+                const bodyStr = typeof data.message === 'string' ? data.message : String(data.message || t('appName'));
+                const appIdStr = ctx.appId ? String(ctx.appId) : '0';
+
+                // Use minimal delay logic
+                const rawDelay = Math.floor((scheduleDate.getTime() - Date.now()) / 1000);
+                const secondsDelay = Math.max(1, rawDelay);
+
+                // CHEMICALLY PURE OBJECT RECONSTRUCTION
+
+                const safeTrigger: any = {
+                    type: 'timeInterval',
+                    seconds: Number(secondsDelay),
+                    repeats: false,
+                };
+
+                const safeContent: any = {
+                    title: String(titleStr),
+                    body: String(bodyStr),
+                };
+
+                // CRITICAL FIX: The Android scheduler fails to serialize the 'data' JSON object
+                // with "NotSerializableException: org.json.JSONObject".
+                // We will rely ONLY on channelId to identify the spell.
+                if (appIdStr && appIdStr !== '0') {
+                    const channelId = 'spell-' + String(appIdStr);
+
+                    // Create the channel first to ensure it exists and persists
+                    await Notifications.setNotificationChannelAsync(channelId, {
+                        name: data.title || `App ${appIdStr}`,
+                        importance: Notifications.AndroidImportance.DEFAULT,
+                    });
+
+                    safeContent.channelId = channelId;
+
+                    // FALLBACK STRATEGY: Use 'badge' to store the App ID.
+                    // Since 'channelId' is not returning in getAllScheduledNotificationsAsync on Android
+                    // and 'data' causes crashes, 'badge' (a primitive number) is our best bet for identification.
+                    safeContent.badge = Number(appIdStr);
+                }
+
+                const request: any = {
+                    content: safeContent,
+                    trigger: safeTrigger,
+                };
+
+                if (data.id) {
+                    request.identifier = String(data.id);
+                }
+
+                debugLog(`[Bridge] CLEAN OBJECT ATTEMPT: ${JSON.stringify(request)}`);
+
+                const identifier = await Notifications.scheduleNotificationAsync(request);
                 result = identifier;
             } catch (e) {
+                console.error('[Bridge] NOTIFY_SCHEDULE Error:', e);
+                const errorMessage = e instanceof Error ? e.message : String(e);
+                debugLog(`[Bridge] NOTIFY_SCHEDULE FAIL: ${errorMessage}`);
                 success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
-
-        case 'NOTIFY_SCHEDULE_AT':
-            debugLog(`Notify schedule at: ${data.title} at ${new Date(data.timeMs).toISOString()}`);
-            try {
-                const scheduleAtPerm = await Notifications.getPermissionsAsync();
-                if (scheduleAtPerm.status !== 'granted') {
-                    const { status } = await Notifications.requestPermissionsAsync();
-                    if (status !== 'granted') {
-                        success = false;
-                        result = 'Notification permission denied';
-                        break;
-                    }
-                }
-
-                // Native protection: auto-dedupe identical title+body
-                await cancelDuplicateNotification(ctx.appId, data.title, data.message);
-
-                // Native protection: check limit (unless upsert with existing id)
-                if (!data.id && await isAtNotificationLimit(ctx.appId)) {
-                    success = false;
-                    result = `Limit reached (max ${MAX_NOTIFICATIONS_PER_SPELL} notifications per spell)`;
-                    break;
-                }
-
-                // Cancel existing if id provided (upsert behavior)
-                if (data.id) {
-                    try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
-                }
-
-                const identifierAt = await Notifications.scheduleNotificationAsync({
-                    identifier: data.id || undefined,
-                    content: {
-                        title: data.title,
-                        body: data.message,
-                        data: { appId: ctx.appId },
-                        channelId: `spell-${ctx.appId}`,
-                    } as any,
-                    trigger: {
-                        type: Notifications.SchedulableTriggerInputTypes.DATE,
-                        date: new Date(data.timeMs),
-                    },
-                });
-                result = identifierAt;
-            } catch (e) {
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
+                result = errorMessage;
             }
             break;
 
@@ -826,6 +849,7 @@ export async function handleBridgeMessage(
                     }
                 });
                 result = 'Accelerometer started';
+                deferredCallback = true; // Listener will handle callbacks
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -843,6 +867,7 @@ export async function handleBridgeMessage(
                     }
                 });
                 result = 'Gyroscope started';
+                deferredCallback = true; // Listener will handle callbacks
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -864,6 +889,7 @@ export async function handleBridgeMessage(
                     }
                 });
                 result = 'Magnetometer started';
+                deferredCallback = true; // Listener will handle callbacks
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -1010,16 +1036,79 @@ export async function handleBridgeMessage(
                     76: 'TENNIS', 79: 'WALKING', 81: 'WEIGHTLIFTING', 83: 'YOGA'
                 };
 
-                const enrichedRecords = exRecords.records.map((r: { exerciseType?: number; startTime?: string; endTime?: string; title?: string; notes?: string }) => ({
-                    ...r,
-                    exerciseTypeName: exerciseTypeNames[r.exerciseType || 0] || 'OTHER'
-                }));
+                const enrichedRecords = exRecords.records.map((r: { exerciseType?: number; startTime?: string; endTime?: string; title?: string; notes?: string }) => {
+                    const typeName = exerciseTypeNames[r.exerciseType || 0] || 'OTHER';
+                    const localizedName = t(`exercise_${typeName.toLowerCase()}`, { defaultValue: typeName });
+
+                    return {
+                        ...r,
+                        exerciseTypeName: typeName,
+                        exerciseTypeLabel: localizedName,
+                        title: r.title || localizedName
+                    };
+                });
 
                 result = JSON.stringify(enrichedRecords);
             } catch (e) {
                 console.error('Health get exercise error:', e);
                 success = false;
                 result = e instanceof Error ? e.message : 'Error reading exercise';
+            }
+            break;
+
+        case 'HEALTH_GET_CALORIES':
+            try {
+                const access = await ensureHealthAccess();
+                if (!access.ok) {
+                    success = false;
+                    result = access.error || 'Health Access Denied';
+                    break;
+                }
+                const calStart = data.startTimeMs ? new Date(data.startTimeMs) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const calEnd = data.endTimeMs ? new Date(data.endTimeMs) : new Date();
+
+                debugLog(`Querying Calories from ${calStart.toISOString()} to ${calEnd.toISOString()}`);
+
+                // Parallel fetch: Aggregation (for total) and Records (for details)
+                // Use 'TotalCaloriesBurned' which combines active + basal
+                const [calRecords, calAgg] = await Promise.all([
+                    readRecords('TotalCaloriesBurned', {
+                        timeRangeFilter: {
+                            operator: 'between',
+                            startTime: calStart.toISOString(),
+                            endTime: calEnd.toISOString()
+                        }
+                    }),
+                    aggregateRecord({
+                        recordType: 'TotalCaloriesBurned',
+                        timeRangeFilter: {
+                            operator: 'between',
+                            startTime: calStart.toISOString(),
+                            endTime: calEnd.toISOString()
+                        }
+                    })
+                ]);
+
+                // Calculate total from aggregation result (ENERGY_TOTAL) or fallback to manual sum
+                // records usually have 'energy' object with 'inKilocalories'
+                const aggTotal = (calAgg as any).ENERGY_TOTAL?.inKilocalories || (calAgg as any).totalEnergy?.inKilocalories || 0;
+
+                let totalCalories = aggTotal;
+
+                // Fallback summation if aggregation fails (sometimes happens on certain devices/permissions)
+                if (!totalCalories && calRecords.records) {
+                    totalCalories = calRecords.records.reduce((sum: number, r: any) => {
+                        const kcal = r.energy?.inKilocalories || 0;
+                        return sum + kcal;
+                    }, 0);
+                }
+
+                debugLog(`Found total calories: ${totalCalories}`);
+                result = JSON.stringify({ totalCalories, records: calRecords.records });
+            } catch (e) {
+                console.error('Health get calories error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error reading calories';
             }
             break;
 
@@ -1161,79 +1250,150 @@ export async function handleBridgeMessage(
             break;
         }
 
+        // ============= Device Info Handlers =============
+        case 'DEVICE_GET_BATTERY_LEVEL':
+            try {
+                const level = await Battery.getBatteryLevelAsync();
+                result = String(level);
+            } catch (e) {
+                console.error('Battery level error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
+        case 'DEVICE_IS_CHARGING':
+            try {
+                const status = await Battery.getBatteryStateAsync();
+                const isCharging = status === Battery.BatteryState.CHARGING || status === Battery.BatteryState.FULL;
+                result = String(isCharging);
+            } catch (e) {
+                console.error('Battery charging error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
+        case 'DEVICE_GET_NETWORK_INFO':
+            try {
+                const state = await Network.getNetworkStateAsync();
+                // Return simplified type compatible with old navigator.connection.effectiveType or a new rich object
+                // For now, let's return the type string (WIFI, CELLULAR, NONE, UNKNOWN)
+                console.log(`[Bridge] Network State:`, JSON.stringify(state));
+
+                // Map Expo Network Types to translated strings
+                // Use loose equality or check against enum values directly
+                if (state.type === Network.NetworkStateType.WIFI) result = t('network_wifi');
+                else if (state.type === Network.NetworkStateType.CELLULAR) result = t('network_cellular');
+                else if (state.type === Network.NetworkStateType.NONE) result = t('network_none');
+                else result = t('network_unknown'); // Default fallback for UNKNOWN or unexpected values
+
+                console.log(`[Bridge] Network result: ${result}`);
+            } catch (e) {
+                console.error('Network info error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
+        case 'DEVICE_IS_ONLINE':
+            try {
+                const state = await Network.getNetworkStateAsync();
+                const isOnline = state.isInternetReachable !== false;
+                result = String(isOnline);
+            } catch (e) {
+                console.error('Network online check error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
         // ============= Vibration Handler =============
         case 'VIBRATE': {
-            const pattern = data.pattern !== undefined ? data.pattern : 400;
-            console.log(`[Native Bridge] VIBRATE command received. Input: ${JSON.stringify(pattern)}`);
+            let pattern = data.pattern;
+            console.log(`[Native Bridge] VIBRATE command received. Raw type: ${typeof pattern}, Value: ${JSON.stringify(pattern)}`);
 
             try {
                 // Cancel any previous vibration to ensure a clean slate
                 Vibration.cancel();
 
-                if (Array.isArray(pattern)) {
-                    // ARRAY PATTERN
-                    // Android supports patterns natively: [0, vibrate, wait, vibrate, ...]
-                    // iOS does not support patterns natively -> use manual loop or fallback
-
-                    // Using require here to avoid top-level import issues if platform specific
-                    const { Platform } = require('react-native');
-
-                    if (Platform.OS === 'android') {
-                        // Native Android Pattern
-                        // Prepend 0 to start immediately if the first element is duration
-                        // Web/User pattern: [vibrate, wait, vibrate, wait...]
-                        // Android pattern: [wait, vibrate, wait, vibrate...]
-                        const androidPattern = [0, ...pattern];
-                        console.log(`[Native Bridge] Android Native Pattern: ${JSON.stringify(androidPattern)}`);
-                        Vibration.vibrate(androidPattern);
-                    } else {
-                        // iOS / Other - Manual Loop
-                        // Note: iOS Vibration.vibrate() ignores duration and pattern (fixed 400ms)
-                        // So we use Haptics for short durations or just best effort
-                        console.log(`[Native Bridge] Manual pattern execution (iOS/Other)`);
-
-                        let currentTime = 0;
-                        for (let i = 0; i < pattern.length; i++) {
-                            const duration = pattern[i];
-                            const triggerTime = currentTime;
-
-                            if (i % 2 === 0) {
-                                // VIBRATE
-                                if (duration > 0) {
-                                    setTimeout(() => {
-                                        console.log(`[Native Bridge] Manual Vibrate: ${duration}ms`);
-                                        // On iOS, vibrate() is fixed length, so we rely more on Haptics for short bursts
-                                        if (duration < 1000) {
-                                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
-                                            // Fallback to standar vibrate if very long?
-                                        } else {
-                                            Vibration.vibrate();
-                                        }
-                                    }, triggerTime);
-                                }
-                            }
-                            currentTime += duration;
+                // 1. Normalize input: Handle stringified JSON that might have slipped through
+                if (typeof pattern === 'string') {
+                    try {
+                        const parsed = JSON.parse(pattern);
+                        if (Array.isArray(parsed) || typeof parsed === 'number') {
+                            pattern = parsed;
+                            console.log(`[Native Bridge] Parsed string pattern to: ${JSON.stringify(pattern)}`);
                         }
-                    }
-
-                } else if (typeof pattern === 'number') {
-                    // SINGLE DURATION
-                    console.log(`[Native Bridge] Single Vibrate: ${pattern}ms`);
-                    if (pattern > 0) {
-                        Vibration.vibrate(pattern);
-                    }
-                    // Safety/Enhancement haptic for short bursts
-                    if (pattern <= 100) {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-                            .catch(e => console.error('[Native Bridge] Haptics error:', e));
+                    } catch (e) {
+                        // Not JSON, assume simple string -> ignore or treat as error
+                        console.warn('[Native Bridge] VIBRATE: Could not parse string pattern');
                     }
                 }
 
-                result = 'Vibrated';
+                // 2. Handle Array Pattern
+                if (Array.isArray(pattern)) {
+                    // Normalize array: Ensure all elements are numbers
+                    const validPattern = pattern.map(p => Number(p)).filter(n => !isNaN(n));
+
+                    if (validPattern.length === 0) {
+                        console.warn('[Native Bridge] VIBRATE: Empty pattern array');
+                        result = 'Empty pattern';
+                        break;
+                    }
+
+                    // Android: Native patterns supported. Prepend 0 to start immediately.
+                    // Web/User: [vibrate, wait, vibrate, ...]
+                    // Android: [wait, vibrate, wait, vibrate, ...]
+                    const { Platform } = require('react-native');
+
+                    if (Platform.OS === 'android') {
+                        const androidPattern = [0, ...validPattern];
+                        console.log(`[Native Bridge] Vibrating Android Pattern: ${JSON.stringify(androidPattern)}`);
+                        Vibration.vibrate(androidPattern);
+                        result = 'Vibrated (Android Pattern)';
+                    } else {
+                        // iOS/Other: Fallback loop (Best effort)
+                        console.log(`[Native Bridge] Vibrating iOS/Manual Pattern: ${JSON.stringify(validPattern)}`);
+                        let currentTime = 0;
+                        for (let i = 0; i < validPattern.length; i++) {
+                            const duration = validPattern[i];
+                            if (i % 2 === 0 && duration > 0) { // Even index = Vibrate
+                                setTimeout(() => {
+                                    Vibration.vibrate();
+                                    // Enhance with Haptics for short bursts on iOS
+                                    if (duration < 100) {
+                                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
+                                    }
+                                }, currentTime);
+                            }
+                            currentTime += duration;
+                        }
+                        result = 'Vibrated (Manual Pattern)';
+                    }
+                }
+                // 3. Handle Single Number (Duration)
+                else {
+                    const duration = Number(pattern);
+                    if (!isNaN(duration) && duration > 0) {
+                        console.log(`[Native Bridge] Vibrating Single Duration: ${duration}ms`);
+                        Vibration.vibrate(duration);
+
+                        // Safety/Enhancement haptic
+                        if (duration <= 100) {
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
+                        }
+                        result = `Vibrated ${duration}ms`;
+                    } else {
+                        console.warn(`[Native Bridge] VIBRATE: Invalid pattern format: ${pattern}`);
+                        result = 'Invalid pattern';
+                        success = false;
+                    }
+                }
             } catch (e) {
-                console.error('[Native Bridge] Vibration failed:', e);
+                console.error('[Native Bridge] Vibration FATAL error:', e);
                 success = false;
-                result = String(e);
+                result = e instanceof Error ? e.message : String(e);
             }
             break;
         }
@@ -1323,6 +1483,13 @@ export async function handleBridgeMessage(
             // Open scanner via store
             useBridgeUIStore.getState().openScanner(callbackName);
 
+            // AUTO-CLOSE TIMEOUT (2 minutes max to save battery)
+            if (scannerTimeout) clearTimeout(scannerTimeout);
+            scannerTimeout = setTimeout(() => {
+                console.log('[Bridge] Auto-closing scanner due to timeout');
+                useBridgeUIStore.getState().closeScanner();
+            }, 2 * 60 * 1000); // 2 minutes
+
             // Result is technically "Scanner opened", but we defer the callback
             // so the webview doesn't receive this string as the scan result.
             // The actual result will be injected by QRScannerOverlay.
@@ -1341,6 +1508,21 @@ export async function handleBridgeMessage(
 
                 const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
                 currentRecording = recording;
+
+                // AUTO-STOP TIMEOUT (5 minutes max)
+                if (audioRecordingTimeout) clearTimeout(audioRecordingTimeout);
+                audioRecordingTimeout = setTimeout(async () => {
+                    console.log('[Bridge] Auto-stopping audio recording due to timeout');
+                    if (currentRecording) {
+                        try {
+                            await currentRecording.stopAndUnloadAsync();
+                        } catch (e) {
+                            console.warn('Error auto-stopping audio:', e);
+                        }
+                        currentRecording = null;
+                    }
+                }, 5 * 60 * 1000); // 5 minutes
+
                 result = 'Recording started';
             } catch (e) {
                 console.error('Audio start error:', e);
@@ -1355,6 +1537,12 @@ export async function handleBridgeMessage(
             try {
                 if (!currentRecording) throw new Error('No recording active');
                 await currentRecording.stopAndUnloadAsync();
+
+                if (audioRecordingTimeout) {
+                    clearTimeout(audioRecordingTimeout);
+                    audioRecordingTimeout = null;
+                }
+
                 const uri = currentRecording.getURI();
                 currentRecording = null;
 
@@ -1377,5 +1565,5 @@ export async function handleBridgeMessage(
             return { success: false, result: '', handled: false };
     }
 
-    return { success, result, handled: true };
+    return { success, result, handled: true, deferredCallback };
 }

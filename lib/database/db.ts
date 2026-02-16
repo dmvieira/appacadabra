@@ -29,7 +29,8 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       iconPath TEXT,
       lastUpdated INTEGER NOT NULL,
       consoleLogs TEXT NOT NULL DEFAULT '',
-      totalManaCost REAL NOT NULL DEFAULT 0
+      totalManaCost REAL NOT NULL DEFAULT 0,
+      shortDescription TEXT
     );
 
     CREATE TABLE IF NOT EXISTS app_versions (
@@ -72,6 +73,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await addColumn('generated_apps', 'totalManaCost', 'REAL NOT NULL DEFAULT 0');
     await addColumn('generated_apps', 'jobId', 'TEXT');
     await addColumn('generated_apps', 'requiresBiometric', 'INTEGER NOT NULL DEFAULT 0');
+    await addColumn('generated_apps', 'shortDescription', 'TEXT');
     await addColumn('app_versions', 'jobId', 'TEXT');
 
     await database.execAsync(`
@@ -89,6 +91,17 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       SELECT jobId, 'create', lastUpdated FROM generated_apps WHERE jobId IS NOT NULL;
       INSERT OR IGNORE INTO processed_jobs (jobId, action, timestamp)
       SELECT jobId, 'edit', createdAt FROM app_versions WHERE jobId IS NOT NULL;
+
+      -- Backfill shortDescription for existing apps from their first version instruction
+      UPDATE generated_apps 
+      SET shortDescription = (
+        SELECT instruction 
+        FROM app_versions 
+        WHERE appId = generated_apps.id 
+        ORDER BY version ASC 
+        LIMIT 1
+      ) 
+      WHERE shortDescription IS NULL;
     `);
     } catch (e) {
         // Ignore backfill errors
@@ -140,15 +153,16 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         String(app.consoleLogs ?? ''),
         Number(app.totalManaCost ?? 0),
         app.jobId ? String(app.jobId) : "", // Empty string instead of null to test NPE fix
-        app.requiresBiometric ? 1 : 0
+        app.requiresBiometric ? 1 : 0,
+        String(app.shortDescription ?? '')
     ];
 
     console.log('[DB] Inserting App. Bindings:', JSON.stringify(bindings));
 
     try {
         const result = await database.runAsync(
-            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, jobId, requiresBiometric)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             bindings as any[]
         );
         return result.lastInsertRowId;
@@ -165,12 +179,13 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
                 Number(app.lastUpdated ?? Date.now()),
                 String(app.consoleLogs ?? ''),
                 Number(app.totalManaCost ?? 0),
-                app.requiresBiometric ? 1 : 0
+                app.requiresBiometric ? 1 : 0,
+                String(app.shortDescription ?? '')
             ];
 
             const result = await database.runAsync(
-                `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, requiresBiometric)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, requiresBiometric, shortDescription)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 fallbackBindings as any[]
             );
             console.log('[DB] Fallback Insert Success!');
@@ -185,7 +200,7 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
 export async function updateApp(app: GeneratedApp): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?, jobId = ?, requiresBiometric = ?
+        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?
      WHERE id = ?`,
         [
             app.name ?? 'Untitled',
@@ -197,6 +212,7 @@ export async function updateApp(app: GeneratedApp): Promise<void> {
             app.totalManaCost ?? 0,
             app.jobId ?? "",
             app.requiresBiometric ? 1 : 0,
+            app.shortDescription ?? '',
             app.id
         ]
     );

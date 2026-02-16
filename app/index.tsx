@@ -14,7 +14,7 @@ import {
     RefreshControl,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
@@ -25,7 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
-import { ChatDialog, RenameDialog, ConfirmDialog } from '../components/Dialogs';
+import { ChatDialog, EditDetailsDialog, ConfirmDialog } from '../components/Dialogs';
 import { Onboarding } from '../components/Onboarding';
 import { colors, spacing, borderRadius } from '../lib/theme';
 
@@ -43,6 +43,7 @@ const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
 export default function HomeScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const {
         apps,
         isLoading,
@@ -59,6 +60,7 @@ export default function HomeScreen() {
         createApp,
         deleteApp,
         renameApp,
+        updateAppDescription,
         updateAppIcon,
         incrementAppManaCost,
         exportBackup,
@@ -72,7 +74,7 @@ export default function HomeScreen() {
 
     // Dialog states
     const [showCreateDialog, setShowCreateDialog] = useState(false);
-    const [renameTarget, setRenameTarget] = useState<GeneratedApp | null>(null);
+    const [editTarget, setEditTarget] = useState<GeneratedApp | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<GeneratedApp | null>(null);
     const [showMenu, setShowMenu] = useState(false);
     const [iconTarget, setIconTarget] = useState<GeneratedApp | null>(null);
@@ -83,6 +85,7 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [scheduleTarget, setScheduleTarget] = useState<GeneratedApp | null>(null);
     const [isGeneratingIcon, setIsGeneratingIcon] = useState(false);
+    const [isAtTop, setIsAtTop] = useState(true); // Track scroll position for smarter refresh control
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -130,6 +133,15 @@ export default function HomeScreen() {
         await loadApps();
         setRefreshing(false);
     }, []);
+
+    const onScroll = useCallback((e: any) => {
+        const offset = e.nativeEvent.contentOffset.y;
+        // Only enable refresh if we are at the very top (with small tolerance)
+        const newIsAtTop = offset <= 5;
+        if (newIsAtTop !== isAtTop) {
+            setIsAtTop(newIsAtTop);
+        }
+    }, [isAtTop]);
 
     useEffect(() => {
         if (apps.length > 0) {
@@ -246,10 +258,15 @@ export default function HomeScreen() {
         }
     };
 
-    const handleRenameConfirm = async (newName: string) => {
-        if (renameTarget) {
-            await renameApp(renameTarget.id, newName);
-            setRenameTarget(null);
+    const handleEditConfirm = async (newName: string, newDescription: string) => {
+        if (editTarget) {
+            if (newName !== editTarget.name) {
+                await renameApp(editTarget.id, newName);
+            }
+            if (newDescription !== editTarget.shortDescription) {
+                await updateAppDescription(editTarget.id, newDescription);
+            }
+            setEditTarget(null);
         }
     };
     const handleSelectIconFromGallery = async () => {
@@ -314,13 +331,17 @@ export default function HomeScreen() {
         try {
             setIsGeneratingIcon(true);
 
-            // Get the original creation prompt from versions
-            const versions = await db.getVersionsForApp(iconTarget.id);
-            // Versions are sorted DESC, so the last one is v1 (original)
-            const firstVersion = versions.length > 0 ? versions[versions.length - 1] : null;
-            const creationPrompt = firstVersion?.instruction || '';
+            // Use manual shortDescription if available, otherwise fallback to version instruction
+            let creationPrompt = iconTarget.shortDescription || '';
 
-            const prompt = `App icon for "${iconTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} . REALLY simple, easy to understand, clean, colorful, minimalist, rounded square, borderless icon suitable for a mobile app. No text. Recognizable symbol, without a lot of information because the icon is small. Professional quality that describes the app.`;
+            if (!creationPrompt) {
+                const versions = await db.getVersionsForApp(iconTarget.id);
+                // Versions are sorted DESC, so the last one is v1 (original)
+                const firstVersion = versions.length > 0 ? versions[versions.length - 1] : null;
+                creationPrompt = firstVersion?.instruction || '';
+            }
+
+            const prompt = `App icon for "${iconTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} . REALLY simple, easy to understand, colorful, minimalist, rounded square, borderless icon suitable for a mobile app. No text. Recognizable symbol because the icon is small. Professional quality that describes the app.`;
 
             const result = await firebase.generateSpellImageGen(prompt);
             const base64Image = result.text;
@@ -518,12 +539,15 @@ export default function HomeScreen() {
                     data={allApps}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.list}
+                    onScroll={onScroll}
+                    scrollEventThrottle={16}
                     refreshControl={
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={onRefresh}
                             colors={[colors.primary]}
                             tintColor={colors.primary}
+                            enabled={isAtTop || refreshing} // Only enable if at top or already refreshing
                         />
                     }
                     ListHeaderComponent={
@@ -541,7 +565,7 @@ export default function HomeScreen() {
                                 onRun={() => handleRunApp(item)}
                                 onEdit={() => handleEditApp(item)}
                                 onDelete={() => setDeleteTarget(item)}
-                                onRename={() => setRenameTarget(item)}
+                                onRename={() => setEditTarget(item)}
                                 onIconPress={() => setIconTarget(item)}
                                 onShortcut={() => handleCreateShortcut(item)}
                                 onToggleBiometric={() => handleToggleBiometric(item)}
@@ -557,7 +581,7 @@ export default function HomeScreen() {
 
             {/* FAB */}
             <TouchableOpacity
-                style={styles.fab}
+                style={[styles.fab, { bottom: spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom }]}
                 onPress={() => setShowCreateDialog(true)}
             >
                 <Text style={styles.fabIcon}>✨</Text>
@@ -651,11 +675,12 @@ export default function HomeScreen() {
                 onSend={handleCreateApp}
             />
 
-            <RenameDialog
-                visible={!!renameTarget}
-                currentName={renameTarget?.name || ''}
-                onDismiss={() => setRenameTarget(null)}
-                onConfirm={handleRenameConfirm}
+            <EditDetailsDialog
+                visible={!!editTarget}
+                currentName={editTarget?.name || ''}
+                currentDescription={editTarget?.shortDescription || ''}
+                onDismiss={() => setEditTarget(null)}
+                onConfirm={handleEditConfirm}
             />
 
             <ConfirmDialog
@@ -681,8 +706,8 @@ export default function HomeScreen() {
 
 
             {/* Legal Modal */}
-            <Modal visible={showLegal} animationType="slide">
-                <SafeAreaView style={styles.legalContainer}>
+            <Modal visible={showLegal} animationType="slide" onRequestClose={() => setShowLegal(false)}>
+                <SafeAreaView style={[styles.legalContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                     <View style={styles.legalHeader}>
                         <Text style={styles.legalTitle}>📜 {t('legalTitle')}</Text>
                         <TouchableOpacity onPress={() => setShowLegal(false)} style={styles.legalCloseBtn}>
@@ -821,7 +846,7 @@ const styles = StyleSheet.create({
     fab: {
         position: 'absolute',
         right: spacing.md,
-        bottom: spacing.lg,
+        bottom: spacing.lg + (Platform.OS === 'android' ? 24 : 0), // Add extra clearace for tablets/nav bars
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.primary,

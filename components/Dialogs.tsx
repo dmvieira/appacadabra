@@ -137,23 +137,28 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
     );
 }
 
-interface RenameDialogProps {
+interface EditDetailsDialogProps {
     visible: boolean;
     currentName: string;
+    currentDescription?: string;
     onDismiss: () => void;
-    onConfirm: (newName: string) => void;
+    onConfirm: (newName: string, newDescription: string) => void;
 }
 
-export function RenameDialog({ visible, currentName, onDismiss, onConfirm }: RenameDialogProps) {
+export function EditDetailsDialog({ visible, currentName, currentDescription, onDismiss, onConfirm }: EditDetailsDialogProps) {
     const [name, setName] = useState(currentName);
+    const [description, setDescription] = useState(currentDescription || '');
 
     React.useEffect(() => {
-        setName(currentName);
-    }, [currentName, visible]);
+        if (visible) {
+            setName(currentName);
+            setDescription(currentDescription || '');
+        }
+    }, [currentName, currentDescription, visible]);
 
     const handleConfirm = () => {
         if (name.trim()) {
-            onConfirm(name.trim());
+            onConfirm(name.trim(), description.trim());
         }
     };
 
@@ -169,15 +174,27 @@ export function RenameDialog({ visible, currentName, onDismiss, onConfirm }: Ren
                 style={styles.overlay}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
-                <View style={styles.dialog}>
-                    <Text style={styles.title}>{t('renameTitle')}</Text>
+                <View style={[styles.dialog, { maxHeight: '80%' }]}>
+                    <Text style={styles.title}>{t('editAppDetails')}</Text>
 
+                    <Text style={styles.label}>{t('spellNameLabel')}</Text>
                     <TextInput
                         style={styles.singleInput}
                         value={name}
                         onChangeText={setName}
                         placeholder={t('appNamePlaceholder')}
                         placeholderTextColor={colors.onSurfaceVariant}
+                    />
+
+                    <Text style={[styles.label, { marginTop: spacing.md }]}>{t('shortDescriptionLabel')}</Text>
+                    <TextInput
+                        style={[styles.input, { minHeight: 80, height: 100 }]}
+                        value={description}
+                        onChangeText={setDescription}
+                        placeholder={t('createPlaceholder')}
+                        placeholderTextColor={colors.onSurfaceVariant}
+                        multiline
+                        textAlignVertical="top"
                     />
 
                     <View style={styles.buttons}>
@@ -352,5 +369,11 @@ const styles = StyleSheet.create({
         color: colors.onSurface,
         fontSize: 16,
         marginBottom: spacing.md,
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: colors.onSurfaceVariant,
+        marginBottom: spacing.xs,
     },
 });

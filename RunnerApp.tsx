@@ -6,6 +6,9 @@ import {
     ActivityIndicator,
     AppState,
     AppStateStatus,
+    ScrollView,
+    RefreshControl,
+    DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -51,6 +54,9 @@ function RunnerContent({ appId }: Props) {
     const [webViewReady, setWebViewReady] = useState(false);
     const [webViewKey, setWebViewKey] = useState(0); // Key to force WebView recreation
     const lastCodeRef = useRef<string | null>(null); // Track code changes
+    const [refreshing, setRefreshing] = useState(false);
+    const [initialReloadDone, setInitialReloadDone] = useState(false);
+    const [isAtTop, setIsAtTop] = useState(true); // Helper to prevent conflicting scrolls
 
     // Check drop-box file for pending shared content
     useEffect(() => {
@@ -90,46 +96,78 @@ function RunnerContent({ appId }: Props) {
         }
     }, []);
 
-    // Load app data and storage - also reload when webViewKey changes (WebView recreation)
-    useEffect(() => {
-        // Reset state for this specific appId
-        setIsLoading(true);
-        setStorageLoaded(false);
-        savedStorageRef.current = [];
+    // Load app data
+    const loadApp = useCallback(async () => {
+        if (!appId) return;
+        console.log(`RunnerApp[${appId}]: Loading app and storage...`);
+        const appData = await db.getAppById(appId);
+        if (appData) {
+            // Force reload storage from DB to get latest
+            const storage = await db.getStorageForApp(appData.id);
+            const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
+            console.log(`RunnerApp[${appId}]: Got ${storageItems.length} items from DB`);
 
-        async function loadApp() {
-            if (!appId) return;
-            console.log(`RunnerApp[${appId}]: Loading app and storage...`);
-            const appData = await db.getAppById(appId);
-            if (appData) {
-                // Try to get storage from cache first (fast path when opened via main app)
-                // Fallback to DB if cache not loaded (e.g., when opened via shortcut)
-                let storageItems: StorageItem[];
-                if (isCacheLoaded()) {
-                    storageItems = getStorageFromCache(appData.id);
-                    console.log(`RunnerApp[${appId}]: Got ${storageItems.length} items from cache`);
-                } else {
-                    console.log(`RunnerApp[${appId}]: Cache not loaded, loading from DB...`);
-                    const storage = await db.getStorageForApp(appData.id);
-                    storageItems = storage.map(s => ({ key: s.key, value: s.value }));
-                    console.log(`RunnerApp[${appId}]: Got ${storageItems.length} items from DB`);
-                }
+            // Update ref and state
+            savedStorageRef.current = storageItems;
 
-                // Update ref FIRST (synchronously)
-                savedStorageRef.current = storageItems;
-
-                // Then update state atomically
-                setApp(appData);
-                setSavedStorage(storageItems);
-                setStorageLoaded(true);
-                setIsLoading(false);
-            } else {
-                setStorageLoaded(true);
-                setIsLoading(false);
+            // Check for code updates
+            if (appData.code !== lastCodeRef.current && lastCodeRef.current !== null) {
+                console.log('RunnerApp: Code updated during load, forcing WebView reload');
+                setWebViewKey(k => k + 1);
             }
+            lastCodeRef.current = appData.code;
+
+            setApp(appData);
+            setSavedStorage(storageItems);
+            setStorageLoaded(true);
+            setIsLoading(false);
+        } else {
+            // App deleted?
+            setStorageLoaded(true);
+            setIsLoading(false);
         }
+    }, [appId]);
+
+    // Initial Load
+    useEffect(() => {
+        setIsLoading(true);
         loadApp();
-    }, [appId, webViewKey]); // webViewKey added to reload storage on WebView recreation
+    }, [loadApp]);
+
+    // Live Reload Listener (from Editor)
+    useEffect(() => {
+        const subscription = DeviceEventEmitter.addListener('APP_UPDATED', (event) => {
+            if (event.appId === appId) {
+                console.log('RunnerApp: Received APP_UPDATED event, refreshing...');
+                loadApp();
+            }
+        });
+        return () => subscription.remove();
+    }, [appId, loadApp]);
+
+    // Force Initial Reload to guarantee LocalStorage injection (Safety Fix)
+    // Sometimes imported apps miss the first injection, this ensures it works.
+    useEffect(() => {
+        if (storageLoaded && !initialReloadDone) {
+            const timer = setTimeout(() => {
+                console.log('RunnerApp: Force reloading WebView to ensure storage consistency');
+                setWebViewKey(k => k + 1);
+                setInitialReloadDone(true);
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [storageLoaded, initialReloadDone]);
+
+    // Pull-to-Refresh Handler
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadApp();
+        setRefreshing(false);
+        // We typically want to reload the WebView content too if data changed
+        // But since 'app' state updates, React will re-render. 
+        // If we want a hard reset of JS state, we can increment key:
+        setWebViewKey(k => k + 1);
+    }, [loadApp]);
 
 
     // Detect when app comes to foreground and check if WebView is still alive
@@ -148,23 +186,12 @@ function RunnerContent({ appId }: Props) {
                 console.log('RunnerApp: App came to foreground after being in background');
                 wasInBackground = false;
 
-                // Re-fetch app data to get latest code
-                const freshApp = await db.getAppById(appId);
-                if (freshApp) {
-                    // Check if code changed while we were in background
-                    if (freshApp.code !== lastCodeRef.current) {
-                        console.log('RunnerApp: Code was updated, reloading with new code...');
-                        lastCodeRef.current = freshApp.code;
-                        setApp(freshApp);
-                        setWebViewKey(k => k + 1); // Force reload for code change
-                        return;
-                    }
-                }
+                // Re-fetch app data
+                loadApp();
 
                 // Smart detection: Send heartbeat and wait for response
                 if (webViewRef.current) {
                     heartbeatReceivedRef.current = false;
-
                     try {
                         console.log('RunnerApp: Sending heartbeat to WebView...');
                         webViewRef.current.injectJavaScript(`
@@ -173,19 +200,15 @@ function RunnerContent({ appId }: Props) {
                             }
                             true;
                         `);
-
-                        // Wait for response - if no response in 300ms, WebView is dead
                         setTimeout(() => {
                             if (!heartbeatReceivedRef.current) {
                                 console.log('RunnerApp: No heartbeat response, WebView is dead - forcing reload');
                                 setWebViewKey(k => k + 1);
                             } else {
-                                // WebView is healthy - no reload needed since localStorage is now isolated per-app
                                 console.log('RunnerApp: Heartbeat received, WebView is healthy');
                             }
                         }, 300);
                     } catch (e) {
-                        console.log('RunnerApp: Error sending heartbeat, forcing reload');
                         setWebViewKey(k => k + 1);
                     }
                 }
@@ -194,14 +217,7 @@ function RunnerContent({ appId }: Props) {
 
         const subscription = AppState.addEventListener('change', handleAppStateChange);
         return () => subscription?.remove();
-    }, [app, appId]);
-
-    // Track the current code version
-    useEffect(() => {
-        if (app) {
-            lastCodeRef.current = app.code;
-        }
-    }, [app]);
+    }, [app, appId, loadApp]);
 
     // Back button is handled natively in RunnerActivity.kt using moveTaskToBack
 
@@ -225,6 +241,12 @@ function RunnerContent({ appId }: Props) {
             // Handle heartbeat response for white screen detection
             if (type === 'HEARTBEAT_RESPONSE') {
                 heartbeatReceivedRef.current = true;
+                return;
+            }
+
+            // Handle Scroll Status for Smart Refresh
+            if (type === 'SCROLL_STATUS') {
+                setIsAtTop(data.isAtTop);
                 return;
             }
 
@@ -277,89 +299,113 @@ function RunnerContent({ appId }: Props) {
     // Use ref for storage to ensure data is available synchronously
     console.log(`RunnerApp[${appId}]: Creating combinedScript with ${savedStorageRef.current.length} storage items`);
     const storageScript = createStorageRestoreScript(savedStorageRef.current);
+    const scrollScript = `
+        (function() {
+            var lastTop = true;
+            window.addEventListener('scroll', function() {
+                var top = window.scrollY <= 5; /* 5px tolerance */
+                if (top !== lastTop) {
+                    lastTop = top;
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SCROLL_STATUS', data: { isAtTop: top } }));
+                }
+            }, { passive: true });
+        })();
+    `;
     const combinedScript = `
         ${getInjectedJavaScript(app.id, getWebViewTranslations(), false)}
         ${storageScript}
+        ${scrollScript}
     `;
 
     return (
         <>
             <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
-                <WebView
-                    key={webViewKey}
-                    ref={webViewRef}
-                    source={{ html: htmlContent, baseUrl: `https://app-${appId}.appacadabra.local/` }}
-                    style={styles.webview}
-                    originWhitelist={['*']}
-                    javaScriptEnabled
-                    domStorageEnabled
-                    mediaPlaybackRequiresUserAction={false}
-                    allowsInlineMediaPlayback
-                    allowFileAccess
-                    allowFileAccessFromFileURLs
-                    allowUniversalAccessFromFileURLs
-                    mixedContentMode="always"
-                    geolocationEnabled
-                    injectedJavaScriptBeforeContentLoaded={combinedScript}
-                    onMessage={handleMessage}
-                    onError={(e) => console.error('WebView error:', e.nativeEvent)}
-                    onLoadEnd={() => {
-                        console.log('RunnerApp: WebView loaded, checking for shared content');
-                        setWebViewReady(true);
+                <ScrollView
+                    contentContainerStyle={{ flex: 1 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            enabled={isAtTop} // Only enable if WebView says we are at top
+                        />
+                    }
+                >
+                    <WebView
+                        key={webViewKey}
+                        ref={webViewRef}
+                        source={{ html: htmlContent, baseUrl: `https://app-${appId}.appacadabra.local/` }}
+                        style={styles.webview}
+                        originWhitelist={['*']}
+                        javaScriptEnabled
+                        domStorageEnabled
+                        mediaPlaybackRequiresUserAction={false}
+                        allowsInlineMediaPlayback
+                        allowFileAccess
+                        allowFileAccessFromFileURLs
+                        allowUniversalAccessFromFileURLs
+                        mixedContentMode="always"
+                        geolocationEnabled
+                        injectedJavaScriptBeforeContentLoaded={combinedScript}
+                        onMessage={handleMessage}
+                        onError={(e) => console.error('WebView error:', e.nativeEvent)}
+                        onLoadEnd={() => {
+                            console.log('RunnerApp: WebView loaded, checking for shared content');
+                            setWebViewReady(true);
 
-                        // Inject shared content if available
-                        if (sharedContent && webViewRef.current) {
-                            console.log('RunnerApp: Injecting shared content, fileName:', sharedContent.fileName);
+                            // Inject shared content if available
+                            if (sharedContent && webViewRef.current) {
+                                console.log('RunnerApp: Injecting shared content, fileName:', sharedContent.fileName);
 
-                            // Setup the shared content handler in WebView
-                            const setupScript = createSharedContentSetupScript(getWebViewTranslations());
-                            webViewRef.current.injectJavaScript(setupScript);
+                                // Setup the shared content handler in WebView
+                                const setupScript = createSharedContentSetupScript(getWebViewTranslations());
+                                webViewRef.current.injectJavaScript(setupScript);
 
-                            // Post the content after a short delay to ensure handler is ready
-                            setTimeout(() => {
-                                if (webViewRef.current && sharedContent) {
-                                    console.log('RunnerApp: Posting shared content message');
-                                    webViewRef.current.postMessage(JSON.stringify({
-                                        type: 'SET_SHARED_CONTENT',
-                                        payload: sharedContent
-                                    }));
+                                // Post the content after a short delay to ensure handler is ready
+                                setTimeout(() => {
+                                    if (webViewRef.current && sharedContent) {
+                                        console.log('RunnerApp: Posting shared content message');
+                                        webViewRef.current.postMessage(JSON.stringify({
+                                            type: 'SET_SHARED_CONTENT',
+                                            payload: sharedContent
+                                        }));
 
-                                    // Clear after injection to prevent re-injection
-                                    setSharedContent(null);
-                                }
-                            }, 500);
-                        }
-                    }}
-                    onShouldStartLoadWithRequest={(request) => {
-                        const { url } = request;
-                        // Allow internal URLs (localhost, appacadabra.local, data:, about:)
-                        if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
-                            return true;
-                        }
-                        if (url.startsWith('http://') || url.startsWith('https://')) {
-                            // Keep navigation internal for our local baseUrl and localhost
-                            if (url.includes('localhost') || url.includes('.appacadabra.local')) {
+                                        // Clear after injection to prevent re-injection
+                                        setSharedContent(null);
+                                    }
+                                }, 500);
+                            }
+                        }}
+                        onShouldStartLoadWithRequest={(request) => {
+                            const { url } = request;
+                            // Allow internal URLs (localhost, appacadabra.local, data:, about:)
+                            if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
                                 return true;
                             }
-                            // External URLs - open in system browser
-                            Linking.openURL(url);
-                            return false;
-                        }
-                        return true;
-                    }}
-                    // @ts-ignore
-                    androidOnGeolocationPermissionsShowPrompt={async (origin: string, callback: (origin: string, allow: boolean, retain: boolean) => void) => {
-                        console.log('RunnerApp: Geolocation permission requested for origin:', origin);
-                        try {
-                            const { status } = await Location.requestForegroundPermissionsAsync();
-                            console.log('RunnerApp: Permission status:', status);
-                            callback(origin, status === 'granted', true);
-                        } catch (e) {
-                            console.error('RunnerApp: Geolocation permission error:', e);
-                            callback(origin, false, false);
-                        }
-                    }}
-                />
+                            if (url.startsWith('http://') || url.startsWith('https://')) {
+                                // Keep navigation internal for our local baseUrl and localhost
+                                if (url.includes('localhost') || url.includes('.appacadabra.local')) {
+                                    return true;
+                                }
+                                // External URLs - open in system browser
+                                Linking.openURL(url);
+                                return false;
+                            }
+                            return true;
+                        }}
+                        // @ts-ignore
+                        androidOnGeolocationPermissionsShowPrompt={async (origin: string, callback: (origin: string, allow: boolean, retain: boolean) => void) => {
+                            console.log('RunnerApp: Geolocation permission requested for origin:', origin);
+                            try {
+                                const { status } = await Location.requestForegroundPermissionsAsync();
+                                console.log('RunnerApp: Permission status:', status);
+                                callback(origin, status === 'granted', true);
+                            } catch (e) {
+                                console.error('RunnerApp: Geolocation permission error:', e);
+                                callback(origin, false, false);
+                            }
+                        }}
+                    />
+                </ScrollView>
             </View>
             <QRScannerOverlay webviewRef={webViewRef} />
         </>
@@ -391,7 +437,7 @@ export default function RunnerApp(props: RunnerAppProps) {
     return (
         <SafeAreaProvider>
             <SafeAreaView style={styles.container} edges={['top']}>
-                <RunnerContent appId={appId} />
+                <RunnerContent key={appId} appId={appId} />
             </SafeAreaView>
         </SafeAreaProvider>
     );

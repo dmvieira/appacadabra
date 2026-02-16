@@ -37,7 +37,7 @@ const FALLBACK_PRODUCTS: IAPProduct[] = [
 
 
 export function ManaShop() {
-    const { addMana, balance, isShopOpen, closeShop } = useManaStore();
+    const { addMana, balance, isShopOpen, closeShop, isAnonymous, userEmail } = useManaStore();
     const [isAdLoading, setIsAdLoading] = useState(false);
     const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
 
@@ -212,6 +212,57 @@ export function ManaShop() {
                     </View>
 
                     <ScrollView contentContainerStyle={styles.content}>
+                        {/* Account Section */}
+                        <View style={styles.accountContainer}>
+                            <Text style={styles.sectionTitle}>{t('account')}</Text>
+                            {isAnonymous ? (
+                                <TouchableOpacity
+                                    style={styles.linkCard}
+                                    onPress={async () => {
+                                        try {
+                                            await firebase.linkWithGoogle();
+                                            Alert.alert(t('success'), t('linkSuccess'));
+                                        } catch (e: any) {
+                                            console.error(e);
+                                            if (e.message && (e.message.includes('credential-already-in-use') || e.code === 'auth/credential-already-in-use')) {
+                                                Alert.alert(
+                                                    t('account'), // Title
+                                                    t('accountConflict'),
+                                                    [
+                                                        { text: t('cancel'), style: 'cancel' },
+                                                        {
+                                                            text: t('signInGoogle'), onPress: async () => {
+                                                                try {
+                                                                    await firebase.signInWithGoogle();
+                                                                } catch (err) {
+                                                                    Alert.alert(t('error'), t('signInFailed'));
+                                                                }
+                                                            }
+                                                        }
+                                                    ]
+                                                );
+                                            } else {
+                                                Alert.alert(t('error'), t('linkError'));
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <View>
+                                        <Text style={styles.linkTitle}>🔗 {t('linkAccount')}</Text>
+                                        <Text style={styles.linkDesc}>{t('linkAccountDesc')}</Text>
+                                    </View>
+                                    <Text style={styles.arrow}>›</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <View style={styles.accountCard}>
+                                    <Text style={styles.accountEmail}>👤 {userEmail || 'User'}</Text>
+                                    <TouchableOpacity onPress={() => firebase.signOut()}>
+                                        <Text style={styles.signOutLink}>{t('signOut')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
+
                         <View style={styles.balanceContainer}>
                             <Text style={styles.balanceLabel}>{t('currentBalance')}</Text>
                             <Text style={styles.balanceValue}>{(Math.floor(balance * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚡</Text>
@@ -409,5 +460,50 @@ const styles = StyleSheet.create({
     adLoadingText: {
         color: colors.onSurfaceVariant,
         fontSize: 14,
+    },
+    accountContainer: {
+        marginBottom: spacing.lg,
+    },
+    linkCard: {
+        backgroundColor: colors.surfaceVariant,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: colors.primary,
+    },
+    linkTitle: {
+        color: colors.primary,
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    linkDesc: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+        marginTop: 2,
+    },
+    arrow: {
+        fontSize: 24,
+        color: colors.primary,
+        fontWeight: 'bold',
+        marginTop: -4,
+    },
+    accountCard: {
+        backgroundColor: colors.surfaceVariant,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    accountEmail: {
+        color: colors.onSurface,
+        fontWeight: 'bold',
+    },
+    signOutLink: {
+        color: colors.error,
+        fontWeight: 'bold',
     }
 });

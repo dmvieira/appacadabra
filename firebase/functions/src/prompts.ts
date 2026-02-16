@@ -28,7 +28,7 @@ All Appacadabra API callbacks MUST be global functions on \`window\`.
 
 ✅ CORRECT PATTERN:
 \`\`\`javascript
-// 1. Define callback as global function FIRST
+// 1. Define callback as global function FIRST always with 2 parameters: success (boolean) and resultString (string)
 window.handleAIResult = function(success, resultString) {
     if (!success) { console.error("Error:", resultString); return; }
     const data = JSON.parse(resultString);
@@ -89,6 +89,8 @@ AppacadabraAI.generate("Hello", handleResult);
     - **Note**: \`title\` is often null. Display \`exerciseTypeName\` as label. \`exerciseType\` 46 is "ROWING". Ignore internal metadata.
 - \`getSleep(startMs, endMs, callback)\` - Get sleep sessions
     - **Return**: JSON Array of objects: \`[{ "startTime": "ISO String", "endTime": "ISO String", "title": string|null, "notes": string|null, "stages": [{ "startTime": "ISO String", "endTime": "ISO String", "stage": "AWAKE"|"LIGHT"|"DEEP"|"REM"|"UNKNOWN" }] }]\`
+- \`getCalories(startMs, endMs, callback)\` - Get calories burned (Active + Basal)
+    - **Return**: JSON Object: \`{ "totalCalories": number, "records": [{ "startTime": "ISO", "endTime": "ISO", "energy": { "inKilocalories": number } }] }\`
 
 🤖 AI (AppacadabraAI)
 - **Fluent Builder API**: Chain methods to configure generation.
@@ -159,11 +161,14 @@ AppacadabraAI.generate("Hello", handleResult);
 \`\`\`
 
  SENSORS (AppacadabraSensors)
-- \`startAccelerometer(intervalMs, callback)\`
+- \`startAccelerometer(intervalMs, listenerCallback)\`
+    - **Note**: The callback is a LISTENER and will be called repeatedly with updates.
     - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number }\`
-- \`startGyroscope(intervalMs, callback)\`
+- \`startGyroscope(intervalMs, listenerCallback)\`
+    - **Note**: The callback is a LISTENER and will be called repeatedly with updates.
     - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number }\`
-- \`startMagnetometer(intervalMs, callback)\`
+- \`startMagnetometer(intervalMs, listenerCallback)\`
+    - **Note**: The callback is a LISTENER and will be called repeatedly with updates.
     - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number, "heading": number }\`
 
 📋 CLIPBOARD (AppacadabraClipboard)
@@ -178,10 +183,10 @@ AppacadabraAI.generate("Hello", handleResult);
     - **Callback Data**: Battery level (number 0.0 - 1.0)
 - \`isCharging(callback)\` - Check if charging.
     - **Callback Data**: Charging status (boolean)
-- \`isOnline()\` - Check if online. **Synchronous**.
-    - **Return**: \`true\` or \`false\` (boolean)
-- \`getNetworkType()\` - Get connection info. **Synchronous**.
-    - **Return**: Connection type string ('wifi', '4g', 'unknown')
+- \`isOnline(callback)\` - Check if online.
+    - **Callback Data**: \`true\` or \`false\` (boolean)
+- \`getNetworkType(callback)\` - Get connection info.
+    - **Callback Data**: Connection type string ('wifi', 'cellular', 'none', 'unknown')
 - \`language\` - **Property** (string). Device language (e.g. "en-US")
 - \`userAgent\` - **Property** (string). User agent string
 - \`openBrowser(url)\` - Open URL in system browser
@@ -305,6 +310,7 @@ Rules:
 3. Plan for a complete, working product.
 4. IMPORTANT: Plan for all text content to be in THE SAME LANGUAGE as the user's request.
 5. DEEP LINKS: Whenever possible, use Universal Links (standard HTTPS URLs like 'https://www.notion.so/...'). HTTPS links open the app if installed, or fallback to the website automatically. Custom schemes often fail silently if the app is not installed. ALWAYS use \`AppacadabraDevice.openBrowser(url)\` to open these links.
+6. UNSUPPORTED FEATURES: If the user asks for a feature not supported by Appacadabra APIs (e.g., accessing private GitHub repos, external OAuth, specific hardware), DO NOT fail or fake it. Instead, suggest a SIMPLE alternative, like manual data entry, inputting a personal token/key, or a simplified manual version of the feature. Prioritize a working app over a broken complex one.
 `;
 
 // CREATE STEP 2: Unified Code Generator
@@ -349,6 +355,7 @@ Rules:
 1. Be precise. If the user wants to change a color, identify the CSS rule.
 2. If the user wants logic changes, identify the function.
 3. Preserve existing functionality unless explicitly asked to remove it.
+4. UNSUPPORTED FEATURES: If the requested change requires unsupported integrations, propose a simple manual alternative (e.g., input fields for tokens/keys, manual data entry) instead of breaking the app. Keep it simple and functional.
 `;
 
 // EDIT STEP 2: Patch Generator

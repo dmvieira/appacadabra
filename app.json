@@ -1,4 +1,8 @@
 {
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-2256826632523784~6570613208",
+    "ios_app_id": "ca-app-pub-2256826632523784~6570613208"
+  },
   "expo": {
     "name": "Appacadabra",
     "slug": "appacadabra",

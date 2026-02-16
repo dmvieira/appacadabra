@@ -13,7 +13,10 @@ import {
     KeyboardAvoidingView,
     BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// ... other imports ...
+
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
@@ -34,6 +37,7 @@ interface AppRunnerProps {
 }
 
 export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunnerProps) {
+    const insets = useSafeAreaInsets();
     const webViewRef = useRef<WebView>(null);
     const { minimizeApp, updateAppCode, updateAppWithAI, closeApp } = useAppStore();
 
@@ -333,7 +337,8 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             }
 
 
-            if (callbackName && webViewRef.current) {
+            // Only fire callback if it wasn't deferred (e.g. for streams/listeners)
+            if (callbackName && webViewRef.current && !bridgeResult.deferredCallback) {
                 const script = createCallbackScript(callbackName, success, result);
                 webViewRef.current.injectJavaScript(script);
             }
@@ -508,7 +513,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 allowUniversalAccessFromFileURLs
                 mixedContentMode="always"
                 geolocationEnabled
-                pullToRefreshEnabled={mode === 'run'}
+                pullToRefreshEnabled={false} // Always disable pull to refresh in runner/editor to avoid scroll conflicts
+                overScrollMode="never" // Disable Android stretch/bounce effect
+                bounces={false} // Disable iOS bounce effect
                 injectedJavaScriptBeforeContentLoaded={combinedScript}
                 onLoadEnd={handleLoadEnd}
                 onMessage={handleMessage}
@@ -549,7 +556,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             {/* Toolbar */}
             {
                 mode === 'edit' && (
-                    <View style={styles.toolbar}>
+                    <View style={[styles.toolbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
                         <TouchableOpacity
                             style={[styles.toolbarBtn, isSelectingElement && { backgroundColor: colors.primaryContainer }]}
                             onPress={handleEditPress}
@@ -576,7 +583,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             {/* Edit Sheet */}
             <Modal visible={showEditSheet} transparent animationType="slide">
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheetOverlay}>
-                    <View style={styles.sheet}>
+                    <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                         <Text style={styles.sheetTitle}>{t('editWithAI')}</Text>
                         {isEditing ? (
                             <View style={styles.editingContainer}>

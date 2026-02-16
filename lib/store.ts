@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as Notifications from 'expo-notifications';
+import { DeviceEventEmitter } from 'react-native';
 import { GeneratedApp, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import * as ai from './api/ai';
@@ -54,6 +55,7 @@ interface AppState {
     updateAppWithAI: (app: GeneratedApp, instructions: string, selectedContext?: string) => Promise<boolean>;
     deleteApp: (id: number) => Promise<void>;
     renameApp: (id: number, newName: string) => Promise<void>;
+    updateAppDescription: (id: number, description: string) => Promise<void>;
     updateAppIcon: (id: number, iconPath: string) => Promise<void>;
     updateAppCode: (id: number, code: string, instruction?: string) => Promise<void>;
     incrementAppManaCost: (id: number, amount: number) => Promise<void>;
@@ -167,7 +169,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                     consoleLogs: '',
                     totalManaCost: job.result.creditsUsed || 0,
                     jobId: job.id,
-                    requiresBiometric: false
+                    requiresBiometric: false,
+                    shortDescription: job.payload?.prompt ? firebase.decompressContent(job.payload.prompt) : '' // Set initial description from prompt
                 };
 
                 // Insert into DB (idempotent check inside db.insertApp)
@@ -190,7 +193,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         appId: id,
                         version: 1,
                         code: decompressedText,
-                        instruction: t('initialGeneration'),
+                        instruction: job.payload?.prompt ? firebase.decompressContent(job.payload.prompt) : t('initialGeneration'),
                         selectedContext: null,
                         createdAt: Date.now(),
                         jobId: job.id
@@ -260,8 +263,12 @@ export const useAppStore = create<AppState>((set, get) => ({
                         // Mark as processed in history to prevent zombies
                         await db.markJobAsProcessed(job.id, job.action);
 
+
                         // Signal RunnerScreen to exit edit mode via router
                         set({ lastCompletedEditAppId: appId });
+
+                        // Notify Listeners (RunnerApp)
+                        DeviceEventEmitter.emit('APP_UPDATED', { appId });
                     }
                 }
             }
@@ -319,8 +326,18 @@ export const useAppStore = create<AppState>((set, get) => ({
             set({ apps, isLoading: false });
 
             // Publish Direct Share shortcuts for all apps
-            apps.forEach(app => {
+            apps.forEach(async (app) => {
                 SharingShortcuts.publishShortcut(app.id.toString(), app.name, app.iconPath);
+
+                // Ensure notification channel exists (Android)
+                if (Notifications.setNotificationChannelAsync) {
+                    await Notifications.setNotificationChannelAsync(`spell-${app.id}`, {
+                        name: app.name,
+                        importance: Notifications.AndroidImportance.HIGH,
+                        vibrationPattern: [0, 250, 250, 250],
+                        lightColor: '#FF9500',
+                    });
+                }
             });
         } catch (error) {
             console.error('Failed to load apps:', error);
@@ -470,6 +487,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
+    updateAppDescription: async (id: number, description: string) => {
+        try {
+            const app = get().apps.find(a => a.id === id);
+            if (!app) return;
+
+            const updatedApp = { ...app, shortDescription: description };
+            await db.updateApp(updatedApp);
+
+            set(state => ({
+                apps: state.apps.map(a => a.id === id ? updatedApp : a),
+            }));
+        } catch (error) {
+            console.error('Failed to update app description:', error);
+            set({ error: t('errorUpdatingApp') });
+        }
+    },
+
     updateAppIcon: async (id: number, iconPath: string) => {
         try {
             const app = get().apps.find(a => a.id === id);
@@ -535,6 +569,9 @@ export const useAppStore = create<AppState>((set, get) => ({
                 apps: state.apps.map(a => a.id === id ? updatedApp : a),
                 isGenerating: false,
             }));
+
+            // Notify Listeners (RunnerApp)
+            DeviceEventEmitter.emit('APP_UPDATED', { appId: id });
         } catch (error) {
             console.error('Failed to update app code:', error);
             set({ error: t('errorUpdatingCode') });

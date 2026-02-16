@@ -424,6 +424,89 @@ export async function submitJob(action: 'create' | 'edit', payload: any): Promis
     }
 }
 
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+
+// Configure Google Sign-In
+GoogleSignin.configure({
+    // scopes: ['https://www.googleapis.com/auth/drive.readonly'], // what API you want to access on behalf of the user, default is email and profile
+    webClientId: '225682663252-klc02t354256225 56252.apps.googleusercontent.com', // client ID of type WEB for your server (needed to verify user ID and offline access)
+    offlineAccess: true, // if you want to access Google API on behalf of the user FROM YOUR SERVER
+    hostedDomain: '', // specifies a hosted domain restriction
+    forceCodeForRefreshToken: true, // [Android] related to offlineAccess
+    accountName: '', // [Android] specifies an account name on the device that should be used
+    // iosClientId: '<FROM DEVELOPER CONSOLE>', // [iOS] if you want to specify the client ID of type iOS (otherwise, it is taken from GoogleService-Info.plist)
+    // googleServicePlistPath: '', // [iOS] if you renamed your GoogleService-Info file, new name here, e.g. GoogleService-Info-Staging
+    // openIdRealm: '', // [iOS] The OpenID2 realm of the home web server. This allows Google to include the user's OpenID Identifier in the OpenID Connect ID token.
+    // profileImageSize: 120, // [iOS] The desired height (and width) of the profile image. Defaults to 120px
+});
+
+// Import GoogleAuthProvider
+import { GoogleAuthProvider, linkWithCredential, signInWithCredential } from '@react-native-firebase/auth';
+
+export async function signInWithGoogle() {
+    try {
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        const { idToken } = await GoogleSignin.getTokens(); // Fix: use getTokens() or userInfo.idToken depending on version. 
+        // Note: userInfo might not contain idToken in newer versions or without webClientId configured properly.
+        // It's safer to use getTokens() if available, or userInfo.idToken.
+        // Actually, userInfo usually has idToken if webClientId is correct.
+
+        if (!idToken) throw new Error('No ID token found');
+
+        const googleCredential = GoogleAuthProvider.credential(idToken);
+        return getAuth().signInWithCredential(googleCredential);
+    } catch (error) {
+        console.error('Google Sign-In Error', error);
+        throw error;
+    }
+}
+
+export async function linkWithGoogle() {
+    try {
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        const { idToken } = await GoogleSignin.getTokens(); // Try getTokens first
+
+        if (!idToken) throw new Error('No ID token found from Google Sign-In');
+
+        const googleCredential = GoogleAuthProvider.credential(idToken);
+        const user = getAuth().currentUser;
+
+        if (user) {
+            return await linkWithCredential(user, googleCredential);
+        } else {
+            throw new Error('No current user to link');
+        }
+    } catch (error: any) {
+        console.error('Link Google Error', error);
+        if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+            throw new Error('Sign in cancelled');
+        } else if (error.code === statusCodes.IN_PROGRESS) {
+            throw new Error('Sign in in progress');
+        } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+            throw new Error('Play services not available');
+        } else {
+            throw error;
+        }
+    }
+}
+
+export async function signOut() {
+    try {
+        await GoogleSignin.revokeAccess();
+        await GoogleSignin.signOut();
+        await getAuth().signOut();
+    } catch (error) {
+        console.error('Sign Out Error', error);
+    }
+}
+
+export function getCurrentUser() {
+    return getAuth().currentUser;
+}
+
+// Re-export existing listeners
 // Listen to active/recent jobs for the current user
 export function listenToActiveJobs(callback: (jobs: Job[]) => void): () => void {
     let unsubscribeFirestore: (() => void) | null = null;
