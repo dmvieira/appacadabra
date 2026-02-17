@@ -89,12 +89,23 @@ function RunnerContent({ appId }: Props) {
         checkDropBox();
     }, [appId]);
 
-    // Set global webViewRef for overlays - critical for scanner to work
+    // Set global webViewRef for overlays
     useEffect(() => {
         if (webViewRef) {
             useBridgeUIStore.getState().setWebViewRef(webViewRef as any);
         }
-    }, []);
+        // Enable WebView debugging (Chrome DevTools)
+        try {
+            // @ts-ignore
+            if (WebView.setWebContentsDebuggingEnabled) {
+                // @ts-ignore
+                WebView.setWebContentsDebuggingEnabled(true);
+                console.log('WebView Debugging Enabled');
+            }
+        } catch (e) {
+            console.warn('Failed to enable WebView debugging', e);
+        }
+    }, [webViewRef]);
 
     // Load app data
     const loadApp = useCallback(async () => {
@@ -230,12 +241,6 @@ function RunnerContent({ appId }: Props) {
             // Skip logging for frequent message types
             if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG') {
                 console.log('WebView Message received:', type);
-            }
-
-            // Handle local-only messages first
-            if (type === 'CONSOLE_LOG' || type === 'NETWORK_LOG') {
-                // Silently ignore in run-only mode
-                return;
             }
 
             // Handle heartbeat response for white screen detection

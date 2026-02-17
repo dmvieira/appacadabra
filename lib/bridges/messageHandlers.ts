@@ -19,7 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { useBridgeUIStore } from '../bridgeUIStore';
 import { Vibration } from 'react-native';
-import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
+import { Accelerometer, Gyroscope, Magnetometer, Pedometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import * as Battery from 'expo-battery';
 import * as Network from 'expo-network';
@@ -28,6 +28,19 @@ import * as Network from 'expo-network';
 let currentRecording: Audio.Recording | null = null;
 let audioRecordingTimeout: NodeJS.Timeout | null = null;
 let scannerTimeout: NodeJS.Timeout | null = null;
+let pedometerSubscription: any | null = null;
+
+// Throttling for high-frequency messages
+const messageThrottles: { [key: string]: number } = {};
+function shouldLog(type: string, key?: string): boolean {
+    const throttleKey = key ? `${type}:${key}` : type;
+    if (messageThrottles[throttleKey] === undefined) {
+        messageThrottles[throttleKey] = 0;
+        return true; // Always log early first event
+    }
+    messageThrottles[throttleKey]++;
+    return messageThrottles[throttleKey] % 50 === 0;
+}
 import {
     initialize as initHealthConnect,
     requestPermission,
@@ -190,14 +203,17 @@ export async function handleBridgeMessage(
     let deferredCallback = false;
 
     // Helper to log to both native console and WebView console
-    const debugLog = (msg: string) => {
+    const debugLog = (msg: string, force = false) => {
         const prefix = '[Native Bridge]';
         const fullMsg = `${prefix} ${msg}`;
+
+        // Log to native console always
+        console.log(fullMsg);
+
+        // Conditional log to WebView to avoid flooding (only if forced or first/50th event)
         if (ctx.webViewRef.current) {
-            // Use JSON.stringify to safely escape the string for JS execution
             ctx.webViewRef.current.injectJavaScript(`console.log(${JSON.stringify(fullMsg)}); true;`);
         }
-        console.log(fullMsg);
     };
 
     switch (type) {
@@ -567,7 +583,9 @@ export async function handleBridgeMessage(
 
         // ============= Storage Handlers =============
         case 'STORAGE_SET':
-            debugLog(`Storage set: ${data.key}`);
+            if (shouldLog('STORAGE_SET', data.key)) {
+                debugLog(`Storage set: ${data.key} (Throttled x${messageThrottles['STORAGE_SET:' + data.key] || 0})`);
+            }
             if (ctx.appId) {
                 await db.setStorageItem(ctx.appId, data.key, data.value);
                 // Keep cache in sync so returning from background doesn't overwrite new data
@@ -581,6 +599,20 @@ export async function handleBridgeMessage(
                 await db.removeStorageItem(ctx.appId, data.key);
                 // Keep cache in sync so returning from background doesn't overwrite new data
                 removeFromStorageCache(ctx.appId, data.key);
+            }
+            break;
+
+        case 'CONSOLE_LOG':
+            if (shouldLog('CONSOLE_LOG')) {
+                const count = messageThrottles['CONSOLE_LOG'] || 0;
+                debugLog(`Remote console [${data.type}]: ${data.message} (Throttled x${count})`);
+            }
+            break;
+
+        case 'NETWORK_LOG':
+            if (shouldLog('NETWORK_LOG')) {
+                const count = messageThrottles['NETWORK_LOG'] || 0;
+                debugLog(`Remote network: ${data.method} ${data.url} status: ${data.status} (Throttled x${count})`);
             }
             break;
 
@@ -614,7 +646,7 @@ export async function handleBridgeMessage(
         case 'SHARE_CONTENT':
             debugLog(`Share content request`);
             try {
-                const { Share } = require('react-native');
+                const { Share: RNShare } = require('react-native');
                 const shareContent: { message?: string; url?: string; title?: string } = {};
 
                 if (data.text) {
@@ -624,8 +656,8 @@ export async function handleBridgeMessage(
                     shareContent.url = data.url;
                 }
 
-                const shareResult = await Share.share(shareContent);
-                result = shareResult.action === Share.sharedAction ? 'Shared' : 'Dismissed';
+                const shareResult = await RNShare.share(shareContent);
+                result = shareResult.action === RNShare.sharedAction ? 'Shared' : 'Dismissed';
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -837,19 +869,25 @@ export async function handleBridgeMessage(
 
 
 
-        // ============= Sensors Handlers =============
+        // ============= Sensors (Accelerometer, Gyroscope, Magnetometer, GPS, Pedometer) =============
         case 'SENSORS_START_ACCELEROMETER':
             debugLog(`Sensors start accelerometer: ${data.intervalMs}ms`);
+            Accelerometer.removeAllListeners(); // Prevent duplicates
             try {
-                Accelerometer.setUpdateInterval(data.intervalMs || 100);
+                if (!await Accelerometer.isAvailableAsync()) throw new Error('Accelerometer not available');
+
+                let accelCount = 0;
+                const accelInterval = typeof data.intervalMs === 'number' ? data.intervalMs : parseInt(String(data.intervalMs)) || 100;
+                Accelerometer.setUpdateInterval(accelInterval);
                 Accelerometer.addListener(sensorData => {
-                    if (ctx.webViewRef.current && data.callbackName) {
-                        const script = createCallbackScript(data.callbackName, true, JSON.stringify(sensorData));
+                    accelCount++;
+                    if (accelCount === 1 || accelCount % 50 === 0) debugLog(`Native Accelerometer update (x${accelCount})`);
+                    if (ctx.webViewRef.current && ctx.callbackName) {
+                        const script = createCallbackScript(ctx.callbackName, true, JSON.stringify(sensorData));
                         ctx.webViewRef.current.injectJavaScript(script);
                     }
                 });
-                result = 'Accelerometer started';
-                deferredCallback = true; // Listener will handle callbacks
+                result = JSON.stringify({ status: 'started', sensor: 'accelerometer' });
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -858,16 +896,22 @@ export async function handleBridgeMessage(
 
         case 'SENSORS_START_GYROSCOPE':
             debugLog(`Sensors start gyroscope: ${data.intervalMs}ms`);
+            Gyroscope.removeAllListeners(); // Prevent duplicates
             try {
-                Gyroscope.setUpdateInterval(data.intervalMs || 100);
+                if (!await Gyroscope.isAvailableAsync()) throw new Error('Gyroscope not available');
+
+                let gyroCount = 0;
+                const gyroInterval = typeof data.intervalMs === 'number' ? data.intervalMs : parseInt(String(data.intervalMs)) || 100;
+                Gyroscope.setUpdateInterval(gyroInterval);
                 Gyroscope.addListener(sensorData => {
-                    if (ctx.webViewRef.current && data.callbackName) {
-                        const script = createCallbackScript(data.callbackName, true, JSON.stringify(sensorData));
+                    gyroCount++;
+                    if (gyroCount === 1 || gyroCount % 50 === 0) debugLog(`Native Gyroscope update (x${gyroCount})`);
+                    if (ctx.webViewRef.current && ctx.callbackName) {
+                        const script = createCallbackScript(ctx.callbackName, true, JSON.stringify(sensorData));
                         ctx.webViewRef.current.injectJavaScript(script);
                     }
                 });
-                result = 'Gyroscope started';
-                deferredCallback = true; // Listener will handle callbacks
+                result = JSON.stringify({ status: 'started', sensor: 'gyroscope' });
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -876,20 +920,53 @@ export async function handleBridgeMessage(
 
         case 'SENSORS_START_MAGNETOMETER':
             debugLog(`Sensors start magnetometer: ${data.intervalMs}ms`);
+            Magnetometer.removeAllListeners(); // Prevent duplicates
             try {
-                Magnetometer.setUpdateInterval(data.intervalMs || 100);
+                if (!await Magnetometer.isAvailableAsync()) throw new Error('Magnetometer not available');
+
+                let magCount = 0;
+                const magInterval = typeof data.intervalMs === 'number' ? data.intervalMs : parseInt(String(data.intervalMs)) || 100;
+                Magnetometer.setUpdateInterval(magInterval);
                 Magnetometer.addListener(sensorData => {
-                    if (ctx.webViewRef.current && data.callbackName) {
-                        const { x, y } = sensorData;
-                        let heading = Math.atan2(y, x) * (180 / Math.PI);
-                        if (heading < 0) heading += 360;
-                        const dataWithHeading = { ...sensorData, heading };
-                        const script = createCallbackScript(data.callbackName, true, JSON.stringify(dataWithHeading));
+                    magCount++;
+                    const { x, y } = sensorData;
+                    // Traditional Compass Heading: atan2(x, y) 
+                    // North is y max, East is x max
+                    let heading = Math.atan2(x, y) * (180 / Math.PI);
+                    if (heading < 0) heading += 360;
+                    const dataWithHeading = { ...sensorData, heading };
+
+                    if (magCount === 1 || magCount % 50 === 0) debugLog(`Native Magnetometer update (x${magCount}) heading: ${Math.round(heading)}`);
+                    if (ctx.webViewRef.current && ctx.callbackName) {
+                        const script = createCallbackScript(ctx.callbackName, true, JSON.stringify(dataWithHeading));
                         ctx.webViewRef.current.injectJavaScript(script);
                     }
                 });
-                result = 'Magnetometer started';
-                deferredCallback = true; // Listener will handle callbacks
+                result = JSON.stringify({ status: 'started', sensor: 'magnetometer' });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Error';
+            }
+            break;
+
+        case 'SENSORS_START_PEDOMETER':
+            debugLog(`Sensors start pedometer`);
+            try {
+                if (pedometerSubscription) pedometerSubscription.remove();
+
+                if (!await Pedometer.isAvailableAsync()) throw new Error('Pedometer not available');
+
+                const permissions = await Pedometer.requestPermissionsAsync();
+                if (!permissions.granted) throw new Error('Pedometer permission denied');
+
+                pedometerSubscription = Pedometer.watchStepCount(result => {
+                    debugLog(`Native Pedometer step: ${result.steps}`);
+                    if (ctx.webViewRef.current && ctx.callbackName) {
+                        const script = createCallbackScript(ctx.callbackName, true, JSON.stringify(result));
+                        ctx.webViewRef.current.injectJavaScript(script);
+                    }
+                });
+                result = JSON.stringify({ status: 'started', sensor: 'pedometer' });
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -898,24 +975,38 @@ export async function handleBridgeMessage(
 
         case 'SENSORS_STOP_ACCELEROMETER':
             Accelerometer.removeAllListeners();
-            result = 'Accelerometer stopped';
+            result = JSON.stringify({ status: 'stopped', sensor: 'accelerometer' });
             break;
 
         case 'SENSORS_STOP_GYROSCOPE':
             Gyroscope.removeAllListeners();
-            result = 'Gyroscope stopped';
+            result = JSON.stringify({ status: 'stopped', sensor: 'gyroscope' });
             break;
 
         case 'SENSORS_STOP_MAGNETOMETER':
             Magnetometer.removeAllListeners();
-            result = 'Magnetometer stopped';
+            result = JSON.stringify({ status: 'stopped', sensor: 'magnetometer' });
+            break;
+
+        case 'SENSORS_STOP_PEDOMETER':
+            if (pedometerSubscription) {
+                pedometerSubscription.remove();
+                pedometerSubscription = null;
+                result = JSON.stringify({ status: 'stopped', sensor: 'pedometer' });
+            } else {
+                result = JSON.stringify({ status: 'not_running', sensor: 'pedometer' });
+            }
             break;
 
         case 'SENSORS_STOP_ALL':
             Accelerometer.removeAllListeners();
             Gyroscope.removeAllListeners();
             Magnetometer.removeAllListeners();
-            result = 'All sensors stopped';
+            if (pedometerSubscription) {
+                pedometerSubscription.remove();
+                pedometerSubscription = null;
+            }
+            result = JSON.stringify({ status: 'stopped_all' });
             break;
 
         // ============= Health Connect Handlers =============

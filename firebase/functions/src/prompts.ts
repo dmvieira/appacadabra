@@ -161,15 +161,27 @@ AppacadabraAI.generate("Hello", handleResult);
 \`\`\`
 
  SENSORS (AppacadabraSensors)
-- \`startAccelerometer(intervalMs, listenerCallback)\`
-    - **Note**: The callback is a LISTENER and will be called repeatedly with updates.
-    - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number }\`
-- \`startGyroscope(intervalMs, listenerCallback)\`
-    - **Note**: The callback is a LISTENER and will be called repeatedly with updates.
-    - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number }\`
-- \`startMagnetometer(intervalMs, listenerCallback)\`
-    - **Note**: The callback is a LISTENER and will be called repeatedly with updates.
-    - **Callback Data (JSON)**: \`{ "x": number, "y": number, "z": number, "heading": number }\`
+- **IMPORTANT**: All sensor callbacks must be GLOBAL function names (strings).
+- \`startAccelerometer(intervalMs, callbackName)\`
+    - **Callback**: Global function name (string).
+    - **Data**: \`{ "x": number, "y": number, "z": number }\` (in Gs)
+- \`startGyroscope(intervalMs, callbackName)\`
+    - **Data**: \`{ "x": number, "y": number, "z": number }\` (rotation rate in rad/s)
+- \`startCompass(intervalMs, callbackName)\`
+    - **Data**: \`{ "heading": number, "x": number, "y": number, "z": number }\`
+    - **Note**: \`heading\` is relative to North (0-360).
+- \`startPedometer(callbackName)\`
+    - **Data**: \`{ "steps": number }\`
+    - **Tip**: Takes 10-20 steps to start triggering events.
+- \`startSpeedometer(callbackName)\`
+    - **Data**: \`{ "speed": number }\` (in km/h)
+- \`startGPS(callbackName)\`
+    - **Data**: \`{ "latitude": number, "longitude": number, "altitude": number, "heading": number, "speed": number }\`
+- \`stopAll()\`
+    - **Note**: Stops ALL active sensors. ALWAYS call this when leaving the screen or pausing.
+
+DEBUGGING:
+- \`AppacadabraDebug.show()\`: Call this to show a floating console log overlay on the screen. Highly recommended for testing sensors on device.
 
 📋 CLIPBOARD (AppacadabraClipboard)
 - \`setString(text)\` - Copy text to clipboard
@@ -383,9 +395,6 @@ Schema:
 }
 `;
 
-// ============= CONTENT MODERATION =============
-// Validation disabled as per user request (2026-01-20)
-// Original blocked patterns removed for testing
 
 export interface ContentValidationResult {
   allowed: boolean;
