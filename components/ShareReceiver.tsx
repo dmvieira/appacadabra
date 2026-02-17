@@ -231,12 +231,12 @@ export default function ShareReceiver() {
         <Modal visible={true} animationType="slide" transparent>
             <View style={styles.container}>
                 <View style={styles.content}>
-                    <Text style={styles.title}>Compartilhar com Appacadabra</Text>
+                    <Text style={styles.title}>{t('shareWithAppacadabra')}</Text>
                     <Text style={styles.subtitle}>
-                        {sharedContent.mimeType} {sharedContent.uri ? '(Arquivo)' : '(Texto)'}
+                        {sharedContent.mimeType} {sharedContent.uri ? t('fileLabel') : t('textLabel')}
                     </Text>
 
-                    <Text style={styles.sectionHeader}>Escolha um App:</Text>
+                    <Text style={styles.sectionHeader}>{t('chooseApp')}</Text>
 
                     {(() => {
                         const uri = sharedContent.uri?.toLowerCase() || '';
@@ -296,14 +296,14 @@ export default function ShareReceiver() {
                                 }}
                                 style={styles.list}
                                 ListEmptyComponent={
-                                    <Text style={styles.emptyText}>{apps.length === 0 ? 'Nenhum app criado ainda' : ''}</Text>
+                                    <Text style={styles.emptyText}>{apps.length === 0 ? t('noAppsCreated') : ''}</Text>
                                 }
                             />
                         );
                     })()}
 
                     <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-                        <Text style={styles.cancelText}>Cancelar</Text>
+                        <Text style={styles.cancelText}>{t('cancel')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>

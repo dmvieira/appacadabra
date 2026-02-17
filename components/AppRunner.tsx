@@ -638,7 +638,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showHistory} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '70%' }]}>
-                        <Text style={styles.sheetTitle}>{t('versionHistoryTitle')}</Text>
+                        <Text style={styles.sheetTitle}>{t('versionHistory')}</Text>
                         <ScrollView style={styles.versionList}>
                             {versions.map((version) => (
                                 <TouchableOpacity key={version.id} style={[styles.versionItem, version.version === app.currentVersion && styles.versionItemActive]} onPress={() => handleRestoreVersion(version)} disabled={version.version === app.currentVersion}>
@@ -656,16 +656,16 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showDebugPanel} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '80%' }]}>
-                        <Text style={styles.sheetTitle}>🐛 Debug</Text>
-                        <Text style={styles.debugSectionTitle}>Console Logs ({consoleLogs.length})</Text>
+                        <Text style={styles.sheetTitle}>🐛 {t('debug')}</Text>
+                        <Text style={styles.debugSectionTitle}>{t('consoleLogs')} ({consoleLogs.length})</Text>
                         <ScrollView style={styles.debugLogsContainer}>
-                            {consoleLogs.length === 0 ? <Text style={styles.debugEmpty}>Nenhum log ainda</Text> : consoleLogs.map((log, idx) => (
+                            {consoleLogs.length === 0 ? <Text style={styles.debugEmpty}>{t('noLogs')}</Text> : consoleLogs.map((log, idx) => (
                                 <Text key={idx} style={[styles.debugLogItem, log.startsWith('[error]') && styles.debugLogError, log.startsWith('[warn]') && styles.debugLogWarn]}>{log}</Text>
                             ))}
                         </ScrollView>
-                        <Text style={styles.debugSectionTitle}>Network ({networkLogs.length})</Text>
+                        <Text style={styles.debugSectionTitle}>{t('network')} ({networkLogs.length})</Text>
                         <ScrollView style={styles.debugLogsContainer}>
-                            {networkLogs.length === 0 ? <Text style={styles.debugEmpty}>Nenhuma requisição ainda</Text> : networkLogs.map((req, idx) => (
+                            {networkLogs.length === 0 ? <Text style={styles.debugEmpty}>{t('noRequests')}</Text> : networkLogs.map((req, idx) => (
                                 <View key={idx} style={styles.networkLogItem}>
                                     <Text style={styles.networkMethod}>{req.method}</Text>
                                     <Text style={styles.networkUrl} numberOfLines={1}>{req.url}</Text>
@@ -674,8 +674,8 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                             ))}
                         </ScrollView>
                         <View style={styles.debugButtons}>
-                            <TouchableOpacity style={styles.debugClearBtn} onPress={() => { setConsoleLogs([]); setNetworkLogs([]); }}><Text style={styles.debugClearText}>Limpar</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowDebugPanel(false)}><Text style={styles.closeText}>Fechar</Text></TouchableOpacity>
+                            <TouchableOpacity style={styles.debugClearBtn} onPress={() => { setConsoleLogs([]); setNetworkLogs([]); }}><Text style={styles.debugClearText}>{t('clear')}</Text></TouchableOpacity>
+                            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowDebugPanel(false)}><Text style={styles.closeText}>{t('close')}</Text></TouchableOpacity>
                         </View>
                     </View>
                 </View>

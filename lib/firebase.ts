@@ -446,17 +446,19 @@ import { GoogleAuthProvider, linkWithCredential, signInWithCredential } from '@r
 export async function signInWithGoogle() {
     try {
         await GoogleSignin.hasPlayServices();
-        const userInfo = await GoogleSignin.signIn();
-        const { idToken } = await GoogleSignin.getTokens(); // Fix: use getTokens() or userInfo.idToken depending on version. 
-        // Note: userInfo might not contain idToken in newer versions or without webClientId configured properly.
-        // It's safer to use getTokens() if available, or userInfo.idToken.
-        // Actually, userInfo usually has idToken if webClientId is correct.
+        const response = await GoogleSignin.signIn();
+
+        if (response.type === 'cancelled') {
+            throw new Error('Sign in cancelled');
+        }
+
+        const idToken = response.data?.idToken;
 
         if (!idToken) throw new Error('No ID token found');
 
         const googleCredential = GoogleAuthProvider.credential(idToken);
-        return getAuth().signInWithCredential(googleCredential);
-    } catch (error) {
+        return signInWithCredential(getAuth(), googleCredential);
+    } catch (error: any) {
         console.error('Google Sign-In Error', error);
         throw error;
     }
@@ -465,8 +467,13 @@ export async function signInWithGoogle() {
 export async function linkWithGoogle() {
     try {
         await GoogleSignin.hasPlayServices();
-        const userInfo = await GoogleSignin.signIn();
-        const { idToken } = await GoogleSignin.getTokens(); // Try getTokens first
+        const response = await GoogleSignin.signIn();
+
+        if (response.type === 'cancelled') {
+            throw new Error('Sign in cancelled');
+        }
+
+        const idToken = response.data?.idToken;
 
         if (!idToken) throw new Error('No ID token found from Google Sign-In');
 

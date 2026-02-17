@@ -61,6 +61,7 @@ interface AppState {
     incrementAppManaCost: (id: number, amount: number) => Promise<void>;
     exportBackup: () => Promise<void>;
     importBackup: (uri?: string) => Promise<void>;
+    importDemoSpell: () => Promise<void>;
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
     clearStatusMessage: () => void;
@@ -610,6 +611,25 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
         } catch (error) {
             console.error('Failed to import backup:', error);
+            set({ statusMessage: t('errorImportingBackup'), isImporting: false });
+        }
+    },
+
+    importDemoSpell: async () => {
+        try {
+            if (get().isImporting) return;
+            set({ isImporting: true, statusMessage: t('importingDemo') });
+
+            const result = await backup.importDemoSpell();
+
+            set({ statusMessage: result.message, isImporting: false });
+
+            if (result.success) {
+                const apps = await db.getAllApps();
+                set({ apps });
+            }
+        } catch (error) {
+            console.error('Failed to import demo spell:', error);
             set({ statusMessage: t('errorImportingBackup'), isImporting: false });
         }
     },

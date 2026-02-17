@@ -30,14 +30,14 @@ interface IAPProduct {
 
 // Fallback products if Play Store fetch fails
 const FALLBACK_PRODUCTS: IAPProduct[] = [
-    { productId: 'mana_10', title: '10 Mana ⚡', description: '', price: '4.90', localizedPrice: 'R$ 4,90', currency: 'BRL', manaAmount: 10 },
-    { productId: 'mana_50', title: '50 Mana ⚡', description: '', price: '19.90', localizedPrice: 'R$ 19,90', currency: 'BRL', manaAmount: 50 },
-    { productId: 'mana_120', title: '120 Mana ⚡', description: '', price: '44.90', localizedPrice: 'R$ 44,90', currency: 'BRL', manaAmount: 120 },
+    { productId: 'mana_10', title: t('manaPackage1') + ' ⚡', description: '', price: '4.90', localizedPrice: 'R$ 4,90', currency: 'BRL', manaAmount: 10 },
+    { productId: 'mana_50', title: t('manaPackage2') + ' ⚡', description: '', price: '19.90', localizedPrice: 'R$ 19,90', currency: 'BRL', manaAmount: 50 },
+    { productId: 'mana_120', title: t('manaPackage3') + ' ⚡', description: '', price: '44.90', localizedPrice: 'R$ 44,90', currency: 'BRL', manaAmount: 120 },
 ];
 
 
 export function ManaShop() {
-    const { addMana, balance, isShopOpen, closeShop, isAnonymous, userEmail } = useManaStore();
+    const { addMana, balance, isShopOpen, closeShop, isAnonymous, userEmail, refreshUser } = useManaStore();
     const [isAdLoading, setIsAdLoading] = useState(false);
     const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
 
@@ -221,6 +221,7 @@ export function ManaShop() {
                                     onPress={async () => {
                                         try {
                                             await firebase.linkWithGoogle();
+                                            await refreshUser(); // Force UI update
                                             Alert.alert(t('success'), t('linkSuccess'));
                                         } catch (e: any) {
                                             console.error(e);
@@ -234,6 +235,7 @@ export function ManaShop() {
                                                             text: t('signInGoogle'), onPress: async () => {
                                                                 try {
                                                                     await firebase.signInWithGoogle();
+                                                                    await refreshUser(); // Force UI update
                                                                 } catch (err) {
                                                                     Alert.alert(t('error'), t('signInFailed'));
                                                                 }

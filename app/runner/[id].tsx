@@ -1105,7 +1105,7 @@ export default function RunnerScreen() {
             <Modal visible={showHistory} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '70%' }]}>
-                        <Text style={styles.sheetTitle}>Histórico de Versões</Text>
+                        <Text style={styles.sheetTitle}>{t('versionHistory')}</Text>
 
                         <ScrollView style={styles.versionList}>
                             {versions.map((version) => (
@@ -1146,7 +1146,7 @@ export default function RunnerScreen() {
                             style={styles.closeBtn}
                             onPress={() => setShowHistory(false)}
                         >
-                            <Text style={styles.closeText}>Fechar</Text>
+                            <Text style={styles.closeText}>{t('close')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -1156,12 +1156,12 @@ export default function RunnerScreen() {
             <Modal visible={showDebugPanel} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '80%' }]}>
-                        <Text style={styles.sheetTitle}>🐛 Debug</Text>
+                        <Text style={styles.sheetTitle}>🐛 {t('debug')}</Text>
 
-                        <Text style={styles.debugSectionTitle}>Console Logs ({consoleLogs.length})</Text>
+                        <Text style={styles.debugSectionTitle}>{t('consoleLogs')} ({consoleLogs.length})</Text>
                         <ScrollView style={styles.debugLogsContainer}>
                             {consoleLogs.length === 0 ? (
-                                <Text style={styles.debugEmpty}>Nenhum log ainda</Text>
+                                <Text style={styles.debugEmpty}>{t('noLogs')}</Text>
                             ) : (
                                 consoleLogs.map((log, idx) => (
                                     <Text
@@ -1178,10 +1178,10 @@ export default function RunnerScreen() {
                             )}
                         </ScrollView>
 
-                        <Text style={styles.debugSectionTitle}>Network ({networkLogs.length})</Text>
+                        <Text style={styles.debugSectionTitle}>{t('network')} ({networkLogs.length})</Text>
                         <ScrollView style={styles.debugLogsContainer}>
                             {networkLogs.length === 0 ? (
-                                <Text style={styles.debugEmpty}>Nenhuma requisição ainda</Text>
+                                <Text style={styles.debugEmpty}>{t('noRequests')}</Text>
                             ) : (
                                 networkLogs.map((req, idx) => (
                                     <View key={idx} style={styles.networkLogItem}>
@@ -1220,13 +1220,13 @@ export default function RunnerScreen() {
                                     setNetworkLogs([]);
                                 }}
                             >
-                                <Text style={styles.debugClearText}>Limpar</Text>
+                                <Text style={styles.debugClearText}>{t('clear')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={styles.closeBtn}
                                 onPress={() => setShowDebugPanel(false)}
                             >
-                                <Text style={styles.closeText}>Fechar</Text>
+                                <Text style={styles.closeText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

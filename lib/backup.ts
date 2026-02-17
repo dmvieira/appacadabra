@@ -20,7 +20,7 @@ export interface BackupData {
 }
 
 // Android format has versions and localStorage inside each app
-interface BackupApp {
+export interface BackupApp {
     id: number;
     name: string;
     code: string;
@@ -213,6 +213,22 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
         }
 
         const backup: BackupData = JSON.parse(json);
+        return await processBackupData(backup);
+    } catch (error) {
+        console.error('Import backup error:', error);
+        return {
+            success: false,
+            count: 0,
+            message: `${t('importError')} ${error instanceof Error ? error.message : t('unknownError')}`
+        };
+    }
+}
+
+/**
+ * Process raw backup data and insert into DB
+ */
+export async function processBackupData(backup: BackupData): Promise<{ success: boolean; count: number; message: string }> {
+    try {
         console.log('Parsed backup apps count:', backup?.apps?.length);
 
         if (!backup || !backup.apps || !Array.isArray(backup.apps)) {
@@ -328,19 +344,35 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
             importedCount++;
         }
 
-
-
         return {
             success: true,
             count: importedCount,
             message: `${importedCount} ${t('appsImportedSuccess')}`
         };
     } catch (error) {
-        console.error('Import backup error:', error);
+        console.error('Process backup error:', error);
         return {
             success: false,
             count: 0,
             message: `${t('importError')} ${error instanceof Error ? error.message : t('unknownError')}`
+        };
+    }
+}
+
+/**
+ * Import the built-in demo spell
+ */
+export async function importDemoSpell(): Promise<{ success: boolean; count: number; message: string }> {
+    try {
+        // Require the JSON file directly (metro bundler handles this)
+        const demoData = require('../assets/demo_universe.json');
+        return await processBackupData(demoData as BackupData);
+    } catch (error) {
+        console.error('Demo import error:', error);
+        return {
+            success: false,
+            count: 0,
+            message: t('importError') + ' (Demo)'
         };
     }
 }

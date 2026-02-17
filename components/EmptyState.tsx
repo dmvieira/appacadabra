@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
+import { useAppStore } from '../lib/store';
 
 export function EmptyState() {
     return (
@@ -17,8 +18,32 @@ export function EmptyState() {
                 <Step number="2" title={t('step2Title')} description={t('step2Desc')} />
                 <Step number="3" title={t('step3Title')} description={t('step3Desc')} />
                 <Step number="4" title={t('step4Title')} description={t('step4Desc')} />
+
+                <DemoImportButton />
             </View>
         </View>
+    );
+}
+
+function DemoImportButton() {
+    const importDemoSpell = useAppStore(state => state.importDemoSpell);
+    const isImporting = useAppStore(state => state.isImporting);
+
+    return (
+        <TouchableOpacity
+            style={styles.demoButton}
+            onPress={importDemoSpell}
+            disabled={isImporting}
+        >
+            {isImporting ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+                    <Text style={styles.demoButtonText}>{t('importingDemo')}</Text>
+                </View>
+            ) : (
+                <Text style={styles.demoButtonText}>{t('importDemoBtn')}</Text>
+            )}
+        </TouchableOpacity>
     );
 }
 
@@ -100,5 +125,19 @@ const styles = StyleSheet.create({
     stepDescription: {
         color: colors.onSurfaceVariant,
         fontSize: 12,
+    },
+    demoButton: {
+        marginTop: spacing.lg,
+        alignSelf: 'center',
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    demoButtonText: {
+        color: colors.primary,
+        fontWeight: 'bold',
+        fontSize: 14,
+        textAlign: 'center',
     },
 });

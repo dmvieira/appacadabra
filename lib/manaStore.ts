@@ -12,6 +12,7 @@ interface ManaState {
     // Actions
     init: () => void; // Start listening
     setBalance: (amount: number) => void;
+    refreshUser: () => Promise<void>;
     openShop: () => void;
     closeShop: () => void;
 
@@ -54,7 +55,8 @@ export const useManaStore = create<ManaState>()(
                         }).catch(e => console.log('ManaStore: Fetch failed', e));
 
                     } else {
-                        console.log('ManaStore: User not authenticated yet');
+                        console.log('ManaStore: User not authenticated, resetting balance');
+                        set({ balance: 0 });
                     }
                 });
             },
@@ -69,6 +71,17 @@ export const useManaStore = create<ManaState>()(
 
             setBalance: (amount: number) => {
                 set({ balance: amount });
+            },
+
+            refreshUser: async () => {
+                console.log('ManaStore: Refreshing user state...');
+                const user = firebase.getCurrentUser();
+                await user?.reload();
+                const updatedUser = firebase.getCurrentUser();
+                set({
+                    userEmail: updatedUser?.email || null,
+                    isAnonymous: updatedUser?.isAnonymous ?? true
+                });
             },
 
             openShop: () => set({ isShopOpen: true }),
