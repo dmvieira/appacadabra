@@ -220,6 +220,8 @@ export function ManaShop() {
                                     style={styles.linkCard}
                                     onPress={async () => {
                                         try {
+                                            // Ensure we have an anonymous user to link to
+                                            await firebase.ensureAuthenticated();
                                             await firebase.linkWithGoogle();
                                             await refreshUser(); // Force UI update
                                             Alert.alert(t('success'), t('linkSuccess'));
