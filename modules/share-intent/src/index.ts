@@ -24,6 +24,10 @@ export function clearSharedContent(): void {
     ShareIntentModule.clearSharedContent();
 }
 
+export function getContentFileName(uri: string): string | null {
+    return ShareIntentModule.getContentFileName(uri);
+}
+
 export function checkShareIntent(): void {
     ShareIntentModule.checkShareIntent();
 }

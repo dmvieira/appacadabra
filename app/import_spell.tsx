@@ -7,6 +7,8 @@ import { useAppStore } from '../lib/store';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import * as FileSystem from 'expo-file-system';
+import * as ShareIntent from 'share-intent';
+import { peekBackupMetadata } from '../lib/backup';
 
 export default function ImportSpellScreen() {
     const router = useRouter();
@@ -17,8 +19,37 @@ export default function ImportSpellScreen() {
 
     useEffect(() => {
         if (uri) {
-            const name = decodeURIComponent(uri).split('/').pop();
-            setFileName(name || 'Unknown Spell');
+            let name = decodeURIComponent(uri).split('/').pop() || 'Unknown Spell';
+
+            // ATTEMPT TO GET REAL FILE NAME (Android content://)
+            // 1. Try resolving directly from URI (works for Deep Links / Action View)
+            const contentName = ShareIntent.getContentFileName(uri);
+            if (contentName) {
+                console.log('ImportSpell: Resolved content fileName:', contentName);
+                name = contentName;
+            } else {
+                // 2. Fallback to Shared Content (Action Send)
+                const shared = ShareIntent.getSharedContent();
+                if (shared && shared.uri && shared.fileName) {
+                    console.log('ImportSpell: Found shared content fileName:', shared.fileName);
+                    name = shared.fileName;
+                }
+            }
+
+            // 3. BEST OPTION: Read the file content to find the REAL name inside the JSON
+            // This bypasses any weird OS filenames like "DOC-2024..."
+            peekBackupMetadata(uri).then(meta => {
+                if (meta) {
+                    console.log('ImportSpell: Found internal spell name:', meta.name);
+                    setFileName(meta.name);
+                } else {
+                    // If parsing failed (not a valid spell?), keep the filename we found earlier
+                    setFileName(name);
+                }
+            }).catch(err => {
+                console.warn('ImportSpell: Failed to peek file:', err);
+                setFileName(name);
+            });
 
             // Get file info
             FileSystem.getInfoAsync(uri).then(info => {

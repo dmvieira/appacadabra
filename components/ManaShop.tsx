@@ -5,7 +5,7 @@ import { t } from '../lib/i18n';
 import { colors, borderRadius, spacing } from '../lib/theme';
 import * as firebase from '../lib/firebase';
 import { RewardedAd, RewardedAdEventType, AdEventType } from 'react-native-google-mobile-ads';
-// import * as iap from '../lib/iapService';
+import * as iap from '../lib/iapService';
 
 // Production Ad Unit ID (always use real ads)
 const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
@@ -49,18 +49,86 @@ export function ManaShop() {
     // Track the revenue earned from the current ad impression
     const adRevenueRef = useRef<number>(0);
 
-    // Load a new rewarded ad when shop opens
+
+
+    // Load IAP and Ads when shop opens
     useEffect(() => {
         if (isShopOpen) {
             loadRewardedAd();
+            initializeIAP();
         }
         return () => {
             // Cleanup ad listeners when shop closes
             if (rewardedAd) {
                 rewardedAd.removeAllListeners();
             }
+            // Close IAP connection
+            iap.closeConnection();
         };
     }, [isShopOpen]);
+
+    const initializeIAP = async () => {
+        const connected = await iap.initIAP();
+        if (connected) {
+            setupListeners();
+            loadProducts();
+        }
+    };
+
+    const setupListeners = () => {
+        iap.setupPurchaseListeners(
+            async (purchase: any, productId: string) => {
+                // Determine mana amount from product ID
+                const product = products.find(p => p.productId === productId);
+                const amount = product ? product.manaAmount : 0; // Fallback if product not found
+
+                setIsPurchasing(false); // Stop loading on success
+
+                if (amount > 0) {
+                    try {
+                        await firebase.addCredits(amount, 'iap_purchase');
+                        Alert.alert(t('success'), t('purchaseSuccess', { amount }));
+                        closeShop();
+                    } catch (error) {
+                        console.error('Failed to credit mana:', error);
+                        Alert.alert(t('error'), 'Purchase successful but failed to add mana. Please contact support.');
+                    }
+                }
+            },
+            (error: any) => {
+                setIsPurchasing(false); // Stop loading on error
+                if (error.code !== 'E_USER_CANCELLED') {
+                    Alert.alert(t('error'), t('purchaseFailed'));
+                }
+            }
+        );
+    };
+
+    const loadProducts = async () => {
+        const fetchedProducts = await iap.fetchProducts();
+        if (fetchedProducts && fetchedProducts.length > 0) {
+            // Map IAP products to our internal format
+            const mappedProducts: IAPProduct[] = fetchedProducts.map((p: any) => {
+                // Determine mana amount based on product ID
+                let manaAmount = 0;
+                if (p.productId.includes('10')) manaAmount = 10;
+                if (p.productId.includes('50')) manaAmount = 50;
+                if (p.productId.includes('120')) manaAmount = 120;
+
+                return {
+                    productId: p.productId,
+                    title: p.title, // Use title from store
+                    description: p.description,
+                    price: p.price,
+                    localizedPrice: p.localizedPrice,
+                    currency: p.currency,
+                    manaAmount: manaAmount
+                };
+            }).sort((a, b: any) => a.manaAmount - b.manaAmount);
+
+            setProducts(mappedProducts);
+        }
+    };
 
     const loadRewardedAd = () => {
         // Reset revenue for new ad
@@ -154,39 +222,27 @@ export function ManaShop() {
         };
     };
 
-
-    if (!isShopOpen) return null;
-
     const handlePurchase = async (productId: string) => {
-        const product = products.find(p => p.productId === productId);
-        if (!product) return;
+        if (isPurchasing) return;
 
-        const amount = product.manaAmount;
+        setIsPurchasing(true);
+        try {
+            await iap.requestProductPurchase(productId);
+            // NOTE: The purchase flow is async. The actual result (success or error) 
+            // comes through the listeners setup in setupListeners().
+            // We do NOT set isPurchasing(false) here because the modal is still open.
+        } catch (error: any) {
+            console.log('Purchase request failed:', error);
+            setIsPurchasing(false);
 
-        // Simulate purchase
-        Alert.alert(
-            t('confirmPurchase'),
-            t('purchaseConfirmMessage', { amount }),
-            [
-                { text: t('cancel'), style: 'cancel' },
-                {
-                    text: t('confirm'),
-                    onPress: async () => {
-                        setIsPurchasing(true);
-                        try {
-                            const result = await firebase.addCredits(amount, 'purchase_simulator');
-                            Alert.alert(t('purchaseSuccess', { amount }));
-                            closeShop();
-                        } catch (error) {
-                            console.error(error);
-                            Alert.alert('Error', 'Failed to add credits');
-                        } finally {
-                            setIsPurchasing(false);
-                        }
-                    }
-                }
-            ]
-        );
+            // Handle user cancellation specifically if it throws (depends on platform/version)
+            if (error.code === 'E_USER_CANCELLED' || error.message.includes('User cancelled')) {
+                // User cancelled, just stop loading
+                ToastAndroid.show(t('purchaseCancelled'), ToastAndroid.SHORT);
+            } else {
+                Alert.alert(t('error'), t('purchaseFailed'));
+            }
+        }
     };
 
     const handleWatchAd = async () => {

@@ -25,6 +25,13 @@ Need a habit tracker? A workout timer? A budget calculator? A study planner? A n
     *   👤 **Contacts**: "A personal CRM to remember birthdays."
     *   🦿 **Health Connect**: "Track my weekly steps and graph the results."
     *   🤖 **AI**: "Summarize this text" or "Generate a workout plan."
+    *   📷 **Camera & QR Scanner**: "Scan codes or take photos for analysis."
+    *   🗣️ **Text-to-Speech**: "Read results, notes, or stories aloud."
+    *   📳 **Haptics**: "Vibrate on interactions and alerts."
+    *   🎨 **Image Generation**: "Create unique images from text."
+    *   🎤 **Speech Recognition**: "Control your tools with your voice."
+    *   🔋 **Battery**: "Monitor battery level and status."
+    *   🖨️ **Printing**: "Print documents or receipts directly from app."
     *   🧭 **Sensors**: "A tilt-controlled maze game using the accelerometer."
     *   🔒 **Biometric Lock**: Protect sensitive spells with FaceID/Fingerprint.
     *   🏠 **Home Screen Shortcuts**: Launch your tools instantly.

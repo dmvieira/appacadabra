@@ -164,6 +164,71 @@ export async function exportSingleApp(appId: number): Promise<boolean> {
     }
 }
 
+/**
+ * Helper to read a backup file from a URI (handles content:// and file://)
+ */
+async function readBackupFile(fileUri: string): Promise<string> {
+    // Use FileSystem logic to handle content:// URIs safely
+    try {
+        // Try reading as string directly (works for content:// on Android often)
+        return await readAsStringAsync(fileUri);
+    } catch (readError) {
+        console.log('FileSystem read failed, trying URI conversion or cache copy...', readError);
+        // Fallback 1: try to copy to cache if it's a content URI that failed reading
+        try {
+            if (fileUri.startsWith('content://')) {
+                const cachePath = (cacheDirectory || Paths.cache) + 'temp_import.json';
+                await copyAsync({ from: fileUri, to: cachePath });
+                return await readAsStringAsync(cachePath);
+            } else {
+                throw readError;
+            }
+        } catch (copyError) {
+            console.log('FileSystem copy failed, trying fetch workaround...', copyError);
+            // Fallback 2: Use fetch API (works for some content:// providers via Blob)
+            if (fileUri.startsWith('content://') || fileUri.startsWith('file://')) {
+                const response = await fetch(fileUri);
+                if (response.ok) {
+                    return await response.text();
+                } else {
+                    throw new Error(`Fetch failed with status ${response.status}`);
+                }
+            } else {
+                throw copyError; // Throw original copy error if fetch not applicable
+            }
+        }
+    }
+}
+
+/**
+ * Peek at a backup file to get its metadata (name, count) without importing
+ */
+export async function peekBackupMetadata(uri: string): Promise<{ name: string; count: number; version: number } | null> {
+    try {
+        const json = await readBackupFile(uri);
+        const backup: BackupData = JSON.parse(json);
+
+        if (!backup || !backup.apps || !Array.isArray(backup.apps) || backup.apps.length === 0) {
+            return null;
+        }
+
+        const firstApp = backup.apps[0];
+        const count = backup.apps.length;
+        // Use the first app's name, or a generic name if multiple?
+        // Usually .spell files are single apps.
+        const name = count > 1 ? `${firstApp.name} (+${count - 1})` : firstApp.name;
+
+        return {
+            name,
+            count,
+            version: backup.version
+        };
+    } catch (error) {
+        console.warn('Failed to peek backup metadata:', error);
+        return null;
+    }
+}
+
 export async function importBackup(existingUri?: string): Promise<{ success: boolean; count: number; message: string }> {
     try {
         let fileUri = existingUri;
@@ -180,38 +245,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
             fileUri = result.assets[0].uri;
         }
 
-        // Use FileSystem logic to handle content:// URIs safely
-        let json: string;
-        try {
-            // Try reading as string directly (works for content:// on Android often)
-            json = await readAsStringAsync(fileUri);
-        } catch (readError) {
-            console.log('FileSystem read failed, trying URI conversion or cache copy...', readError);
-            // Fallback 1: try to copy to cache if it's a content URI that failed reading
-            try {
-                if (fileUri.startsWith('content://')) {
-                    const cachePath = (cacheDirectory || Paths.cache) + 'temp_import.json';
-                    await copyAsync({ from: fileUri, to: cachePath });
-                    json = await readAsStringAsync(cachePath);
-                } else {
-                    throw readError;
-                }
-            } catch (copyError) {
-                console.log('FileSystem copy failed, trying fetch workaround...', copyError);
-                // Fallback 2: Use fetch API (works for some content:// providers via Blob)
-                if (fileUri.startsWith('content://') || fileUri.startsWith('file://')) {
-                    const response = await fetch(fileUri);
-                    if (response.ok) {
-                        json = await response.text();
-                    } else {
-                        throw new Error(`Fetch failed with status ${response.status}`);
-                    }
-                } else {
-                    throw copyError; // Throw original copy error if fetch not applicable
-                }
-            }
-        }
-
+        const json = await readBackupFile(fileUri);
         const backup: BackupData = JSON.parse(json);
         return await processBackupData(backup);
     } catch (error) {

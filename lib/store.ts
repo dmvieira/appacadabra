@@ -103,12 +103,32 @@ export const useAppStore = create<AppState>((set, get) => ({
                 const wasCompleted = previousJob?.status === 'completed';
                 const wasFailed = previousJob?.status === 'failed';
 
+                // Check job age to prevent re-importing old history on login
+                // Only process recent jobs (e.g. created < 10 mins ago) if they appear completed
+                // This handles the case where user logs in and fetch returns old 'completed' jobs
+                let jobTime = 0;
+                if (job.createdAt && typeof job.createdAt.toMillis === 'function') {
+                    jobTime = job.createdAt.toMillis();
+                } else if (typeof job.createdAt === 'number') {
+                    jobTime = job.createdAt;
+                } else if (job.createdAt && job.createdAt.seconds) {
+                    jobTime = job.createdAt.seconds * 1000;
+                }
+
+                const isOld = (Date.now() - jobTime) > 10 * 60 * 1000; // 10 minutes
+
                 if (job.status === 'completed' && !wasCompleted) {
-                    // Process the completed job
-                    get()._processCompletedJob(job);
+                    // Only process result if it's a fresh completion or a recent job recovery
+                    if (!isOld) {
+                        get()._processCompletedJob(job);
+                    } else {
+                        console.log('[Store] Ignoring old completed job from history:', job.id);
+                    }
                 } else if (job.status === 'failed' && !wasFailed) {
-                    // Process the failed job
-                    get()._processFailedJob(job);
+                    // Similar logic for failed jobs? Usually we want to know it failed recently
+                    if (!isOld) {
+                        get()._processFailedJob(job);
+                    }
                 }
             });
 

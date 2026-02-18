@@ -5,7 +5,8 @@ import android.net.Uri
 import android.util.Log
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-
+import androidx.core.content.pm.ShortcutManagerCompat
+import android.provider.OpenableColumns
 class ShareIntentModule : Module() {
     // Stores content only until it's consumed by JS
     private var pendingSharedContent: Map<String, Any?>? = null
@@ -28,6 +29,17 @@ class ShareIntentModule : Module() {
             pendingSharedContent = null
             // Mark the last processed intent as fully consumed so checking it again won't re-trigger
             consumedIntent = lastProcessedIntent
+        }
+
+        Function("getContentFileName") { uri: String ->
+            try {
+                Log.d(TAG, "Getting content file name for: $uri")
+                val parsedUri = Uri.parse(uri)
+                return@Function getFileName(parsedUri)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing URI: $uri", e)
+                return@Function null
+            }
         }
         
         Function("checkShareIntent") {
@@ -141,6 +153,7 @@ class ShareIntentModule : Module() {
 
         targetIntent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
             sharedData["uri"] = uri.toString()
+            sharedData["fileName"] = getFileName(uri)
         }
 
         if (sharedData.isNotEmpty()) {
@@ -149,5 +162,31 @@ class ShareIntentModule : Module() {
             Log.d(TAG, "Emitting onShareReceived")
             sendEvent("onShareReceived", sharedData)
         }
+    }
+    private fun getFileName(uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = appContext.reactContext?.contentResolver?.query(uri, null, null, null, null)
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) {
+                        result = cursor.getString(index)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resolve file name: ${e.message}")
+            } finally {
+                cursor?.close()
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != null && cut != -1) {
+                result = result.substring(cut + 1)
+            }
+        }
+        return result
     }
 }
