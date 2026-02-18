@@ -122,7 +122,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     if (!isOld) {
                         get()._processCompletedJob(job);
                     } else {
-                        console.log('[Store] Ignoring old completed job from history:', job.id);
+                        console.log('[St1ore] Ignoring old completed job from history:', job.id);
                     }
                 } else if (job.status === 'failed' && !wasFailed) {
                     // Similar logic for failed jobs? Usually we want to know it failed recently
