@@ -65,6 +65,13 @@ const screens: OnboardingScreen[] = [
 export function Onboarding({ visible, onComplete }: OnboardingProps) {
     const [currentScreen, setCurrentScreen] = useState(0);
 
+    // Reset to first screen when modal is closed
+    React.useEffect(() => {
+        if (!visible) {
+            setCurrentScreen(0);
+        }
+    }, [visible]);
+
     const handleNext = () => {
         if (currentScreen < screens.length - 1) {
             setCurrentScreen(currentScreen + 1);

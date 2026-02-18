@@ -249,8 +249,82 @@ body {
 }
 
 /* ============================================
-   How It Works
+   Showcase Section
    ============================================ */
+.showcase {
+    padding: var(--section-padding);
+    background: var(--bg-primary);
+}
+
+.showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 24px;
+    max-width: var(--container-max);
+    margin: 0 auto;
+}
+
+.showcase-card {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.showcase-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-primary);
+}
+
+.showcase-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 24px;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 16px;
+}
+
+.showcase-block {
+    margin-bottom: 20px;
+}
+
+.showcase-block:last-child {
+    margin-bottom: 0;
+}
+
+.showcase-block h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent-primary);
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.showcase-block p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.prompt-text {
+    font-family: 'Courier New', Courier, monospace;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 3px solid var(--accent-secondary);
+    font-style: italic;
+    color: #e0e0e0 !important;
+}
+
+@media (max-width: 600px) {
+    .showcase-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .how-it-works {
     padding: var(--section-padding);
 }

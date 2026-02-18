@@ -271,7 +271,23 @@ export function ManaShop() {
                             <Text style={styles.balanceLabel}>{t('currentBalance')}</Text>
                             <Text style={styles.balanceValue}>{(Math.floor(balance * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚡</Text>
                         </View>
-
+                        <Text style={styles.sectionTitle}>{t('freeMana')}</Text>
+                        <TouchableOpacity
+                            style={[styles.adCard, isAdLoading && styles.adCardLoading]}
+                            onPress={handleWatchAd}
+                            disabled={isAdLoading}
+                        >
+                            {isAdLoading ? (
+                                <View style={styles.adLoadingRow}>
+                                    <ActivityIndicator size="small" color={colors.primary} />
+                                    <Text style={styles.adLoadingText}>{t('adLoading')}</Text>
+                                </View>
+                            ) : rewardedAd && rewardedAd.loaded ? (
+                                <Text style={styles.adText}>📺 {t('watchAd')}</Text>
+                            ) : (
+                                <Text style={styles.adTextRetry}>📺 {t('watchAd')} — {t('tapToLoad')}</Text>
+                            )}
+                        </TouchableOpacity>
                         <Text style={styles.sectionTitle}>{t('buyMana')}</Text>
 
                         {products.map((product, index) => (
@@ -302,23 +318,7 @@ export function ManaShop() {
                             </TouchableOpacity>
                         ))}
 
-                        <Text style={styles.sectionTitle}>{t('freeMana')}</Text>
-                        <TouchableOpacity
-                            style={[styles.adCard, isAdLoading && styles.adCardLoading]}
-                            onPress={handleWatchAd}
-                            disabled={isAdLoading}
-                        >
-                            {isAdLoading ? (
-                                <View style={styles.adLoadingRow}>
-                                    <ActivityIndicator size="small" color={colors.primary} />
-                                    <Text style={styles.adLoadingText}>{t('adLoading')}</Text>
-                                </View>
-                            ) : rewardedAd && rewardedAd.loaded ? (
-                                <Text style={styles.adText}>📺 {t('watchAd')}</Text>
-                            ) : (
-                                <Text style={styles.adTextRetry}>📺 {t('watchAd')} — {t('tapToLoad')}</Text>
-                            )}
-                        </TouchableOpacity>
+
 
                     </ScrollView>
                 </View>
