@@ -243,12 +243,7 @@ export default function ShareReceiver() {
                         const mime = sharedContent.mimeType?.toLowerCase() || '';
                         const name = sharedContent.fileName?.toLowerCase() || uri.split('/').pop()?.toLowerCase() || '';
 
-                        const isSpell = uri.endsWith('.spell') ||
-                            name.endsWith('.spell') ||
-                            mime === 'application/vnd.appacadabra.spell' ||
-                            mime === 'application/json' ||
-                            mime === 'text/plain' || // Allow text/plain if extension matches (or user can try to import anything)
-                            (mime === 'application/octet-stream' && name.endsWith('.spell'));
+                        const isSpell = mime === 'application/octet-stream' && name.endsWith('.spell');
 
                         // Prepare data with optional import item at the top
                         const listData = isSpell

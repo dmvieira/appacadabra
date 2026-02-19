@@ -69,9 +69,10 @@ function decompressContent(input: string): string {
 // ============= RATE LIMITING =============
 // Constants for rate limiting
 // Rate Limits
+// Rate Limits
 const RATE_LIMITS = {
-    CALLS_PER_MINUTE: 10,
-    TOKENS_PER_MINUTE: 150000, // Increased to accommodate lite models
+    CALLS_PER_MINUTE: 30, // Increased
+    TOKENS_PER_MINUTE: 500000, // Increased
     COOLDOWN_MS: 60000,
 };
 
@@ -217,39 +218,31 @@ function extractHtml(response: string): string {
 
 // Helper to extract JSON from markdown code block
 function extractJson(response: string): any {
-    const text = response.trim();
+    let text = response.trim();
 
-    // Strategy 1: Find valid JSON bounded by { } anywhere in the text
+    // 1. Remove markdown code blocks if present
+    // Matches ```json or ``` followed by content and then ```
+    const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (markdownMatch) {
+        text = markdownMatch[1].trim();
+    }
+
+    // 2. Find the first '{' and last '}' to isolate the JSON object
     const startObj = text.indexOf('{');
     const endObj = text.lastIndexOf('}');
 
     if (startObj !== -1 && endObj !== -1 && endObj > startObj) {
-        const potentialJson = text.substring(startObj, endObj + 1);
-        try {
-            return JSON.parse(potentialJson);
-        } catch (e) {
-            // Continue if this fails
-        }
+        text = text.substring(startObj, endObj + 1);
     }
 
-    // Strategy 2: If finding brackets failed, try markdown stripping
-    const match = text.match(/```([\s\S]*?)```/);
-    if (match) {
-        let content = match[1].trim();
-        const firstLineEnd = content.indexOf('\n');
-        if (firstLineEnd !== -1) {
-            const firstLine = content.substring(0, firstLineEnd).trim();
-            if (/^[a-z]+$/i.test(firstLine) && !firstLine.includes('{')) {
-                content = content.substring(firstLineEnd).trim();
-            }
-        }
-        try {
-            return JSON.parse(content);
-        } catch (e) { }
+    // 3. Attempt to parse
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        console.error("JSON Parse Error:", e);
+        console.error("Raw Text:", response);
+        throw e; // Re-throw to be caught by caller
     }
-
-    // Strategy 3: Direct parse
-    return JSON.parse(text);
 }
 
 // Helper to infer JSON Schema from a data example (robustness)
@@ -443,6 +436,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
         memory: "512MiB",
         timeoutSeconds: 300,
         secrets: ["GEMINI_API_KEY"],
+        enforceAppCheck: false,
     },
     async (request): Promise<GenerateSpellResponse> => {
         if (!request.auth) {
@@ -650,6 +644,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 export const addCredits = onCall<{ amount: number; source: string }>(
     {
         region: "southamerica-east1",
+        enforceAppCheck: false,
     },
     async (request) => {
         if (!request.auth) {
@@ -705,6 +700,7 @@ export const addCredits = onCall<{ amount: number; source: string }>(
 export const getCredits = onCall(
     {
         region: "southamerica-east1",
+        enforceAppCheck: false,
     },
     async (request) => {
         if (!request.auth) {

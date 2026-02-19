@@ -153,7 +153,8 @@ async function initializeAppCheckWrapper() {
         });
         console.log('Firebase: App Check activated (Debug Mode with CI Token)');
     } catch (e) {
-        console.error('Firebase: App Check activation failed', e);
+        console.error('Firebase: App Check activation failed. Proceeding without App Check.', e);
+        // We do NOT block app initialization. Functions will (hopefully) work if enforceAppCheck is false.
     }
 }
 
