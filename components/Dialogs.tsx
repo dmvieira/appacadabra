@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surfaceVariant,
         borderRadius: borderRadius.md,
         padding: spacing.md,
-        paddingRight: 56, // Space for mic button
+        paddingEnd: 56, // Space for mic button
         color: colors.onSurface,
         fontSize: 16,
         minHeight: 120,

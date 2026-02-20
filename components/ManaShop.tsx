@@ -262,7 +262,7 @@ export function ManaShop() {
                 <View style={styles.modal}>
                     <View style={styles.header}>
                         <Text style={styles.title}>⚡ {t('manaShopTitle')}</Text>
-                        <TouchableOpacity onPress={closeShop}>
+                        <TouchableOpacity onPress={closeShop} accessibilityLabel={t('close')} accessibilityRole="button">
                             <Text style={styles.close}>✕</Text>
                         </TouchableOpacity>
                     </View>
@@ -308,6 +308,8 @@ export function ManaShop() {
                                                 }
                                             }
                                         }}
+                                        accessibilityLabel={t('signInGoogle')}
+                                        accessibilityRole="button"
                                     >
                                         <Text style={styles.googleCTAButtonText}>🔗 {t('signInGoogle')}</Text>
                                     </TouchableOpacity>
@@ -318,7 +320,7 @@ export function ManaShop() {
                             <View style={styles.accountContainer}>
                                 <View style={styles.accountCard}>
                                     <Text style={styles.accountEmail}>👤 {userEmail || 'User'}</Text>
-                                    <TouchableOpacity onPress={() => firebase.signOut()}>
+                                    <TouchableOpacity onPress={() => firebase.signOut()} accessibilityLabel={t('signOut')} accessibilityRole="button">
                                         <Text style={styles.signOutLink}>{t('signOut')}</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -334,6 +336,8 @@ export function ManaShop() {
                             style={[styles.adCard, isAdLoading && styles.adCardLoading]}
                             onPress={handleWatchAd}
                             disabled={isAdLoading}
+                            accessibilityLabel={t('watchAd')}
+                            accessibilityRole="button"
                         >
                             {isAdLoading ? (
                                 <View style={styles.adLoadingRow}>
@@ -358,6 +362,8 @@ export function ManaShop() {
                                 ]}
                                 onPress={() => handlePurchase(product.productId)}
                                 disabled={isPurchasing}
+                                accessibilityLabel={product.manaAmount + ' Mana — ' + product.localizedPrice}
+                                accessibilityRole="button"
                             >
                                 <View>
                                     <Text style={styles.packageTitle}>{product.manaAmount} Mana ⚡</Text>

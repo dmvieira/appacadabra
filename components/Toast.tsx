@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.error,
     },
     icon: {
-        marginRight: spacing.sm,
+        marginEnd: spacing.sm,
     },
     text: {
         flex: 1,

@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     },
     cancelBtn: {
         padding: spacing.sm,
-        marginLeft: spacing.sm,
+        marginStart: spacing.sm,
     },
     cancelIcon: {
         fontSize: 20,

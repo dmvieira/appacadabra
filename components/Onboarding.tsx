@@ -112,7 +112,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
             <View style={styles.overlay}>
                 <View style={styles.container}>
                     {/* Skip button */}
-                    <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+                    <TouchableOpacity style={styles.skipButton} onPress={handleSkip} accessibilityLabel={t('onboardingSkip')} accessibilityRole="button">
                         <Text style={styles.skipText}>{t('onboardingSkip')}</Text>
                     </TouchableOpacity>
 
@@ -128,7 +128,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                     </Text>
 
                     {/* Pagination dots */}
-                    <View style={styles.pagination}>
+                    <View style={styles.pagination} accessibilityLabel={`${currentScreen + 1} / ${screens.length}`}>
                         {screens.map((_, index) => (
                             <View
                                 key={index}
@@ -141,7 +141,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                     </View>
 
                     {/* Next/Start button */}
-                    <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+                    <TouchableOpacity style={styles.nextButton} onPress={handleNext} accessibilityLabel={isLastScreen ? t('onboardingStart') : t('onboardingNext')} accessibilityRole="button">
                         <Text style={styles.nextButtonText}>
                             {isLastScreen ? t('onboardingStart') : t('onboardingNext')}
                         </Text>

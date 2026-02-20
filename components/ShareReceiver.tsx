@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: borderRadius.sm,
-        marginRight: spacing.md,
+        marginEnd: spacing.md,
     },
     appIconPlaceholder: {
         backgroundColor: colors.primaryContainer,

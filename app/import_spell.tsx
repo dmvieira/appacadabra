@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     },
     cancelBtn: {
         backgroundColor: colors.surfaceVariant, // fallback
-        marginRight: spacing.md,
+        marginEnd: spacing.md,
     },
     confirmBtn: {
         backgroundColor: colors.primary,

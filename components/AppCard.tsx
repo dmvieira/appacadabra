@@ -48,6 +48,8 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIco
                 style={[styles.iconContainer, isLocked && styles.iconLocked]}
                 onPress={isInteractionDisabled ? undefined : (onIconPress || onRename)}
                 disabled={isInteractionDisabled}
+                accessibilityLabel={app.name + ' icon'}
+                accessibilityRole="image"
             >
                 {isPlaceholder ? (
                     <ActivityIndicator size="small" color={colors.primary} />
@@ -69,6 +71,9 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIco
                 style={styles.info}
                 onPress={isInteractionDisabled ? undefined : onRename}
                 disabled={isInteractionDisabled}
+                accessibilityLabel={app.name}
+                accessibilityRole="button"
+                accessibilityHint={t('editAppDetails')}
             >
                 <Text style={styles.name} numberOfLines={1}>
                     {app.name}
@@ -104,6 +109,8 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIco
                     style={[styles.actionBtn, isInteractionDisabled && styles.actionBtnDisabled]}
                     onPress={onRun}
                     disabled={isInteractionDisabled}
+                    accessibilityLabel={t('run') + ' ' + app.name}
+                    accessibilityRole="button"
                 >
                     <Text style={[styles.actionIcon, isInteractionDisabled && styles.actionIconDisabled]}>▶️</Text>
                 </TouchableOpacity>
@@ -111,6 +118,8 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIco
                     style={[styles.actionBtn, isInteractionDisabled && styles.actionBtnDisabled]}
                     onPress={onEdit}
                     disabled={isInteractionDisabled}
+                    accessibilityLabel={t('editWithAi') + ' ' + app.name}
+                    accessibilityRole="button"
                 >
                     <Text style={[styles.actionIcon, isInteractionDisabled && styles.actionIconDisabled]}>✏️</Text>
                 </TouchableOpacity>
@@ -118,6 +127,8 @@ export function AppCard({ app, onRun, onEdit, onDelete, onRename, onShare, onIco
                     style={[styles.menuBtn, isInteractionDisabled && styles.disabledOpacity]}
                     onPress={() => setShowMenu(true)}
                     disabled={isInteractionDisabled}
+                    accessibilityLabel={t('options')}
+                    accessibilityRole="button"
                 >
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
@@ -239,7 +250,7 @@ const styles = StyleSheet.create({
     },
     info: {
         flex: 1,
-        marginLeft: spacing.md,
+        marginStart: spacing.md,
     },
     name: {
         color: colors.onSurface,
@@ -320,7 +331,7 @@ const styles = StyleSheet.create({
     },
     menuItemIcon: {
         fontSize: 18,
-        marginRight: spacing.md,
+        marginEnd: spacing.md,
     },
     menuItemText: {
         fontSize: 16,

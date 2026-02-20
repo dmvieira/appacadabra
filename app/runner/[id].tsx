@@ -1217,7 +1217,7 @@ export default function RunnerScreen() {
                                                 </Text>
                                             )}
                                             {req.duration && (
-                                                <Text style={{ color: colors.onSurfaceVariant, fontSize: 10, marginLeft: 4 }}>
+                                                <Text style={{ color: colors.onSurfaceVariant, fontSize: 10, marginStart: 4 }}>
                                                     {req.duration}ms
                                                 </Text>
                                             )}
@@ -1275,7 +1275,7 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.surfaceVariant,
     },
     backBtn: {
-        marginRight: spacing.md,
+        marginEnd: spacing.md,
     },
     backText: {
         color: colors.onPrimary,
@@ -1344,7 +1344,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surfaceVariant,
         borderRadius: borderRadius.md,
         padding: spacing.md,
-        paddingRight: 56, // Space for mic button
+        paddingEnd: 56, // Space for mic button
         color: colors.onSurface,
         fontSize: 16,
         minHeight: 100,

@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     },
     icon: {
         fontSize: 16,
-        marginRight: 4,
+        marginEnd: 4,
     },
     text: {
         color: '#FFD700', // Gold

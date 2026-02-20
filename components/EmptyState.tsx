@@ -34,10 +34,12 @@ function DemoImportButton() {
             style={styles.demoButton}
             onPress={importDemoSpell}
             disabled={isImporting}
+            accessibilityLabel={t('importDemoBtn')}
+            accessibilityRole="button"
         >
             {isImporting ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginEnd: 8 }} />
                     <Text style={styles.demoButtonText}>{t('importingDemo')}</Text>
                 </View>
             ) : (
@@ -116,7 +118,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     stepContent: {
-        marginLeft: spacing.sm,
+        marginStart: spacing.sm,
     },
     stepTitle: {
         color: colors.onSurface,

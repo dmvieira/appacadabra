@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
     hidden: { position: 'absolute', opacity: 0, zIndex: -1, width: 0, height: 0, overflow: 'hidden' },
     loadingContainer: { justifyContent: 'center', alignItems: 'center' },
     header: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceVariant },
-    backBtn: { marginRight: spacing.md },
+    backBtn: { marginEnd: spacing.md },
     backText: { color: colors.onPrimary, fontSize: 16 },
     title: { flex: 1, color: colors.onSurface, fontSize: 18, fontWeight: '600' },
     version: { color: colors.onSurfaceVariant, fontSize: 14 },

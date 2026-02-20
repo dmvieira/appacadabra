@@ -1,5 +1,6 @@
 import { I18n } from 'i18n-js';
 import * as Localization from 'expo-localization';
+import { I18nManager } from 'react-native';
 
 // Translations for 17 languages: EN, PT, ES, FR, DE, IT, JA, ZH, KO, AR, HI, RU, TR, NL, PL, VI, TH
 const translations = {
@@ -3953,6 +3954,15 @@ i18n.locale = Localization.getLocales()[0]?.languageCode ?? 'en';
 // Enable fallback to English
 i18n.enableFallback = true;
 i18n.defaultLocale = 'en';
+
+// RTL Support — configure layout direction for right-to-left languages
+const RTL_LANGUAGES = ['ar', 'he', 'fa', 'ur'];
+export const isRTL = RTL_LANGUAGES.includes(i18n.locale);
+I18nManager.allowRTL(true);
+if (I18nManager.isRTL !== isRTL) {
+    I18nManager.forceRTL(isRTL);
+    // Note: forceRTL requires app restart to take effect
+}
 
 // Helper function to get current language code
 export const getCurrentLanguage = (): string => {

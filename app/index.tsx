@@ -527,7 +527,7 @@ export default function HomeScreen() {
                     <Text style={styles.headerTitle}>✨ {t('appName')}</Text>
                 </View>
                 <ManaDisplay />
-                <TouchableOpacity onPress={() => setShowMenu(true)} style={[styles.menuBtn, { marginLeft: spacing.md }]}>
+                <TouchableOpacity onPress={() => setShowMenu(true)} style={[styles.menuBtn, { marginStart: spacing.md }]} accessibilityLabel={t('options')} accessibilityRole="button">
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
             </View>
@@ -583,6 +583,8 @@ export default function HomeScreen() {
             <TouchableOpacity
                 style={[styles.fab, { bottom: spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom }]}
                 onPress={() => setShowCreateDialog(true)}
+                accessibilityLabel={t('createApp')}
+                accessibilityRole="button"
             >
                 <Text style={styles.fabIcon}>✨</Text>
                 <Text style={styles.fabText}>{t('createApp')}</Text>
@@ -603,20 +605,20 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                         <View style={styles.menuDivider} />
                         */}
-                        <TouchableOpacity style={styles.menuItem} onPress={handleExport}>
+                        <TouchableOpacity style={styles.menuItem} onPress={handleExport} accessibilityLabel={t('exportBackup')} accessibilityRole="menuitem">
                             <Text style={styles.menuItemIcon}>📤</Text>
                             <Text style={styles.menuItemText}>{t('exportBackup')}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={handleImport}>
+                        <TouchableOpacity style={styles.menuItem} onPress={handleImport} accessibilityLabel={t('importBackup')} accessibilityRole="menuitem">
                             <Text style={styles.menuItemIcon}>📥</Text>
                             <Text style={styles.menuItemText}>{t('importBackup')}</Text>
                         </TouchableOpacity>
                         <View style={styles.menuDivider} />
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowOnboarding(true); }}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowOnboarding(true); }} accessibilityLabel={t('replayOnboarding')} accessibilityRole="menuitem">
                             <Text style={styles.menuItemIcon}>📖</Text>
                             <Text style={styles.menuItemText}>{t('replayOnboarding')}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowLegal(true); }}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowLegal(true); }} accessibilityLabel={t('legal')} accessibilityRole="menuitem">
                             <Text style={styles.menuItemIcon}>📜</Text>
                             <Text style={styles.menuItemText}>{t('legal')}</Text>
                         </TouchableOpacity>
@@ -648,7 +650,7 @@ export default function HomeScreen() {
                             disabled={isGeneratingIcon}
                         >
                             {isGeneratingIcon ? (
-                                <ActivityIndicator size="small" color={colors.onPrimaryContainer} style={{ marginRight: 12 }} />
+                                <ActivityIndicator size="small" color={colors.onPrimaryContainer} style={{ marginEnd: 12 }} />
                             ) : (
                                 <Text style={styles.iconBtnIcon}>✨</Text>
                             )}
@@ -861,7 +863,7 @@ const styles = StyleSheet.create({
     },
     fabIcon: {
         fontSize: 20,
-        marginRight: spacing.sm,
+        marginEnd: spacing.sm,
     },
     fabText: {
         color: colors.onPrimary,
@@ -886,7 +888,7 @@ const styles = StyleSheet.create({
     },
     menuItemIcon: {
         fontSize: 24,
-        marginRight: spacing.md,
+        marginEnd: spacing.md,
     },
     menuItemText: {
         color: colors.onSurface,
@@ -924,7 +926,7 @@ const styles = StyleSheet.create({
     },
     iconBtnIcon: {
         fontSize: 24,
-        marginRight: spacing.sm,
+        marginEnd: spacing.sm,
     },
     iconBtnText: {
         color: colors.onPrimaryContainer,
