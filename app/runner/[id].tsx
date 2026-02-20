@@ -77,6 +77,7 @@ export default function RunnerScreen() {
     const [isLocked, setIsLocked] = useState(false);
     const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [isAtTop, setIsAtTop] = useState(true);
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
@@ -541,6 +542,11 @@ export default function RunnerScreen() {
             let deferredCallback = false;
 
             switch (type) {
+                // ============= Scroll Status for Smart Refresh =============
+                case 'SCROLL_STATUS':
+                    setIsAtTop(data.isAtTop);
+                    return; // No callback needed
+
                 // ============= AI Handlers =============
                 case 'ELEMENT_SELECTED':
                     // User selected an element in selection mode
@@ -758,9 +764,22 @@ export default function RunnerScreen() {
     // Combine scripts - use ref for storage to ensure data is available
     console.log('RunnerScreen: Creating combinedScript with', savedStorageRef.current.length, 'storage items');
     const storageScript = createStorageRestoreScript(savedStorageRef.current);
+    const scrollScript = `
+        (function() {
+            var lastTop = true;
+            window.addEventListener('scroll', function() {
+                var top = window.scrollY <= 5;
+                if (top !== lastTop) {
+                    lastTop = top;
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SCROLL_STATUS', data: { isAtTop: top } }));
+                }
+            }, { passive: true });
+        })();
+    `;
     const combinedScript = `
         ${getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode)}
         ${storageScript}
+        ${scrollScript}
     `;
 
 
@@ -802,6 +821,7 @@ export default function RunnerScreen() {
                                 onRefresh={onRefresh}
                                 colors={[colors.primary]}
                                 tintColor={colors.primary}
+                                enabled={isAtTop}
                             />
                         ) : undefined
                     }
