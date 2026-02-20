@@ -268,60 +268,62 @@ export function ManaShop() {
                     </View>
 
                     <ScrollView contentContainerStyle={styles.content}>
-                        {/* Account Section */}
-                        <View style={styles.accountContainer}>
-                            <Text style={styles.sectionTitle}>{t('account')}</Text>
-                            {isAnonymous ? (
-                                <TouchableOpacity
-                                    style={styles.linkCard}
-                                    onPress={async () => {
-                                        try {
-                                            // Ensure we have an anonymous user to link to
-                                            await firebase.ensureAuthenticated();
-                                            await firebase.linkWithGoogle();
-                                            await refreshUser(); // Force UI update
-                                            Alert.alert(t('success'), t('linkSuccess'));
-                                        } catch (e: any) {
-                                            console.error(e);
-                                            if (e.message && (e.message.includes('credential-already-in-use') || e.code === 'auth/credential-already-in-use')) {
-                                                Alert.alert(
-                                                    t('account'), // Title
-                                                    t('accountConflict'),
-                                                    [
-                                                        { text: t('cancel'), style: 'cancel' },
-                                                        {
-                                                            text: t('signInGoogle'), onPress: async () => {
-                                                                try {
-                                                                    await firebase.signInWithGoogle();
-                                                                    await refreshUser(); // Force UI update
-                                                                } catch (err) {
-                                                                    Alert.alert(t('error'), t('signInFailed'));
+                        {/* Google Account Section - Prominent CTA when anonymous */}
+                        {isAnonymous ? (
+                            <View style={styles.googleCTAContainer}>
+                                <View style={styles.googleCTACard}>
+                                    <Text style={styles.googleCTAEmoji}>🔐</Text>
+                                    <Text style={styles.googleCTATitle}>{t('linkAccountCTA')}</Text>
+                                    <Text style={styles.googleCTADesc}>{t('linkAccountCTADesc')}</Text>
+                                    <TouchableOpacity
+                                        style={styles.googleCTAButton}
+                                        onPress={async () => {
+                                            try {
+                                                await firebase.ensureAuthenticated();
+                                                await firebase.linkWithGoogle();
+                                                await refreshUser();
+                                                Alert.alert(t('success'), t('linkSuccess'));
+                                            } catch (e: any) {
+                                                console.error(e);
+                                                if (e.message && (e.message.includes('credential-already-in-use') || e.code === 'auth/credential-already-in-use')) {
+                                                    Alert.alert(
+                                                        t('account'),
+                                                        t('accountConflict'),
+                                                        [
+                                                            { text: t('cancel'), style: 'cancel' },
+                                                            {
+                                                                text: t('signInGoogle'), onPress: async () => {
+                                                                    try {
+                                                                        await firebase.signInWithGoogle();
+                                                                        await refreshUser();
+                                                                    } catch (err) {
+                                                                        Alert.alert(t('error'), t('signInFailed'));
+                                                                    }
                                                                 }
                                                             }
-                                                        }
-                                                    ]
-                                                );
-                                            } else {
-                                                Alert.alert(t('error'), t('linkError'));
+                                                        ]
+                                                    );
+                                                } else {
+                                                    Alert.alert(t('error'), t('linkError'));
+                                                }
                                             }
-                                        }
-                                    }}
-                                >
-                                    <View>
-                                        <Text style={styles.linkTitle}>🔗 {t('linkAccount')}</Text>
-                                        <Text style={styles.linkDesc}>{t('linkAccountDesc')}</Text>
-                                    </View>
-                                    <Text style={styles.arrow}>›</Text>
-                                </TouchableOpacity>
-                            ) : (
+                                        }}
+                                    >
+                                        <Text style={styles.googleCTAButtonText}>🔗 {t('signInGoogle')}</Text>
+                                    </TouchableOpacity>
+                                    <Text style={styles.googleCTANote}>{t('spellsStayLocal')}</Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.accountContainer}>
                                 <View style={styles.accountCard}>
                                     <Text style={styles.accountEmail}>👤 {userEmail || 'User'}</Text>
                                     <TouchableOpacity onPress={() => firebase.signOut()}>
                                         <Text style={styles.signOutLink}>{t('signOut')}</Text>
                                     </TouchableOpacity>
                                 </View>
-                            )}
-                        </View>
+                            </View>
+                        )}
 
                         <View style={styles.balanceContainer}>
                             <Text style={styles.balanceLabel}>{t('currentBalance')}</Text>
@@ -524,46 +526,69 @@ const styles = StyleSheet.create({
     accountContainer: {
         marginBottom: spacing.lg,
     },
-    linkCard: {
-        backgroundColor: colors.surfaceVariant,
-        padding: spacing.md,
-        borderRadius: borderRadius.lg,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderWidth: 1,
+    googleCTAContainer: {
+        marginBottom: spacing.lg,
+    },
+    googleCTACard: {
+        backgroundColor: colors.primaryContainer,
+        padding: spacing.lg,
+        borderRadius: borderRadius.xl,
+        alignItems: 'center' as const,
+        borderWidth: 2,
         borderColor: colors.primary,
     },
-    linkTitle: {
-        color: colors.primary,
-        fontWeight: 'bold',
-        fontSize: 16,
+    googleCTAEmoji: {
+        fontSize: 48,
+        marginBottom: spacing.sm,
     },
-    linkDesc: {
+    googleCTATitle: {
+        fontSize: 20,
+        fontWeight: 'bold' as const,
+        color: colors.onSurface,
+        textAlign: 'center' as const,
+        marginBottom: spacing.xs,
+    },
+    googleCTADesc: {
+        fontSize: 14,
         color: colors.onSurfaceVariant,
-        fontSize: 12,
-        marginTop: 2,
+        textAlign: 'center' as const,
+        lineHeight: 20,
+        marginBottom: spacing.md,
     },
-    arrow: {
-        fontSize: 24,
-        color: colors.primary,
-        fontWeight: 'bold',
-        marginTop: -4,
+    googleCTAButton: {
+        backgroundColor: colors.primary,
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.lg,
+        width: '100%' as const,
+        alignItems: 'center' as const,
+        marginBottom: spacing.sm,
+    },
+    googleCTAButtonText: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: 'bold' as const,
+    },
+    googleCTANote: {
+        fontSize: 12,
+        color: colors.onSurfaceVariant,
+        textAlign: 'center' as const,
+        fontStyle: 'italic' as const,
     },
     accountCard: {
         backgroundColor: colors.surfaceVariant,
         padding: spacing.md,
         borderRadius: borderRadius.lg,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        justifyContent: 'space-between' as const,
     },
     accountEmail: {
         color: colors.onSurface,
-        fontWeight: 'bold',
+        fontWeight: 'bold' as const,
     },
     signOutLink: {
         color: colors.error,
-        fontWeight: 'bold',
+        fontWeight: 'bold' as const,
     }
 });

@@ -50,6 +50,11 @@ const screens: OnboardingScreen[] = [
         emoji: '⚡',
     },
     {
+        titleKey: 'onboardingGoogleTitle',
+        bodyKey: 'onboardingGoogleBody',
+        emoji: '🔐',
+    },
+    {
         titleKey: 'onboardingBackupTitle',
         bodyKey: 'onboardingBackupBody',
         emoji: '📚',
