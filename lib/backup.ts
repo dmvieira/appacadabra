@@ -49,7 +49,8 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
     const backupApps: BackupApp[] = [];
 
     for (const app of apps) {
-        const versions = await db.getVersionsForApp(app.id);
+        // Only fetch versions for full backup; skip for share (lightweight)
+        const versions = includeStorage ? await db.getVersionsForApp(app.id) : [];
 
         // Only get storage if includeStorage is true
         let localStorage: Record<string, string> = {};
@@ -80,16 +81,16 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             currentVersion: app.currentVersion,
             iconBase64,
             lastUpdated: app.lastUpdated,
-            consoleLogs: app.consoleLogs || '',
+            consoleLogs: includeStorage ? (app.consoleLogs || '') : undefined,
             totalManaCost: includeStorage ? (app.totalManaCost || 0) : undefined,
             shortDescription: app.shortDescription,
-            versions: versions.map(v => ({
+            versions: versions.length > 0 ? versions.map(v => ({
                 version: v.version,
                 code: v.code,
                 instruction: v.instruction || '',
                 selectedContext: v.selectedContext || '',
                 createdAt: v.createdAt,
-            })),
+            })) : undefined,
             localStorage: includeStorage ? localStorage : undefined,
         });
     }
