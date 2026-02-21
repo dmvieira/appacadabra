@@ -1193,6 +1193,37 @@ export function createCallbackScript(callbackName: string, success: boolean, dat
   `;
 }
 
+// Generate script to detect scroll position for pull-to-refresh control
+// Checks both document-level scroll AND nested scrollable containers (e.g. fixed header + scrollable content)
+export function getScrollDetectionScript(): string {
+  return `
+    (function() {
+        var lastTop = true;
+        function checkScroll() {
+            if (window.scrollY > 5) return false;
+            var elems = document.querySelectorAll('*');
+            for (var i = 0; i < elems.length; i++) {
+                var el = elems[i];
+                if (el.scrollTop > 5 && el.scrollHeight > el.clientHeight + 10) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        function handler() {
+            var top = checkScroll();
+            if (top !== lastTop) {
+                lastTop = top;
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SCROLL_STATUS', data: { isAtTop: top } }));
+            }
+        }
+        window.addEventListener('scroll', handler, { passive: true, capture: true });
+        window.addEventListener('touchmove', function() { setTimeout(handler, 50); }, { passive: true, capture: true });
+        window.addEventListener('touchend', function() { setTimeout(handler, 100); }, { passive: true, capture: true });
+    })();
+  `;
+}
+
 // Generate script to restore localStorage from saved database items
 export function createStorageRestoreScript(items: { key: string; value: string }[]): string {
   // if (items.length === 0) return ''; // Removed to ensure clearing happens even if empty

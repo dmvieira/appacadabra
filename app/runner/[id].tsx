@@ -30,7 +30,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript } from '../../lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript } from '../../lib/bridges/injectedJS';
 import { handleBridgeMessage } from '../../lib/bridges/messageHandlers';
 import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
@@ -764,36 +764,7 @@ export default function RunnerScreen() {
     // Combine scripts - use ref for storage to ensure data is available
     console.log('RunnerScreen: Creating combinedScript with', savedStorageRef.current.length, 'storage items');
     const storageScript = createStorageRestoreScript(savedStorageRef.current);
-    const scrollScript = `
-        (function() {
-            var lastTop = true;
-            function checkScroll() {
-                // Check document-level scroll
-                if (window.scrollY > 5) return false;
-                // Check all scrollable child containers (fixed header + scrollable content)
-                var elems = document.querySelectorAll('*');
-                for (var i = 0; i < elems.length; i++) {
-                    var el = elems[i];
-                    if (el.scrollTop > 5 && el.scrollHeight > el.clientHeight + 10) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-            // Listen to scroll on window AND capture phase for nested elements
-            function handler() {
-                var top = checkScroll();
-                if (top !== lastTop) {
-                    lastTop = top;
-                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SCROLL_STATUS', data: { isAtTop: top } }));
-                }
-            }
-            window.addEventListener('scroll', handler, { passive: true, capture: true });
-            // Also listen on touchmove for smooth detection
-            window.addEventListener('touchmove', function() { setTimeout(handler, 50); }, { passive: true, capture: true });
-            window.addEventListener('touchend', function() { setTimeout(handler, 100); }, { passive: true, capture: true });
-        })();
-    `;
+    const scrollScript = getScrollDetectionScript();
     const combinedScript = `
         ${getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode)}
         ${storageScript}

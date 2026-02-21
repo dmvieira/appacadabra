@@ -16,7 +16,7 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript } from './lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript } from './lib/bridges/injectedJS';
 import { handleBridgeMessage } from './lib/bridges/messageHandlers';
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
@@ -304,32 +304,7 @@ function RunnerContent({ appId }: Props) {
     // Use ref for storage to ensure data is available synchronously
     console.log(`RunnerApp[${appId}]: Creating combinedScript with ${savedStorageRef.current.length} storage items`);
     const storageScript = createStorageRestoreScript(savedStorageRef.current);
-    const scrollScript = `
-        (function() {
-            var lastTop = true;
-            function checkScroll() {
-                if (window.scrollY > 5) return false;
-                var elems = document.querySelectorAll('*');
-                for (var i = 0; i < elems.length; i++) {
-                    var el = elems[i];
-                    if (el.scrollTop > 5 && el.scrollHeight > el.clientHeight + 10) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-            function handler() {
-                var top = checkScroll();
-                if (top !== lastTop) {
-                    lastTop = top;
-                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SCROLL_STATUS', data: { isAtTop: top } }));
-                }
-            }
-            window.addEventListener('scroll', handler, { passive: true, capture: true });
-            window.addEventListener('touchmove', function() { setTimeout(handler, 50); }, { passive: true, capture: true });
-            window.addEventListener('touchend', function() { setTimeout(handler, 100); }, { passive: true, capture: true });
-        })();
-    `;
+    const scrollScript = getScrollDetectionScript();
     const combinedScript = `
         ${getInjectedJavaScript(app.id, getWebViewTranslations(), false)}
         ${storageScript}
