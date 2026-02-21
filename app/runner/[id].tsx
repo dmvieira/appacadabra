@@ -767,13 +767,31 @@ export default function RunnerScreen() {
     const scrollScript = `
         (function() {
             var lastTop = true;
-            window.addEventListener('scroll', function() {
-                var top = window.scrollY <= 5;
+            function checkScroll() {
+                // Check document-level scroll
+                if (window.scrollY > 5) return false;
+                // Check all scrollable child containers (fixed header + scrollable content)
+                var elems = document.querySelectorAll('*');
+                for (var i = 0; i < elems.length; i++) {
+                    var el = elems[i];
+                    if (el.scrollTop > 5 && el.scrollHeight > el.clientHeight + 10) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            // Listen to scroll on window AND capture phase for nested elements
+            function handler() {
+                var top = checkScroll();
                 if (top !== lastTop) {
                     lastTop = top;
                     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SCROLL_STATUS', data: { isAtTop: top } }));
                 }
-            }, { passive: true });
+            }
+            window.addEventListener('scroll', handler, { passive: true, capture: true });
+            // Also listen on touchmove for smooth detection
+            window.addEventListener('touchmove', function() { setTimeout(handler, 50); }, { passive: true, capture: true });
+            window.addEventListener('touchend', function() { setTimeout(handler, 100); }, { passive: true, capture: true });
         })();
     `;
     const combinedScript = `

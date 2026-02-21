@@ -307,13 +307,27 @@ function RunnerContent({ appId }: Props) {
     const scrollScript = `
         (function() {
             var lastTop = true;
-            window.addEventListener('scroll', function() {
-                var top = window.scrollY <= 5; /* 5px tolerance */
+            function checkScroll() {
+                if (window.scrollY > 5) return false;
+                var elems = document.querySelectorAll('*');
+                for (var i = 0; i < elems.length; i++) {
+                    var el = elems[i];
+                    if (el.scrollTop > 5 && el.scrollHeight > el.clientHeight + 10) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            function handler() {
+                var top = checkScroll();
                 if (top !== lastTop) {
                     lastTop = top;
                     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SCROLL_STATUS', data: { isAtTop: top } }));
                 }
-            }, { passive: true });
+            }
+            window.addEventListener('scroll', handler, { passive: true, capture: true });
+            window.addEventListener('touchmove', function() { setTimeout(handler, 50); }, { passive: true, capture: true });
+            window.addEventListener('touchend', function() { setTimeout(handler, 100); }, { passive: true, capture: true });
         })();
     `;
     const combinedScript = `
