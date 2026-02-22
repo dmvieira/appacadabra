@@ -211,7 +211,7 @@ ${CSS_TOAST}
       <h3>${t('tplContactSelectTitle')}</h3>
       <span class="close-modal" onclick="closeContactModal()">✕</span>
     </div>
-    <input type="text" id="contactSearch" class="search-box" placeholder="${t('tplContactSearchPlaceholder')}" oninput="filterContacts()">
+    <input type="text" id="contactSearch" class="search-box" placeholder="${t('tplContactSearchPlaceholder')}" oninput="onSearchInput()">
     <div id="contactList"></div>
   </div>
 </div>
@@ -221,7 +221,7 @@ ${sharedJS(t('tplReminderSet'))}
 console.log('📓 Mood Diary Template Loaded');
 
 var MOODS=['😄','🙂','😐','😢','😡'];
-var sel=null, entries=[], emergencyContact=null, allContacts=[], filteredContacts=[];
+var sel=null, entries=[], emergencyContact=null, allContacts=[];
 try {
   entries=JSON.parse(localStorage.getItem('mood_entries')||'[]');
   emergencyContact=JSON.parse(localStorage.getItem('mood_emergency')||'null');
@@ -246,31 +246,35 @@ function callEmergency(){if(!emergencyContact||!emergencyContact.phone)return;if
 function pickContact(){
   document.getElementById('contactModal').style.display='block';
   document.getElementById('contactSearch').value='';
-  document.getElementById('contactList').innerHTML='<div class="loading">${jsEsc(t('tplAIThinking'))}</div>';
-  if(typeof AppacadabraContacts!=='undefined'){
-    window.handleContactPick=function(success,result){
-      if(!success)return;
-      try{
-        allContacts=JSON.parse(result);
-        filterContacts();
-      }catch(e){console.error('Contact parse error:',e)}
-    };
-    AppacadabraContacts.search('','handleContactPick');
-  }
+  document.getElementById('contactSearch').focus();
+  doSearch('');
 }
 
-function filterContacts(){
-  var q=document.getElementById('contactSearch').value.toLowerCase();
-  filteredContacts=allContacts.filter(function(c){
-    var n=(c.name||c.firstName||'').toLowerCase();
-    return n.includes(q);
-  });
+function onSearchInput(){
+  var q=document.getElementById('contactSearch').value;
+  doSearch(q);
+}
+
+function doSearch(q){
+  if(typeof AppacadabraContacts==='undefined')return;
+  document.getElementById('contactList').innerHTML='<div class="loading">${jsEsc(t('tplAIThinking'))}</div>';
+  window.handleContactSearch=function(success,result){
+    if(!success)return;
+    try{
+      allContacts=JSON.parse(result);
+      renderContacts();
+    }catch(e){console.error('Contact parse error:',e)}
+  };
+  AppacadabraContacts.search(q,'handleContactSearch');
+}
+
+function renderContacts(){
   var el=document.getElementById('contactList');
-  if(!filteredContacts.length){
+  if(!allContacts.length){
     el.innerHTML='<div class="empty">${jsEsc(t('tplContactEmpty'))}</div>';
     return;
   }
-  el.innerHTML=filteredContacts.slice(0,50).map(function(c,i){
+  el.innerHTML=allContacts.slice(0,50).map(function(c,i){
     var n=c.name||c.firstName||'${jsEsc(t('tplContactNoName'))}';
     var p=(c.phoneNumbers&&c.phoneNumbers.length>0)?c.phoneNumbers[0].number:'';
     return '<div class="contact-item" onclick="selectContact('+i+')"><div class="contact-name">'+n+'</div><div class="contact-phone">'+p+'</div></div>';
@@ -278,7 +282,7 @@ function filterContacts(){
 }
 
 function selectContact(i){
-  var c=filteredContacts[i];
+  var c=allContacts[i];
   if(!c)return;
   emergencyContact={name:c.name||c.firstName||'',phone:(c.phoneNumbers&&c.phoneNumbers.length>0)?c.phoneNumbers[0].number:''};
   localStorage.setItem('mood_emergency',JSON.stringify(emergencyContact));
