@@ -65,6 +65,7 @@ export default function HomeScreen() {
         incrementAppManaCost,
         exportBackup,
         importBackup,
+        importOnboardingSpell,
         importProject,
         clearError,
         clearStatusMessage,
@@ -107,13 +108,25 @@ export default function HomeScreen() {
         checkOnboarding();
     }, []);
 
-    const handleOnboardingComplete = async () => {
+    const onboardingChipKeys = [
+        'obChipShoppingFull',
+        'obChipDiaryFull',
+        'obChipWorkoutFull',
+        'obChipExpensesFull',
+    ];
+
+    const handleOnboardingComplete = async (selectedChip: number | null) => {
         try {
             await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
         } catch (e) {
             console.error('Error saving onboarding state:', e);
         }
         setShowOnboarding(false);
+
+        // If user selected a chip, import the free template spell directly
+        if (selectedChip !== null && selectedChip >= 0 && selectedChip < onboardingChipKeys.length) {
+            importOnboardingSpell(selectedChip);
+        }
     };
 
     // Track last alert interaction to prevent ghost clicks or stacking

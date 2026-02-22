@@ -5,6 +5,7 @@ import { GeneratedApp, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import * as ai from './api/ai';
 import * as backup from './backup';
+import { onboardingTemplates } from './onboardingTemplates';
 import * as projectConverter from './projectConverter';
 import * as firebase from './firebase'; // Import firebase helper
 import { Job } from './firebase';
@@ -62,6 +63,7 @@ interface AppState {
     exportBackup: () => Promise<void>;
     importBackup: (uri?: string) => Promise<void>;
     importDemoSpell: () => Promise<void>;
+    importOnboardingSpell: (chipIndex: number) => Promise<void>;
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
     clearStatusMessage: () => void;
@@ -651,6 +653,43 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to import demo spell:', error);
             set({ statusMessage: t('errorImportingBackup'), isImporting: false });
+        }
+    },
+
+    importOnboardingSpell: async (chipIndex: number) => {
+        try {
+            const templateFactory = onboardingTemplates[chipIndex];
+            if (!templateFactory) return;
+
+            const template = templateFactory(t);
+
+            const newApp: NewGeneratedApp = {
+                name: template.name,
+                code: template.code,
+                currentVersion: 1,
+                iconPath: null,
+                lastUpdated: Date.now(),
+                consoleLogs: '',
+                totalManaCost: 0, // Free!
+                requiresBiometric: false,
+                shortDescription: template.shortDescription,
+            };
+
+            const newId = await db.insertApp(newApp);
+            await db.insertVersion({
+                appId: newId,
+                version: 1,
+                code: template.code,
+                instruction: template.shortDescription || template.name,
+                selectedContext: '',
+                createdAt: Date.now(),
+            });
+
+            // Refresh the app list
+            const apps = await db.getAllApps();
+            set({ apps });
+        } catch (error) {
+            console.error('Failed to import onboarding spell:', error);
         }
     },
 
