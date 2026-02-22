@@ -165,6 +165,18 @@ ${CSS_TOAST}
 .sos-bar .sos-call{padding:8px 16px;border:none;border-radius:8px;background:var(--red);color:#fff;font-weight:bold;font-size:.85rem;cursor:pointer}
 .sos-bar .sos-call:active{transform:scale(.96)}
 .sos-bar .sos-pick{padding:8px 12px;border:none;border-radius:8px;background:var(--card);color:var(--dim);font-size:.8rem;cursor:pointer;border:1px solid var(--border)}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000}
+.modal-content{position:absolute;bottom:0;left:0;width:100%;background:var(--bg);border-radius:20px 20px 0 0;padding:20px;max-height:80vh;overflow-y:auto;box-sizing:border-box}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-header h3{margin:0;font-size:1.1rem}
+.close-modal{font-size:1.5rem;cursor:pointer;color:var(--dim)}
+.search-box{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);margin-bottom:16px;box-sizing:border-box;outline:none}
+.search-box:focus{border-color:var(--accent)}
+.contact-item{padding:12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s}
+.contact-item:active{background:var(--card)}
+.contact-name{font-weight:bold;font-size:.95rem}
+.contact-phone{font-size:.8rem;color:var(--dim)}
+.loading{text-align:center;padding:20px;color:var(--dim)}
 </style>
 </head>
 <body>
@@ -192,13 +204,24 @@ ${CSS_TOAST}
   <div id="entries"></div>
 </div>
 <div class="toast" id="toast"></div>
+
+<div id="contactModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>${t('tplContactSelectTitle')}</h3>
+      <span class="close-modal" onclick="closeContactModal()">✕</span>
+    </div>
+    <input type="text" id="contactSearch" class="search-box" placeholder="${t('tplContactSearchPlaceholder')}" oninput="filterContacts()">
+    <div id="contactList"></div>
+  </div>
+</div>
+
 <script>
 ${sharedJS(t('tplReminderSet'))}
 console.log('📓 Mood Diary Template Loaded');
-console.log('Bridges check: Contacts:', typeof AppacadabraContacts!=='undefined', 'Share:', typeof AppacadabraShare!=='undefined', 'Device:', typeof AppacadabraDevice!=='undefined');
 
 var MOODS=['😄','🙂','😐','😢','😡'];
-var sel=null, entries=[], emergencyContact=null;
+var sel=null, entries=[], emergencyContact=null, allContacts=[], filteredContacts=[];
 try {
   entries=JSON.parse(localStorage.getItem('mood_entries')||'[]');
   emergencyContact=JSON.parse(localStorage.getItem('mood_emergency')||'null');
@@ -206,14 +229,67 @@ try {
 
 var md=document.getElementById('moods');
 MOODS.forEach(function(m,i){var b=document.createElement('div');b.className='mood-btn';b.textContent=m;b.onclick=function(){sel=i;document.querySelectorAll('.mood-btn').forEach(function(x){x.classList.remove('sel')});b.classList.add('sel');document.getElementById('saveBtn').disabled=false;vib(30)};md.appendChild(b)});
+
 function saveEntry(){if(sel===null)return;entries.unshift({m:MOODS[sel],t:document.getElementById('note').value.trim(),d:Date.now()});localStorage.setItem('mood_entries',JSON.stringify(entries));document.getElementById('note').value='';sel=null;document.querySelectorAll('.mood-btn').forEach(function(x){x.classList.remove('sel')});document.getElementById('saveBtn').disabled=true;vib([20,30,20]);render()}
+
 function render(){var el=document.getElementById('entries');if(!entries.length){el.innerHTML='<div class="empty">${jsEsc(t('tplDiaryEmpty'))}</div>';return}
 el.innerHTML=entries.slice(0,30).map(function(e){return '<div class="entry"><span class="emoji">'+e.m+'</span><div class="info"><div class="date">'+new Date(e.d).toLocaleString()+'</div>'+(e.t?'<div class="txt">'+e.t+'</div>':'')+'</div></div>'}).join('')}
+
 function shareSummary(){if(typeof AppacadabraShare==='undefined'||!entries.length){ console.warn('Share missing or no entries'); return; }var last5=entries.slice(0,5).map(function(e){return e.m+' '+new Date(e.d).toLocaleDateString()+(e.t?' — '+e.t:'')}).join('\\n');AppacadabraShare.share('📓 ${jsEsc(title)}\\n'+last5,'','handleShareResult')}
+
 function setReminder(){if(typeof AppacadabraNotify==='undefined'){ console.warn('Notify bridge missing'); return; }window._notifyPendingMsg='${jsEsc(t('tplReminderTomorrow'))}';AppacadabraNotify.schedule('📓 ${jsEsc(title)}','${jsEsc(t('tplNotifyDiary'))}',1440,'handleNotifyResult')}
-function pickContact(){if(typeof AppacadabraContacts==='undefined'){ console.warn('Contacts bridge missing'); return; }window.handleContactPick=function(success,result){console.log('Contact Pick Success:', success);if(!success)return;try{var contacts=JSON.parse(result);if(contacts&&contacts.length>0){var c=contacts[0];emergencyContact={name:c.name||c.firstName||'',phone:(c.phoneNumbers&&c.phoneNumbers.length>0)?c.phoneNumbers[0].number:''};localStorage.setItem('mood_emergency',JSON.stringify(emergencyContact));renderSOS();vib(50)}}catch(e){console.error('Contact parse error:',e)}};AppacadabraContacts.search('','handleContactPick')}
+
 function renderSOS(){if(emergencyContact&&emergencyContact.phone){document.getElementById('sosBar').style.display='flex';document.getElementById('sosSetup').style.display='none';document.getElementById('sosName').textContent=emergencyContact.name||emergencyContact.phone}else{document.getElementById('sosBar').style.display='none';document.getElementById('sosSetup').style.display='block'}}
+
 function callEmergency(){if(!emergencyContact||!emergencyContact.phone)return;if(typeof AppacadabraDevice!=='undefined'){AppacadabraDevice.vibrate([100,50,100]);AppacadabraDevice.openBrowser('tel:'+emergencyContact.phone)}}
+
+function pickContact(){
+  document.getElementById('contactModal').style.display='block';
+  document.getElementById('contactSearch').value='';
+  document.getElementById('contactList').innerHTML='<div class="loading">${jsEsc(t('tplAIThinking'))}</div>';
+  if(typeof AppacadabraContacts!=='undefined'){
+    window.handleContactPick=function(success,result){
+      if(!success)return;
+      try{
+        allContacts=JSON.parse(result);
+        filterContacts();
+      }catch(e){console.error('Contact parse error:',e)}
+    };
+    AppacadabraContacts.search('','handleContactPick');
+  }
+}
+
+function filterContacts(){
+  var q=document.getElementById('contactSearch').value.toLowerCase();
+  filteredContacts=allContacts.filter(function(c){
+    var n=(c.name||c.firstName||'').toLowerCase();
+    return n.includes(q);
+  });
+  var el=document.getElementById('contactList');
+  if(!filteredContacts.length){
+    el.innerHTML='<div class="empty">${jsEsc(t('tplContactEmpty'))}</div>';
+    return;
+  }
+  el.innerHTML=filteredContacts.slice(0,50).map(function(c,i){
+    var n=c.name||c.firstName||'${jsEsc(t('tplContactNoName'))}';
+    var p=(c.phoneNumbers&&c.phoneNumbers.length>0)?c.phoneNumbers[0].number:'';
+    return '<div class="contact-item" onclick="selectContact('+i+')"><div class="contact-name">'+n+'</div><div class="contact-phone">'+p+'</div></div>';
+  }).join('');
+}
+
+function selectContact(i){
+  var c=filteredContacts[i];
+  if(!c)return;
+  emergencyContact={name:c.name||c.firstName||'',phone:(c.phoneNumbers&&c.phoneNumbers.length>0)?c.phoneNumbers[0].number:''};
+  localStorage.setItem('mood_emergency',JSON.stringify(emergencyContact));
+  renderSOS();
+  closeContactModal();
+  showToast('${jsEsc(t('tplContactUpdated'))}');
+  vib(50);
+}
+
+function closeContactModal(){document.getElementById('contactModal').style.display='none'}
+
 renderSOS();
 render();
 </script>

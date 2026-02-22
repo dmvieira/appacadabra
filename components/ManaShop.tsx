@@ -110,21 +110,26 @@ export function ManaShop() {
             // Map IAP products to our internal format
             const mappedProducts: IAPProduct[] = fetchedProducts.map((p: any) => {
                 // Determine mana amount based on product ID
+                // Handle both id and productId as property names may vary by platform/version
+                const id = p.productId || p.id;
                 let manaAmount = 0;
-                if (p.productId.includes('10')) manaAmount = 10;
-                if (p.productId.includes('50')) manaAmount = 50;
-                if (p.productId.includes('120')) manaAmount = 120;
+
+                if (id) {
+                    if (id.includes('10')) manaAmount = 10;
+                    else if (id.includes('50')) manaAmount = 50;
+                    else if (id.includes('120')) manaAmount = 120;
+                }
 
                 return {
-                    productId: p.productId,
-                    title: p.title, // Use title from store
-                    description: p.description,
-                    price: p.price,
-                    localizedPrice: p.localizedPrice,
-                    currency: p.currency,
+                    productId: id || '',
+                    title: p.title || '', // Use title from store
+                    description: p.description || '',
+                    price: p.price || '',
+                    localizedPrice: p.localizedPrice || p.displayPrice || '',
+                    currency: p.currency || '',
                     manaAmount: manaAmount
                 };
-            }).sort((a, b: any) => a.manaAmount - b.manaAmount);
+            }).sort((a, b) => a.manaAmount - b.manaAmount);
 
             setProducts(mappedProducts);
         }
@@ -323,6 +328,16 @@ export function ManaShop() {
                                     <TouchableOpacity onPress={() => firebase.signOut()} accessibilityLabel={t('signOut')} accessibilityRole="button">
                                         <Text style={styles.signOutLink}>{t('signOut')}</Text>
                                     </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+
+                        {balance <= 0 && (
+                            <View style={styles.manaWarningBanner}>
+                                <Text style={styles.manaWarningEmoji}>⚡</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.manaWarningTitle}>{t('manaDepletedTitle')}</Text>
+                                    <Text style={styles.manaWarningText}>{t('manaDepletedMessage')}</Text>
                                 </View>
                             </View>
                         )}
@@ -596,5 +611,34 @@ const styles = StyleSheet.create({
     signOutLink: {
         color: colors.error,
         fontWeight: 'bold' as const,
-    }
+    },
+    manaWarningBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.error + '15', // Subtle error background
+        marginBottom: spacing.lg,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.error + '40',
+    },
+    manaWarningEmoji: {
+        fontSize: 24,
+        marginEnd: spacing.md,
+    },
+    manaWarningTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: colors.error,
+    },
+    manaWarningText: {
+        fontSize: 12,
+        color: colors.onSurfaceVariant,
+    },
+    manaWarningAction: {
+        fontSize: 20,
+        color: colors.error,
+        opacity: 0.5,
+        marginStart: spacing.sm,
+    },
 });

@@ -44,6 +44,7 @@ const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 export default function HomeScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { balance, openShop } = useManaStore();
     const {
         apps,
         isLoading,
@@ -176,6 +177,18 @@ export default function HomeScreen() {
 
 
     const handleCreateApp = async (description: string) => {
+        // Double check mana before submitting (though button should be intercepted)
+        if (balance <= 0) {
+            Alert.alert(
+                t('manaDepletedTitle'),
+                t('manaDepletedMessage'),
+                [
+                    { text: t('buyMana'), onPress: openShop },
+                    { text: t('cancel'), style: 'cancel' }
+                ]
+            );
+            return false;
+        }
         // Async: createApp returns true if job submitted
         const success = await createApp(description);
         if (success) {
@@ -545,6 +558,21 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             </View>
 
+            {balance <= 0 && (
+                <TouchableOpacity
+                    style={styles.manaWarningBanner}
+                    onPress={openShop}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.manaWarningEmoji}>⚡</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.manaWarningTitle}>{t('manaDepletedTitle')}</Text>
+                        <Text style={styles.manaWarningText}>{t('manaDepletedMessage')}</Text>
+                    </View>
+                    <Text style={styles.manaWarningAction}>›</Text>
+                </TouchableOpacity>
+            )}
+
             {allApps.length === 0 && !isGenerating ? (
                 <EmptyState />
             ) : (
@@ -595,7 +623,20 @@ export default function HomeScreen() {
             {/* FAB */}
             <TouchableOpacity
                 style={[styles.fab, { bottom: spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom }]}
-                onPress={() => setShowCreateDialog(true)}
+                onPress={() => {
+                    if (balance <= 0) {
+                        Alert.alert(
+                            t('manaDepletedTitle'),
+                            t('manaDepletedMessage'),
+                            [
+                                { text: t('buyMana'), onPress: openShop },
+                                { text: t('cancel'), style: 'cancel' }
+                            ]
+                        );
+                    } else {
+                        setShowCreateDialog(true);
+                    }
+                }}
                 accessibilityLabel={t('createApp')}
                 accessibilityRole="button"
             >
@@ -1100,5 +1141,34 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: colors.onSurfaceVariant,
         lineHeight: 22,
+    },
+    manaWarningBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.error + '15', // Subtle error background
+        margin: spacing.md,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.error + '40',
+    },
+    manaWarningEmoji: {
+        fontSize: 24,
+        marginEnd: spacing.md,
+    },
+    manaWarningTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: colors.error,
+    },
+    manaWarningText: {
+        fontSize: 12,
+        color: colors.onSurfaceVariant,
+    },
+    manaWarningAction: {
+        fontSize: 20,
+        color: colors.error,
+        opacity: 0.5,
+        marginStart: spacing.sm,
     },
 });
