@@ -19,6 +19,11 @@
 
 type T = (key: string) => string;
 
+/** Escapes single quotes for JS string literals */
+function jsEsc(s: string) {
+  return s.replace(/'/g, "\\'");
+}
+
 /* ─── shared CSS tokens ─── */
 const CSS_VARS = `--bg:#0f0f1a;--card:#1a1a2e;--primary:#7c3aed;--accent:#a78bfa;--text:#e2e8f0;--dim:#94a3b8;--green:#22c55e;--red:#ef4444;--border:#2d2d44;--yellow:#eab308`;
 const CSS_RESET = `*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}`;
@@ -30,9 +35,10 @@ const CSS_LOADING = `.loading{display:inline-block;width:16px;height:16px;border
 
 /* ─── shared JS helpers ─── */
 function sharedJS(reminderSetLabel: string): string {
+  const label = jsEsc(reminderSetLabel);
   return `
 function showToast(msg){var t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2500)}
-window.handleNotifyResult=function(success,id){if(success){showToast('${reminderSetLabel}');if(typeof AppacadabraDevice!=='undefined')AppacadabraDevice.vibrate(50)}};
+window.handleNotifyResult=function(success,id){if(success){showToast('${label}');if(typeof AppacadabraDevice!=='undefined')AppacadabraDevice.vibrate(50)}};
 window.handleShareResult=function(success,result){console.log('Share result:',success,result)};
 function vib(ms){if(typeof AppacadabraDevice!=='undefined')AppacadabraDevice.vibrate(ms||30)}
 `;
@@ -94,21 +100,28 @@ ${CSS_LOADING}
 <div class="toast" id="toast"></div>
 <script>
 ${sharedJS(t('tplReminderSet'))}
-var items=JSON.parse(localStorage.getItem('shop_items')||'[]');
+console.log('🛒 Shopping List Template Loaded');
+console.log('Bridges check: AI:', typeof AppacadabraAI!=='undefined', 'Share:', typeof AppacadabraShare!=='undefined', 'Screen:', typeof AppacadabraScreen!=='undefined');
+
+var items=[];
+try {
+  items=JSON.parse(localStorage.getItem('shop_items')||'[]');
+} catch(e) { console.error('Error parsing shopping items:', e); }
+
 function save(){localStorage.setItem('shop_items',JSON.stringify(items));render()}
 function addItem(){var v=document.getElementById('inp').value.trim();if(!v)return;items.unshift({n:v,d:false});document.getElementById('inp').value='';vib(30);save()}
 document.getElementById('inp').addEventListener('keydown',function(e){if(e.key==='Enter')addItem()});
 function toggle(i){items[i].d=!items[i].d;if(items[i].d)vib([20,30,20]);save()}
 function del(i){items.splice(i,1);save()}
-function render(){var el=document.getElementById('list');if(!items.length){el.innerHTML='<div class="empty">${t('tplShoppingEmpty')}</div>';return}
+function render(){var el=document.getElementById('list');if(!items.length){el.innerHTML='<div class="empty">${jsEsc(t('tplShoppingEmpty'))}</div>';return}
 el.innerHTML=items.map(function(it,i){return '<div class="item'+(it.d?' done':'')+'"><div class="check" onclick="toggle('+i+')"></div><span class="name">'+it.n+'</span><span class="del" onclick="del('+i+')">✕</span></div>'}).join('')}
-function shareList(){if(typeof AppacadabraShare==='undefined')return;var text=items.map(function(it){return (it.d?'✅':'⬜')+' '+it.n}).join('\\n');AppacadabraShare.share('🛒 ${title}\\n'+text,'','handleShareResult')}
-function printList(){if(typeof AppacadabraScreen!=='undefined')AppacadabraScreen.print()}
-function setReminder(){if(typeof AppacadabraNotify==='undefined')return;AppacadabraNotify.schedule('🛒 ${title}','${t('tplShoppingPlaceholder')}',60,'handleNotifyResult')}
-function suggestItems(){if(typeof AppacadabraAI==='undefined')return;var sg=document.getElementById('suggestions');sg.innerHTML='<div class="suggest-label"><span class="loading"></span> ${t('tplAIThinking')}</div>';var recent=items.map(function(it){return it.n}).join(', ');var prompt='Given this shopping list: ['+recent+']. Suggest 5 more items the user might need. Reply with a JSON array of strings only, no explanation. Example: ["Milk","Bread","Eggs","Butter","Cheese"]';window.handleAISuggest=function(success,result){if(!success){sg.innerHTML='';return}try{var arr=JSON.parse(result);sg.innerHTML=arr.map(function(s){return '<span class=\"chip\" onclick=\"addSuggestion(this)\">+ '+s+'</span>'}).join('');localStorage.setItem('shop_ai_cache',result)}catch(e){sg.innerHTML=''}};var cached=localStorage.getItem('shop_ai_cache');if(cached&&items.length<2){window.handleAISuggest(true,cached);return}AppacadabraAI.withSchema({type:'array',items:{type:'string'}}).generate(prompt,'handleAISuggest')}
+function shareList(){if(typeof AppacadabraShare==='undefined'){ console.warn('Share bridge missing'); return; }var text=items.map(function(it){return (it.d?'✅':'⬜')+' '+it.n}).join('\\n');AppacadabraShare.share('🛒 ${jsEsc(title)}\\n'+text,'','handleShareResult')}
+function printList(){if(typeof AppacadabraScreen!=='undefined'){ AppacadabraScreen.print(); } else { console.warn('Screen bridge missing'); }}
+function setReminder(){if(typeof AppacadabraNotify==='undefined'){ console.warn('Notify bridge missing'); return; }AppacadabraNotify.schedule('🛒 ${jsEsc(title)}','${jsEsc(t('tplShoppingPlaceholder'))}',60,'handleNotifyResult')}
+function suggestItems(){if(typeof AppacadabraAI==='undefined'){ console.warn('AI bridge missing'); return; }var sg=document.getElementById('suggestions');sg.innerHTML='<div class="suggest-label"><span class="loading"></span> ${jsEsc(t('tplAIThinking'))}</div>';var recent=items.map(function(it){return it.n}).join(', ');var prompt='Given this shopping list: ['+recent+']. Suggest 5 more items the user might need. Reply with a JSON array of strings only, no explanation. Example: ["Milk","Bread","Eggs","Butter","Cheese"]';window.handleAISuggest=function(success,result){console.log('AI Suggest Success:', success);if(!success){sg.innerHTML='';return}try{var arr=JSON.parse(result);sg.innerHTML=arr.map(function(s){return '<span class=\"chip\" onclick=\"addSuggestion(this)\">+ '+s+'</span>'}).join('');localStorage.setItem('shop_ai_cache',result)}catch(e){console.error('AI Suggest Parse Error:', e);sg.innerHTML=''}};var cached=localStorage.getItem('shop_ai_cache');if(cached&&items.length<2){window.handleAISuggest(true,cached);return}AppacadabraAI.withSchema({type:'array',items:{type:'string'}}).generate(prompt,'handleAISuggest')}
 function addSuggestion(el){var name=el.textContent.replace('+ ','').trim();items.unshift({n:name,d:false});el.remove();vib(30);save()}
 render();
-<\\/script>
+</script>
 </body></html>`
   };
 }
@@ -181,22 +194,29 @@ ${CSS_TOAST}
 <div class="toast" id="toast"></div>
 <script>
 ${sharedJS(t('tplReminderSet'))}
+console.log('📓 Mood Diary Template Loaded');
+console.log('Bridges check: Contacts:', typeof AppacadabraContacts!=='undefined', 'Share:', typeof AppacadabraShare!=='undefined', 'Device:', typeof AppacadabraDevice!=='undefined');
+
 var MOODS=['😄','🙂','😐','😢','😡'];
-var sel=null, entries=JSON.parse(localStorage.getItem('mood_entries')||'[]');
-var emergencyContact=JSON.parse(localStorage.getItem('mood_emergency')||'null');
+var sel=null, entries=[], emergencyContact=null;
+try {
+  entries=JSON.parse(localStorage.getItem('mood_entries')||'[]');
+  emergencyContact=JSON.parse(localStorage.getItem('mood_emergency')||'null');
+} catch(e) { console.error('Mood parsing error:', e); }
+
 var md=document.getElementById('moods');
 MOODS.forEach(function(m,i){var b=document.createElement('div');b.className='mood-btn';b.textContent=m;b.onclick=function(){sel=i;document.querySelectorAll('.mood-btn').forEach(function(x){x.classList.remove('sel')});b.classList.add('sel');document.getElementById('saveBtn').disabled=false;vib(30)};md.appendChild(b)});
 function saveEntry(){if(sel===null)return;entries.unshift({m:MOODS[sel],t:document.getElementById('note').value.trim(),d:Date.now()});localStorage.setItem('mood_entries',JSON.stringify(entries));document.getElementById('note').value='';sel=null;document.querySelectorAll('.mood-btn').forEach(function(x){x.classList.remove('sel')});document.getElementById('saveBtn').disabled=true;vib([20,30,20]);render()}
-function render(){var el=document.getElementById('entries');if(!entries.length){el.innerHTML='<div class="empty">${t('tplDiaryEmpty')}</div>';return}
+function render(){var el=document.getElementById('entries');if(!entries.length){el.innerHTML='<div class="empty">${jsEsc(t('tplDiaryEmpty'))}</div>';return}
 el.innerHTML=entries.slice(0,30).map(function(e){return '<div class="entry"><span class="emoji">'+e.m+'</span><div class="info"><div class="date">'+new Date(e.d).toLocaleString()+'</div>'+(e.t?'<div class="txt">'+e.t+'</div>':'')+'</div></div>'}).join('')}
-function shareSummary(){if(typeof AppacadabraShare==='undefined'||!entries.length)return;var last5=entries.slice(0,5).map(function(e){return e.m+' '+new Date(e.d).toLocaleDateString()+(e.t?' — '+e.t:'')}).join('\\n');AppacadabraShare.share('📓 ${title}\\n'+last5,'','handleShareResult')}
-function setReminder(){if(typeof AppacadabraNotify==='undefined')return;AppacadabraNotify.schedule('📓 ${title}','${t('tplDiaryPlaceholder')}',1440,'handleNotifyResult')}
-function pickContact(){if(typeof AppacadabraContacts==='undefined')return;window.handleContactPick=function(success,result){if(!success)return;try{var contacts=JSON.parse(result);if(contacts&&contacts.length>0){var c=contacts[0];emergencyContact={name:c.name||c.firstName||'',phone:(c.phoneNumbers&&c.phoneNumbers.length>0)?c.phoneNumbers[0].number:''};localStorage.setItem('mood_emergency',JSON.stringify(emergencyContact));renderSOS();vib(50)}}catch(e){console.error('Contact parse error:',e)}};AppacadabraContacts.search('','handleContactPick')}
+function shareSummary(){if(typeof AppacadabraShare==='undefined'||!entries.length){ console.warn('Share missing or no entries'); return; }var last5=entries.slice(0,5).map(function(e){return e.m+' '+new Date(e.d).toLocaleDateString()+(e.t?' — '+e.t:'')}).join('\\n');AppacadabraShare.share('📓 ${jsEsc(title)}\\n'+last5,'','handleShareResult')}
+function setReminder(){if(typeof AppacadabraNotify==='undefined'){ console.warn('Notify bridge missing'); return; }AppacadabraNotify.schedule('📓 ${jsEsc(title)}','${jsEsc(t('tplDiaryPlaceholder'))}',1440,'handleNotifyResult')}
+function pickContact(){if(typeof AppacadabraContacts==='undefined'){ console.warn('Contacts bridge missing'); return; }window.handleContactPick=function(success,result){console.log('Contact Pick Success:', success);if(!success)return;try{var contacts=JSON.parse(result);if(contacts&&contacts.length>0){var c=contacts[0];emergencyContact={name:c.name||c.firstName||'',phone:(c.phoneNumbers&&c.phoneNumbers.length>0)?c.phoneNumbers[0].number:''};localStorage.setItem('mood_emergency',JSON.stringify(emergencyContact));renderSOS();vib(50)}}catch(e){console.error('Contact parse error:',e)}};AppacadabraContacts.search('','handleContactPick')}
 function renderSOS(){if(emergencyContact&&emergencyContact.phone){document.getElementById('sosBar').style.display='flex';document.getElementById('sosSetup').style.display='none';document.getElementById('sosName').textContent=emergencyContact.name||emergencyContact.phone}else{document.getElementById('sosBar').style.display='none';document.getElementById('sosSetup').style.display='block'}}
 function callEmergency(){if(!emergencyContact||!emergencyContact.phone)return;if(typeof AppacadabraDevice!=='undefined'){AppacadabraDevice.vibrate([100,50,100]);AppacadabraDevice.openBrowser('tel:'+emergencyContact.phone)}}
 renderSOS();
 render();
-<\\/script>
+</script>
 </body></html>`
   };
 }
@@ -276,24 +296,31 @@ ${CSS_LOADING}
 <div class="toast" id="toast"></div>
 <script>
 ${sharedJS(t('tplReminderSet'))}
-var secs=0,tid=null,exercises=JSON.parse(localStorage.getItem('workout_ex')||'[]');
+console.log('💪 Workout Template Loaded');
+console.log('Bridges check: Health:', typeof AppacadabraHealth!=='undefined', 'AI:', typeof AppacadabraAI!=='undefined', 'Notify:', typeof AppacadabraNotify!=='undefined');
+
+var secs=0,tid=null,exercises=[];
+try {
+  exercises=JSON.parse(localStorage.getItem('workout_ex')||'[]');
+} catch(e) { console.error('Workout parsing error:', e); }
+
 var healthData=null;
 function pad(n){return n<10?'0'+n:''+n}
 function updateClock(){var m=Math.floor(secs/60),s=secs%60;document.getElementById('clock').textContent=pad(m)+':'+pad(s)}
 function startTimer(){if(tid)return;document.getElementById('startBtn').style.display='none';document.getElementById('stopBtn').style.display='';vib(50);tid=setInterval(function(){secs++;updateClock()},1000)}
-function stopTimer(){clearInterval(tid);tid=null;document.getElementById('startBtn').style.display='';document.getElementById('stopBtn').style.display='none';vib([50,30,50]);if(secs>0&&typeof AppacadabraNotify!=='undefined'){AppacadabraNotify.showNow('💪 ${title}',pad(Math.floor(secs/60))+':'+pad(secs%60)+' ✅','handleNotifyResult')}}
+function stopTimer(){clearInterval(tid);tid=null;document.getElementById('startBtn').style.display='';document.getElementById('stopBtn').style.display='none';vib([50,30,50]);if(secs>0&&typeof AppacadabraNotify!=='undefined'){AppacadabraNotify.showNow('💪 ${jsEsc(title)}',pad(Math.floor(secs/60))+':'+pad(secs%60)+' ✅','handleNotifyResult')}}
 function resetTimer(){stopTimer();secs=0;updateClock()}
 function addEx(){var v=document.getElementById('exInp').value.trim();if(!v)return;exercises.push({n:v,d:false});document.getElementById('exInp').value='';save()}
 function addExFromPlan(name){exercises.push({n:name,d:false});vib(30);save();showToast('+ '+name)}
 function toggleEx(i){exercises[i].d=!exercises[i].d;if(exercises[i].d)vib([20,30,20]);save()}
 function save(){localStorage.setItem('workout_ex',JSON.stringify(exercises));render()}
-function render(){var el=document.getElementById('exList');el.innerHTML=exercises.map(function(e,i){return '<div class="ex"><div class="row"><span class="name">'+e.n+'</span><button class="done-btn'+(e.d?' completed':'')+'" onclick="toggleEx('+i+')">'+(e.d?'✓':'${t('tplWorkoutDone')}')+'</button></div></div>'}).join('')}
-function loadHealth(){if(typeof AppacadabraHealth==='undefined'){showToast('${t('tplHealthUnavailable')}');return}var now=Date.now();var dayAgo=now-86400000;var banner=document.getElementById('healthBanner');banner.style.display='flex';banner.innerHTML='<span class="loading"></span>';window.handleSteps=function(success,result){if(!success)return;try{var d=JSON.parse(result);healthData=healthData||{};healthData.steps=d.totalSteps||0;renderHealth()}catch(e){}};window.handleCalories=function(success,result){if(!success)return;try{var d=JSON.parse(result);healthData=healthData||{};healthData.calories=Math.round(d.totalCalories||0);renderHealth()}catch(e){}};AppacadabraHealth.getSteps(dayAgo,now,'handleSteps');AppacadabraHealth.getCalories(dayAgo,now,'handleCalories')}
-function renderHealth(){if(!healthData)return;var banner=document.getElementById('healthBanner');var html='';if(healthData.steps!==undefined)html+='<div class="health-stat"><div class="val">🚶 '+healthData.steps.toLocaleString()+'</div><div class="lbl">${t('tplStepsToday')}</div></div>';if(healthData.calories!==undefined)html+='<div class="health-stat"><div class="val">🔥 '+healthData.calories+'</div><div class="lbl">${t('tplCalToday')}</div></div>';banner.innerHTML=html;banner.style.display='flex'}
-function generatePlan(){if(typeof AppacadabraAI==='undefined')return;var plan=document.getElementById('aiPlan');plan.innerHTML='<div class="ai-plan"><div class="suggest-label"><span class="loading"></span> ${t('tplAIThinking')}</div></div>';var context='Generate a workout plan.';if(healthData){context+=' User health today: '+healthData.steps+' steps, '+healthData.calories+' calories burned.'}context+=' Return JSON array of 6 exercise objects with name and sets fields. Example: [{"name":"Push-ups","sets":"3x15"},{"name":"Squats","sets":"3x20"}]';window.handleAIPlan=function(success,result){if(!success){plan.innerHTML='';return}try{var arr=JSON.parse(result);plan.innerHTML='<div class="ai-plan"><h3>🤖 ${t('tplAIPlan')}</h3>'+arr.map(function(e){return '<div class=\"ex-item\" onclick=\"addExFromPlan(\\''+e.name.replace(/'/g,"\\\\'")+'\\')\">'+(e.name)+' — '+(e.sets||'')+' <span style=\"color:var(--dim)\">+</span></div>'}).join('')+'</div>';localStorage.setItem('workout_ai_cache',result)}catch(e){plan.innerHTML=''}};var cached=localStorage.getItem('workout_ai_cache');if(cached&&!healthData){window.handleAIPlan(true,cached);return}AppacadabraAI.withSchema({type:'array',items:{type:'object',properties:{name:{type:'string'},sets:{type:'string'}},required:['name','sets']}}).generate(context,'handleAIPlan')}
-function shareSummary(){if(typeof AppacadabraShare==='undefined')return;var done=exercises.filter(function(e){return e.d}).length;var text='💪 ${title}\\n⏱ '+pad(Math.floor(secs/60))+':'+pad(secs%60)+'\\n✅ '+done+'/'+exercises.length;if(healthData)text+='\\n🚶 '+healthData.steps+' steps | 🔥 '+healthData.calories+' cal';AppacadabraShare.share(text,'','handleShareResult')}
+function render(){var el=document.getElementById('exList');el.innerHTML=exercises.map(function(e,i){return '<div class="ex"><div class="row"><span class="name">'+e.n+'</span><button class="done-btn'+(e.d?' completed':'')+'" onclick="toggleEx('+i+')">'+(e.d?'✓':'${jsEsc(t('tplWorkoutDone'))}')+'</button></div></div>'}).join('')}
+function loadHealth(){if(typeof AppacadabraHealth==='undefined'){showToast('${jsEsc(t('tplHealthUnavailable'))}'); console.warn('Health missing'); return}var now=Date.now();var dayAgo=now-86400000;var banner=document.getElementById('healthBanner');banner.style.display='flex';banner.innerHTML='<span class="loading"></span>';window.handleSteps=function(success,result){console.log('Steps Success:', success);if(!success)return;try{var d=JSON.parse(result);healthData=healthData||{};healthData.steps=d.totalSteps||0;renderHealth()}catch(e){console.error('Steps Parse Error:', e)}};window.handleCalories=function(success,result){console.log('Calories Success:', success);if(!success)return;try{var d=JSON.parse(result);healthData=healthData||{};healthData.calories=Math.round(d.totalCalories||0);renderHealth()}catch(e){console.error('Calories Parse Error:', e)}};AppacadabraHealth.getSteps(dayAgo,now,'handleSteps');AppacadabraHealth.getCalories(dayAgo,now,'handleCalories')}
+function renderHealth(){if(!healthData)return;var banner=document.getElementById('healthBanner');var html='';if(healthData.steps!==undefined)html+='<div class="health-stat"><div class="val">🚶 '+healthData.steps.toLocaleString()+'</div><div class="lbl">${jsEsc(t('tplStepsToday'))}</div></div>';if(healthData.calories!==undefined)html+='<div class="health-stat"><div class="val">🔥 '+healthData.calories+'</div><div class="lbl">${jsEsc(t('tplCalToday'))}</div></div>';banner.innerHTML=html;banner.style.display='flex'}
+function generatePlan(){if(typeof AppacadabraAI==='undefined'){ console.warn('AI missing'); return; }var plan=document.getElementById('aiPlan');plan.innerHTML='<div class="ai-plan"><div class="suggest-label"><span class="loading"></span> ${jsEsc(t('tplAIThinking'))}</div></div>';var context='Generate a workout plan.';if(healthData){context+=' User health today: '+healthData.steps+' steps, '+healthData.calories+' calories burned.'}context+=' Return JSON array of 6 exercise objects with name and sets fields. Example: [{"name":"Push-ups","sets":"3x15"},{"name":"Squats","sets":"3x20"}]';window.handleAIPlan=function(success,result){console.log('AI Plan Success:', success);if(!success){plan.innerHTML='';return}try{var arr=JSON.parse(result);plan.innerHTML='<div class="ai-plan"><h3>🤖 ${jsEsc(t('tplAIPlan'))}</h3>'+arr.map(function(e){return '<div class=\"ex-item\" onclick=\"addExFromPlan(\\''+e.name.replace(/'/g,"\\\\'")+'\\')\">'+(e.name)+' — '+(e.sets||'')+' <span style=\"color:var(--dim)\">+</span></div>'}).join('')+'</div>';localStorage.setItem('workout_ai_cache',result)}catch(e){console.error('AI Plan Parse Error:', e);plan.innerHTML=''}};var cached=localStorage.getItem('workout_ai_cache');if(cached&&!healthData){window.handleAIPlan(true,cached);return}AppacadabraAI.withSchema({type:'array',items:{type:'object',properties:{name:{type:'string'},sets:{type:'string'}},required:['name','sets']}}).generate(context,'handleAIPlan')}
+function shareSummary(){if(typeof AppacadabraShare==='undefined'){ console.warn('Share missing'); return; }var done=exercises.filter(function(e){return e.d}).length;var text='💪 ${jsEsc(title)}\\n⏱ '+pad(Math.floor(secs/60))+':'+pad(secs%60)+'\\n✅ '+done+'/'+exercises.length;if(healthData)text+='\\n🚶 '+healthData.steps+' steps | 🔥 '+healthData.calories+' cal';AppacadabraShare.share(text,'','handleShareResult')}
 render();
-<\\/script>
+</script>
 </body></html>`
   };
 }
@@ -379,20 +406,27 @@ ${CSS_LOADING}
 <div class="toast" id="toast"></div>
 <script>
 ${sharedJS(t('tplReminderSet'))}
-var expenses=JSON.parse(localStorage.getItem('month_expenses')||'[]');
+console.log('💰 Expense Tracker Template Loaded');
+console.log('Bridges check: Camera:', typeof AppacadabraCamera!=='undefined', 'Audio:', typeof AppacadabraAudio!=='undefined', 'AI:', typeof AppacadabraAI!=='undefined');
+
+var expenses=[];
+try {
+  expenses=JSON.parse(localStorage.getItem('month_expenses')||'[]');
+} catch(e) { console.error('Expenses parsing error:', e); }
+
 var isRecording=false;
 function addExpense(){var d=document.getElementById('desc').value.trim(),v=parseFloat(document.getElementById('val').value),c=document.getElementById('cat').value;if(!d||isNaN(v)||v<=0)return;expenses.unshift({d:d,v:v,c:c,t:Date.now()});document.getElementById('desc').value='';document.getElementById('val').value='';vib(30);save()}
 function addParsedExpense(desc,val,cat){expenses.unshift({d:desc,v:val,c:cat||'📦',t:Date.now()});vib([20,30,20]);save();showToast('+ '+desc)}
 function del(i){expenses.splice(i,1);save()}
 function save(){localStorage.setItem('month_expenses',JSON.stringify(expenses));render()}
-function render(){var total=expenses.reduce(function(s,e){return s+e.v},0);document.getElementById('total').textContent=total.toFixed(2);var el=document.getElementById('list');if(!expenses.length){el.innerHTML='<div class="empty">${t('tplExpenseEmpty')}</div>';return}
+function render(){var total=expenses.reduce(function(s,e){return s+e.v},0);document.getElementById('total').textContent=total.toFixed(2);var el=document.getElementById('list');if(!expenses.length){el.innerHTML='<div class="empty">${jsEsc(t('tplExpenseEmpty'))}</div>';return}
 el.innerHTML=expenses.map(function(e,i){return '<div class="exp"><div class="info"><div class="cat">'+e.c+'</div><div class="desc">'+e.d+'</div></div><span class="val">'+e.v.toFixed(2)+'</span><span class="del" onclick="del('+i+')">✕</span></div>'}).join('')}
-function shareReport(){if(typeof AppacadabraShare==='undefined')return;var total=expenses.reduce(function(s,e){return s+e.v},0);var text='💰 ${title}\\n${t('tplExpenseTotal')}: '+total.toFixed(2)+'\\n\\n'+expenses.slice(0,10).map(function(e){return e.c+' '+e.d+': '+e.v.toFixed(2)}).join('\\n');AppacadabraShare.share(text,'','handleShareResult')}
-function setReminder(){if(typeof AppacadabraNotify==='undefined')return;AppacadabraNotify.schedule('💰 ${title}','${t('tplExpenseDescPlaceholder')}',1440,'handleNotifyResult')}
-function scanReceipt(){if(typeof AppacadabraCamera==='undefined')return;window.handleReceiptPhoto=function(success,base64){if(!success)return;showToast('${t('tplAIThinking')}');window.handleReceiptAI=function(ok,result){if(!ok)return;try{var items=JSON.parse(result);items.forEach(function(it){addParsedExpense(it.description,it.amount,it.category||'📦')})}catch(e){console.error('Receipt parse error:',e)}};AppacadabraAI.fromImage(base64).withSchema({type:'array',items:{type:'object',properties:{description:{type:'string'},amount:{type:'number'},category:{type:'string',enum:['🍔','🚗','🏠','🎮','🛍️','📦']}},required:['description','amount']}}).generate('Extract expense items from this receipt. Return JSON array with description, amount (number), and category emoji.','handleReceiptAI')};AppacadabraCamera.takePhoto('handleReceiptPhoto')}
-function toggleVoice(){if(typeof AppacadabraAudio==='undefined')return;var btn=document.getElementById('micBtn');if(!isRecording){isRecording=true;btn.classList.add('recording');btn.textContent='⏹️ ${t('tplStopRecording')}';window.handleRecordStart=function(success){if(!success){isRecording=false;btn.classList.remove('recording');btn.textContent='🎙️ ${t('tplVoiceInput')}'}};AppacadabraAudio.recordStart('handleRecordStart')}else{isRecording=false;btn.classList.remove('recording');btn.textContent='🎙️ ${t('tplVoiceInput')}';window.handleAudioRecorded=function(success,base64){if(!success)return;showToast('${t('tplAIThinking')}');window.handleAudioParse=function(ok,result){if(!ok)return;try{var items=JSON.parse(result);items.forEach(function(it){addParsedExpense(it.description,it.amount,it.category||'📦')})}catch(e){console.error('Audio parse error:',e)}};AppacadabraAI.fromAudio(base64).withSchema({type:'array',items:{type:'object',properties:{description:{type:'string'},amount:{type:'number'},category:{type:'string',enum:['🍔','🚗','🏠','🎮','🛍️','📦']}},required:['description','amount']}}).generate('The user is dictating expense items. Extract each expense mentioned with description, amount (number), and category emoji. If amounts are unclear, estimate.','handleAudioParse')};AppacadabraAudio.recordStop('handleAudioRecorded')}}
+function shareReport(){if(typeof AppacadabraShare==='undefined'){ console.warn('Share missing'); return; }var total=expenses.reduce(function(s,e){return s+e.v},0);var text='💰 ${jsEsc(title)}\\n${jsEsc(t('tplExpenseTotal'))}: '+total.toFixed(2)+'\\n\\n'+expenses.slice(0,10).map(function(e){return e.c+' '+e.d+': '+e.v.toFixed(2)}).join('\\n');AppacadabraShare.share(text,'','handleShareResult')}
+function setReminder(){if(typeof AppacadabraNotify==='undefined'){ console.warn('Notify bridge missing'); return; }AppacadabraNotify.schedule('💰 ${jsEsc(title)}','${jsEsc(t('tplExpenseDescPlaceholder'))}',1440,'handleNotifyResult')}
+function scanReceipt(){if(typeof AppacadabraCamera==='undefined'){ console.warn('Camera bridge missing'); return; }window.handleReceiptPhoto=function(success,base64){console.log('Camera Photo Success:', success);if(!success)return;showToast('${jsEsc(t('tplAIThinking'))}');window.handleReceiptAI=function(ok,result){console.log('Receipt AI Success:', ok);if(!ok)return;try{var items=JSON.parse(result);items.forEach(function(it){addParsedExpense(it.description,it.amount,it.category||'📦')})}catch(e){console.error('Receipt parse error:',e)}};AppacadabraAI.fromImage(base64).withSchema({type:'array',items:{type:'object',properties:{description:{type:'string'},amount:{type:'number'},category:{type:'string',enum:['🍔','🚗','🏠','🎮','🛍️','📦']}},required:['description','amount']}}).generate('Extract expense items from this receipt. Return JSON array with description, amount (number), and category emoji.','handleReceiptAI')};AppacadabraCamera.takePhoto('handleReceiptPhoto')}
+function toggleVoice(){if(typeof AppacadabraAudio==='undefined'){ console.warn('Audio bridge missing'); return; }var btn=document.getElementById('micBtn');if(!isRecording){isRecording=true;btn.classList.add('recording');btn.textContent='⏹️ ${jsEsc(t('tplStopRecording'))}';window.handleRecordStart=function(success){console.log('Record Start Success:', success);if(!success){isRecording=false;btn.classList.remove('recording');btn.textContent='🎙️ ${jsEsc(t('tplVoiceInput'))}'}};AppacadabraAudio.recordStart('handleRecordStart')}else{isRecording=false;btn.classList.remove('recording');btn.textContent='🎙️ ${jsEsc(t('tplVoiceInput'))}';window.handleAudioRecorded=function(success,base64){console.log('Audio Recorded Success:', success);if(!success)return;showToast('${jsEsc(t('tplAIThinking'))}');window.handleAudioParse=function(ok,result){console.log('Audio Parse Success:', ok);if(!ok)return;try{var items=JSON.parse(result);items.forEach(function(it){addParsedExpense(it.description,it.amount,it.category||'📦')})}catch(e){console.error('Audio parse error:',e)}};AppacadabraAI.fromAudio(base64).withSchema({type:'array',items:{type:'object',properties:{description:{type:'string'},amount:{type:'number'},category:{type:'string',enum:['🍔','🚗','🏠','🎮','🛍️','📦']}},required:['description','amount']}}).generate('The user is dictating expense items. Extract each expense mentioned with description, amount (number), and category emoji. If amounts are unclear, estimate.','handleAudioParse')};AppacadabraAudio.recordStop('handleAudioRecorded')}}
 render();
-<\\/script>
+</script>
 </body></html>`
   };
 }

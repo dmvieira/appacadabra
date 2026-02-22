@@ -59,6 +59,18 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       }
   }
   checkBridge();
+  
+  // Helper to send data back to a callback
+  function sendCallback(callbackName, result, error) {
+      if (!callbackName) return;
+      var success = error ? false : true;
+      var data = error || result;
+      if (typeof window[callbackName] === 'function') {
+          window[callbackName](success, data);
+      } else {
+          console.warn('[Bridge] Callback not found:', callbackName);
+      }
+  }
 
   // Forward declarations for safety
   window.AppacadabraSensors = {};
@@ -115,9 +127,9 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       var logParts = ['[AppacadabraAI.generate]'];
       if (this.options.search) logParts.push('search:true');
       if (this.options.schema) logParts.push('schema:' + JSON.stringify(this.options.schema));
-      if (this.options.image) logParts.push('image:' + (this.options.image?.length || 0) + 'chars');
-      if (this.options.audio) logParts.push('audio:' + (this.options.audio?.length || 0) + 'chars');
-      if (prompt) logParts.push('prompt:' + (prompt?.substring ? prompt.substring(0, 80) : prompt));
+      if (this.options.image) logParts.push('image:' + (this.options.image ? this.options.image.length : 0) + 'chars');
+      if (this.options.audio) logParts.push('audio:' + (this.options.audio ? this.options.audio.length : 0) + 'chars');
+      if (prompt) logParts.push('prompt:' + (prompt && prompt.substring ? prompt.substring(0, 80) : prompt));
       logParts.push('callback:' + callbackName);
       console.log(logParts.join(' '));
       
@@ -138,7 +150,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       fromAudio: function(b) { return new AIBuilder().fromAudio(b); },
       generate: function(prompt, cb) { return new AIBuilder().generate(prompt, cb); },
       generateImage: function(prompt, callbackName) {
-        console.log('[AppacadabraAI.generateImage] prompt:', prompt?.substring(0, 80), 'callback:', callbackName);
+        console.log('[AppacadabraAI.generateImage] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
         sendMessage('AI_GENERATE_IMAGE', { prompt: prompt }, callbackName);
       }
     };
@@ -195,12 +207,6 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     }
   };
 
-  window.AppacadabraLocation = {
-    getCurrentPosition: function(callbackName) {
-        console.log('[AppacadabraLocation.getCurrentPosition] callback:', callbackName);
-        sendMessage('LOCATION_GET_CURRENT_POSITION', {}, callbackName);
-    }
-  };
 
   // ============= Share Bridge =============
   window.AppacadabraShare = {
@@ -416,9 +422,6 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           sendMessage('PRINT', { html: document.documentElement.outerHTML });
       },
       capture: function(callbackName) {
-          sendMessage('SCREEN_CAPTURE', {}, callbackName);
-      },
-      screenshot: function(callbackName) {
           sendMessage('SCREEN_CAPTURE', {}, callbackName);
       }
   };
@@ -1048,7 +1051,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   const originalFetch = window.fetch;
   window.fetch = function(input, init) {
     const url = typeof input === 'string' ? input : input.url;
-    const method = init?.method || 'GET';
+    const method = (init && init.method) || 'GET';
     const startTime = Date.now();
     
     return originalFetch.apply(this, arguments)
@@ -1104,7 +1107,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     const info = this._networkInfo || { method: 'GET', url: 'unknown', startTime: Date.now() };
     
     this.addEventListener('load', function() {
-      const truncatedBody = xhr.responseText?.length > 500 
+      const truncatedBody = (xhr.responseText && xhr.responseText.length > 500) 
         ? xhr.responseText.substring(0, 500) + '...' 
         : xhr.responseText;
       sendMessage('NETWORK_LOG', {

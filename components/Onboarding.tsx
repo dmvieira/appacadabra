@@ -9,6 +9,7 @@ import {
     Animated,
     Easing,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 
@@ -97,6 +98,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
     const [currentScreen, setCurrentScreen] = useState(0);
     const [showPreview, setShowPreview] = useState(false);
     const [selectedChip, setSelectedChip] = useState<number | null>(null);
+    const insets = useSafeAreaInsets();
     const slideAnim = useRef(new Animated.Value(0)).current;
     const previewAnim = useRef(new Animated.Value(0)).current;
 
@@ -171,7 +173,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
 
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-            <View style={s.overlay}>
+            <View style={[s.overlay, { paddingTop: Math.max(insets.top, 20) }]}>
                 {/* Progress bar */}
                 <View style={s.progressBar}>
                     <View style={[s.progressFill, { width: progressWidth as any }]} />
