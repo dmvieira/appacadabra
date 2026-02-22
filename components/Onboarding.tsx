@@ -158,9 +158,13 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
     const powers = [
         { icon: '📅', nameKey: 'obPowerCalendar', descKey: 'obPowerCalendarDesc' },
         { icon: '🔔', nameKey: 'obPowerNotifications', descKey: 'obPowerNotificationsDesc' },
-        { icon: '📍', nameKey: 'obPowerLocation', descKey: 'obPowerLocationDesc' },
+        { icon: '📍', nameKey: 'obPowerSensors', descKey: 'obPowerSensorsDesc' },
+        { icon: '💓', nameKey: 'obPowerHealth', descKey: 'obPowerHealthDesc' },
+        { icon: '📥', nameKey: 'obPowerReceive', descKey: 'obPowerReceiveDesc' },
+        { icon: '👥', nameKey: 'obPowerContacts', descKey: 'obPowerContactsDesc' },
+        { icon: '📱', nameKey: 'obPowerDevice', descKey: 'obPowerDeviceDesc' },
         { icon: '🔒', nameKey: 'obPowerBiometrics', descKey: 'obPowerBiometricsDesc' },
-        { icon: '📤', nameKey: 'obPowerShare', descKey: 'obPowerShareDesc' },
+        { icon: '🔗', nameKey: 'obPowerShare', descKey: 'obPowerShareDesc' },
         { icon: '💬', nameKey: 'obPowerDeeplinks', descKey: 'obPowerDeeplinksDesc' },
     ];
 
@@ -248,13 +252,6 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                             </Text>
                             <Text style={s.subtext}>{t('obTrySubtext')}</Text>
 
-                            {/* Input area */}
-                            <View style={[s.tryInputArea, selectedChip !== null && s.tryInputFocused]}>
-                                <Text style={s.tryInputLabel}>{t('obTryPlaceholder')}</Text>
-                                <Text style={s.tryTypedText}>
-                                    {selectedChip !== null ? t(chipTexts[selectedChip]) : ' '}
-                                </Text>
-                            </View>
 
                             {/* Chips */}
                             <View style={s.chipsRow}>
@@ -270,6 +267,14 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
+                            </View>
+
+                            {/* Input area */}
+                            <View style={[s.tryInputArea, selectedChip !== null && s.tryInputFocused]}>
+                                <Text style={s.tryInputLabel}>{t('obTryPlaceholder')}</Text>
+                                <Text style={s.tryTypedText}>
+                                    {selectedChip !== null ? t(chipTexts[selectedChip]) : ' '}
+                                </Text>
                             </View>
 
                             {/* Dots */}
@@ -504,16 +509,18 @@ const s = StyleSheet.create({
     chipsRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: 12,
         marginTop: 12,
+        justifyContent: 'center',
+        marginBottom: 20,
     },
     chip: {
         backgroundColor: colors.surfaceVariant,
         borderWidth: 1,
         borderColor: '#2a2a3e',
         borderRadius: 100,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
     },
     chipSelected: {
         borderColor: colors.primary,

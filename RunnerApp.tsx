@@ -218,7 +218,7 @@ function RunnerContent({ appId }: Props) {
                             } else {
                                 console.log('RunnerApp: Heartbeat received, WebView is healthy');
                             }
-                        }, 300);
+                        }, 2000);
                     } catch (e) {
                         setWebViewKey(k => k + 1);
                     }
