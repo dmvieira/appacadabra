@@ -44,6 +44,9 @@ interface AppState {
     lastCompletedEditAppId: number | null;
     updatingAppIds: number[];
 
+    // Signal for HomeScreen to show post-creation setup modal
+    lastCreatedAppId: number | null;
+
     initializeListeners: () => void;
 
     // Actions
@@ -52,6 +55,7 @@ interface AppState {
     closeApp: (id: number) => void;
     minimizeApp: () => void;
     clearLastCompletedEdit: () => void;
+    clearLastCreatedApp: () => void;
     createApp: (description: string) => Promise<boolean>;
     updateAppWithAI: (app: GeneratedApp, instructions: string, selectedContext?: string) => Promise<boolean>;
     deleteApp: (id: number) => Promise<void>;
@@ -90,6 +94,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     creatingApps: [],
     updatingAppIds: [],
     lastCompletedEditAppId: null,
+    lastCreatedAppId: null,
 
     initializeListeners: () => {
         // Prevent double initialization if needed, but useEffect in App usually handles strict mode
@@ -183,12 +188,14 @@ export const useAppStore = create<AppState>((set, get) => ({
                     appName = titleMatch[1].trim();
                 }
 
+                const now = Date.now();
                 const newApp: NewGeneratedApp = {
                     name: appName,
                     code: decompressedText,
                     currentVersion: 1,
                     iconPath: null,
-                    lastUpdated: Date.now(),
+                    lastUpdated: now,
+                    createdAt: now,
                     consoleLogs: '',
                     totalManaCost: job.result.creditsUsed || 0,
                     jobId: job.id,
@@ -224,7 +231,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                     // Reload apps to update UI
                     await get().loadApps();
-                    set({ statusMessage: t('appReadyNotify', { name: appName }) });
+                    set({ statusMessage: t('appReadyNotify', { name: appName }), lastCreatedAppId: id });
 
                     // Schedule Local Notification
                     await Notifications.scheduleNotificationAsync({
@@ -403,6 +410,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     clearLastCompletedEdit: () => {
         set({ lastCompletedEditAppId: null });
+    },
+
+    clearLastCreatedApp: () => {
+        set({ lastCreatedAppId: null });
     },
 
     createApp: async (description: string) => {
@@ -669,6 +680,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 currentVersion: 1,
                 iconPath: null,
                 lastUpdated: Date.now(),
+                createdAt: Date.now(),
                 consoleLogs: '',
                 totalManaCost: 0, // Free!
                 requiresBiometric: false,
@@ -713,6 +725,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 currentVersion: 1,
                 iconPath: null,
                 lastUpdated: Date.now(),
+                createdAt: Date.now(),
                 consoleLogs: '',
                 totalManaCost: 0,
                 requiresBiometric: false,

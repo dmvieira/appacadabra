@@ -2,6 +2,7 @@ import { Paths, File, Directory } from 'expo-file-system/next';
 import { readAsStringAsync, copyAsync, cacheDirectory } from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
+import * as Notifications from 'expo-notifications';
 import { GeneratedApp, AppVersion, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import { reloadStorageForApp } from './storageCache';
@@ -28,10 +29,13 @@ export interface BackupApp {
     iconPath?: string;
     iconBase64?: string; // Base64 encoded icon for backup portability
     lastUpdated: number;
+    createdAt?: number;
     consoleLogs?: string;
     totalManaCost?: number;
     jobId?: string; // Add this
     shortDescription?: string; // Add this
+    // Scheduled notifications (absolute fire timestamps)
+    notifications?: { identifier: string; title: string; body: string; fireDate: number }[];
     // Android nested format
     versions?: { version: number; code: string; instruction: string; selectedContext: string; createdAt: number; jobId?: string }[];
     localStorage?: Record<string, string>;
@@ -61,6 +65,39 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             });
         }
 
+        // Collect scheduled notifications for this app
+        let notifications: { identifier: string; title: string; body: string; fireDate: number }[] = [];
+        if (includeStorage) {
+            try {
+                const allNotifs = await Notifications.getAllScheduledNotificationsAsync();
+                const now = Date.now();
+                allNotifs.forEach(n => {
+                    const content = n.content as any;
+                    const isThisApp =
+                        content.channelId === `spell-${app.id}` ||
+                        String(content.data?.appId) === String(app.id) ||
+                        content.badge === Number(app.id);
+                    if (!isThisApp) return;
+                    // Compute absolute fire date from timeInterval trigger
+                    let fireDate = 0;
+                    const trigger = n.trigger as any;
+                    if (trigger?.seconds) fireDate = now + trigger.seconds * 1000;
+                    else if (trigger?.timestamp) fireDate = trigger.timestamp;
+                    else if (trigger?.value) fireDate = trigger.value;
+                    if (fireDate > now) {
+                        notifications.push({
+                            identifier: n.identifier,
+                            title: content.title || '',
+                            body: content.body || '',
+                            fireDate,
+                        });
+                    }
+                });
+            } catch (e) {
+                console.warn('Failed to read notifications for backup:', e);
+            }
+        }
+
         // Convert icon to base64 if exists
         let iconBase64: string | undefined;
         if (app.iconPath) {
@@ -81,9 +118,11 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             currentVersion: app.currentVersion,
             iconBase64,
             lastUpdated: app.lastUpdated,
+            createdAt: app.createdAt,
             consoleLogs: includeStorage ? (app.consoleLogs || '') : undefined,
             totalManaCost: includeStorage ? (app.totalManaCost || 0) : undefined,
             shortDescription: app.shortDescription,
+            notifications: notifications.length > 0 ? notifications : undefined,
             versions: versions.length > 0 ? versions.map(v => ({
                 version: v.version,
                 code: v.code,
@@ -328,6 +367,7 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                 currentVersion: app.currentVersion,
                 iconPath,
                 lastUpdated: app.lastUpdated,
+                createdAt: app.createdAt || app.lastUpdated,
                 consoleLogs: app.consoleLogs || '',
                 totalManaCost: app.totalManaCost || 0,
                 jobId: app.jobId || undefined,
@@ -374,6 +414,42 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                 await reloadStorageForApp(newId);
             } catch (e) {
                 console.warn('Failed to reload storage cache after import:', e);
+            }
+
+            // Restore scheduled notifications with recalculated delays
+            if (app.notifications && app.notifications.length > 0) {
+                const now = Date.now();
+                // Ensure the notification channel exists for the new app ID
+                try {
+                    await Notifications.setNotificationChannelAsync(`spell-${newId}`, {
+                        name: app.name,
+                        importance: Notifications.AndroidImportance.HIGH,
+                        vibrationPattern: [0, 250, 250, 250],
+                        lightColor: '#FF9500',
+                    });
+                } catch { /* channel creation is best-effort */ }
+
+                for (const notif of app.notifications) {
+                    const secondsUntilFire = Math.round((notif.fireDate - now) / 1000);
+                    if (secondsUntilFire < 10) continue; // skip already-past or imminent
+                    try {
+                        await Notifications.scheduleNotificationAsync({
+                            content: {
+                                title: notif.title,
+                                body: notif.body,
+                                channelId: `spell-${newId}`,
+                                badge: newId,
+                            } as any,
+                            trigger: {
+                                type: 'timeInterval',
+                                seconds: secondsUntilFire,
+                                repeats: false,
+                            } as any,
+                        });
+                    } catch (e) {
+                        console.warn('Failed to restore notification:', e);
+                    }
+                }
             }
 
             importedCount++;

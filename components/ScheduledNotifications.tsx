@@ -18,6 +18,7 @@ interface ScheduledNotification {
     title: string | null;
     body: string | null;
     trigger: any;
+    fireDate?: number; // Absolute ms timestamp computed at load time
 }
 
 interface ScheduledNotificationsProps {
@@ -70,12 +71,31 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                 return channelMatch || dataMatch || badgeMatch;
             });
 
-            setNotifications(filtered.map(n => ({
-                identifier: n.identifier,
-                title: n.content.title,
-                body: n.content.body,
-                trigger: n.trigger,
-            })));
+            setNotifications(filtered.map(n => {
+                const trigger = n.trigger as any;
+                const now = Date.now();
+                // Compute absolute fire timestamp from whatever the trigger provides
+                let fireDate: number | undefined;
+                if (trigger?.value && typeof trigger.value === 'number') {
+                    fireDate = trigger.value; // Android absolute ms
+                } else if (trigger?.timestamp && typeof trigger.timestamp === 'number') {
+                    fireDate = trigger.timestamp;
+                } else if (trigger?.type === 'date') {
+                    fireDate = trigger.timestamp ?? trigger.value ?? trigger.date;
+                } else if (trigger?.type === 'timeInterval' && trigger?.seconds) {
+                    fireDate = now + trigger.seconds * 1000; // approximate remaining
+                } else if (trigger?.dateComponents) {
+                    const { year, month, day, hour = 0, minute = 0 } = trigger.dateComponents;
+                    if (year && month && day) fireDate = new Date(year, month - 1, day, hour, minute).getTime();
+                }
+                return {
+                    identifier: n.identifier,
+                    title: n.content.title,
+                    body: n.content.body,
+                    trigger: n.trigger,
+                    fireDate,
+                };
+            }));
         } catch (e) {
             console.error('Failed to load notifications:', e);
         } finally {
@@ -105,33 +125,14 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
         );
     };
 
-    const formatTrigger = (trigger: any): string => {
+    const formatTrigger = (n: ScheduledNotification): string => {
+        // Prefer pre-computed absolute fireDate
+        if (n.fireDate && n.fireDate > 0) {
+            return new Date(n.fireDate).toLocaleString();
+        }
+        const trigger = n.trigger;
         if (!trigger) return t('immediate') || 'Immediate';
-
-        // Android often uses 'value' for timestamp in some contexts
-        if (trigger.value && (typeof trigger.value === 'number')) {
-            return new Date(trigger.value).toLocaleString();
-        }
-
-        if (trigger.type === 'date') {
-            if (trigger.timestamp) return new Date(trigger.timestamp).toLocaleString();
-            if (trigger.value) return new Date(trigger.value).toLocaleString();
-            if (trigger.date) return new Date(trigger.date).toLocaleString();
-        }
-
-        if (trigger.type === 'timeInterval' && trigger.seconds) {
-            const mins = Math.round(trigger.seconds / 60);
-            return `${mins} min`;
-        }
-        // Fallback: try to extract date from dateComponents
-        if (trigger.dateComponents) {
-            const { year, month, day, hour, minute } = trigger.dateComponents;
-            if (year && month && day) {
-                return new Date(year, month - 1, day, hour || 0, minute || 0).toLocaleString();
-            }
-        }
-
-        // Debug fallback
+        // Final fallback: show raw trigger summary (should never reach here)
         return JSON.stringify(trigger).substring(0, 50);
     };
 
@@ -165,7 +166,7 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                                     <View style={styles.cardContent}>
                                         <Text style={styles.cardTitle}>{n.title || '(No title)'}</Text>
                                         {n.body && <Text style={styles.cardBody} numberOfLines={2}>{n.body}</Text>}
-                                        <Text style={styles.cardTrigger}>⏱ {formatTrigger(n.trigger)}</Text>
+                                        <Text style={styles.cardTrigger}>🗓 {formatTrigger(n)}</Text>
                                     </View>
                                     <TouchableOpacity
                                         style={styles.cancelBtn}

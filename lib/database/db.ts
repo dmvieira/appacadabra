@@ -55,6 +55,16 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_app_storage_appId_key ON app_storage(appId, key);
+
+    CREATE TABLE IF NOT EXISTS mana_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      appId INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      timestamp INTEGER NOT NULL,
+      FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_mana_events_appId_ts ON mana_events(appId, timestamp);
   `);
 
     // Helper to safely add column if missing
@@ -74,6 +84,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await addColumn('generated_apps', 'jobId', 'TEXT');
     await addColumn('generated_apps', 'requiresBiometric', 'INTEGER NOT NULL DEFAULT 0');
     await addColumn('generated_apps', 'shortDescription', 'TEXT');
+    await addColumn('generated_apps', 'createdAt', 'INTEGER NOT NULL DEFAULT 0');
     await addColumn('app_versions', 'jobId', 'TEXT');
 
     await database.execAsync(`
@@ -102,6 +113,22 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
         LIMIT 1
       ) 
       WHERE shortDescription IS NULL;
+
+      -- Backfill createdAt from the earliest version; fall back to lastUpdated
+      UPDATE generated_apps
+      SET createdAt = COALESCE(
+        (SELECT MIN(createdAt) FROM app_versions WHERE appId = generated_apps.id),
+        lastUpdated
+      )
+      WHERE createdAt = 0;
+
+      -- Backfill mana_events for existing spells that have totalManaCost but no events yet.
+      -- Uses createdAt as timestamp so the windowed query picks it up correctly.
+      INSERT OR IGNORE INTO mana_events (appId, amount, timestamp)
+      SELECT id, totalManaCost, COALESCE(createdAt, lastUpdated)
+      FROM generated_apps
+      WHERE totalManaCost > 0
+        AND id NOT IN (SELECT DISTINCT appId FROM mana_events);
     `);
     } catch (e) {
         // Ignore backfill errors
@@ -112,8 +139,20 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
 export async function getAllApps(): Promise<GeneratedApp[]> {
     const database = await getDatabase();
+    // Compute recentManaCost: sum of mana_events in the window [max(createdAt, now-30d), now]
+    // This respects the spell's age — new spells show since creation, old ones show last 30 days.
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     return database.getAllAsync<GeneratedApp>(
-        'SELECT * FROM generated_apps ORDER BY lastUpdated DESC'
+        `SELECT g.*,
+           COALESCE((
+             SELECT SUM(me.amount)
+             FROM mana_events me
+             WHERE me.appId = g.id
+               AND me.timestamp >= MAX(g.createdAt, ?)
+           ), 0) AS recentManaCost
+         FROM generated_apps g
+         ORDER BY g.lastUpdated DESC`,
+        [thirtyDaysAgo]
     );
 }
 
@@ -144,12 +183,14 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         }
     }
 
+    const now = Date.now();
     const bindings = [
         String(app.name ?? 'Untitled'),
         String(app.code ?? ''),
         Number(app.currentVersion ?? 1),
         app.iconPath ? String(app.iconPath) : "", // Empty string instead of null
-        Number(app.lastUpdated ?? Date.now()),
+        Number(app.lastUpdated ?? now),
+        Number(app.createdAt ?? now),
         String(app.consoleLogs ?? ''),
         Number(app.totalManaCost ?? 0),
         app.jobId ? String(app.jobId) : "", // Empty string instead of null to test NPE fix
@@ -161,8 +202,8 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
 
     try {
         const result = await database.runAsync(
-            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             bindings as any[]
         );
         return result.lastInsertRowId;
@@ -176,7 +217,8 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
                 String(app.code ?? ''),
                 Number(app.currentVersion ?? 1),
                 app.iconPath ? String(app.iconPath) : "",
-                Number(app.lastUpdated ?? Date.now()),
+                Number(app.lastUpdated ?? now),
+                Number(app.createdAt ?? now),
                 String(app.consoleLogs ?? ''),
                 Number(app.totalManaCost ?? 0),
                 app.requiresBiometric ? 1 : 0,
@@ -184,8 +226,8 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
             ];
 
             const result = await database.runAsync(
-                `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, consoleLogs, totalManaCost, requiresBiometric, shortDescription)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, requiresBiometric, shortDescription)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 fallbackBindings as any[]
             );
             console.log('[DB] Fallback Insert Success!');
@@ -216,6 +258,7 @@ export async function updateApp(app: GeneratedApp): Promise<void> {
             app.id
         ]
     );
+    // Note: createdAt is intentionally never updated — it is set once at insert time.
 }
 
 export async function deleteApp(id: number): Promise<void> {
@@ -234,9 +277,15 @@ export async function updateBiometricLock(appId: number, enabled: boolean): Prom
 export async function incrementManaCost(appId: number, amount: number): Promise<void> {
     if (amount <= 0) return;
     const database = await getDatabase();
+    const now = Date.now();
     await database.runAsync(
         'UPDATE generated_apps SET totalManaCost = totalManaCost + ? WHERE id = ?',
         [amount, appId]
+    );
+    // Log the event so we can sum mana within any time window
+    await database.runAsync(
+        'INSERT INTO mana_events (appId, amount, timestamp) VALUES (?, ?, ?)',
+        [appId, amount, now]
     );
 }
 

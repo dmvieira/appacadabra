@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
+    TextInput,
     FlatList,
     TouchableOpacity,
     StyleSheet,
@@ -9,6 +10,8 @@ import {
     Modal,
     Platform,
     ScrollView,
+    KeyboardAvoidingView,
+    Image,
     Linking as RNLinking,
     Alert,
     RefreshControl,
@@ -31,7 +34,7 @@ import { colors, spacing, borderRadius } from '../lib/theme';
 
 import { GeneratedApp } from '../lib/database/types';
 import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
-import { t } from '../lib/i18n';
+import { t, getCurrentLanguage } from '../lib/i18n';
 import { ManaDisplay } from '../components/ManaDisplay';
 import * as db from '../lib/database/db';
 import { exportSingleApp } from '../lib/backup';
@@ -72,6 +75,8 @@ export default function HomeScreen() {
         clearStatusMessage,
         setStatusMessage,
         initializeListeners,
+        lastCreatedAppId,
+        clearLastCreatedApp,
     } = useAppStore();
 
     // Dialog states
@@ -88,11 +93,36 @@ export default function HomeScreen() {
     const [scheduleTarget, setScheduleTarget] = useState<GeneratedApp | null>(null);
     const [isGeneratingIcon, setIsGeneratingIcon] = useState(false);
     const [isAtTop, setIsAtTop] = useState(true); // Track scroll position for smarter refresh control
+    const [searchQuery, setSearchQuery] = useState('');
+    const [setupTarget, setSetupTarget] = useState<GeneratedApp | null>(null);
+    const [setupName, setSetupName] = useState('');
+    const [setupDescription, setSetupDescription] = useState('');
 
     // Initialize background listeners for async jobs
     useEffect(() => {
         initializeListeners();
     }, []);
+
+    // Show setup modal when a new spell is created
+    useEffect(() => {
+        if (lastCreatedAppId) {
+            const created = apps.find(a => a.id === lastCreatedAppId);
+            if (created) {
+                setSetupTarget(created);
+                setSetupName(created.name);
+                setSetupDescription(created.shortDescription || '');
+                clearLastCreatedApp();
+            }
+        }
+    }, [lastCreatedAppId, apps]);
+
+    // Keep setup modal target in sync with apps (e.g. after icon change)
+    useEffect(() => {
+        if (setupTarget) {
+            const updated = apps.find(a => a.id === setupTarget.id);
+            if (updated) setSetupTarget(updated);
+        }
+    }, [apps]);
 
     // Check if onboarding should be shown
     useEffect(() => {
@@ -295,6 +325,100 @@ export default function HomeScreen() {
             setEditTarget(null);
         }
     };
+
+    // --- Setup modal handlers ---
+    const handleSetupSave = async () => {
+        if (!setupTarget) return;
+        if (setupName.trim() && setupName.trim() !== setupTarget.name) {
+            await renameApp(setupTarget.id, setupName.trim());
+        }
+        if (setupDescription !== (setupTarget.shortDescription || '')) {
+            await updateAppDescription(setupTarget.id, setupDescription);
+        }
+        setSetupTarget(null);
+    };
+
+    const handleSetupSkip = () => setSetupTarget(null);
+
+    const handleSetupIconFromGallery = async () => {
+        if (!setupTarget || isPicking) return;
+        try {
+            setIsPicking(true);
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+                await updateAppIcon(setupTarget.id, result.assets[0].uri);
+            }
+        } catch (e) {
+            console.error('Error selecting setup icon from gallery:', e);
+        } finally {
+            setIsPicking(false);
+        }
+    };
+
+    const handleSetupSearchGoogle = async () => {
+        if (!setupTarget) return;
+        const query = encodeURIComponent(`${setupTarget.name} app icon`);
+        await Linking.openURL(`https://www.google.com/search?tbm=isch&q=${query}`);
+    };
+
+    const handleSetupGenerateIconWithAI = async () => {
+        if (!setupTarget || isGeneratingIcon) return;
+        try {
+            setIsGeneratingIcon(true);
+            let creationPrompt = setupDescription || setupTarget.shortDescription || '';
+            if (!creationPrompt) {
+                const versions = await db.getVersionsForApp(setupTarget.id);
+                const first = versions.length > 0 ? versions[versions.length - 1] : null;
+                creationPrompt = first?.instruction || '';
+            }
+            const prompt = `App icon for "${setupTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} . REALLY simple, easy to understand, colorful, minimalist, rounded square, borderless icon suitable for a mobile app. No text. Recognizable symbol because the icon is small.`;
+            const result = await firebase.generateSpellImageGen(prompt);
+            const base64Image = result.text;
+            const creditsUsed = result.creditsUsed || 0;
+            if (base64Image) {
+                const iconDir = `${FileSystem.documentDirectory}icons/`;
+                const dirInfo = await FileSystem.getInfoAsync(iconDir);
+                if (!dirInfo.exists) {
+                    await FileSystem.makeDirectoryAsync(iconDir, { intermediates: true });
+                }
+                const iconPath = `${iconDir}ai_icon_${setupTarget.id}_${Date.now()}.png`;
+                await FileSystem.writeAsStringAsync(iconPath, base64Image, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                await updateAppIcon(setupTarget.id, iconPath);
+                if (creditsUsed > 0) {
+                    await incrementAppManaCost(setupTarget.id, creditsUsed);
+                }
+                setStatusMessage(t('iconGenerated'));
+            }
+        } catch (e: any) {
+            console.error('Error generating setup icon with AI:', e);
+            const errorMsg = e?.message || String(e);
+            const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
+                errorMsg.toLowerCase().includes('insufficient mana') ||
+                errorMsg.toLowerCase().includes('no credits');
+            if (isManaError) {
+                Alert.alert(
+                    t('manaDepletedTitle') || 'Out of Mana',
+                    t('manaDepletedMessage') || 'You need more Mana to generate icons.',
+                    [
+                        { text: t('getMana') || 'Get Mana', onPress: () => { setTimeout(() => useManaStore.getState().openShop(), 300); } },
+                        { text: t('cancel'), style: 'cancel' }
+                    ]
+                );
+            } else {
+                Alert.alert(t('iconGenError'));
+            }
+        } finally {
+            setIsGeneratingIcon(false);
+        }
+    };
+
     const handleSelectIconFromGallery = async () => {
         if (!iconTarget || isPicking) return;
 
@@ -545,17 +669,46 @@ export default function HomeScreen() {
 
     const allApps = [...placeholderApps, ...apps];
 
+    const filteredApps = searchQuery.trim()
+        ? allApps.filter(a =>
+            a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (a.shortDescription || '').toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : allApps;
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             {/* Header with menu */}
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.headerTitle}>✨ {t('appName')}</Text>
+                    <Text style={styles.headerTitle}>
+                        <Text style={styles.headerTitleStar}>✦ </Text>
+                        {t('appName')}
+                    </Text>
                 </View>
                 <ManaDisplay />
                 <TouchableOpacity onPress={() => setShowMenu(true)} style={[styles.menuBtn, { marginStart: spacing.md }]} accessibilityLabel={t('options')} accessibilityRole="button">
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
+            </View>
+
+            {/* Search bar */}
+            <View style={styles.searchBar}>
+                <Text style={styles.searchIcon}>🔍</Text>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder={t('searchSpells')}
+                    placeholderTextColor="#8b8aad"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    returnKeyType="search"
+                    clearButtonMode="while-editing"
+                />
+                {!!searchQuery && Platform.OS !== 'ios' && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={styles.searchClear}>✕</Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {balance <= 0 && (
@@ -573,11 +726,11 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             )}
 
-            {allApps.length === 0 && !isGenerating ? (
+            {filteredApps.length === 0 && !isGenerating ? (
                 <EmptyState />
             ) : (
                 <FlatList
-                    data={allApps}
+                    data={filteredApps}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.list}
                     onScroll={onScroll}
@@ -592,7 +745,7 @@ export default function HomeScreen() {
                         />
                     }
                     ListHeaderComponent={
-                        <Text style={styles.sectionTitle}>{t('yourApps')}</Text>
+                        <Text style={styles.listLabel}>{t('yourApps').toUpperCase()}</Text>
                     }
                     renderItem={({ item }) => {
                         // Check if this item is a placeholder (from our manual mapping above)
@@ -621,28 +774,30 @@ export default function HomeScreen() {
             )}
 
             {/* FAB */}
-            <TouchableOpacity
-                style={[styles.fab, { bottom: spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom }]}
-                onPress={() => {
-                    if (balance <= 0) {
-                        Alert.alert(
-                            t('manaDepletedTitle'),
-                            t('manaDepletedMessage'),
-                            [
-                                { text: t('buyMana'), onPress: openShop },
-                                { text: t('cancel'), style: 'cancel' }
-                            ]
-                        );
-                    } else {
-                        setShowCreateDialog(true);
-                    }
-                }}
-                accessibilityLabel={t('createApp')}
-                accessibilityRole="button"
-            >
-                <Text style={styles.fabIcon}>✨</Text>
-                <Text style={styles.fabText}>{t('createApp')}</Text>
-            </TouchableOpacity>
+            <View style={[styles.fabWrap, { bottom: spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom }]} pointerEvents="box-none">
+                <TouchableOpacity
+                    style={styles.fab}
+                    onPress={() => {
+                        if (balance <= 0) {
+                            Alert.alert(
+                                t('manaDepletedTitle'),
+                                t('manaDepletedMessage'),
+                                [
+                                    { text: t('buyMana'), onPress: openShop },
+                                    { text: t('cancel'), style: 'cancel' }
+                                ]
+                            );
+                        } else {
+                            setShowCreateDialog(true);
+                        }
+                    }}
+                    accessibilityLabel={t('createApp')}
+                    accessibilityRole="button"
+                >
+                    <Text style={styles.fabIcon}>✨</Text>
+                    <Text style={styles.fabText}>{t('createApp')}</Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Menu Modal */}
             <Modal visible={showMenu} transparent animationType="fade">
@@ -747,6 +902,106 @@ export default function HomeScreen() {
                 onDismiss={() => setDeleteTarget(null)}
                 onConfirm={handleDeleteConfirm}
             />
+
+            {/* Post-Creation Setup Modal */}
+            <Modal
+                visible={!!setupTarget}
+                animationType="slide"
+                onRequestClose={handleSetupSkip}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1, backgroundColor: colors.background }}
+                >
+                    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+                        <ScrollView
+                            contentContainerStyle={styles.setupContainer}
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            <Text style={styles.setupTitle}>{t('setupModalTitle')}</Text>
+                            <Text style={styles.setupSubtitle}>{t('setupModalSubtitle')}</Text>
+
+                            {/* Icon preview + picker buttons */}
+                            <View style={styles.setupIconRow}>
+                                {setupTarget?.iconPath ? (
+                                    <Image
+                                        source={{ uri: setupTarget.iconPath }}
+                                        style={styles.setupIconPreview}
+                                    />
+                                ) : (
+                                    <View style={[styles.setupIconPreview, styles.setupIconInitials]}>
+                                        <Text style={styles.setupIconInitialsText}>
+                                            {setupTarget?.name?.charAt(0)?.toUpperCase() ?? '?'}
+                                        </Text>
+                                    </View>
+                                )}
+                                <View style={styles.setupIconBtns}>
+                                    <TouchableOpacity
+                                        style={styles.setupIconBtn}
+                                        onPress={handleSetupIconFromGallery}
+                                        disabled={isPicking}
+                                    >
+                                        <Text style={styles.setupIconBtnText}>🖼️  {t('fromGallery')}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.setupIconBtn}
+                                        onPress={handleSetupSearchGoogle}
+                                    >
+                                        <Text style={styles.setupIconBtnText}>🔍  {t('searchGoogle')}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.setupIconBtn, styles.setupIconBtnAI]}
+                                        onPress={handleSetupGenerateIconWithAI}
+                                        disabled={isGeneratingIcon}
+                                    >
+                                        {isGeneratingIcon ? (
+                                            <ActivityIndicator size="small" color={colors.primary} />
+                                        ) : (
+                                            <Text style={styles.setupIconBtnAIText}>✨  {t('generateWithAI')}  ⚡ {(0.5).toLocaleString(getCurrentLanguage(), { minimumFractionDigits: 1 })}</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {/* Name */}
+                            <Text style={styles.setupLabel}>{t('spellNameLabel')}</Text>
+                            <TextInput
+                                style={styles.setupInput}
+                                value={setupName}
+                                onChangeText={setSetupName}
+                                placeholder={t('spellNameLabel')}
+                                placeholderTextColor={colors.onSurfaceVariant}
+                            />
+
+                            {/* Description */}
+                            <Text style={styles.setupLabel}>{t('shortDescriptionLabel')}</Text>
+                            <TextInput
+                                style={[styles.setupInput, styles.setupTextArea]}
+                                value={setupDescription}
+                                onChangeText={setSetupDescription}
+                                placeholder={t('shortDescriptionLabel')}
+                                placeholderTextColor={colors.onSurfaceVariant}
+                                multiline
+                                numberOfLines={3}
+                            />
+
+                            {/* Cost notice */}
+                            <View style={styles.setupCostNotice}>
+                                <Text style={styles.setupCostText}>
+                                    💡 {t('setupCostNotice', { cost: (setupTarget?.totalManaCost ?? 0).toLocaleString(getCurrentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}
+                                </Text>
+                            </View>
+
+                            <TouchableOpacity style={styles.setupSaveBtn} onPress={handleSetupSave}>
+                                <Text style={styles.setupSaveBtnText}>{t('setupModalSave')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.setupSkipBtn} onPress={handleSetupSkip}>
+                                <Text style={styles.setupSkipBtnText}>{t('setupModalSkip')}</Text>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </SafeAreaView>
+                </KeyboardAvoidingView>
+            </Modal>
 
             {/* Import Progress Modal */}
             <Modal visible={isImporting} transparent animationType="fade">
@@ -876,7 +1131,47 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: colors.primary,
+        color: '#a855f7',
+    },
+    headerTitleStar: {
+        color: '#f59e0b',
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: spacing.md,
+        marginVertical: spacing.sm,
+        backgroundColor: '#12121f',
+        borderWidth: 1.5,
+        borderColor: '#1e1e32',
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        gap: spacing.sm,
+    },
+    searchIcon: {
+        fontSize: 14,
+        color: '#8b8aad',
+    },
+    searchInput: {
+        flex: 1,
+        color: '#f1f0ff',
+        fontSize: 14,
+        padding: 0,
+    },
+    searchClear: {
+        fontSize: 14,
+        color: '#8b8aad',
+    },
+    listLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#8b8aad',
+        textTransform: 'uppercase',
+        letterSpacing: 1.5,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.sm,
+        paddingHorizontal: spacing.xs,
     },
     menuBtn: {
         padding: spacing.sm,
@@ -899,30 +1194,33 @@ const styles = StyleSheet.create({
         color: colors.onSurface,
         marginBottom: spacing.md,
     },
-    fab: {
+    fabWrap: {
         position: 'absolute',
+        left: spacing.md,
         right: spacing.md,
-        bottom: spacing.lg + (Platform.OS === 'android' ? 24 : 0), // Add extra clearace for tablets/nav bars
+        alignItems: 'center',
+    },
+    fab: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.primary,
-        paddingVertical: spacing.sm + 4,
-        paddingHorizontal: spacing.lg,
-        borderRadius: borderRadius.lg,
-        elevation: 6,
+        paddingVertical: 15,
+        paddingHorizontal: spacing.xl,
+        borderRadius: borderRadius.full,
+        elevation: 8,
         shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.55,
+        shadowRadius: 14,
+        gap: spacing.sm,
     },
     fabIcon: {
-        fontSize: 20,
-        marginEnd: spacing.sm,
+        fontSize: 18,
     },
     fabText: {
         color: colors.onPrimary,
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '700',
     },
     menuOverlay: {
         flex: 1,
@@ -1170,5 +1468,127 @@ const styles = StyleSheet.create({
         color: colors.error,
         opacity: 0.5,
         marginStart: spacing.sm,
+    },
+    // Setup modal styles
+    setupContainer: {
+        padding: spacing.lg,
+        paddingBottom: spacing.xl * 3,
+    },
+    setupTitle: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        color: colors.onSurface,
+        textAlign: 'center',
+        marginBottom: spacing.xs,
+        marginTop: spacing.lg,
+    },
+    setupSubtitle: {
+        fontSize: 14,
+        color: colors.onSurfaceVariant,
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        lineHeight: 20,
+    },
+    setupIconRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.lg,
+        gap: spacing.md,
+    },
+    setupIconPreview: {
+        width: 80,
+        height: 80,
+        borderRadius: 20,
+    },
+    setupIconInitials: {
+        backgroundColor: colors.primaryContainer,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    setupIconInitialsText: {
+        color: colors.onPrimaryContainer,
+        fontSize: 32,
+        fontWeight: 'bold',
+    },
+    setupIconBtns: {
+        flex: 1,
+        gap: spacing.sm,
+    },
+    setupIconBtn: {
+        backgroundColor: colors.surfaceVariant,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+    },
+    setupIconBtnText: {
+        color: colors.onSurface,
+        fontSize: 13,
+    },
+    setupIconBtnAI: {
+        backgroundColor: `${colors.primary}20`,
+        borderColor: `${colors.primary}60`,
+        borderWidth: 1,
+    },
+    setupIconBtnAIText: {
+        color: colors.primary,
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    setupLabel: {
+        color: colors.onSurfaceVariant,
+        fontSize: 11,
+        fontWeight: '700',
+        marginBottom: spacing.xs,
+        marginTop: spacing.md,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    setupInput: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        color: colors.onSurface,
+        fontSize: 16,
+        borderWidth: 1,
+        borderColor: colors.surfaceVariant,
+    },
+    setupTextArea: {
+        height: 90,
+        textAlignVertical: 'top',
+    },
+    setupCostNotice: {
+        backgroundColor: '#F59E0B18',
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginTop: spacing.lg,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: '#F59E0B30',
+    },
+    setupCostText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 13,
+        lineHeight: 20,
+    },
+    setupSaveBtn: {
+        backgroundColor: colors.primary,
+        borderRadius: borderRadius.lg,
+        paddingVertical: spacing.md + 2,
+        alignItems: 'center',
+        marginTop: spacing.lg,
+    },
+    setupSaveBtnText: {
+        color: colors.onPrimary,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    setupSkipBtn: {
+        paddingVertical: spacing.md,
+        alignItems: 'center',
+        marginTop: spacing.sm,
+    },
+    setupSkipBtnText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 15,
     },
 });
