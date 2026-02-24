@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -9,7 +9,6 @@ import {
     Pressable,
     ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GeneratedApp } from '../lib/database/types';
 import { colors, borderRadius, spacing } from '../lib/theme';
 import { getCurrentLanguage, t } from '../lib/i18n';
@@ -49,6 +48,8 @@ interface AppCardProps {
     onShare?: () => void;
     onIconPress?: () => void;
     onShortcut?: () => void;
+    shortcutNudgeDismissed?: boolean;
+    onDismissShortcutNudge?: (andCreateShortcut: boolean) => void;
     onToggleBiometric?: () => void;
     onViewSchedules?: () => void;
     isPlaceholder?: boolean;
@@ -57,12 +58,10 @@ interface AppCardProps {
 
 export function AppCard({
     app, onRun, onEdit, onDelete, onRename,
-    onShare, onIconPress, onShortcut, onToggleBiometric, onViewSchedules,
+    onShare, onIconPress, onShortcut, shortcutNudgeDismissed, onDismissShortcutNudge, onToggleBiometric, onViewSchedules,
     isPlaceholder, isLocked,
 }: AppCardProps) {
     const [showSheet, setShowSheet] = useState(false);
-    // null = loading, false = show nudge, true = dismissed
-    const [nudgeDismissed, setNudgeDismissed] = useState<boolean | null>(null);
 
     const locale = getCurrentLanguage() || 'en';
     const d = new Date(app.lastUpdated);
@@ -85,22 +84,12 @@ export function AppCard({
         ? t('manaLastDays', { days: windowDays })
         : t('manaLast30Days');
 
-    const NUDGE_KEY = `nudge_dismissed_${app.id}`;
-
-    useEffect(() => {
-        if (isPlaceholder) return;
-        AsyncStorage.getItem(NUDGE_KEY).then(val => {
-            setNudgeDismissed(val === 'true');
-        });
-    }, [app.id, isPlaceholder]);
-
     const dismissNudge = (andCreateShortcut: boolean) => {
-        AsyncStorage.setItem(NUDGE_KEY, 'true');
-        setNudgeDismissed(true);
-        if (andCreateShortcut && onShortcut) onShortcut();
+        onDismissShortcutNudge?.(andCreateShortcut);
+        if (!onDismissShortcutNudge && andCreateShortcut && onShortcut) onShortcut();
     };
 
-    const showNudge = !isInteractionDisabled && nudgeDismissed === false && !!onShortcut;
+    const showNudge = !isInteractionDisabled && !shortcutNudgeDismissed && !!onShortcut;
 
     return (
         <View style={styles.card}>
@@ -223,7 +212,7 @@ export function AppCard({
                             <>
                                 <TouchableOpacity
                                     style={[styles.sheetItem, styles.sheetItemHighlight]}
-                                    onPress={() => { setShowSheet(false); dismissNudge(true); }}
+                                    onPress={() => { setShowSheet(false); onShortcut(); }}
                                 >
                                     <Text style={styles.sheetItemIcon}>🏠</Text>
                                     <View style={styles.sheetItemBody}>

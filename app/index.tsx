@@ -43,6 +43,7 @@ import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useManaStore } from '../lib/manaStore';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
+const SHORTCUT_NUDGES_KEY = 'appacadabra_shortcut_nudges_dismissed';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -97,6 +98,7 @@ export default function HomeScreen() {
     const [setupTarget, setSetupTarget] = useState<GeneratedApp | null>(null);
     const [setupName, setSetupName] = useState('');
     const [setupDescription, setSetupDescription] = useState('');
+    const [dismissedShortcutNudges, setDismissedShortcutNudges] = useState<Record<number, boolean>>({});
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -137,6 +139,28 @@ export default function HomeScreen() {
             }
         };
         checkOnboarding();
+    }, []);
+
+    // Load shortcut nudge dismissals in a single batched read (avoid per-card AsyncStorage calls)
+    useEffect(() => {
+        let active = true;
+        AsyncStorage.getItem(SHORTCUT_NUDGES_KEY)
+            .then(raw => {
+                if (!active || !raw) return;
+                const parsed = JSON.parse(raw);
+                if (!Array.isArray(parsed)) return;
+                const map: Record<number, boolean> = {};
+                parsed.forEach((value: any) => {
+                    const id = Number(value);
+                    if (Number.isFinite(id)) map[id] = true;
+                });
+                if (active) setDismissedShortcutNudges(map);
+            })
+            .catch(() => { });
+
+        return () => {
+            active = false;
+        };
     }, []);
 
     const onboardingChipKeys = [
@@ -572,6 +596,19 @@ export default function HomeScreen() {
         }
     };
 
+    const handleDismissShortcutNudge = (app: GeneratedApp, andCreateShortcut: boolean) => {
+        setDismissedShortcutNudges(prev => {
+            if (prev[app.id]) return prev;
+            const next = { ...prev, [app.id]: true };
+            AsyncStorage.setItem(SHORTCUT_NUDGES_KEY, JSON.stringify(Object.keys(next))).catch(() => { });
+            return next;
+        });
+
+        if (andCreateShortcut) {
+            handleCreateShortcut(app);
+        }
+    };
+
     const handleExport = () => {
         setShowMenu(false);
         // Direct call - global backup always includes data
@@ -763,6 +800,8 @@ export default function HomeScreen() {
                                 onRename={() => setEditTarget(item)}
                                 onIconPress={() => setIconTarget(item)}
                                 onShortcut={() => handleCreateShortcut(item)}
+                                shortcutNudgeDismissed={!!dismissedShortcutNudges[item.id]}
+                                onDismissShortcutNudge={(andCreateShortcut) => handleDismissShortcutNudge(item, andCreateShortcut)}
                                 onToggleBiometric={() => handleToggleBiometric(item)}
                                 onShare={() => handleShareApp(item)}
                                 onViewSchedules={() => setScheduleTarget(item)}

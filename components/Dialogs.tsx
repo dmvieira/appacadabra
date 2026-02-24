@@ -71,9 +71,9 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
             onRequestClose={onDismiss}
         >
             <KeyboardAvoidingView
-                behavior="padding"
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.overlay}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+                keyboardVerticalOffset={0}
             >
                 <View style={styles.dialog}>
                     <Text style={styles.title}>{title}</Text>
@@ -170,9 +170,9 @@ export function EditDetailsDialog({ visible, currentName, currentDescription, on
             onRequestClose={onDismiss}
         >
             <KeyboardAvoidingView
-                behavior="padding"
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.overlay}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+                keyboardVerticalOffset={0}
             >
                 <View style={[styles.dialog, { maxHeight: '80%' }]}>
                     <Text style={styles.title}>{t('editAppDetails')}</Text>
