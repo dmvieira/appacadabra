@@ -181,7 +181,7 @@ AppacadabraAI.generate("Hello", handleResult);
     - **Note**: Stops ALL active sensors. ALWAYS call this when leaving the screen or pausing.
 
 DEBUGGING:
-- \`AppacadabraDebug.show()\`: Call this to show a floating console log overlay on the screen. Highly recommended for testing sensors on device.
+
 
 📋 CLIPBOARD (AppacadabraClipboard)
 - \`setString(text)\` - Copy text to clipboard

@@ -1134,37 +1134,6 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     return originalXHRSend.apply(this, arguments);
   };
 
-  /* DEBUG OVERLAY */
-  window.AppacadabraDebug = {
-    show: function() {
-        var div = document.createElement('div');
-        div.id = 'appacadabra-debug-overlay';
-        div.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:200px;background:rgba(0,0,0,0.8);color:#0f0;font-family:monospace;font-size:10px;overflow-y:scroll;z-index:999999;padding:5px;pointer-events:auto;';
-        document.body.appendChild(div);
-        
-        var originalLog = console.log;
-        var originalWarn = console.warn;
-        var originalError = console.error;
-        
-        function logToOverlay(type, args) {
-            var msg = Array.from(args).map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-            var p = document.createElement('div');
-            p.textContent = '[' + type + '] ' + msg;
-            p.style.cssText = 'margin:2px 0;border-bottom:1px solid #333;';
-            if (type === 'ERROR') p.style.color = '#ff4444';
-            if (type === 'WARN') p.style.color = '#ffbb33';
-            div.appendChild(p);
-            div.scrollTop = div.scrollHeight;
-        }
-        
-        console.log = function() { logToOverlay('LOG', arguments); originalLog.apply(console, arguments); };
-        console.warn = function() { logToOverlay('WARN', arguments); originalWarn.apply(console, arguments); };
-        console.error = function() { logToOverlay('ERROR', arguments); originalError.apply(console, arguments); };
-        
-        console.log('Debug Overlay Enabled');
-    }
-  };
-
 })();
   `;
 }
