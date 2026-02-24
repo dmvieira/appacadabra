@@ -64,6 +64,11 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS dismissed_uris (
+      uri_key TEXT PRIMARY KEY NOT NULL,
+      timestamp INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_mana_events_appId_ts ON mana_events(appId, timestamp);
   `);
 
@@ -227,7 +232,7 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
 
             const result = await database.runAsync(
                 `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, requiresBiometric, shortDescription)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 fallbackBindings as any[]
             );
             console.log('[DB] Fallback Insert Success!');
@@ -287,6 +292,18 @@ export async function incrementManaCost(appId: number, amount: number): Promise<
         'INSERT INTO mana_events (appId, amount, timestamp) VALUES (?, ?, ?)',
         [appId, amount, now]
     );
+}
+
+/** Bulk-insert mana events preserving their original timestamps (used by backup restore). */
+export async function insertManaEvents(events: { appId: number; amount: number; timestamp: number }[]): Promise<void> {
+    if (events.length === 0) return;
+    const database = await getDatabase();
+    for (const ev of events) {
+        await database.runAsync(
+            'INSERT INTO mana_events (appId, amount, timestamp) VALUES (?, ?, ?)',
+            [ev.appId, ev.amount, ev.timestamp]
+        );
+    }
 }
 
 // ============= Version Operations =============
@@ -397,4 +414,31 @@ export async function removeStorageItem(appId: number, key: string): Promise<voi
 export async function clearStorageForApp(appId: number): Promise<void> {
     const database = await getDatabase();
     await database.runAsync('DELETE FROM app_storage WHERE appId = ?', [appId]);
+}
+
+// ============= Dismissed URIs (for ShareReceiver) =============
+
+export async function getDismissedUris(): Promise<Record<string, number>> {
+    const database = await getDatabase();
+    const rows = await database.getAllAsync<{ uri_key: string; timestamp: number }>(
+        'SELECT uri_key, timestamp FROM dismissed_uris'
+    );
+    return rows.reduce<Record<string, number>>((acc, row) => {
+        acc[row.uri_key] = row.timestamp;
+        return acc;
+    }, {});
+}
+
+export async function addDismissedUri(uriKey: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'INSERT OR REPLACE INTO dismissed_uris (uri_key, timestamp) VALUES (?, ?)',
+        [uriKey, Date.now()]
+    );
+}
+
+export async function clearOldDismissedUris(olderThanMs: number): Promise<void> {
+    const database = await getDatabase();
+    const limit = Date.now() - olderThanMs;
+    await database.runAsync('DELETE FROM dismissed_uris WHERE timestamp < ?', [limit]);
 }

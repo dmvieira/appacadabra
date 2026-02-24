@@ -13,6 +13,8 @@ import SharingShortcuts from './bridges/SharingShortcuts';
 import { t } from './i18n';
 import { useManaStore } from './manaStore';
 
+const DISMISSED_URI_TTL_MS = 15000;
+
 interface AppState {
     apps: GeneratedApp[];
     isLoading: boolean;
@@ -46,6 +48,10 @@ interface AppState {
 
     // Signal for HomeScreen to show post-creation setup modal
     lastCreatedAppId: number | null;
+
+    // Dismissed content URIs to prevent re-prompting
+    dismissedUris: Record<string, number>;
+    dismissContent: (uri: string) => void;
 
     initializeListeners: () => void;
 
@@ -95,6 +101,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     updatingAppIds: [],
     lastCompletedEditAppId: null,
     lastCreatedAppId: null,
+    dismissedUris: {},
+
+    dismissContent: (uri: string) => {
+        const now = Date.now();
+        set(state => {
+            if (state.dismissedUris[uri] && now - state.dismissedUris[uri] < DISMISSED_URI_TTL_MS) {
+                return state;
+            }
+
+            // Persist to DB
+            db.addDismissedUri(uri).catch(e => console.error('[Store] Failed to persist dismissed URI:', e));
+
+            return { dismissedUris: { ...state.dismissedUris, [uri]: now } };
+        });
+    },
 
     initializeListeners: () => {
         // Prevent double initialization if needed, but useEffect in App usually handles strict mode
@@ -352,8 +373,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     loadApps: async () => {
         try {
             set({ isLoading: true, error: null });
-            const apps = await db.getAllApps();
-            set({ apps, isLoading: false });
+            await db.clearOldDismissedUris(DISMISSED_URI_TTL_MS);
+            const [apps, dismissedUris] = await Promise.all([
+                db.getAllApps(),
+                db.getDismissedUris()
+            ]);
+            set({ apps, dismissedUris, isLoading: false });
 
             // Publish Direct Share shortcuts for all apps
             apps.forEach(async (app) => {

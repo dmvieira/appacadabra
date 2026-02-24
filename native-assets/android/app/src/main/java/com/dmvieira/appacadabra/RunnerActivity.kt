@@ -66,14 +66,9 @@ class RunnerActivity : ReactActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Set the theme to AppTheme BEFORE onCreate to support
-        // coloring the background, status bar, and navigation bar.
-        // This is required for expo-splash-screen.
-        // setTheme(R.style.AppTheme);
         // @generated begin expo-splashscreen - expo prebuild (DO NOT MODIFY)
         SplashScreenManager.registerOnActivity(this)
         // @generated end expo-splashscreen
-
         super.onCreate(null) // Pass null to avoid state restoration crash
         
         // Register receiver to listen for finish broadcast
@@ -99,11 +94,12 @@ class RunnerActivity : ReactActivity() {
         setIntent(intent)
     }
     
-    // Override back button to just move task to back instead of destroying
-    // This preserves the React context for other activities
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        // Move to back instead of finishing - preserves React context
-        moveTaskToBack(true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAndRemoveTask()
+        } else {
+            finish()
+        }
     }
 }

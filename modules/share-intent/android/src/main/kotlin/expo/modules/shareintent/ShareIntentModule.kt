@@ -56,12 +56,8 @@ class ShareIntentModule : Module() {
             try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("runapp://runner/$appId"))
                 intent.setPackage(currentActivity.packageName)
-                // FLAG_ACTIVITY_NEW_TASK: Start in a new task
-                // FLAG_ACTIVITY_CLEAR_TOP: If activity exists, destroy all on top and deliver to it
-                // FLAG_ACTIVITY_SINGLE_TOP: Don't recreate if already at top
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
-                               Intent.FLAG_ACTIVITY_CLEAR_TOP or 
-                               Intent.FLAG_ACTIVITY_SINGLE_TOP
+                // NEW_DOCUMENT with same URI = same document task as shortcut/openRunnerWindow
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
                 currentActivity.startActivity(intent)
                 Log.d(TAG, "startRunnerActivity succeeded")
                 return@Function true
@@ -72,21 +68,17 @@ class ShareIntentModule : Module() {
         }
         
         // Native function to open app in NEW window - used by PLAY button
-        // Creates separate windows per app using explicit class intent (no URI to intercept)
+        // Uses same ACTION_VIEW + URI as shortcuts so Android deduplicates to the same document task
         Function("openRunnerWindow") { appId: Int ->
             Log.d(TAG, "openRunnerWindow called with appId: $appId")
             val currentActivity = appContext.currentActivity ?: return@Function false
             
             try {
-                // Use explicit class intent to avoid any URI-based interception
-                val intent = Intent()
-                intent.setClassName(currentActivity.packageName, "ai.appacadabra.app.RunnerActivity")
-                intent.putExtra("appId", appId)
-                // NEW_DOCUMENT creates separate tasks per unique data URI
-                // documentLaunchMode="intoExisting" in manifest reuses existing task for same URI
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
-                // Set the data URI - same appId = same document = reuse window
-                intent.data = Uri.parse("runapp://runner/$appId")
+                val launchUri = Uri.parse("runapp://runner/$appId")
+                val intent = Intent(Intent.ACTION_VIEW, launchUri)
+                intent.setPackage(currentActivity.packageName)
+                // NEW_DOCUMENT: same URI = same document task, so shortcut and in-app share one window
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
                 currentActivity.startActivity(intent)
                 Log.d(TAG, "openRunnerWindow succeeded")
                 return@Function true

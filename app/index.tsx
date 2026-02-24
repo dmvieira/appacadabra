@@ -661,6 +661,7 @@ export default function HomeScreen() {
         currentVersion: 0,
         iconPath: null,
         lastUpdated: Date.now(),
+        createdAt: Date.now(),
         consoleLogs: '',
         totalManaCost: 0,
         requiresBiometric: false,

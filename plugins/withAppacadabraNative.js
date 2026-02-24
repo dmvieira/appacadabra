@@ -18,6 +18,7 @@ const withRunnerActivityManifest = (config) => {
                     'android:name': '.RunnerActivity',
                     'android:taskAffinity': '.runner_task',
                     'android:launchMode': 'singleTop',
+                    'android:documentLaunchMode': 'intoExisting',
                     'android:theme': '@style/Theme.App.SplashScreen',
                     'android:exported': 'true',
                 },

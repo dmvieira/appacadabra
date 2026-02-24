@@ -1541,7 +1541,9 @@ export async function handleBridgeMessage(
         // ============= Camera/Multimedia Handler =============
         case 'CAMERA_TAKE_PHOTO': {
             debugLog('Taking photo...');
+            const store = useBridgeUIStore.getState();
             try {
+                store.setNativeActivityActive(true);
                 const permission = await ImagePicker.requestCameraPermissionsAsync();
                 if (!permission.granted) throw new Error('Camera permission denied');
 
@@ -1561,6 +1563,8 @@ export async function handleBridgeMessage(
                 console.error('Camera error:', e);
                 success = false;
                 result = e instanceof Error ? e.message : 'Camera failed';
+            } finally {
+                store.setNativeActivityActive(false);
             }
             break;
         }

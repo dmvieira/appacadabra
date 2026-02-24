@@ -13,6 +13,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -59,35 +60,37 @@ function RunnerContent({ appId }: Props) {
     const [isAtTop, setIsAtTop] = useState(true); // Helper to prevent conflicting scrolls
 
     // Check drop-box file for pending shared content
-    useEffect(() => {
-        async function checkDropBox() {
-            const dropBoxPath = FileSystem.cacheDirectory + 'pending_share.json';
-            console.log('RunnerApp: Checking drop-box at:', dropBoxPath);
-            try {
-                const info = await FileSystem.getInfoAsync(dropBoxPath);
-                if (info.exists) {
-                    const contentStr = await FileSystem.readAsStringAsync(dropBoxPath);
-                    const content = JSON.parse(contentStr);
+    const checkDropBox = useCallback(async () => {
+        const dropBoxPath = FileSystem.cacheDirectory + 'pending_share.json';
+        console.log('RunnerApp: Checking drop-box at:', dropBoxPath);
+        try {
+            const info = await FileSystem.getInfoAsync(dropBoxPath);
+            if (info.exists) {
+                const contentStr = await FileSystem.readAsStringAsync(dropBoxPath);
+                const content = JSON.parse(contentStr);
 
-                    // Only consume if this drop-box is for THIS app
-                    if (content.targetAppId === appId) {
-                        console.log('RunnerApp: Drop-box found for app', appId, 'fileName:', content.fileName);
-                        setSharedContent(content);
+                // Only consume if this drop-box is for THIS app
+                if (content.targetAppId === appId) {
+                    console.log('RunnerApp: Drop-box found for app', appId, 'fileName:', content.fileName);
+                    setSharedContent(content);
 
-                        // Delete immediately to prevent reuse
-                        await FileSystem.deleteAsync(dropBoxPath, { idempotent: true });
-                    } else {
-                        console.log('RunnerApp: Drop-box is for different app', content.targetAppId, 'vs', appId);
-                    }
+                    // Delete immediately to prevent reuse
+                    await FileSystem.deleteAsync(dropBoxPath, { idempotent: true });
                 } else {
-                    console.log('RunnerApp: No drop-box file found');
+                    console.log('RunnerApp: Drop-box is for different app', content.targetAppId, 'vs', appId);
                 }
-            } catch (e) {
-                console.log('RunnerApp: Drop-box read error:', e);
+            } else {
+                console.log('RunnerApp: No drop-box file found');
             }
+        } catch (e) {
+            console.log('RunnerApp: Drop-box read error:', e);
         }
-        checkDropBox();
     }, [appId]);
+
+    // Check on mount
+    useEffect(() => {
+        checkDropBox();
+    }, [checkDropBox]);
 
     // Set global webViewRef for overlays
     useEffect(() => {
@@ -197,14 +200,21 @@ function RunnerContent({ appId }: Props) {
                 console.log('RunnerApp: App came to foreground after being in background');
                 wasInBackground = false;
 
+                // Check for shared content delivered while in background
+                checkDropBox();
+
                 // Re-fetch app data
                 loadApp();
 
                 // Smart detection: Send heartbeat and wait for response
                 if (webViewRef.current) {
+                    // If we are return from a known native activity (camera, etc), be extra lenient
+                    const isNative = useBridgeUIStore.getState().isNativeActivityActive;
+                    const timeoutMs = isNative ? 5000 : 2500;
+
                     heartbeatReceivedRef.current = false;
                     try {
-                        console.log('RunnerApp: Sending heartbeat to WebView...');
+                        console.log(`RunnerApp: Sending heartbeat to WebView (timeout: ${timeoutMs}ms, isNative: ${isNative})...`);
                         webViewRef.current.injectJavaScript(`
                             if (typeof window !== 'undefined' && window.ReactNativeWebView) {
                                 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'HEARTBEAT_RESPONSE' }));
@@ -213,14 +223,20 @@ function RunnerContent({ appId }: Props) {
                         `);
                         setTimeout(() => {
                             if (!heartbeatReceivedRef.current) {
-                                console.log('RunnerApp: No heartbeat response, WebView is dead - forcing reload');
-                                setWebViewKey(k => k + 1);
+                                // If native activity was active, we might have just returned from camera. 
+                                // Don't reload if we just got back, give it one more chance or just log it.
+                                if (isNative) {
+                                    console.log('RunnerApp: No heartbeat response after native activity, but skipping reload to preserve state.');
+                                } else {
+                                    console.log('RunnerApp: No heartbeat response, WebView is dead - forcing reload');
+                                    setWebViewKey(k => k + 1);
+                                }
                             } else {
                                 console.log('RunnerApp: Heartbeat received, WebView is healthy');
                             }
-                        }, 2000);
+                        }, timeoutMs);
                     } catch (e) {
-                        setWebViewKey(k => k + 1);
+                        if (!isNative) setWebViewKey(k => k + 1);
                     }
                 }
             }
@@ -228,7 +244,7 @@ function RunnerContent({ appId }: Props) {
 
         const subscription = AppState.addEventListener('change', handleAppStateChange);
         return () => subscription?.remove();
-    }, [app, appId, loadApp]);
+    }, [app, appId, loadApp, checkDropBox]);
 
     // Back button is handled natively in RunnerActivity.kt using moveTaskToBack
 
@@ -413,6 +429,11 @@ interface RunnerAppProps {
 
 export default function RunnerApp(props: RunnerAppProps) {
     const appId = props.appId ?? null;
+
+    // Hide splash screen as soon as RunnerApp mounts (cold-start via shortcut)
+    useEffect(() => {
+        SplashScreen.hideAsync().catch(() => { });
+    }, []);
 
     if (appId === null || appId < 0) {
         return (

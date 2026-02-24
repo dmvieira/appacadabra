@@ -84,7 +84,7 @@
         <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
       </intent-filter>
     </activity>
-    <activity android:name=".RunnerActivity" android:taskAffinity=".runner_task" android:launchMode="singleTop" android:theme="@style/Theme.App.SplashScreen" android:exported="true">
+    <activity android:name=".RunnerActivity" android:taskAffinity=".runner_task" android:launchMode="singleTop" android:documentLaunchMode="intoExisting" android:theme="@style/Theme.App.SplashScreen" android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>

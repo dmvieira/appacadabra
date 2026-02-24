@@ -98,15 +98,15 @@ AppacadabraAI.generate("Hello", handleResult);
     - \`generate(prompt, callback)\`: Execute the request.
     - \`withSearch()\`: Enable Google Search for current events/info.
     - \`withSchema(jsonSchemaObj)\`: Force Structured JSON output.
-    - \`fromImage(base64String)\`: Input an image for analysis.
-    - \`fromAudio(base64String)\`: Input audio for transcription/analysis.
+    - \`fromImage(base64String)\`: Input an image (Base64 string) for analysis.
+    - \`fromAudio(base64String)\`: Input audio (Base64 string from \`recordStop\`) for transcription/analysis.
     - \`generateImage(prompt, callback)\`: Generate an image from a text description using AI. **Not chainable** — call directly.
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`
     - Search: \`AppacadabraAI.withSearch().generate("Who won the game?", callback)\`
     - JSON: \`AppacadabraAI.withSchema({ type: "object", properties: { ... } }).generate("Extract data", callback)\`
     - Vision: \`AppacadabraAI.fromImage(base64).generate("Describe this", callback)\`
-    - Audio: \`AppacadabraAI.fromAudio(base64).generate("Transcribe", callback)\`
+    - Audio: \`AppacadabraAI.fromAudio(base64).generate("Transcribe this recording", callback)\`
     - *Chained*: \`AppacadabraAI.withSearch().withSchema(schema).generate("Find phone numbers...", callback)\`
     - Image Gen: \`AppacadabraAI.generateImage("A cute cat wearing a hat", "onImageReady")\`
 - **Return**: Generated text (string). If \`withSchema\` is used, result is a JSON string.
@@ -218,10 +218,10 @@ DEBUGGING:
     - **Example**: \`AppacadabraCamera.scan("onCodeScanned")\`
 
 🎙️ AUDIO (AppacadabraAudio)
-- \`recordStart(callback)\` - Start audio recording
+- \`recordStart(callback)\` - Start audio recording (M4A/AAC)
     - **Return**: "Recording started"
 - \`recordStop(callback)\` - Stop recording and get result
-    - **Callback Data (string)**: Base64 encoded audio string (M4A/AAC)
+    - **Callback Data (string)**: Base64 encoded audio string. **CRITICAL**: Use this string immediately with \`AppacadabraAI.fromAudio(base64).generate(...)\`.
     - **Example**: \`AppacadabraAudio.recordStop("onAudioRecorded")\`
 - \`speak(text, options, callback)\` - Speak text aloud using device TTS engine
     - **options** (object, optional): \`{ language?: "en-US"|"pt-BR"|..., pitch?: 0.5-2.0, rate?: 0.5-2.0, volume?: 0.0-1.0 }\`
@@ -231,6 +231,25 @@ DEBUGGING:
     - **Return**: "Stopped" (string)
 - \`isSpeaking(callback)\` - Check if currently speaking
     - **Return**: "true" or "false" (string)
+
+--- VOICE INPUT WORKFLOW (EXAMPLE) ---
+\`\`\`javascript
+function onMicrophoneClick() {
+  if (!isRecording) {
+    AppacadabraAudio.recordStart("onStart");
+  } else {
+    AppacadabraAudio.recordStop("onAudioResult");
+  }
+}
+
+window.onAudioResult = function(success, base64) {
+  if (success) {
+    AppacadabraAI.fromAudio(base64)
+      .withSchema(mySchema)
+      .generate("Extract data from this audio", "onAIProcessed");
+  }
+}
+\`\`\`
 
 ✅ STANDARD WEB APIS (Supported Natively)
 - **Audio/Video**: Use HTML5 \`<audio>\` and \`<video>\` tags.

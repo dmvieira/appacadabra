@@ -58,6 +58,20 @@ export default function RunnerScreen() {
     const isFocused = useIsFocused();
     const router = useRouter();
     const insets = useSafeAreaInsets();
+
+    // On Android, spells always run inside RunnerActivity (separate task/window).
+    // This expo-router screen is only valid on Android in edit mode.
+    // If it ever mounts in run mode on Android (URL leak from expo-router internals), go back immediately.
+    useEffect(() => {
+        if (Platform.OS === 'android' && !edit) {
+            console.log('RunnerScreen: Safety net — Android run mode should use RunnerActivity. Going back.');
+            router.back();
+        }
+    }, []);
+
+    if (Platform.OS === 'android' && !edit) {
+        return null;
+    }
     const webViewRef = useRef<WebView>(null);
     const viewContainerRef = useRef<View>(null);
     const [localSharedContent, setLocalSharedContent] = useState<any>(null);
