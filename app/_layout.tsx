@@ -16,6 +16,8 @@ import { preloadAllStorage } from '../lib/storageCache';
 import * as SplashScreen from 'expo-splash-screen';
 import { Toast as ToastComponent } from '../components/Toast';
 
+let lastHandledNotificationTapId: string | null = null;
+
 // Configure Expo Router to only handle specific schemes for navigation
 export const unstable_settings = {
     initialRouteName: 'index',
@@ -55,6 +57,41 @@ export default function RootLayout() {
     useEffect(() => {
         console.log('RootLayout: Mounted');
 
+        const extractAppIdFromNotification = (content: any): string | number | null => {
+            let appId: string | number | null =
+                content?.data?.appId ??
+                content?.badge ??
+                null;
+
+            if (!appId && content?.channelId) {
+                const match = String(content.channelId).match(/^spell-(\d+)$/);
+                if (match) appId = match[1];
+            }
+
+            return appId;
+        };
+
+        const openSpellFromNotification = (response: Notifications.NotificationResponse | null) => {
+            if (!response) return;
+
+            const tapId = response.notification.request.identifier;
+            if (tapId && tapId === lastHandledNotificationTapId) {
+                return;
+            }
+
+            const content = response.notification.request.content as any;
+            const appId = extractAppIdFromNotification(content);
+            if (!appId) return;
+
+            lastHandledNotificationTapId = tapId || String(appId);
+
+            if (Platform.OS === 'android') {
+                ShareIntent.startRunnerActivity(Number(appId)).catch(() => {});
+            } else {
+                router.push({ pathname: '/runner/[id]', params: { id: String(appId) } });
+            }
+        };
+
         // Preload all app localStorage for faster runner startup
         preloadAllStorage().catch(err => {
             console.error('Failed to preload storage:', err);
@@ -76,24 +113,15 @@ export default function RootLayout() {
 
         // Open the spell runner when the user taps a scheduled notification
         const notifSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-            const content = response.notification.request.content as any;
-            let appId: string | number | null =
-                content.data?.appId ??
-                content.badge ??
-                null;
-            if (!appId && content.channelId) {
-                const match = String(content.channelId).match(/^spell-(\d+)$/);
-                if (match) appId = match[1];
-            }
-            if (appId) {
-                if (Platform.OS === 'android') {
-                    // On Android, always open via RunnerActivity, never via expo-router
-                    ShareIntent.startRunnerActivity(Number(appId)).catch(() => {});
-                } else {
-                    router.push({ pathname: '/runner/[id]', params: { id: String(appId) } });
-                }
-            }
+            openSpellFromNotification(response);
         });
+
+        // Cold start: app opened by tapping a notification while fully closed
+        Notifications.getLastNotificationResponseAsync()
+            .then((response) => {
+                openSpellFromNotification(response);
+            })
+            .catch(() => {});
 
         // SAFETY: Force hide splash screen after 1s just in case
         setTimeout(async () => {

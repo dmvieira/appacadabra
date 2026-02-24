@@ -714,6 +714,9 @@ export default function HomeScreen() {
           )
         : allApps;
 
+        const fabBottom = spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom;
+        const listBottomPadding = fabBottom + 92;
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             {/* Header with menu */}
@@ -770,7 +773,7 @@ export default function HomeScreen() {
                 <FlatList
                     data={filteredApps}
                     keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={styles.list}
+                    contentContainerStyle={[styles.list, { paddingBottom: listBottomPadding }]}
                     onScroll={onScroll}
                     scrollEventThrottle={16}
                     refreshControl={
@@ -814,7 +817,7 @@ export default function HomeScreen() {
             )}
 
             {/* FAB */}
-            <View style={[styles.fabWrap, { bottom: spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom }]} pointerEvents="box-none">
+            <View style={[styles.fabWrap, { bottom: fabBottom }]} pointerEvents="box-none">
                 <TouchableOpacity
                     style={styles.fab}
                     onPress={() => {

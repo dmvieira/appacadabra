@@ -182,7 +182,6 @@ export function AppCard({
                         activeOpacity={0.7}
                     >
                         <Text style={styles.nudgeText}>🏠 {t('shortcutNudgeText')}</Text>
-                        <Text style={styles.nudgeBtn}>{t('createShortcut')} →</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.nudgeDismiss}
@@ -407,7 +406,7 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
         paddingHorizontal: 14,
         paddingVertical: 8,
     },
@@ -415,12 +414,6 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: '#d97706',
         flex: 1,
-    },
-    nudgeBtn: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#f59e0b',
-        marginLeft: 8,
     },
     nudgeDismiss: {
         paddingHorizontal: 12,
