@@ -7,6 +7,7 @@ import {
     Animated,
     Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../lib/i18n';
 import { colors, spacing, borderRadius } from '../lib/theme';
 
@@ -63,6 +64,7 @@ export default function EditorOnboarding({ onComplete }: EditorOnboardingProps) 
     const [screen, setScreen] = useState<Screen>('onboarding');
     const fadeAnim = useRef(new Animated.Value(1)).current;
     const slideAnim = useRef(new Animated.Value(0)).current;
+    const insets = useSafeAreaInsets();
 
     const step = STEPS[current];
     const isLast = current === STEPS.length - 1;
@@ -109,7 +111,7 @@ export default function EditorOnboarding({ onComplete }: EditorOnboardingProps) 
     // ─── FINISH SCREEN ───
     if (screen === 'finish') {
         return (
-            <View style={styles.root}>
+            <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
                 <View style={styles.finishContainer}>
                     <View style={styles.finishInner}>
                         <Animated.Text style={styles.finishEmoji}>🎉</Animated.Text>
@@ -138,7 +140,7 @@ export default function EditorOnboarding({ onComplete }: EditorOnboardingProps) 
             <View style={[styles.glow, { backgroundColor: step.color + '18' }]} />
 
             {/* Header: counter + skip */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: Math.max(insets.top + 16, 48) }]}>
                 <View style={styles.topRow}>
                     <Text style={styles.counter}>{current + 1}/{STEPS.length}</Text>
                     <TouchableOpacity onPress={() => setScreen('finish')}>
@@ -219,7 +221,7 @@ export default function EditorOnboarding({ onComplete }: EditorOnboardingProps) 
             </View>
 
             {/* Navigation buttons */}
-            <View style={styles.navRow}>
+            <View style={[styles.navRow, { paddingBottom: Math.max(insets.bottom + 12, 40) }]}>
                 {current > 0 ? (
                     <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.7}>
                         <Text style={styles.backBtnText}>← {t('editorObBack')}</Text>
@@ -259,7 +261,6 @@ const styles = StyleSheet.create({
 
     // ─── Header ───
     header: {
-        paddingTop: 48,
         paddingHorizontal: 28,
     },
     topRow: {
@@ -384,7 +385,6 @@ const styles = StyleSheet.create({
         gap: 12,
         paddingHorizontal: 28,
         paddingTop: 14,
-        paddingBottom: 40,
     },
     backBtn: {
         flex: 1,

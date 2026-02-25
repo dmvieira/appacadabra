@@ -927,7 +927,7 @@ export default function RunnerScreen() {
 
             {/* Edit Mode Bottom Nav */}
             {isEditMode && (
-                <View style={styles.bottomNav}>
+                <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
                     {/* Simple tabs - always visible */}
                     <View style={styles.navSimple}>
                         <TouchableOpacity
@@ -1376,7 +1376,6 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: colors.surfaceVariant,
         paddingTop: 10,
-        paddingBottom: 28,
     },
     navSimple: {
         flexDirection: 'row',
