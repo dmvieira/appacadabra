@@ -86,6 +86,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     const [isSelectingElement, setIsSelectingElement] = useState(false);
     const editSheetTimeout = useRef<NodeJS.Timeout | null>(null);
 
+    // Advanced mode toggle
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
     // Manual editor
     const [showManualEditor, setShowManualEditor] = useState(false);
     const [manualCode, setManualCode] = useState('');
@@ -556,26 +559,74 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             {/* Toolbar */}
             {
                 mode === 'edit' && (
-                    <View style={[styles.toolbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-                        <TouchableOpacity
-                            style={[styles.toolbarBtn, isSelectingElement && { backgroundColor: colors.primaryContainer }]}
-                            onPress={handleEditPress}
-                        >
-                            <Text style={styles.toolbarIcon}>{isSelectingElement ? '❌' : '✏️'}</Text>
-                            <Text style={styles.toolbarText}>{isSelectingElement ? t('cancel') : t('edit')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => { setManualCode(app.code); setShowManualEditor(true); }}>
-                            <Text style={styles.toolbarIcon}>💻</Text>
-                            <Text style={styles.toolbarText}>{t('code')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => { loadVersions(); setShowHistory(true); }}>
-                            <Text style={styles.toolbarIcon}>📜</Text>
-                            <Text style={styles.toolbarText}>{t('history')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.toolbarBtn} onPress={() => setShowDebugPanel(true)}>
-                            <Text style={styles.toolbarIcon}>🐛</Text>
-                            <Text style={styles.toolbarText}>{t('debug')}</Text>
-                        </TouchableOpacity>
+                    <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+                        {/* Simple tabs */}
+                        <View style={styles.navSimple}>
+                            <TouchableOpacity
+                                style={[styles.navItem, isSelectingElement && styles.navItemActive]}
+                                onPress={handleEditPress}
+                            >
+                                <Text style={styles.navIcon}>{isSelectingElement ? '❌' : '👆'}</Text>
+                                <Text style={[styles.navLabel, isSelectingElement && styles.navLabelActive]}>
+                                    {isSelectingElement ? t('cancel') : t('selectElement')}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.navItem}
+                                onPress={() => {
+                                    setSelectionContext('');
+                                    setEditPrompt('');
+                                    setShowEditSheet(true);
+                                }}
+                            >
+                                <Text style={styles.navIcon}>✏️</Text>
+                                <Text style={styles.navLabel}>{t('edit')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.navItem}
+                                onPress={() => { loadVersions(); setShowHistory(true); }}
+                            >
+                                <Text style={styles.navIcon}>📜</Text>
+                                <Text style={styles.navLabel}>{t('history')}</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Advanced toggle */}
+                        <View style={styles.advancedToggle}>
+                            <TouchableOpacity
+                                style={[styles.advBtn, showAdvanced && styles.advBtnOpen]}
+                                onPress={() => setShowAdvanced(!showAdvanced)}
+                            >
+                                <Text style={[styles.advArrow, showAdvanced && styles.advArrowOpen]}>
+                                    {showAdvanced ? '▾' : '▸'}
+                                </Text>
+                                <Text style={[styles.advLabel, showAdvanced && styles.advLabelOpen]}>
+                                    {showAdvanced ? t('editorCloseAdvanced') : t('editorAdvancedMode')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Advanced tabs */}
+                        {showAdvanced && (
+                            <View style={styles.navAdvanced}>
+                                <TouchableOpacity
+                                    style={styles.navItemAdv}
+                                    onPress={() => { setManualCode(app.code); setShowManualEditor(true); }}
+                                >
+                                    <Text style={styles.advLockIcon}>🔒</Text>
+                                    <Text style={styles.navIcon}>💻</Text>
+                                    <Text style={styles.navLabelAdv}>{t('code')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.navItemAdv}
+                                    onPress={() => setShowDebugPanel(true)}
+                                >
+                                    <Text style={styles.advLockIcon}>🔒</Text>
+                                    <Text style={styles.navIcon}>🐛</Text>
+                                    <Text style={styles.navLabelAdv}>{t('debug')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 )
             }
@@ -695,10 +746,25 @@ const styles = StyleSheet.create({
     title: { flex: 1, color: colors.onSurface, fontSize: 18, fontWeight: '600' },
     version: { color: colors.onSurfaceVariant, fontSize: 14 },
     webview: { flex: 1, backgroundColor: '#FFFFFF' },
-    toolbar: { flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.surfaceVariant, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, justifyContent: 'space-around' },
-    toolbarBtn: { alignItems: 'center', padding: spacing.sm },
-    toolbarIcon: { fontSize: 24 },
-    toolbarText: { color: colors.onSurface, fontSize: 12, marginTop: 4 },
+    // Bottom nav
+    bottomNav: { backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.surfaceVariant, paddingTop: 10 },
+    navSimple: { flexDirection: 'row', justifyContent: 'space-around' },
+    navItem: { alignItems: 'center', gap: 4, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md },
+    navItemActive: { backgroundColor: colors.primary + '22' },
+    navIcon: { fontSize: 24 },
+    navLabel: { fontSize: 11, fontWeight: '700', color: colors.onSurfaceVariant },
+    navLabelActive: { color: colors.primary },
+    advancedToggle: { alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
+    advBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.surfaceVariant, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 99 },
+    advBtnOpen: { borderColor: '#D97706' },
+    advArrow: { color: colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' },
+    advArrowOpen: { color: '#D97706' },
+    advLabel: { color: colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' },
+    advLabelOpen: { color: '#D97706' },
+    navAdvanced: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: 8 },
+    navItemAdv: { alignItems: 'center', gap: 4, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, position: 'relative' as const },
+    navLabelAdv: { fontSize: 11, fontWeight: '700', color: colors.onSurfaceVariant, opacity: 0.7 },
+    advLockIcon: { position: 'absolute' as const, top: 4, right: 8, fontSize: 10 },
     sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
     sheet: { backgroundColor: colors.surface, borderTopLeftRadius: borderRadius.xl, borderTopRightRadius: borderRadius.xl, padding: spacing.lg },
     sheetTitle: { fontSize: 20, fontWeight: 'bold', color: colors.onSurface, marginBottom: spacing.md },

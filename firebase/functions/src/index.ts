@@ -35,6 +35,13 @@ const mainModel = genAI.getGenerativeModel({
     model: "gemini-3-flash-preview",
     // @ts-ignore
     tools: [{ googleSearch: {} }],
+    generationConfig: {
+        // @ts-ignore
+        thinkingConfig: {
+            includeThoughts: true,
+            thinkingLevel: "high"
+        }
+    }
 });
 
 
@@ -190,6 +197,33 @@ function getPricingKey(model: string, tools?: string[]): string {
 function resolveModelName(modelId: string): string {
     // User confirmed model names are correct, no mapping needed
     return modelId;
+}
+
+// Helper to get text from response, filtering out thinking tokens and logging them
+function extractText(result: any): string {
+    const candidate = result.response?.candidates?.[0];
+    if (!candidate?.content?.parts) {
+        return result.response?.text() || "";
+    }
+
+    let resultText = "";
+    let thoughts = "";
+
+    for (const part of candidate.content.parts) {
+        if (part.thought) {
+            thoughts += part.text || "";
+        } else if (part.text) {
+            resultText += part.text;
+        }
+    }
+
+    if (thoughts) {
+        console.log("--- GEMINI REASONING ---");
+        console.log(thoughts);
+        console.log("--- END REASONING ---");
+    }
+
+    return resultText;
 }
 
 // Helper to get usage metadata
@@ -499,7 +533,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // Note: To save space, using standard logic.
                         const u = getUsage(result);
                         usage = { ...u, cachedTokens: (result.response.usageMetadata?.cachedContentTokenCount || 0) };
-                        resultText = fixCallbackPatterns(extractHtml(result.response.text()));
+                        resultText = fixCallbackPatterns(extractHtml(extractText(result)));
 
                         // Price as Fixed Cost
                         creditsUsed = FIXED_COST_CREATE_EDIT;
@@ -549,7 +583,13 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         const generativeModel = genAI.getGenerativeModel({
                             model: resolvedModelName,
-                            generationConfig: genConfig,
+                            generationConfig: {
+                                ...genConfig,
+                                // @ts-ignore
+                                thinkingConfig: (resolvedModelName.includes('gemini-3'))
+                                    ? { includeThoughts: true, thinkingLevel: "high" }
+                                    : { includeThoughts: true, thinkingBudget: (resolvedModelName.includes('2.5-flash-lite') ? 24576 : (resolvedModelName.includes('2.5-pro') ? 32768 : 24576)) }
+                            },
                             // @ts-ignore
                             tools: toolConfig.length > 0 ? toolConfig : undefined
                         });
@@ -563,7 +603,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             cachedTokens: (result.response.usageMetadata?.cachedContentTokenCount || 0)
                         };
 
-                        resultText = result.response.text();
+                        resultText = extractText(result);
                         creditsUsed = usage.totalTokens / tokensPerMana;
                         break;
                     }
@@ -578,6 +618,11 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             generationConfig: {
                                 // @ts-ignore - responseModalities available in newer SDK
                                 responseModalities: ['IMAGE', 'TEXT'],
+                                // @ts-ignore
+                                thinkingConfig: {
+                                    includeThoughts: true,
+                                    thinkingBudget: 24576
+                                }
                             },
                         });
 
@@ -820,7 +865,7 @@ export const processSpellJob = onDocumentCreated(
                     const plannerPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
                     const planResult = await mainModel.generateContent(plannerPrompt, { timeout: 120000 });
                     addUsage(planResult);
-                    const appPlan = extractJson(planResult.response.text());
+                    const appPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Plan created:`, JSON.stringify(appPlan).substring(0, 200) + '...');
 
                     // Stage 2: Coding
@@ -829,7 +874,7 @@ export const processSpellJob = onDocumentCreated(
                     const codeResult = await mainModel.generateContent(codePrompt, { timeout: 120000 });
                     addUsage(codeResult);
 
-                    resultText = fixCallbackPatterns(extractHtml(codeResult.response.text()));
+                    resultText = fixCallbackPatterns(extractHtml(extractText(codeResult)));
 
                     // Audit
                     auditLog = {
@@ -854,7 +899,7 @@ export const processSpellJob = onDocumentCreated(
 
                         const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
                         addUsage(fixResult);
-                        resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
+                        resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         validation = validateGeneratedCode(resultText);
 
                         if (!validation.valid) {
@@ -898,7 +943,7 @@ export const processSpellJob = onDocumentCreated(
                     const planPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
                     const planResult = await mainModel.generateContent(planPrompt, { timeout: 120000 });
                     addUsage(planResult);
-                    const editPlan = extractJson(planResult.response.text());
+                    const editPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Edit Plan:`, JSON.stringify(editPlan, null, 2));
 
                     // Stage 2: Patch
@@ -906,7 +951,7 @@ export const processSpellJob = onDocumentCreated(
                     const patchPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
                     const patchResult = await mainModel.generateContent(patchPrompt, { timeout: 120000 });
                     addUsage(patchResult);
-                    const patchResponse = extractJson(patchResult.response.text());
+                    const patchResponse = extractJson(extractText(patchResult));
 
                     // Audit
                     auditLog = {
@@ -933,7 +978,7 @@ export const processSpellJob = onDocumentCreated(
 
                         const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
                         addUsage(fixResult);
-                        resultText = fixCallbackPatterns(extractHtml(fixResult.response.text()));
+                        resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         editValidation = validateGeneratedCode(resultText);
 
                         if (!editValidation.valid) {

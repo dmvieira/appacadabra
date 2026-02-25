@@ -41,6 +41,10 @@ import { t, getWebViewTranslations } from '../../lib/i18n';
 import QRScannerOverlay from '../../components/QRScannerOverlay';
 import { useManaStore } from '../../lib/manaStore';
 import { reloadStorageForApp } from '../../lib/storageCache';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import EditorOnboarding from '../../components/EditorOnboarding';
+
+const EDITOR_ONBOARDING_KEY = 'appacadabra_editor_onboarding_seen';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -247,6 +251,40 @@ export default function RunnerScreen() {
 
     // Selection mode state
     const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+    // Advanced mode toggle
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // Editor onboarding
+    const [showEditorOnboarding, setShowEditorOnboarding] = useState(false);
+    const [editorOnboardingChecked, setEditorOnboardingChecked] = useState(false);
+
+    // Check if editor onboarding should be shown
+    useEffect(() => {
+        if (!isEditMode) return;
+        const check = async () => {
+            try {
+                const seen = await AsyncStorage.getItem(EDITOR_ONBOARDING_KEY);
+                if (!seen) {
+                    setShowEditorOnboarding(true);
+                }
+            } catch (e) {
+                console.error('Error checking editor onboarding:', e);
+            } finally {
+                setEditorOnboardingChecked(true);
+            }
+        };
+        check();
+    }, [isEditMode]);
+
+    const handleEditorOnboardingComplete = async () => {
+        try {
+            await AsyncStorage.setItem(EDITOR_ONBOARDING_KEY, 'true');
+        } catch (e) {
+            console.error('Error saving editor onboarding state:', e);
+        }
+        setShowEditorOnboarding(false);
+    };
 
     // Manual editor
     const [showManualEditor, setShowManualEditor] = useState(false);
@@ -887,63 +925,97 @@ export default function RunnerScreen() {
             {/* Overlays */}
             <QRScannerOverlay webviewRef={webViewRef} />
 
-            {/* Edit Mode Toolbar */}
+            {/* Edit Mode Bottom Nav */}
             {isEditMode && (
-                <View style={styles.toolbar}>
-                    <TouchableOpacity
-                        style={[styles.toolbarBtn, isSelectionMode && styles.toolbarBtnActive]}
-                        onPress={() => {
-                            const newMode = !isSelectionMode;
-                            setIsSelectionMode(newMode);
-                            if (webViewRef.current) {
-                                webViewRef.current.injectJavaScript(`window.toggleSelectionMode(${newMode}); true;`);
-                            }
-                        }}
-                    >
-                        <Text style={styles.toolbarIcon}>👆</Text>
-                        <Text style={styles.toolbarText}>{isSelectionMode ? t('cancel') : t('selectElement')}</Text>
-                    </TouchableOpacity>
+                <View style={styles.bottomNav}>
+                    {/* Simple tabs - always visible */}
+                    <View style={styles.navSimple}>
+                        <TouchableOpacity
+                            style={[styles.navItem, isSelectionMode && styles.navItemActive]}
+                            onPress={() => {
+                                const newMode = !isSelectionMode;
+                                setIsSelectionMode(newMode);
+                                if (webViewRef.current) {
+                                    webViewRef.current.injectJavaScript(`window.toggleSelectionMode(${newMode}); true;`);
+                                }
+                            }}
+                        >
+                            <Text style={styles.navIcon}>👆</Text>
+                            <Text style={[styles.navLabel, isSelectionMode && styles.navLabelActive]}>
+                                {isSelectionMode ? t('cancel') : t('selectElement')}
+                            </Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={styles.toolbarBtn}
-                        onPress={() => {
-                            setEditPrompt('');  // Clear previous selection context
-                            setShowEditSheet(true);
-                        }}
-                    >
-                        <Text style={styles.toolbarIcon}>✏️</Text>
-                        <Text style={styles.toolbarText}>{t('edit')}</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.navItem}
+                            onPress={() => {
+                                setEditPrompt('');
+                                setShowEditSheet(true);
+                            }}
+                        >
+                            <Text style={styles.navIcon}>✏️</Text>
+                            <Text style={styles.navLabel}>{t('edit')}</Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={styles.toolbarBtn}
-                        onPress={() => {
-                            setManualCode(app.code);
-                            setShowManualEditor(true);
-                        }}
-                    >
-                        <Text style={styles.toolbarIcon}>💻</Text>
-                        <Text style={styles.toolbarText}>{t('code')}</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.navItem}
+                            onPress={() => {
+                                loadVersions();
+                                setShowHistory(true);
+                            }}
+                        >
+                            <Text style={styles.navIcon}>📜</Text>
+                            <Text style={styles.navLabel}>{t('history')}</Text>
+                        </TouchableOpacity>
+                    </View>
 
-                    <TouchableOpacity
-                        style={styles.toolbarBtn}
-                        onPress={() => {
-                            loadVersions();
-                            setShowHistory(true);
-                        }}
-                    >
-                        <Text style={styles.toolbarIcon}>📜</Text>
-                        <Text style={styles.toolbarText}>{t('history')}</Text>
-                    </TouchableOpacity>
+                    {/* Advanced toggle */}
+                    <View style={styles.advancedToggle}>
+                        <TouchableOpacity
+                            style={[styles.advBtn, showAdvanced && styles.advBtnOpen]}
+                            onPress={() => setShowAdvanced(!showAdvanced)}
+                        >
+                            <Text style={[styles.advArrow, showAdvanced && styles.advArrowOpen]}>
+                                {showAdvanced ? '▾' : '▸'}
+                            </Text>
+                            <Text style={[styles.advLabel, showAdvanced && styles.advLabelOpen]}>
+                                {showAdvanced ? t('editorCloseAdvanced') : t('editorAdvancedMode')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
-                    <TouchableOpacity
-                        style={styles.toolbarBtn}
-                        onPress={() => setShowDebugPanel(true)}
-                    >
-                        <Text style={styles.toolbarIcon}>🐛</Text>
-                        <Text style={styles.toolbarText}>{t('debug')}</Text>
-                    </TouchableOpacity>
+                    {/* Advanced tabs */}
+                    {showAdvanced && (
+                        <View style={styles.navAdvanced}>
+                            <TouchableOpacity
+                                style={styles.navItemAdv}
+                                onPress={() => {
+                                    setManualCode(app.code);
+                                    setShowManualEditor(true);
+                                }}
+                            >
+                                <Text style={styles.advLock}>🔒</Text>
+                                <Text style={styles.navIcon}>💻</Text>
+                                <Text style={styles.navLabelAdv}>{t('code')}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.navItemAdv}
+                                onPress={() => setShowDebugPanel(true)}
+                            >
+                                <Text style={styles.advLock}>🔒</Text>
+                                <Text style={styles.navIcon}>🐛</Text>
+                                <Text style={styles.navLabelAdv}>{t('debug')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+            )}
+
+            {/* Editor Onboarding Overlay */}
+            {isEditMode && showEditorOnboarding && (
+                <View style={StyleSheet.absoluteFill}>
+                    <EditorOnboarding onComplete={handleEditorOnboardingComplete} />
                 </View>
             )}
 
@@ -1298,30 +1370,97 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#FFFFFF',
     },
-    toolbar: {
-        flexDirection: 'row',
-        backgroundColor: colors.surface,
+    // ─── Bottom Nav ───
+    bottomNav: {
+        backgroundColor: colors.background,
         borderTopWidth: 1,
         borderTopColor: colors.surfaceVariant,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
+        paddingTop: 10,
+        paddingBottom: 28,
+    },
+    navSimple: {
+        flexDirection: 'row',
         justifyContent: 'space-around',
     },
-    toolbarBtn: {
+    navItem: {
         alignItems: 'center',
-        padding: spacing.sm,
+        gap: 4,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.md,
     },
-    toolbarIcon: {
+    navItemActive: {
+        backgroundColor: colors.primary + '22',
+    },
+    navIcon: {
         fontSize: 24,
     },
-    toolbarText: {
-        color: colors.onSurface,
-        fontSize: 12,
-        marginTop: 4,
+    navLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: colors.onSurfaceVariant,
     },
-    toolbarBtnActive: {
-        backgroundColor: colors.primary + '20', // Low opacity primary
-        borderRadius: borderRadius.sm,
+    navLabelActive: {
+        color: colors.primary,
+    },
+    advancedToggle: {
+        alignItems: 'center',
+        paddingTop: 8,
+        paddingBottom: 4,
+    },
+    advBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: colors.surfaceVariant,
+        paddingVertical: 6,
+        paddingHorizontal: 16,
+        borderRadius: 99,
+    },
+    advBtnOpen: {
+        borderColor: '#D97706',
+    },
+    advArrow: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    advArrowOpen: {
+        color: '#D97706',
+    },
+    advLabel: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    advLabelOpen: {
+        color: '#D97706',
+    },
+    navAdvanced: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingTop: 8,
+    },
+    navItemAdv: {
+        alignItems: 'center',
+        gap: 4,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.md,
+        position: 'relative' as const,
+    },
+    navLabelAdv: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: colors.onSurfaceVariant,
+        opacity: 0.7,
+    },
+    advLock: {
+        position: 'absolute' as const,
+        top: 4,
+        right: 8,
+        fontSize: 10,
     },
     sheetOverlay: {
         flex: 1,
