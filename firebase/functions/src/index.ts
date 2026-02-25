@@ -618,11 +618,6 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             generationConfig: {
                                 // @ts-ignore - responseModalities available in newer SDK
                                 responseModalities: ['IMAGE', 'TEXT'],
-                                // @ts-ignore
-                                thinkingConfig: {
-                                    includeThoughts: true,
-                                    thinkingBudget: 24576
-                                }
                             },
                         });
 
