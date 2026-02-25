@@ -83,7 +83,19 @@ export default function RootLayout() {
             const appId = extractAppIdFromNotification(content);
             if (!appId) return;
 
+            const notificationType = content?.data?.notificationType;
+
             lastHandledNotificationTapId = tapId || String(appId);
+
+            if (notificationType === 'app_created') {
+                // For create notifications we want listing/setup flow, not runner.
+                try {
+                    router.replace('/');
+                } catch {
+                    // If navigator isn't ready yet, initial route is listing anyway.
+                }
+                return;
+            }
 
             if (Platform.OS === 'android') {
                 ShareIntent.startRunnerActivity(Number(appId)).catch(() => {});

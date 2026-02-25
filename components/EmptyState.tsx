@@ -7,10 +7,6 @@ import { useAppStore } from '../lib/store';
 export function EmptyState() {
     return (
         <View style={styles.container}>
-            <Text style={styles.emoji}>🪄</Text>
-            <Text style={styles.title}>{t('emptyMagic')}</Text>
-            <Text style={styles.subtitle}>{t('emptyDesc')}</Text>
-
             <View style={styles.howItWorks}>
                 <Text style={styles.howTitle}>{t('howItWorks')}</Text>
 
@@ -69,23 +65,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: spacing.xl,
-    },
-    emoji: {
-        fontSize: 72,
-        marginBottom: spacing.lg,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: colors.primary,
-        textAlign: 'center',
-        marginBottom: spacing.md,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: colors.onSurface,
-        textAlign: 'center',
-        marginBottom: spacing.xl,
     },
     howItWorks: {
         width: '100%',

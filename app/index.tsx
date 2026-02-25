@@ -15,6 +15,7 @@ import {
     Linking as RNLinking,
     Alert,
     RefreshControl,
+    useWindowDimensions,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,6 +49,7 @@ const SHORTCUT_NUDGES_KEY = 'appacadabra_shortcut_nudges_dismissed';
 export default function HomeScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { width } = useWindowDimensions();
     const { balance, openShop } = useManaStore();
     const {
         apps,
@@ -706,6 +708,8 @@ export default function HomeScreen() {
     } as GeneratedApp)); // Cast to satisfy type, we handle isPlaceholder in renderItem
 
     const allApps = [...placeholderApps, ...apps];
+    const searchThreshold = width >= 768 ? 8 : 4;
+    const showSearch = apps.length > searchThreshold;
 
     const filteredApps = searchQuery.trim()
         ? allApps.filter(a =>
@@ -716,6 +720,12 @@ export default function HomeScreen() {
 
         const fabBottom = spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom;
         const listBottomPadding = fabBottom + 92;
+
+    useEffect(() => {
+        if (!showSearch && searchQuery) {
+            setSearchQuery('');
+        }
+    }, [showSearch]);
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -734,23 +744,25 @@ export default function HomeScreen() {
             </View>
 
             {/* Search bar */}
-            <View style={styles.searchBar}>
-                <Text style={styles.searchIcon}>🔍</Text>
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder={t('searchSpells')}
-                    placeholderTextColor="#8b8aad"
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    returnKeyType="search"
-                    clearButtonMode="while-editing"
-                />
-                {!!searchQuery && Platform.OS !== 'ios' && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Text style={styles.searchClear}>✕</Text>
-                    </TouchableOpacity>
-                )}
-            </View>
+            {showSearch && (
+                <View style={styles.searchBar}>
+                    <Text style={styles.searchIcon}>🔍</Text>
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder={t('searchSpells')}
+                        placeholderTextColor="#8b8aad"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        returnKeyType="search"
+                        clearButtonMode="while-editing"
+                    />
+                    {!!searchQuery && Platform.OS !== 'ios' && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Text style={styles.searchClear}>✕</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            )}
 
             {balance <= 0 && (
                 <TouchableOpacity
@@ -768,7 +780,9 @@ export default function HomeScreen() {
             )}
 
             {filteredApps.length === 0 && !isGenerating ? (
-                <EmptyState />
+                <View style={{ flex: 1, paddingBottom: listBottomPadding }}>
+                    <EmptyState />
+                </View>
             ) : (
                 <FlatList
                     data={filteredApps}

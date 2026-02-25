@@ -259,7 +259,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         content: {
                             title: t('appReadyTitle', { name: appName }),
                             body: t('appReadyBody', { name: appName }),
-                            data: { appId: id },
+                            data: { appId: id, notificationType: 'app_created' },
                             channelId: `spell-${id}`, // Use spell-specific channel
                         } as any, // channelId is valid on Android but types may lag
                         trigger: null, // Show immediately
