@@ -130,6 +130,13 @@ const translations = {
         textLabel: '(Text)',
         chooseApp: 'Choose an App:',
         noAppsCreated: 'No apps created yet',
+        shareTabSpell: 'Spell (.spell)',
+        shareTabFile: 'Other file',
+        shareImportSpell: 'Import spell',
+        shareOrSendTo: 'or send to a spell',
+        shareSendToWhich: 'Send to which spell?',
+        shareNoSpells: 'No spells created yet',
+        shareNoCompatible: 'No spells can receive this type of content',
 
         // Content filter
         contentBlocked: 'Content not allowed. Please describe a legitimate and useful spell.',
@@ -581,6 +588,13 @@ const translations = {
         textLabel: '(Texto)',
         chooseApp: 'Escolha um App:',
         noAppsCreated: 'Nenhum app criado ainda',
+        shareTabSpell: 'Feitiço (.spell)',
+        shareTabFile: 'Outro arquivo',
+        shareImportSpell: 'Importar feitiço',
+        shareOrSendTo: 'ou enviar para um feitiço',
+        shareSendToWhich: 'Enviar para qual feitiço?',
+        shareNoSpells: 'Nenhum feitiço criado ainda',
+        shareNoCompatible: 'Nenhum feitiço pode receber este tipo de conteúdo',
 
         // Account
         account: 'Conta',
@@ -1029,6 +1043,13 @@ const translations = {
         textLabel: '(Texto)',
         chooseApp: 'Elegir un App:',
         noAppsCreated: 'Ningún app creado aún',
+        shareTabSpell: 'Hechizo (.spell)',
+        shareTabFile: 'Otro archivo',
+        shareImportSpell: 'Importar hechizo',
+        shareOrSendTo: 'o enviar a un hechizo',
+        shareSendToWhich: '¿Enviar a qué hechizo?',
+        shareNoSpells: 'Aún no hay hechizos creados',
+        shareNoCompatible: 'Ningún hechizo puede recibir este tipo de contenido',
 
         // Conversion
         zipEmpty: 'ZIP vacío o sin archivos soportados',
@@ -1421,6 +1442,13 @@ const translations = {
         textLabel: '(Texte)',
         chooseApp: 'Choisir une App :',
         noAppsCreated: 'Aucune app créée pour le moment',
+        shareTabSpell: 'Sort (.spell)',
+        shareTabFile: 'Autre fichier',
+        shareImportSpell: 'Importer le sort',
+        shareOrSendTo: 'ou envoyer à un sort',
+        shareSendToWhich: 'Envoyer à quel sort ?',
+        shareNoSpells: 'Aucun sort créé pour le moment',
+        shareNoCompatible: 'Aucun sort ne peut recevoir ce type de contenu',
 
         // Conversion
         zipEmpty: 'ZIP vide ou non supporté',
@@ -1822,6 +1850,13 @@ const translations = {
         textLabel: '(Text)',
         chooseApp: 'Wähle eine App:',
         noAppsCreated: 'Noch keine Apps erstellt',
+        shareTabSpell: 'Zauber (.spell)',
+        shareTabFile: 'Andere Datei',
+        shareImportSpell: 'Zauber importieren',
+        shareOrSendTo: 'oder an einen Zauber senden',
+        shareSendToWhich: 'An welchen Zauber senden?',
+        shareNoSpells: 'Noch keine Zauber erstellt',
+        shareNoCompatible: 'Kein Zauber kann diesen Inhaltstyp empfangen',
 
         manaBalance: 'Mana: %{amount}',
         // Account
@@ -2145,6 +2180,13 @@ const translations = {
         textLabel: '(Testo)',
         chooseApp: 'Scegli un\'app:',
         noAppsCreated: 'Nessuna app creata ancora',
+        shareTabSpell: 'Incantesimo (.spell)',
+        shareTabFile: 'Altro file',
+        shareImportSpell: 'Importa incantesimo',
+        shareOrSendTo: 'o invia a un incantesimo',
+        shareSendToWhich: 'Inviare a quale incantesimo?',
+        shareNoSpells: 'Nessun incantesimo creato ancora',
+        shareNoCompatible: 'Nessun incantesimo può ricevere questo tipo di contenuto',
 
         manaBalance: 'Mana: %{amount}',
         // Account
@@ -2466,6 +2508,13 @@ const translations = {
         textLabel: '(テキスト)',
         chooseApp: 'アプリを選択:',
         noAppsCreated: 'アプリがまだ作成されていません',
+        shareTabSpell: 'スペル (.spell)',
+        shareTabFile: 'その他のファイル',
+        shareImportSpell: 'スペルをインポート',
+        shareOrSendTo: 'またはスペルに送信',
+        shareSendToWhich: 'どのスペルに送信しますか？',
+        shareNoSpells: 'まだスペルが作成されていません',
+        shareNoCompatible: 'このコンテンツタイプを受信できるスペルがありません',
 
         manaBalance: 'マナ: %{amount}',
         // Account
@@ -2770,6 +2819,13 @@ const translations = {
         textLabel: '(文本)',
         chooseApp: '选择一个应用:',
         noAppsCreated: '尚未创建应用',
+        shareTabSpell: '咒语 (.spell)',
+        shareTabFile: '其他文件',
+        shareImportSpell: '导入咒语',
+        shareOrSendTo: '或发送至咒语',
+        shareSendToWhich: '发送到哪个咒语？',
+        shareNoSpells: '尚未创建咒语',
+        shareNoCompatible: '没有咒语可以接收此类型的内容',
 
         manaBalance: '魔力: %{amount}',
         // Account
@@ -3080,6 +3136,13 @@ const translations = {
         textLabel: '(텍스트)',
         chooseApp: '앱 선택:',
         noAppsCreated: '아직 생성된 앱이 없습니다',
+        shareTabSpell: '주문 (.spell)',
+        shareTabFile: '기타 파일',
+        shareImportSpell: '주문 가져오기',
+        shareOrSendTo: '또는 주문에 보내기',
+        shareSendToWhich: '어떤 주문에 보낼까요?',
+        shareNoSpells: '아직 생성된 주문이 없습니다',
+        shareNoCompatible: '이 콘텐츠 유형을 받을 수 있는 주문이 없습니다',
 
         manaBalance: '마나: %{amount}',
         // Account
@@ -3378,6 +3441,13 @@ const translations = {
         textLabel: '(نص)',
         chooseApp: 'اختر تطبيقاً:',
         noAppsCreated: 'لم يتم إنشاء أي تطبيقات بعد',
+        shareTabSpell: 'تعويذة (.spell)',
+        shareTabFile: 'ملف آخر',
+        shareImportSpell: 'استيراد تعويذة',
+        shareOrSendTo: 'أو أرسل إلى تعويذة',
+        shareSendToWhich: 'إرسال إلى أي تعويذة؟',
+        shareNoSpells: 'لم يتم إنشاء أي تعويذات بعد',
+        shareNoCompatible: 'لا يمكن لأي تعويذة استقبال هذا النوع من المحتوى',
 
         // Network
         network_wifi: 'واي فاي',
@@ -3682,6 +3752,13 @@ const translations = {
         textLabel: '(टेक्स्ट)',
         chooseApp: 'एक ऐप चुनें:',
         noAppsCreated: 'अभी तक कोई ऐप नहीं बनाया गया है',
+        shareTabSpell: 'मंत्र (.spell)',
+        shareTabFile: 'अन्य फ़ाइल',
+        shareImportSpell: 'मंत्र आयात करें',
+        shareOrSendTo: 'या किसी मंत्र को भेजें',
+        shareSendToWhich: 'किस मंत्र को भेजें?',
+        shareNoSpells: 'अभी तक कोई मंत्र नहीं बनाया गया',
+        shareNoCompatible: 'कोई भी मंत्र इस प्रकार की सामग्री प्राप्त नहीं कर सकता',
 
         // Network
         network_wifi: 'वाई-फाई',
@@ -3986,6 +4063,13 @@ const translations = {
         textLabel: '(Текст)',
         chooseApp: 'Выберите приложение:',
         noAppsCreated: 'Приложения еще не созданы',
+        shareTabSpell: 'Заклинание (.spell)',
+        shareTabFile: 'Другой файл',
+        shareImportSpell: 'Импорт заклинания',
+        shareOrSendTo: 'или отправить в заклинание',
+        shareSendToWhich: 'В какое заклинание отправить?',
+        shareNoSpells: 'Заклинания ещё не созданы',
+        shareNoCompatible: 'Ни одно заклинание не может принять этот тип контента',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -4290,6 +4374,13 @@ const translations = {
         textLabel: '(Metin)',
         chooseApp: 'Bir Uygulama Seçin:',
         noAppsCreated: 'Henüz uygulama oluşturulmadı',
+        shareTabSpell: 'Büyü (.spell)',
+        shareTabFile: 'Diğer dosya',
+        shareImportSpell: 'Büyü içe aktar',
+        shareOrSendTo: 'veya bir büyüye gönder',
+        shareSendToWhich: 'Hangi büyüye gönderilsin?',
+        shareNoSpells: 'Henüz büyü oluşturulmadı',
+        shareNoCompatible: 'Hiçbir büyü bu içerik türünü alamaz',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -4594,6 +4685,13 @@ const translations = {
         textLabel: '(Tekst)',
         chooseApp: 'Kies een app:',
         noAppsCreated: 'Nog geen apps gemaakt',
+        shareTabSpell: 'Spreuk (.spell)',
+        shareTabFile: 'Ander bestand',
+        shareImportSpell: 'Spreuk importeren',
+        shareOrSendTo: 'of stuur naar een spreuk',
+        shareSendToWhich: 'Naar welke spreuk sturen?',
+        shareNoSpells: 'Nog geen spreuken gemaakt',
+        shareNoCompatible: 'Geen spreuk kan dit type inhoud ontvangen',
 
         // Network
         network_wifi: 'Wifi',
@@ -4898,6 +4996,13 @@ const translations = {
         textLabel: '(Tekst)',
         chooseApp: 'Wybierz aplikację:',
         noAppsCreated: 'Nie utworzono jeszcze żadnych aplikacji',
+        shareTabSpell: 'Zaklęcie (.spell)',
+        shareTabFile: 'Inny plik',
+        shareImportSpell: 'Importuj zaklęcie',
+        shareOrSendTo: 'lub wyślij do zaklęcia',
+        shareSendToWhich: 'Do którego zaklęcia wysłać?',
+        shareNoSpells: 'Nie utworzono jeszcze żadnych zaklęć',
+        shareNoCompatible: 'Żadne zaklęcie nie może odebrać tego typu treści',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -5202,6 +5307,13 @@ const translations = {
         textLabel: '(Văn bản)',
         chooseApp: 'Chọn một ứng dụng:',
         noAppsCreated: 'Chưa có ứng dụng nào được tạo',
+        shareTabSpell: 'Phép thuật (.spell)',
+        shareTabFile: 'Tệp khác',
+        shareImportSpell: 'Nhập phép thuật',
+        shareOrSendTo: 'hoặc gửi đến phép thuật',
+        shareSendToWhich: 'Gửi đến phép thuật nào?',
+        shareNoSpells: 'Chưa có phép thuật nào được tạo',
+        shareNoCompatible: 'Không có phép thuật nào có thể nhận loại nội dung này',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -5506,6 +5618,13 @@ const translations = {
         textLabel: '(ข้อความ)',
         chooseApp: 'เลือกแอป:',
         noAppsCreated: 'ยังไม่มีแอปที่ถูกสร้าง',
+        shareTabSpell: 'คาถา (.spell)',
+        shareTabFile: 'ไฟล์อื่น',
+        shareImportSpell: 'นำเข้าคาถา',
+        shareOrSendTo: 'หรือส่งไปยังคาถา',
+        shareSendToWhich: 'ส่งไปยังคาถาไหน?',
+        shareNoSpells: 'ยังไม่มีคาถาที่ถูกสร้าง',
+        shareNoCompatible: 'ไม่มีคาถาที่สามารถรับเนื้อหาประเภทนี้ได้',
 
         // Network
         network_wifi: 'Wi-Fi',

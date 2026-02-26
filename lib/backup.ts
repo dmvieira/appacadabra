@@ -259,7 +259,7 @@ async function readBackupFile(fileUri: string): Promise<string> {
 /**
  * Peek at a backup file to get its metadata (name, count) without importing
  */
-export async function peekBackupMetadata(uri: string): Promise<{ name: string; count: number; version: number } | null> {
+export async function peekBackupMetadata(uri: string): Promise<{ name: string; shortDescription?: string; count: number; version: number } | null> {
     try {
         const json = await readBackupFile(uri);
         const backup: BackupData = JSON.parse(json);
@@ -276,6 +276,7 @@ export async function peekBackupMetadata(uri: string): Promise<{ name: string; c
 
         return {
             name,
+            shortDescription: firstApp.shortDescription || undefined,
             count,
             version: backup.version
         };

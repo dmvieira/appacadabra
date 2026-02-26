@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, FlatList, Image, AppState, Platform } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, Modal, StyleSheet, TouchableOpacity, FlatList, Image, AppState, Platform, Animated } from 'react-native';
 
 import { useRouter, useGlobalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../lib/store';
 import { GeneratedApp } from '../lib/database/types';
 import * as ShareIntent from 'share-intent';
@@ -9,6 +10,71 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import { peekBackupMetadata } from '../lib/backup';
+
+const AVATAR_COLORS = [
+    '#7B2EFF', '#00B4D8', '#FF2EAB', '#00C853', '#FF6D00',
+    '#448AFF', '#FF1744', '#00BFA5', '#AA00FF', '#FFD600',
+];
+
+function getAvatarColor(name: string): string {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(name: string): string {
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+}
+
+function getFileIcon(fileName: string): string {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    if (ext === 'spell') return '✨';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext)) return '🖼️';
+    if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return '🎬';
+    if (['mp3', 'wav', 'ogg', 'aac', 'flac'].includes(ext)) return '🎵';
+    if (['pdf'].includes(ext)) return '📄';
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return '📦';
+    if (['txt', 'md', 'csv', 'json', 'xml', 'html', 'css', 'js', 'ts'].includes(ext)) return '📝';
+    return '📎';
+}
+
+function getFileTypeLabel(fileName: string, mimeType?: string): string {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    if (ext === 'spell') return '.spell';
+    if (ext) return `.${ext}`;
+    if (mimeType) return mimeType.split('/').pop() || mimeType;
+    return '';
+}
+
+type ShareContentType = 'text' | 'image' | 'file';
+
+function detectContentType(mimeType?: string, hasUri?: boolean, hasText?: boolean): ShareContentType {
+    const mime = (mimeType || '').toLowerCase();
+    if (mime.startsWith('image/')) return 'image';
+    if (mime.startsWith('text/') || (!hasUri && hasText)) return 'text';
+    return 'file';
+}
+
+/** Check if a spell's HTML/JS code can receive the given content type.
+ *  Mirrors the injection logic in injectedJS.ts handleSharedContent(). */
+function canSpellReceive(code: string, contentType: ShareContentType): boolean {
+    // Spell explicitly handles shared content via JS events — accepts anything
+    if (/sharedFile|sharedContent/i.test(code)) return true;
+
+    switch (contentType) {
+        case 'text':
+            return /<textarea/i.test(code)
+                || /type\s*=\s*["']text["']/i.test(code)
+                || /contenteditable/i.test(code);
+        case 'image':
+        case 'file':
+            return /type\s*=\s*["']file["']/i.test(code);
+    }
+}
 
 // Module-level variables to sync across initial setup
 let appSelectionInProgress = false;
@@ -21,6 +87,7 @@ export default function ShareReceiver() {
     const [sharedContent, setSharedContent] = useState<ShareIntent.SharedContent | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [resolvedSpellName, setResolvedSpellName] = useState<string>('');
+    const [resolvedSpellDesc, setResolvedSpellDesc] = useState<string>('');
     const [openUriPriority, setOpenUriPriority] = useState(false);
     const router = useRouter();
     const { openUri } = useGlobalSearchParams<{ openUri?: string }>();
@@ -129,16 +196,21 @@ export default function ShareReceiver() {
         const resolveName = async () => {
             if (!sharedContent?.uri) {
                 setResolvedSpellName('');
+                setResolvedSpellDesc('');
                 return;
             }
 
             const fallbackName = sharedContent.fileName || sharedContent.uri.split('/').pop() || '';
             setResolvedSpellName(fallbackName);
+            setResolvedSpellDesc('');
 
             try {
                 const meta = await peekBackupMetadata(sharedContent.uri);
                 if (!cancelled && meta?.name) {
                     setResolvedSpellName(meta.name);
+                }
+                if (!cancelled && meta?.shortDescription) {
+                    setResolvedSpellDesc(meta.shortDescription);
                 }
             } catch {
                 // keep fallback name
@@ -345,155 +417,394 @@ export default function ShareReceiver() {
     const name = sharedContent.fileName?.toLowerCase() || uri.split('/').pop()?.toLowerCase() || '';
     const isSpell = name.endsWith('.spell') || uri.endsWith('.spell') || mime === 'application/octet-stream';
     const displaySpellName = resolvedSpellName || sharedContent.fileName || sharedContent.uri?.split('/').pop() || '';
+    const displaySpellDescription = resolvedSpellDesc;
+    const displayFileName = sharedContent.fileName || sharedContent.uri?.split('/').pop() || 'shared_file';
+    const contentType = detectContentType(sharedContent.mimeType, !!sharedContent.uri, !!sharedContent.text);
 
     return (
-        <Modal visible={true} animationType="slide" transparent>
-            <View style={styles.container}>
-                <View style={styles.content}>
-                    {isSpell && (
+        <ShareReceiverUI
+            isSpell={isSpell}
+            displaySpellName={displaySpellName}
+            displaySpellDescription={displaySpellDescription}
+            displayFileName={displayFileName}
+            mimeType={sharedContent.mimeType}
+            contentType={contentType}
+            isProcessing={isProcessing}
+            apps={apps}
+            onImportSpell={handleImportSpell}
+            onSelectApp={handleSelectApp}
+            onClose={handleClose}
+        />
+    );
+}
+
+/** Visual bottom sheet UI — separated for clarity */
+function ShareReceiverUI({
+    isSpell,
+    displaySpellName,
+    displaySpellDescription,
+    displayFileName,
+    mimeType,
+    contentType,
+    isProcessing,
+    apps,
+    onImportSpell,
+    onSelectApp,
+    onClose,
+}: {
+    isSpell: boolean;
+    displaySpellName: string;
+    displaySpellDescription: string;
+    displayFileName: string;
+    mimeType?: string;
+    contentType: ShareContentType;
+    isProcessing: boolean;
+    apps: GeneratedApp[];
+    onImportSpell: () => void;
+    onSelectApp: (app: GeneratedApp) => void;
+    onClose: () => void;
+}) {
+    const insets = useSafeAreaInsets();
+    const [activeTab, setActiveTab] = useState<'spell' | 'file'>(isSpell ? 'spell' : 'file');
+    const slideAnim = useMemo(() => new Animated.Value(0), []);
+    const compatibleApps = useMemo(
+        () => apps.filter(app => canSpellReceive(app.code, contentType)),
+        [apps, contentType],
+    );
+
+    useEffect(() => {
+        Animated.spring(slideAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 200,
+        }).start();
+    }, [slideAnim]);
+
+    const fileIcon = getFileIcon(displayFileName);
+    const fileType = getFileTypeLabel(displayFileName, mimeType);
+
+    const renderSpellItem = ({ item }: { item: GeneratedApp }) => {
+        const avatarColor = getAvatarColor(item.name);
+        const initials = getInitials(item.name);
+
+        return (
+            <TouchableOpacity
+                style={[styles.spellItem, { opacity: isProcessing ? 0.5 : 1 }]}
+                onPress={() => onSelectApp(item)}
+                disabled={isProcessing}
+                activeOpacity={0.7}
+            >
+                {item.iconPath ? (
+                    <Image source={{ uri: item.iconPath }} style={styles.spellAvatar} />
+                ) : (
+                    <View style={[styles.spellAvatar, { backgroundColor: avatarColor }]}>
+                        <Text style={styles.spellAvatarText}>{initials}</Text>
+                    </View>
+                )}
+                <View style={styles.spellInfo}>
+                    <Text style={styles.spellName} numberOfLines={1}>{item.name}</Text>
+                    {!!item.shortDescription && (
+                        <Text style={styles.spellDesc} numberOfLines={1}>{item.shortDescription}</Text>
+                    )}
+                </View>
+                <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    return (
+        <Modal visible={true} animationType="none" transparent statusBarTranslucent>
+            <View style={styles.overlay}>
+                <TouchableOpacity style={styles.overlayTouchable} activeOpacity={1} onPress={onClose} />
+
+                <Animated.View style={[
+                    styles.sheet,
+                    { paddingBottom: Math.max(insets.bottom, 16) },
+                    {
+                        transform: [{
+                            translateY: slideAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [600, 0],
+                            }),
+                        }],
+                    },
+                ]}>
+                    {/* Handle */}
+                    <View style={styles.handleRow}>
+                        <View style={styles.handle} />
+                    </View>
+
+                    {/* Tabs */}
+                    <View style={styles.tabRow}>
                         <TouchableOpacity
-                            style={[styles.importCard, { opacity: isProcessing ? 0.5 : 1 }]}
-                            onPress={handleImportSpell}
-                            disabled={isProcessing}
+                            style={[styles.tab, activeTab === 'spell' && styles.tabActive]}
+                            onPress={() => setActiveTab('spell')}
+                            activeOpacity={0.7}
                         >
-                            <Text style={styles.importCardTitle}>✨ {t('importSpell')}</Text>
-                            {!!displaySpellName && (
-                                <Text style={styles.importCardName} numberOfLines={1}>
-                                    {displaySpellName}
-                                </Text>
-                            )}
+                            <Text style={[styles.tabText, activeTab === 'spell' && styles.tabTextActive]}>
+                                ✨ {t('shareTabSpell')}
+                            </Text>
                         </TouchableOpacity>
-                    )}
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'file' && styles.tabActive]}
+                            onPress={() => setActiveTab('file')}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'file' && styles.tabTextActive]}>
+                                📎 {t('shareTabFile')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
-                    <Text style={styles.title}>{t('shareWithAppacadabra')}</Text>
-                    <Text style={styles.subtitle}>
-                        {sharedContent.mimeType} {sharedContent.uri ? t('fileLabel') : t('textLabel')}
-                    </Text>
-                    {!isSpell && !!(resolvedSpellName || sharedContent.uri) && (
-                        <Text style={styles.fileName} numberOfLines={1}>
-                            {resolvedSpellName || sharedContent.uri?.split('/').pop()}
-                        </Text>
-                    )}
+                    {/* File preview card */}
+                    <View style={styles.previewCard}>
+                        <Text style={styles.previewIcon}>{fileIcon}</Text>
+                        <View style={styles.previewInfo}>
+                            <Text style={styles.previewName} numberOfLines={1}>
+                                {activeTab === 'spell' ? displaySpellName : displayFileName}
+                            </Text>
+                            {activeTab === 'spell' && !!displaySpellDescription ? (
+                                <Text style={styles.previewDesc} numberOfLines={2}>{displaySpellDescription}</Text>
+                            ) : (
+                                <Text style={styles.previewType}>{fileType}</Text>
+                            )}
+                        </View>
+                    </View>
 
-                    <Text style={styles.sectionHeader}>{t('chooseApp')}</Text>
-
-                    <FlatList
-                        data={apps}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity style={[styles.appItem, { opacity: isProcessing ? 0.5 : 1 }]} onPress={() => handleSelectApp(item)} disabled={isProcessing}>
-                                {item.iconPath ? (
-                                    <Image source={{ uri: item.iconPath }} style={styles.appIcon} />
-                                ) : (
-                                    <View style={[styles.appIcon, styles.appIconPlaceholder]}>
-                                        <Text style={styles.appIconText}>📱</Text>
-                                    </View>
-                                )}
-                                <Text style={styles.appName}>{item.name}</Text>
+                    {activeTab === 'spell' ? (
+                        /* ——— Spell tab ——— */
+                        <>
+                            {/* Import button */}
+                            <TouchableOpacity
+                                style={[styles.importButton, { opacity: isProcessing ? 0.5 : 1 }]}
+                                onPress={onImportSpell}
+                                disabled={isProcessing}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.importButtonText}>✨ {t('shareImportSpell')}</Text>
                             </TouchableOpacity>
-                        )}
-                        style={styles.list}
-                        ListEmptyComponent={
-                            <Text style={styles.emptyText}>{apps.length === 0 ? t('noAppsCreated') : ''}</Text>
-                        }
-                    />
 
-                    <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+                            {/* Divider */}
+                            {compatibleApps.length > 0 && (
+                                <View style={styles.dividerRow}>
+                                    <View style={styles.dividerLine} />
+                                    <Text style={styles.dividerText}>{t('shareOrSendTo')}</Text>
+                                    <View style={styles.dividerLine} />
+                                </View>
+                            )}
+
+                            {/* Spell list */}
+                            {compatibleApps.length > 0 && (
+                                <FlatList
+                                    data={compatibleApps}
+                                    keyExtractor={(item) => item.id.toString()}
+                                    renderItem={renderSpellItem}
+                                    style={styles.spellList}
+                                />
+                            )}
+                        </>
+                    ) : (
+                        /* ——— File tab ——— */
+                        <>
+                            {compatibleApps.length > 0 && (
+                                <Text style={styles.sendToLabel}>{t('shareSendToWhich')}</Text>
+                            )}
+
+                            <FlatList
+                                data={compatibleApps}
+                                keyExtractor={(item) => item.id.toString()}
+                                renderItem={renderSpellItem}
+                                style={styles.spellList}
+                                ListEmptyComponent={
+                                    <Text style={styles.emptyText}>
+                                        {apps.length === 0 ? t('shareNoSpells') : t('shareNoCompatible')}
+                                    </Text>
+                                }
+                            />
+                        </>
+                    )}
+
+                    {/* Cancel */}
+                    <TouchableOpacity style={styles.cancelButton} onPress={onClose} activeOpacity={0.7}>
                         <Text style={styles.cancelText}>{t('cancel')}</Text>
                     </TouchableOpacity>
-                </View>
+                </Animated.View>
             </View>
         </Modal>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.6)',
         justifyContent: 'flex-end',
     },
-    content: {
+    overlayTouchable: {
+        flex: 1,
+    },
+    sheet: {
         backgroundColor: colors.surface,
-        borderTopLeftRadius: borderRadius.xl,
-        borderTopRightRadius: borderRadius.xl,
-        padding: spacing.lg,
-        maxHeight: '80%',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        maxHeight: '85%',
+        paddingHorizontal: spacing.lg,
     },
-    importCard: {
-        backgroundColor: colors.primaryContainer,
-        borderRadius: borderRadius.md,
-        padding: spacing.md,
-        marginBottom: spacing.lg,
+    handleRow: {
         alignItems: 'center',
+        paddingVertical: 12,
     },
-    importCardTitle: {
-        color: colors.onPrimaryContainer,
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: spacing.xs,
-        textAlign: 'center',
+    handle: {
+        width: 40,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: colors.onSurfaceVariant,
+        opacity: 0.4,
     },
-    importCardName: {
-        color: colors.onPrimaryContainer,
-        fontSize: 14,
-        fontWeight: '600',
-        textAlign: 'center',
-    },
-    title: {
-        color: colors.onSurface,
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: spacing.xs,
-        textAlign: 'center',
-    },
-    subtitle: {
-        color: colors.onSurfaceVariant,
-        fontSize: 14,
-        marginBottom: spacing.lg,
-        textAlign: 'center',
-    },
-    fileName: {
-        color: colors.primary,
-        fontSize: 13,
-        marginBottom: spacing.lg,
-        textAlign: 'center',
-    },
-    sectionHeader: {
-        color: colors.onSurface,
-        fontSize: 16,
-        marginBottom: spacing.sm,
-    },
-    list: {
-        marginBottom: spacing.md,
-    },
-    appItem: {
+
+    // Tabs
+    tabRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        padding: spacing.md,
         backgroundColor: colors.surfaceVariant,
         borderRadius: borderRadius.md,
-        marginBottom: spacing.sm,
+        padding: 3,
+        marginBottom: spacing.md,
     },
-    appIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: borderRadius.sm,
-        marginEnd: spacing.md,
-    },
-    appIconPlaceholder: {
-        backgroundColor: colors.primaryContainer,
-        justifyContent: 'center',
+    tab: {
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: borderRadius.md - 2,
         alignItems: 'center',
     },
-    appIconText: {
-        fontSize: 20,
+    tabActive: {
+        backgroundColor: colors.primaryContainer,
     },
-    appName: {
-        color: colors.onSurface,
-        fontSize: 16,
+    tabText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 14,
         fontWeight: '600',
+    },
+    tabTextActive: {
+        color: colors.onPrimaryContainer,
+    },
+
+    // Preview card
+    previewCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.surfaceVariant,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+    },
+    previewIcon: {
+        fontSize: 28,
+        marginRight: spacing.md,
+    },
+    previewInfo: {
         flex: 1,
+    },
+    previewName: {
+        color: colors.onSurface,
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    previewType: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+        marginTop: 2,
+    },
+    previewDesc: {
+        color: colors.onSurfaceVariant,
+        fontSize: 13,
+        marginTop: 2,
+        lineHeight: 17,
+    },
+
+    // Import button
+    importButton: {
+        backgroundColor: colors.primary,
+        borderRadius: borderRadius.md,
+        paddingVertical: 14,
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    importButtonText: {
+        color: colors.onPrimary,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+
+    // Divider
+    dividerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: colors.surfaceVariant,
+    },
+    dividerText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+        marginHorizontal: spacing.sm,
+    },
+
+    // Send to label
+    sendToLabel: {
+        color: colors.onSurface,
+        fontSize: 15,
+        fontWeight: '600',
+        marginBottom: spacing.sm,
+    },
+
+    // Spell list
+    spellList: {
+        maxHeight: 240,
+        marginBottom: spacing.md,
+    },
+    spellItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.sm,
+        marginBottom: 2,
+    },
+    spellAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: spacing.md,
+    },
+    spellAvatarText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    spellInfo: {
+        flex: 1,
+        marginRight: spacing.sm,
+    },
+    spellName: {
+        color: colors.onSurface,
+        fontSize: 15,
+        fontWeight: '500',
+    },
+    spellDesc: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+        marginTop: 1,
+    },
+    chevron: {
+        color: colors.onSurfaceVariant,
+        fontSize: 22,
+        fontWeight: '300',
     },
     emptyText: {
         color: colors.onSurfaceVariant,
@@ -501,15 +812,18 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         fontStyle: 'italic',
     },
+
+    // Cancel
     cancelButton: {
-        padding: spacing.md,
-        backgroundColor: colors.error,
+        paddingVertical: 14,
         borderRadius: borderRadius.md,
         alignItems: 'center',
+        backgroundColor: colors.surfaceVariant,
+        marginTop: spacing.xs,
     },
     cancelText: {
-        color: colors.onError,
-        fontSize: 16,
-        fontWeight: 'bold',
+        color: colors.onSurfaceVariant,
+        fontSize: 15,
+        fontWeight: '600',
     },
 });
