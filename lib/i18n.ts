@@ -137,6 +137,14 @@ const translations = {
         shareSendToWhich: 'Send to which spell?',
         shareNoSpells: 'No spells created yet',
         shareNoCompatible: 'No spells can receive this type of content',
+        setupFirstOpen: 'First time opening',
+        setupTitle: 'Configure spell',
+        setupSubtitle: 'Choose how you want to access this spell. To change later, tap the ⋯ on the card.',
+        setupBiometricTitle: 'Biometric lock',
+        setupBiometricDesc: 'Protect with fingerprint or facial recognition',
+        setupHomeTitle: 'Add to home screen',
+        setupHomeDesc: 'Access directly without opening Appacadabra',
+        setupEnter: 'Enter spell →',
 
         // Content filter
         contentBlocked: 'Content not allowed. Please describe a legitimate and useful spell.',
@@ -595,6 +603,14 @@ const translations = {
         shareSendToWhich: 'Enviar para qual feitiço?',
         shareNoSpells: 'Nenhum feitiço criado ainda',
         shareNoCompatible: 'Nenhum feitiço pode receber este tipo de conteúdo',
+        setupFirstOpen: 'Primeira abertura',
+        setupTitle: 'Configurar feitiço',
+        setupSubtitle: 'Escolha como quer acessar este feitiço. Para mudar depois, toque nos ⋯ do card.',
+        setupBiometricTitle: 'Bloqueio biométrico',
+        setupBiometricDesc: 'Proteja com digital ou reconhecimento facial',
+        setupHomeTitle: 'Adicionar à tela inicial',
+        setupHomeDesc: 'Acesse direto sem abrir o Appacadabra',
+        setupEnter: 'Entrar no feitiço →',
 
         // Account
         account: 'Conta',
@@ -1050,6 +1066,14 @@ const translations = {
         shareSendToWhich: '¿Enviar a qué hechizo?',
         shareNoSpells: 'Aún no hay hechizos creados',
         shareNoCompatible: 'Ningún hechizo puede recibir este tipo de contenido',
+        setupFirstOpen: 'Primera apertura',
+        setupTitle: 'Configurar hechizo',
+        setupSubtitle: 'Elige cómo quieres acceder a este hechizo. Para cambiar después, toca los ⋯ de la tarjeta.',
+        setupBiometricTitle: 'Bloqueo biométrico',
+        setupBiometricDesc: 'Protege con huella dactilar o reconocimiento facial',
+        setupHomeTitle: 'Añadir a la pantalla de inicio',
+        setupHomeDesc: 'Accede directamente sin abrir Appacadabra',
+        setupEnter: 'Entrar al hechizo →',
 
         // Conversion
         zipEmpty: 'ZIP vacío o sin archivos soportados',
@@ -1449,6 +1473,14 @@ const translations = {
         shareSendToWhich: 'Envoyer à quel sort ?',
         shareNoSpells: 'Aucun sort créé pour le moment',
         shareNoCompatible: 'Aucun sort ne peut recevoir ce type de contenu',
+        setupFirstOpen: 'Première ouverture',
+        setupTitle: 'Configurer le sort',
+        setupSubtitle: 'Choisissez comment accéder à ce sort. Pour modifier plus tard, appuyez sur ⋯ de la carte.',
+        setupBiometricTitle: 'Verrouillage biométrique',
+        setupBiometricDesc: 'Protégez avec empreinte digitale ou reconnaissance faciale',
+        setupHomeTitle: 'Ajouter à l\'écran d\'accueil',
+        setupHomeDesc: 'Accédez directement sans ouvrir Appacadabra',
+        setupEnter: 'Entrer dans le sort →',
 
         // Conversion
         zipEmpty: 'ZIP vide ou non supporté',
@@ -1857,6 +1889,14 @@ const translations = {
         shareSendToWhich: 'An welchen Zauber senden?',
         shareNoSpells: 'Noch keine Zauber erstellt',
         shareNoCompatible: 'Kein Zauber kann diesen Inhaltstyp empfangen',
+        setupFirstOpen: 'Erstmaliges Öffnen',
+        setupTitle: 'Zauber konfigurieren',
+        setupSubtitle: 'Wähle, wie du auf diesen Zauber zugreifen möchtest. Zum Ändern später auf ⋯ der Karte tippen.',
+        setupBiometricTitle: 'Biometrische Sperre',
+        setupBiometricDesc: 'Mit Fingerabdruck oder Gesichtserkennung schützen',
+        setupHomeTitle: 'Zum Startbildschirm hinzufügen',
+        setupHomeDesc: 'Direkt zugreifen ohne Appacadabra zu öffnen',
+        setupEnter: 'Zauber betreten →',
 
         manaBalance: 'Mana: %{amount}',
         // Account
@@ -2187,6 +2227,14 @@ const translations = {
         shareSendToWhich: 'Inviare a quale incantesimo?',
         shareNoSpells: 'Nessun incantesimo creato ancora',
         shareNoCompatible: 'Nessun incantesimo può ricevere questo tipo di contenuto',
+        setupFirstOpen: 'Prima apertura',
+        setupTitle: 'Configura incantesimo',
+        setupSubtitle: 'Scegli come vuoi accedere a questo incantesimo. Per cambiare dopo, tocca ⋯ sulla scheda.',
+        setupBiometricTitle: 'Blocco biometrico',
+        setupBiometricDesc: 'Proteggi con impronta digitale o riconoscimento facciale',
+        setupHomeTitle: 'Aggiungi alla schermata iniziale',
+        setupHomeDesc: 'Accedi direttamente senza aprire Appacadabra',
+        setupEnter: 'Entra nell\'incantesimo →',
 
         manaBalance: 'Mana: %{amount}',
         // Account
@@ -2515,6 +2563,14 @@ const translations = {
         shareSendToWhich: 'どのスペルに送信しますか？',
         shareNoSpells: 'まだスペルが作成されていません',
         shareNoCompatible: 'このコンテンツタイプを受信できるスペルがありません',
+        setupFirstOpen: '初回起動',
+        setupTitle: 'スペルを設定',
+        setupSubtitle: 'このスペルへのアクセス方法を選択してください。後で変更するには、カードの⋯をタップしてください。',
+        setupBiometricTitle: '生体認証ロック',
+        setupBiometricDesc: '指紋または顔認証で保護',
+        setupHomeTitle: 'ホーム画面に追加',
+        setupHomeDesc: 'Appacadabraを開かずに直接アクセス',
+        setupEnter: 'スペルに入る →',
 
         manaBalance: 'マナ: %{amount}',
         // Account
@@ -2826,6 +2882,14 @@ const translations = {
         shareSendToWhich: '发送到哪个咒语？',
         shareNoSpells: '尚未创建咒语',
         shareNoCompatible: '没有咒语可以接收此类型的内容',
+        setupFirstOpen: '首次打开',
+        setupTitle: '配置咒语',
+        setupSubtitle: '选择如何访问此咒语。之后可在卡片的⋯中修改。',
+        setupBiometricTitle: '生物识别锁定',
+        setupBiometricDesc: '使用指纹或面部识别保护',
+        setupHomeTitle: '添加到主屏幕',
+        setupHomeDesc: '无需打开Appacadabra即可直接访问',
+        setupEnter: '进入咒语 →',
 
         manaBalance: '魔力: %{amount}',
         // Account
@@ -3143,6 +3207,14 @@ const translations = {
         shareSendToWhich: '어떤 주문에 보낼까요?',
         shareNoSpells: '아직 생성된 주문이 없습니다',
         shareNoCompatible: '이 콘텐츠 유형을 받을 수 있는 주문이 없습니다',
+        setupFirstOpen: '처음 열기',
+        setupTitle: '주문 설정',
+        setupSubtitle: '이 주문에 접근하는 방법을 선택하세요. 나중에 변경하려면 카드의 ⋯를 탭하세요.',
+        setupBiometricTitle: '생체 인증 잠금',
+        setupBiometricDesc: '지문 또는 얼굴 인식으로 보호',
+        setupHomeTitle: '홈 화면에 추가',
+        setupHomeDesc: 'Appacadabra를 열지 않고 바로 접근',
+        setupEnter: '주문 입장 →',
 
         manaBalance: '마나: %{amount}',
         // Account
@@ -3448,6 +3520,14 @@ const translations = {
         shareSendToWhich: 'إرسال إلى أي تعويذة؟',
         shareNoSpells: 'لم يتم إنشاء أي تعويذات بعد',
         shareNoCompatible: 'لا يمكن لأي تعويذة استقبال هذا النوع من المحتوى',
+        setupFirstOpen: 'الفتح لأول مرة',
+        setupTitle: 'تكوين التعويذة',
+        setupSubtitle: 'اختر كيفية الوصول إلى هذه التعويذة. للتغيير لاحقاً، اضغط على ⋯ في البطاقة.',
+        setupBiometricTitle: 'قفل بيومتري',
+        setupBiometricDesc: 'حماية ببصمة الإصبع أو التعرف على الوجه',
+        setupHomeTitle: 'إضافة إلى الشاشة الرئيسية',
+        setupHomeDesc: 'الوصول مباشرة بدون فتح Appacadabra',
+        setupEnter: 'دخول التعويذة ←',
 
         // Network
         network_wifi: 'واي فاي',
@@ -3759,6 +3839,14 @@ const translations = {
         shareSendToWhich: 'किस मंत्र को भेजें?',
         shareNoSpells: 'अभी तक कोई मंत्र नहीं बनाया गया',
         shareNoCompatible: 'कोई भी मंत्र इस प्रकार की सामग्री प्राप्त नहीं कर सकता',
+        setupFirstOpen: 'पहली बार खोलना',
+        setupTitle: 'मंत्र कॉन्फ़िगर करें',
+        setupSubtitle: 'इस मंत्र तक कैसे पहुँचना चाहते हैं चुनें। बाद में बदलने के लिए कार्ड पर ⋯ टैप करें।',
+        setupBiometricTitle: 'बायोमेट्रिक लॉक',
+        setupBiometricDesc: 'फ़िंगरप्रिंट या चेहरे की पहचान से सुरक्षित करें',
+        setupHomeTitle: 'होम स्क्रीन में जोड़ें',
+        setupHomeDesc: 'Appacadabra खोले बिना सीधे एक्सेस करें',
+        setupEnter: 'मंत्र में प्रवेश →',
 
         // Network
         network_wifi: 'वाई-फाई',
@@ -4070,6 +4158,14 @@ const translations = {
         shareSendToWhich: 'В какое заклинание отправить?',
         shareNoSpells: 'Заклинания ещё не созданы',
         shareNoCompatible: 'Ни одно заклинание не может принять этот тип контента',
+        setupFirstOpen: 'Первое открытие',
+        setupTitle: 'Настроить заклинание',
+        setupSubtitle: 'Выберите, как вы хотите открывать это заклинание. Для изменения позже нажмите ⋯ на карточке.',
+        setupBiometricTitle: 'Биометрическая блокировка',
+        setupBiometricDesc: 'Защитите отпечатком пальца или распознаванием лица',
+        setupHomeTitle: 'Добавить на главный экран',
+        setupHomeDesc: 'Запускайте напрямую без открытия Appacadabra',
+        setupEnter: 'Войти в заклинание →',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -4381,6 +4477,14 @@ const translations = {
         shareSendToWhich: 'Hangi büyüye gönderilsin?',
         shareNoSpells: 'Henüz büyü oluşturulmadı',
         shareNoCompatible: 'Hiçbir büyü bu içerik türünü alamaz',
+        setupFirstOpen: 'İlk açılış',
+        setupTitle: 'Büyüyü yapılandır',
+        setupSubtitle: 'Bu büyüye nasıl erişmek istediğinizi seçin. Sonra değiştirmek için karttaki ⋯ düğmesine dokunun.',
+        setupBiometricTitle: 'Biyometrik kilit',
+        setupBiometricDesc: 'Parmak izi veya yüz tanıma ile koruyun',
+        setupHomeTitle: 'Ana ekrana ekle',
+        setupHomeDesc: 'Appacadabra\'yı açmadan doğrudan erişin',
+        setupEnter: 'Büyüye gir →',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -4692,6 +4796,14 @@ const translations = {
         shareSendToWhich: 'Naar welke spreuk sturen?',
         shareNoSpells: 'Nog geen spreuken gemaakt',
         shareNoCompatible: 'Geen spreuk kan dit type inhoud ontvangen',
+        setupFirstOpen: 'Eerste keer openen',
+        setupTitle: 'Spreuk configureren',
+        setupSubtitle: 'Kies hoe je deze spreuk wilt openen. Om later te wijzigen, tik op ⋯ op de kaart.',
+        setupBiometricTitle: 'Biometrische vergrendeling',
+        setupBiometricDesc: 'Bescherm met vingerafdruk of gezichtsherkenning',
+        setupHomeTitle: 'Toevoegen aan startscherm',
+        setupHomeDesc: 'Direct openen zonder Appacadabra te starten',
+        setupEnter: 'Spreuk openen →',
 
         // Network
         network_wifi: 'Wifi',
@@ -5003,6 +5115,14 @@ const translations = {
         shareSendToWhich: 'Do którego zaklęcia wysłać?',
         shareNoSpells: 'Nie utworzono jeszcze żadnych zaklęć',
         shareNoCompatible: 'Żadne zaklęcie nie może odebrać tego typu treści',
+        setupFirstOpen: 'Pierwsze otwarcie',
+        setupTitle: 'Skonfiguruj zaklęcie',
+        setupSubtitle: 'Wybierz, jak chcesz uzyskiwać dostęp do tego zaklęcia. Aby zmienić później, dotknij ⋯ na karcie.',
+        setupBiometricTitle: 'Blokada biometryczna',
+        setupBiometricDesc: 'Chroń odciskiem palca lub rozpoznawaniem twarzy',
+        setupHomeTitle: 'Dodaj do ekranu głównego',
+        setupHomeDesc: 'Otwieraj bezpośrednio bez uruchamiania Appacadabra',
+        setupEnter: 'Wejdź w zaklęcie →',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -5314,6 +5434,14 @@ const translations = {
         shareSendToWhich: 'Gửi đến phép thuật nào?',
         shareNoSpells: 'Chưa có phép thuật nào được tạo',
         shareNoCompatible: 'Không có phép thuật nào có thể nhận loại nội dung này',
+        setupFirstOpen: 'Mở lần đầu',
+        setupTitle: 'Cấu hình phép thuật',
+        setupSubtitle: 'Chọn cách bạn muốn truy cập phép thuật này. Để thay đổi sau, nhấn ⋯ trên thẻ.',
+        setupBiometricTitle: 'Khóa sinh trắc học',
+        setupBiometricDesc: 'Bảo vệ bằng vân tay hoặc nhận diện khuôn mặt',
+        setupHomeTitle: 'Thêm vào màn hình chính',
+        setupHomeDesc: 'Truy cập trực tiếp mà không cần mở Appacadabra',
+        setupEnter: 'Vào phép thuật →',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -5625,6 +5753,14 @@ const translations = {
         shareSendToWhich: 'ส่งไปยังคาถาไหน?',
         shareNoSpells: 'ยังไม่มีคาถาที่ถูกสร้าง',
         shareNoCompatible: 'ไม่มีคาถาที่สามารถรับเนื้อหาประเภทนี้ได้',
+        setupFirstOpen: 'เปิดครั้งแรก',
+        setupTitle: 'ตั้งค่าคาถา',
+        setupSubtitle: 'เลือกวิธีเข้าถึงคาถานี้ หากต้องการเปลี่ยนภายหลัง แตะ ⋯ บนการ์ด',
+        setupBiometricTitle: 'ล็อกไบโอเมตริก',
+        setupBiometricDesc: 'ปกป้องด้วยลายนิ้วมือหรือการจดจำใบหน้า',
+        setupHomeTitle: 'เพิ่มไปยังหน้าจอหลัก',
+        setupHomeDesc: 'เข้าถึงโดยตรงโดยไม่ต้องเปิด Appacadabra',
+        setupEnter: 'เข้าสู่คาถา →',
 
         // Network
         network_wifi: 'Wi-Fi',

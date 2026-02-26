@@ -42,6 +42,7 @@ import { exportSingleApp } from '../lib/backup';
 import * as firebase from '../lib/firebase';
 import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useManaStore } from '../lib/manaStore';
+import SpellSetup from '../components/SpellSetup';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 const SHORTCUT_NUDGES_KEY = 'appacadabra_shortcut_nudges_dismissed';
@@ -101,6 +102,7 @@ export default function HomeScreen() {
     const [setupName, setSetupName] = useState('');
     const [setupDescription, setSetupDescription] = useState('');
     const [dismissedShortcutNudges, setDismissedShortcutNudges] = useState<Record<number, boolean>>({});
+    const [firstRunSetupTarget, setFirstRunSetupTarget] = useState<GeneratedApp | null>(null);
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -306,6 +308,14 @@ export default function HomeScreen() {
             if (!authResult) return;
         }
 
+        // First-run setup: show config screen before opening for the first time
+        const setupKey = `spell_setup_done_${app.id}`;
+        const setupDone = await AsyncStorage.getItem(setupKey);
+        if (!setupDone) {
+            setFirstRunSetupTarget(app);
+            return;
+        }
+
         // On iOS, we just navigate to the runner screen within the same window
         if (Platform.OS === 'ios') {
             router.push({ pathname: '/runner/[id]', params: { id: app.id } });
@@ -319,6 +329,37 @@ export default function HomeScreen() {
         if (!success) {
             console.error('Native openRunnerWindow failed');
             alert(t('errorOpeningWindow'));
+        }
+    };
+
+    const handleFirstRunSetupComplete = async (options: { biometric: boolean; homeScreen: boolean }) => {
+        if (!firstRunSetupTarget) return;
+        const app = firstRunSetupTarget;
+        setFirstRunSetupTarget(null);
+
+        // Apply biometric setting
+        if (options.biometric) {
+            await db.updateBiometricLock(app.id, true);
+            await loadApps();
+        }
+
+        // Create home screen shortcut
+        if (options.homeScreen && Platform.OS === 'android') {
+            await createShortcut(app.id, app.name, app.iconPath || null);
+        }
+
+        // Mark setup as done
+        await AsyncStorage.setItem(`spell_setup_done_${app.id}`, '1');
+
+        // Now actually open the spell
+        if (Platform.OS === 'ios') {
+            router.push({ pathname: '/runner/[id]', params: { id: app.id } });
+        } else {
+            const success = await ShareIntent.openRunnerWindow(app.id);
+            if (!success) {
+                console.error('Native openRunnerWindow failed');
+                alert(t('errorOpeningWindow'));
+            }
         }
     };
 
@@ -1166,6 +1207,14 @@ export default function HomeScreen() {
 
             {/* Onboarding */}
             <Onboarding visible={showOnboarding} onComplete={handleOnboardingComplete} />
+
+            {/* First-run spell setup */}
+            {firstRunSetupTarget && (
+                <SpellSetup
+                    app={firstRunSetupTarget}
+                    onComplete={handleFirstRunSetupComplete}
+                />
+            )}
         </SafeAreaView>
     );
 }
