@@ -96,6 +96,7 @@ export default function RunnerScreen() {
     const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [isAtTop, setIsAtTop] = useState(true);
+    const [webViewError, setWebViewError] = useState(false);
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
@@ -887,23 +888,55 @@ export default function RunnerScreen() {
                         injectedJavaScriptBeforeContentLoaded={combinedScript}
                         onLoadEnd={handleLoadEnd}
                         onMessage={handleMessage}
-                        onError={(e) => console.error('WebView error:', e.nativeEvent)}
+                        onError={(e) => {
+                            console.error('WebView error:', e.nativeEvent);
+                            setWebViewError(true);
+                        }}
+                        renderError={(errorDomain, errorCode, errorDesc) => (
+                            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: spacing.xl }}>
+                                <Text style={{ fontSize: 48, marginBottom: spacing.md }}>⚠️</Text>
+                                <Text style={{ color: colors.onSurface, fontSize: 18, fontWeight: '600', marginBottom: spacing.sm, textAlign: 'center' }}>
+                                    {t('errorTitle')}
+                                </Text>
+                                <Text style={{ color: colors.onSurfaceVariant, fontSize: 14, textAlign: 'center', marginBottom: spacing.lg }}>
+                                    {errorDesc}
+                                </Text>
+                                <TouchableOpacity
+                                    style={{ backgroundColor: colors.primary, paddingVertical: spacing.sm, paddingHorizontal: spacing.xl, borderRadius: borderRadius.md }}
+                                    onPress={() => {
+                                        setWebViewError(false);
+                                        onRefresh();
+                                    }}
+                                >
+                                    <Text style={{ color: colors.onPrimary, fontSize: 16, fontWeight: '600' }}>{t('retry') || 'Retry'}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                         onShouldStartLoadWithRequest={(request) => {
                             const { url } = request;
-                            // Allow internal URLs (localhost, appacadabra.local, data:, about:, blob:)
+                            // Allow data/about/blob schemes
                             if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
                                 return true;
                             }
-                            // External URLs - open in browser
                             if (url.startsWith('http://') || url.startsWith('https://')) {
-                                if (!url.includes('localhost') && !url.includes('.appacadabra.local')) {
-                                    Linking.openURL(url);
+                                // Block navigation to our fake baseUrl domain — it only exists for origin isolation,
+                                // actual navigation to it causes ERR_NAME_NOT_RESOLVED.
+                                // The initial loadDataWithBaseURL does NOT go through this handler.
+                                if (url.includes('.appacadabra.local')) {
+                                    console.log('Blocking navigation to fake baseUrl domain:', url);
                                     return false;
                                 }
-                                return true;
+                                // Allow localhost
+                                if (url.includes('localhost')) {
+                                    return true;
+                                }
+                                // External URLs - open in system browser
+                                Linking.openURL(url);
+                                return false;
                             }
-
-                            return true;
+                            // Block any other schemes (e.g. "undefined", "null", garbage strings)
+                            console.log('Blocking unknown URL scheme:', url);
+                            return false;
                         }}
                         // Handle geolocation permission requests from WebView
                         // @ts-ignore - androidOnGeolocationPermissionsShowPrompt is available on Android

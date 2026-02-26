@@ -526,23 +526,36 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     canGoBackRef.current = navState.canGoBack;
                 }}
                 onError={(e) => console.error('WebView error:', e.nativeEvent)}
+                renderError={(errorDomain, errorCode, errorDesc) => (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: spacing.xl }}>
+                        <Text style={{ fontSize: 48, marginBottom: spacing.md }}>⚠️</Text>
+                        <Text style={{ color: colors.onSurface, fontSize: 18, fontWeight: '600', textAlign: 'center' }}>
+                            {errorDesc}
+                        </Text>
+                    </View>
+                )}
                 onShouldStartLoadWithRequest={(request) => {
                     const { url } = request;
-                    // Allow internal URLs (localhost, appacadabra.local, data:, about:)
+                    // Allow data/about/blob schemes
                     if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
                         return true;
                     }
                     if (url.startsWith('http://') || url.startsWith('https://')) {
-                        // Keep navigation internal for our local baseUrl and localhost
-                        if (url.includes('localhost') || url.includes('.appacadabra.local')) {
+                        // Block navigation to our fake baseUrl domain — it only exists for origin isolation
+                        if (url.includes('.appacadabra.local')) {
+                            console.log('Blocking navigation to fake baseUrl domain:', url);
+                            return false;
+                        }
+                        if (url.includes('localhost')) {
                             return true;
                         }
                         // External URLs - open in system browser
                         Linking.openURL(url);
                         return false;
                     }
-
-                    return true;
+                    // Block garbage URLs
+                    console.log('Blocking unknown URL scheme:', url);
+                    return false;
                 }}
                 // @ts-ignore
                 androidOnGeolocationPermissionsShowPrompt={async (origin, callback) => {
