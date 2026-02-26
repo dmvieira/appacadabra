@@ -26,6 +26,7 @@ import * as ShareIntent from 'share-intent';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
@@ -103,6 +104,8 @@ export default function HomeScreen() {
     const [setupDescription, setSetupDescription] = useState('');
     const [dismissedShortcutNudges, setDismissedShortcutNudges] = useState<Record<number, boolean>>({});
     const [firstRunSetupTarget, setFirstRunSetupTarget] = useState<GeneratedApp | null>(null);
+    const [notifCounts, setNotifCounts] = useState<Record<number, number>>({});
+    const [coachStep, setCoachStep] = useState(0); // 0=off, 1=dots menu hint, 2=edit hint
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -197,6 +200,22 @@ export default function HomeScreen() {
     useFocusEffect(
         useCallback(() => {
             loadApps();
+            // Count scheduled notifications per spell
+            Notifications.getAllScheduledNotificationsAsync().then(all => {
+                const counts: Record<number, number> = {};
+                for (const n of all) {
+                    const c = n.content as any;
+                    let appId = c.data?.appId;
+                    if (!appId && c.data?.payload) {
+                        try {
+                            const p = typeof c.data.payload === 'string' ? JSON.parse(c.data.payload) : c.data.payload;
+                            appId = p.appId;
+                        } catch { }
+                    }
+                    if (appId) counts[appId] = (counts[appId] || 0) + 1;
+                }
+                setNotifCounts(counts);
+            }).catch(() => { });
         }, [])
     );
 
@@ -396,6 +415,7 @@ export default function HomeScreen() {
     // --- Setup modal handlers ---
     const handleSetupSave = async () => {
         if (!setupTarget) return;
+        const targetId = setupTarget.id;
         if (setupName.trim() && setupName.trim() !== setupTarget.name) {
             await renameApp(setupTarget.id, setupName.trim());
         }
@@ -403,9 +423,40 @@ export default function HomeScreen() {
             await updateAppDescription(setupTarget.id, setupDescription);
         }
         setSetupTarget(null);
+        // Show coach marks if this was the first spell
+        maybeStartCoach(targetId);
     };
 
-    const handleSetupSkip = () => setSetupTarget(null);
+    const handleSetupSkip = () => {
+        const targetId = setupTarget?.id;
+        setSetupTarget(null);
+        if (targetId) maybeStartCoach(targetId);
+    };
+
+    const maybeStartCoach = async (appId: number) => {
+        try {
+            const seen = await AsyncStorage.getItem('appacadabra_coach_done');
+            if (!seen) {
+                // Small delay so the card is visible before showing coach
+                setTimeout(() => setCoachStep(1), 500);
+            }
+        } catch (e) {
+            // ignore
+        }
+    };
+
+    const handleCoachDismiss = async () => {
+        if (coachStep === 1) {
+            setCoachStep(2);
+        } else {
+            setCoachStep(0);
+            try {
+                await AsyncStorage.setItem('appacadabra_coach_done', '1');
+            } catch (e) {
+                // ignore 
+            }
+        }
+    };
 
     const handleSetupIconFromGallery = async () => {
         if (!setupTarget || isPicking) return;
@@ -865,6 +916,9 @@ export default function HomeScreen() {
                                 onViewSchedules={() => setScheduleTarget(item)}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
+                                notificationCount={notifCounts[item.id] || 0}
+                                coachStep={!isPlaceholder && !isLocked && filteredApps.indexOf(item) === 0 ? coachStep : 0}
+                                onCoachDismiss={handleCoachDismiss}
                             />
                         );
                     }}
