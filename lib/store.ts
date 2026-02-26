@@ -218,7 +218,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     lastUpdated: now,
                     createdAt: now,
                     consoleLogs: '',
-                    totalManaCost: job.result.creditsUsed || 0,
+                    totalManaCost: 0,
                     jobId: job.id,
                     requiresBiometric: false,
                     shortDescription: job.payload?.prompt ? firebase.decompressContent(job.payload.prompt) : '' // Set initial description from prompt
@@ -226,6 +226,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                 // Insert into DB (idempotent check inside db.insertApp)
                 const id = await db.insertApp(newApp);
+
+                // Log creation mana cost (both totalManaCost + mana_events for recentManaCost)
+                const creationCredits = job.result.creditsUsed || 0;
+                if (creationCredits > 0) {
+                    await db.incrementManaCost(id, creationCredits);
+                }
 
                 // Create a dedicated notification channel for this spell (Android)
                 await Notifications.setNotificationChannelAsync(`spell-${id}`, {
@@ -275,15 +281,20 @@ export const useAppStore = create<AppState>((set, get) => ({
                     const app = await db.getAppById(appId);
                     if (app) {
                         const newVersion = app.currentVersion + 1;
+                        const editCredits = job.result.creditsUsed || 0;
                         const updatedApp: GeneratedApp = {
                             ...app,
                             code: decompressedText,
                             currentVersion: newVersion,
                             lastUpdated: Date.now(),
-                            totalManaCost: (app.totalManaCost || 0) + (job.result.creditsUsed || 0),
                         };
 
                         await db.updateApp(updatedApp);
+
+                        // Log edit mana cost (both totalManaCost + mana_events for recentManaCost)
+                        if (editCredits > 0) {
+                            await db.incrementManaCost(appId, editCredits);
+                        }
 
                         await db.insertVersion({
                             appId: appId,
