@@ -102,8 +102,8 @@ export function AppCard({
     const hasNotifs = (notificationCount ?? 0) > 0;
 
     return (
-        <View style={styles.card}>
-            {/* ── Card main row ────────────────────────────────────── */}
+        <View style={styles.card} accessible={false}>
+            {/* ── Card main row ───────────────────────────────────────── */}
             <View style={styles.cardMain}>
                 {/* Avatar with optional notification badge */}
                 <View style={styles.avatarWrap}>
@@ -124,7 +124,7 @@ export function AppCard({
                         )}
                     </View>
                     {hasNotifs && (
-                        <View style={styles.notifBadge}>
+                        <View style={styles.notifBadge} accessibilityLabel={t('notifCountScheduled', { count: notificationCount })}>
                             <Text style={styles.notifBadgeIcon}>🔔</Text>
                             <Text style={styles.notifBadgeText}>{notificationCount}</Text>
                         </View>
@@ -191,6 +191,8 @@ export function AppCard({
                                     style={styles.coachDismissBtn}
                                     onPress={onCoachDismiss}
                                     activeOpacity={0.7}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={coachStep === 1 ? t('coachNext') : t('coachGotIt')}
                                 >
                                     <Text style={styles.coachDismissText}>
                                         {coachStep === 1 ? t('coachNext') : t('coachGotIt')}
@@ -213,7 +215,7 @@ export function AppCard({
                         style={styles.btnOpen}
                         onPress={onRun}
                         activeOpacity={0.8}
-                        accessibilityLabel={t('openSpell')}
+                        accessibilityLabel={`${t('openSpell')} ${app.name}`}
                         accessibilityRole="button"
                     >
                         <Text style={styles.btnOpenText}>{t('openSpell')} ✨</Text>
@@ -231,6 +233,8 @@ export function AppCard({
                             if (!onDismissShortcutNudge && onShortcut) onShortcut();
                         }}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('shortcutNudgeText')}
                     >
                         <Text style={styles.nudgeText}>🏠 {t('shortcutNudgeText')}</Text>
                     </TouchableOpacity>
@@ -239,6 +243,8 @@ export function AppCard({
                         onPress={() => onDismissShortcutNudge?.(false)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         activeOpacity={0.6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('cancel')}
                     >
                         <Text style={styles.nudgeDismissIcon}>✕</Text>
                     </TouchableOpacity>
@@ -274,6 +280,8 @@ export function AppCard({
                             <TouchableOpacity
                                 style={styles.sheetClose}
                                 onPress={() => setShowSheet(false)}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('cancel')}
                             >
                                 <Text style={styles.sheetCloseText}>✕</Text>
                             </TouchableOpacity>
@@ -286,6 +294,8 @@ export function AppCard({
                                 <TouchableOpacity
                                     style={styles.sheetItem}
                                     onPress={() => { setShowSheet(false); onViewSchedules(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('scheduledNotifications')}
                                 >
                                     <View style={styles.sheetItemIconWrap}>
                                         <Text style={styles.sheetItemIconEmoji}>🔔</Text>
@@ -305,6 +315,8 @@ export function AppCard({
                             <TouchableOpacity
                                 style={styles.sheetItem}
                                 onPress={() => { setShowSheet(false); onRename(); }}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('editAppDetails')}
                             >
                                 <View style={styles.sheetItemIconWrap}>
                                     <Text style={styles.sheetItemIconEmoji}>✏️</Text>
@@ -320,6 +332,8 @@ export function AppCard({
                                 <TouchableOpacity
                                     style={styles.sheetItem}
                                     onPress={() => { setShowSheet(false); onShortcut(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('createShortcut')}
                                 >
                                     <View style={styles.sheetItemIconWrap}>
                                         <Text style={styles.sheetItemIconEmoji}>🏠</Text>
@@ -336,6 +350,8 @@ export function AppCard({
                                 <TouchableOpacity
                                     style={styles.sheetItem}
                                     onPress={() => { setShowSheet(false); onIconPress(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('chooseIcon')}
                                 >
                                     <View style={styles.sheetItemIconWrap}>
                                         <Text style={styles.sheetItemIconEmoji}>🖼️</Text>
@@ -352,6 +368,8 @@ export function AppCard({
                                 <TouchableOpacity
                                     style={styles.sheetItem}
                                     onPress={() => { setShowSheet(false); onToggleBiometric(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
                                 >
                                     <View style={styles.sheetItemIconWrap}>
                                         <Text style={styles.sheetItemIconEmoji}>{app.requiresBiometric ? '🔓' : '🔒'}</Text>
@@ -369,6 +387,8 @@ export function AppCard({
                                 <TouchableOpacity
                                     style={styles.sheetItem}
                                     onPress={() => { setShowSheet(false); onShare(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('shareSpell')}
                                 >
                                     <View style={styles.sheetItemIconWrap}>
                                         <Text style={styles.sheetItemIconEmoji}>📤</Text>
@@ -383,6 +403,8 @@ export function AppCard({
                             <TouchableOpacity
                                 style={[styles.sheetItem, styles.sheetItemDanger]}
                                 onPress={() => { setShowSheet(false); onDelete(); }}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('delete')}
                             >
                                 <View style={[styles.sheetItemIconWrap, styles.sheetItemIconDanger]}>
                                     <Text style={styles.sheetItemIconEmoji}>🗑️</Text>
@@ -416,8 +438,8 @@ const styles = StyleSheet.create({
     cardMain: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 14,
-        padding: 14,
+        gap: 16,
+        padding: 16,
         paddingBottom: 10,
     },
 
@@ -427,19 +449,19 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     cardAvatar: {
-        width: 52,
-        height: 52,
-        borderRadius: 14,
+        width: 56,
+        height: 56,
+        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
     },
     avatarImage: {
-        width: 52,
-        height: 52,
+        width: 56,
+        height: 56,
     },
     avatarInitials: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: '900',
     },
     lockBadge: {
@@ -461,18 +483,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 2,
-        height: 18,
+        height: 20,
         borderRadius: 99,
-        paddingHorizontal: 5,
+        paddingHorizontal: 6,
         borderWidth: 2,
         borderColor: '#111827',
     },
     notifBadgeIcon: {
-        fontSize: 9,
+        fontSize: 10,
     },
     notifBadgeText: {
         color: '#fff',
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: '900',
     },
 
@@ -483,32 +505,32 @@ const styles = StyleSheet.create({
     },
     cardTitle: {
         color: '#F9FAFB',
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '800',
     },
     cardMeta: {
         color: '#6B7280',
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '600',
-        marginTop: 1,
+        marginTop: 2,
     },
     cardDesc: {
         color: '#6B7280',
-        fontSize: 12,
-        lineHeight: 18,
-        marginTop: 2,
+        fontSize: 13,
+        lineHeight: 19,
+        marginTop: 3,
     },
 
     // Action buttons
     cardActions: {
         flexDirection: 'column',
-        gap: 4,
+        gap: 6,
         flexShrink: 0,
     },
     btnIcon: {
-        width: 34,
-        height: 34,
-        borderRadius: 10,
+        width: 38,
+        height: 38,
+        borderRadius: 11,
         borderWidth: 1,
         borderColor: '#1F2937',
         backgroundColor: '#1a2030',
@@ -516,13 +538,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     btnIconText: {
-        fontSize: 14,
+        fontSize: 16,
     },
     btnIconDots: {
-        fontSize: 18,
+        fontSize: 20,
         color: '#9CA3AF',
         fontWeight: '700',
-        lineHeight: 20,
+        lineHeight: 22,
     },
     btnIconHighlight: {
         borderColor: '#7C3AED',
@@ -532,7 +554,7 @@ const styles = StyleSheet.create({
     // ── Coach mark bubble ──
     coachBubble: {
         position: 'absolute',
-        top: 74,
+        top: 84,
         right: -4,
         backgroundColor: '#7C3AED',
         borderRadius: 14,
@@ -587,33 +609,33 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 14,
-        paddingBottom: 12,
+        paddingHorizontal: 16,
+        paddingBottom: 14,
     },
     usage: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
+        gap: 6,
     },
     usageDot: {
-        width: 7,
-        height: 7,
+        width: 8,
+        height: 8,
         borderRadius: 4,
     },
     usageText: {
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '700',
         color: '#6B7280',
     },
     btnOpen: {
         backgroundColor: '#7C3AED',
-        borderRadius: 10,
-        paddingVertical: 7,
-        paddingHorizontal: 16,
+        borderRadius: 12,
+        paddingVertical: 9,
+        paddingHorizontal: 18,
     },
     btnOpenText: {
         color: '#fff',
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: '800',
     },
 
