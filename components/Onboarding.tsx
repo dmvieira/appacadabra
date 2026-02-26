@@ -73,23 +73,27 @@ function FloatingEmoji({ emoji, color }: { emoji: string; color: string }) {
     );
 }
 
-// ── Power card ──
-function PowerCard({ icon, name, desc, delay }: { icon: string; name: string; desc: string; delay: number }) {
+// ── Featured power card ──
+function FeatCard({ icon, title, desc, delay }: { icon: string; title: string; desc: string; delay: number }) {
     const opacity = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(12)).current;
+    const translateY = useRef(new Animated.Value(16)).current;
 
     useEffect(() => {
         Animated.parallel([
-            Animated.timing(opacity, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
-            Animated.timing(translateY, { toValue: 0, duration: 400, delay, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 1, duration: 450, delay, useNativeDriver: true }),
+            Animated.timing(translateY, { toValue: 0, duration: 450, delay, easing: Easing.out(Easing.ease), useNativeDriver: true }),
         ]).start();
     }, []);
 
     return (
-        <Animated.View style={[s.powerCard, { opacity, transform: [{ translateY }] }]}>
-            <Text style={s.powerIcon}>{icon}</Text>
-            <Text style={s.powerName}>{name}</Text>
-            <Text style={s.powerDesc}>{desc}</Text>
+        <Animated.View style={[s.featCard, { opacity, transform: [{ translateY }] }]}>
+            <View style={s.featIcon}>
+                <Text style={s.featIconText}>{icon}</Text>
+            </View>
+            <View style={s.featInfo}>
+                <Text style={s.featTitle}>{title}</Text>
+                <Text style={s.featDesc}>{desc}</Text>
+            </View>
         </Animated.View>
     );
 }
@@ -131,8 +135,8 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
     };
 
     const handleNext = () => {
-        // Don't advance from try-it screen without a chip selection
-        if (currentScreen === 1 && selectedChip === null) return;
+        // Don't advance from try-it screen (now screen 2) without a chip selection
+        if (currentScreen === 2 && selectedChip === null) return;
 
         if (currentScreen < TOTAL_SCREENS - 1) {
             goToScreen(currentScreen + 1);
@@ -155,24 +159,17 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
         { emoji: '💰', labelKey: 'obChipExpenses' },
     ];
 
-    const powers = [
-        { icon: '📅', nameKey: 'obPowerCalendar', descKey: 'obPowerCalendarDesc' },
-        { icon: '🔔', nameKey: 'obPowerNotifications', descKey: 'obPowerNotificationsDesc' },
-        { icon: '📍', nameKey: 'obPowerSensors', descKey: 'obPowerSensorsDesc' },
-        { icon: '💓', nameKey: 'obPowerHealth', descKey: 'obPowerHealthDesc' },
-        { icon: '📥', nameKey: 'obPowerReceive', descKey: 'obPowerReceiveDesc' },
-        { icon: '👥', nameKey: 'obPowerContacts', descKey: 'obPowerContactsDesc' },
-        { icon: '📱', nameKey: 'obPowerDevice', descKey: 'obPowerDeviceDesc' },
-        { icon: '🔒', nameKey: 'obPowerBiometrics', descKey: 'obPowerBiometricsDesc' },
-        { icon: '🔗', nameKey: 'obPowerShare', descKey: 'obPowerShareDesc' },
-        { icon: '💬', nameKey: 'obPowerDeeplinks', descKey: 'obPowerDeeplinksDesc' },
-    ];
-
     const chipTexts = [
         'obChipShoppingFull',
         'obChipDiaryFull',
         'obChipWorkoutFull',
         'obChipExpensesFull',
+    ];
+
+    const moreTags = [
+        { emoji: '🔔', key: 'obTagNotifications' },
+        { emoji: '❤️', key: 'obTagHealth' },
+        { emoji: '📍', key: 'obTagSensors' },
     ];
 
     return (
@@ -184,15 +181,17 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                 </View>
 
                 <Animated.View style={[s.screenContainer, { transform: [{ translateX: slideAnim }] }]}>
-                    {/* Skip button */}
-                    <TouchableOpacity
-                        style={s.skipButton}
-                        onPress={() => onComplete(null)}
-                        accessibilityLabel={t('onboardingSkip')}
-                        accessibilityRole="button"
-                    >
-                        <Text style={s.skipText}>{t('onboardingSkip')}</Text>
-                    </TouchableOpacity>
+                    {/* Skip button — only on last screen */}
+                    {currentScreen === 2 && (
+                        <TouchableOpacity
+                            style={s.skipButton}
+                            onPress={() => onComplete(null)}
+                            accessibilityLabel={t('onboardingSkip')}
+                            accessibilityRole="button"
+                        >
+                            <Text style={s.skipText}>{t('onboardingSkip')}</Text>
+                        </TouchableOpacity>
+                    )}
 
                     {/* ── SCREEN 1: Concept ── */}
                     {currentScreen === 0 && (
@@ -224,7 +223,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                                                 <Text style={{ fontSize: 20 }}>🚀</Text>
                                             </View>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={s.miniAppName}>Space Pomodoro</Text>
+                                                <Text style={s.miniAppName}>Space Shopping List</Text>
                                                 <Text style={s.miniAppTag}>{t('obConceptCreated')}</Text>
                                             </View>
                                         </Animated.View>
@@ -241,8 +240,57 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                         </View>
                     )}
 
-                    {/* ── SCREEN 2: Try it ── */}
+                    {/* ── SCREEN 2: Superpowers ── */}
                     {currentScreen === 1 && (
+                        <View style={s.screenContent}>
+                            <View style={s.heroArea}>
+                                <View>
+                                    <Text style={[s.heading, { fontSize: 28 }]}>
+                                        {t('obPowersTitle1')} <Text style={s.headingAccent}>{t('obPowersTitle2')}</Text>
+                                    </Text>
+                                    <Text style={s.subtext}>{t('obPowersSubtext')}</Text>
+                                </View>
+
+                                {/* Featured cards */}
+                                <View style={s.featuredCards}>
+                                    <FeatCard
+                                        icon="🔗"
+                                        title={t('obFeatIntegratedTitle')}
+                                        desc={t('obFeatIntegratedDesc')}
+                                        delay={0}
+                                    />
+                                    <FeatCard
+                                        icon="📅"
+                                        title={t('obFeatCalendarTitle')}
+                                        desc={t('obFeatCalendarDesc')}
+                                        delay={150}
+                                    />
+                                </View>
+
+                                {/* More tags */}
+                                <View>
+                                    <Text style={s.moreLabel}>{t('obMoreLabel')}</Text>
+                                    <View style={s.moreRow}>
+                                        {moreTags.map((tag, i) => (
+                                            <View key={i} style={s.moreTag}>
+                                                <Text style={s.moreTagText}>{tag.emoji} {t(tag.key)}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Dots */}
+                            <View style={[s.dotsRow, { marginTop: 14 }]}>
+                                {[0, 1, 2].map(i => (
+                                    <View key={i} style={[s.dot, i === 1 && s.dotActive]} />
+                                ))}
+                            </View>
+                        </View>
+                    )}
+
+                    {/* ── SCREEN 3: Try it ── */}
+                    {currentScreen === 2 && (
                         <View style={s.screenContent}>
                             <FloatingEmoji emoji="✨" color="#f59e0b" />
 
@@ -280,37 +328,6 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                             {/* Dots */}
                             <View style={s.dotsRow}>
                                 {[0, 1, 2].map(i => (
-                                    <View key={i} style={[s.dot, i === 1 && s.dotActive]} />
-                                ))}
-                            </View>
-                        </View>
-                    )}
-
-                    {/* ── SCREEN 3: Powers ── */}
-                    {currentScreen === 2 && (
-                        <View style={s.screenContent}>
-                            <View style={{ paddingTop: 10 }}>
-                                <Text style={[s.heading, { fontSize: 22 }]}>
-                                    {t('obPowersTitle1')} <Text style={s.headingAccent}>{t('obPowersTitle2')}</Text>
-                                </Text>
-                                <Text style={[s.subtext, { marginBottom: 16 }]}>{t('obPowersSubtext')}</Text>
-
-                                <View style={s.powersGrid}>
-                                    {powers.map((p, i) => (
-                                        <PowerCard
-                                            key={i}
-                                            icon={p.icon}
-                                            name={t(p.nameKey)}
-                                            desc={t(p.descKey)}
-                                            delay={i * 50}
-                                        />
-                                    ))}
-                                </View>
-                            </View>
-
-                            {/* Dots */}
-                            <View style={[s.dotsRow, { marginTop: 14 }]}>
-                                {[0, 1, 2].map(i => (
                                     <View key={i} style={[s.dot, i === 2 && s.dotActive]} />
                                 ))}
                             </View>
@@ -321,21 +338,19 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                 {/* Footer CTA */}
                 <View style={s.footer}>
                     <TouchableOpacity
-                        style={[s.ctaButton, currentScreen === 1 && selectedChip === null && { opacity: 0.5 }]}
+                        style={[s.ctaButton, currentScreen === 2 && selectedChip === null && { opacity: 0.5 }]}
                         onPress={handleNext}
-                        accessibilityLabel={isLastScreen ? t('obStartCTA') : t('onboardingNext')}
+                        accessibilityLabel={isLastScreen ? t('obCreateCTA') : t('onboardingNext')}
                         accessibilityRole="button"
                     >
                         <Text style={s.ctaText}>
-                            {currentScreen === 0
+                            {currentScreen < 2
                                 ? t('obNextLabel')
-                                : currentScreen === 1
-                                    ? t('obCreateCTA')
-                                    : t('obStartCTA')
+                                : t('obCreateCTA')
                             }
                         </Text>
                     </TouchableOpacity>
-                    {currentScreen === 1 && (
+                    {currentScreen === 2 && (
                         <Text style={s.footerHint}>{t('obCreateHint')}</Text>
                     )}
                 </View>
@@ -535,32 +550,71 @@ const s = StyleSheet.create({
     },
 
     // ── Powers grid (Screen 3) ──
-    powersGrid: {
+    heroArea: {
+        flex: 1,
+        justifyContent: 'center',
+        gap: 28,
+    },
+    featuredCards: {
+        gap: 12,
+    },
+    featCard: {
+        backgroundColor: '#111827',
+        borderWidth: 1,
+        borderColor: 'rgba(124,58,237,0.25)',
+        borderRadius: 20,
+        padding: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 18,
+    },
+    featIcon: {
+        width: 64,
+        height: 64,
+        backgroundColor: '#1a1a2e',
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    featIconText: {
+        fontSize: 32,
+    },
+    featInfo: {
+        flex: 1,
+    },
+    featTitle: {
+        color: '#F9FAFB',
+        fontSize: 16,
+        fontWeight: '800',
+        marginBottom: 4,
+    },
+    featDesc: {
+        color: '#9CA3AF',
+        fontSize: 13,
+        fontWeight: '600',
+        lineHeight: 19,
+    },
+    moreLabel: {
+        color: '#4B5563',
+        fontSize: 12,
+        fontWeight: '700',
+        marginBottom: 6,
+    },
+    moreRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 10,
+        gap: 8,
     },
-    powerCard: {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: '#2a2a3e',
-        borderRadius: 12,
-        padding: 14,
-        width: (SCREEN_WIDTH - 56 - 10) / 2, // 28px padding each side, 10 gap
-        gap: 4,
+    moreTag: {
+        backgroundColor: '#1F2937',
+        borderRadius: 99,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
     },
-    powerIcon: {
-        fontSize: 22,
-    },
-    powerName: {
+    moreTagText: {
+        color: '#6B7280',
         fontSize: 12,
-        fontWeight: '600',
-        color: colors.onSurface,
-    },
-    powerDesc: {
-        fontSize: 11,
-        color: colors.onSurfaceVariant,
-        lineHeight: 16,
+        fontWeight: '700',
     },
 
     // ── Footer ──
