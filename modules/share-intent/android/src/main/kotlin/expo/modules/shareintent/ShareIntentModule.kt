@@ -29,6 +29,8 @@ class ShareIntentModule : Module() {
             pendingSharedContent = null
             // Mark the last processed intent as fully consumed so checking it again won't re-trigger
             consumedIntent = lastProcessedIntent
+            // Also sanitize the activity intent to prevent checkShareIntent from re-processing stale data
+            appContext.currentActivity?.intent = Intent(Intent.ACTION_MAIN)
         }
 
         Function("getContentFileName") { uri: String ->
@@ -106,7 +108,7 @@ class ShareIntentModule : Module() {
         }
         
         OnNewIntent {
-            Log.d(TAG, "OnNewIntent received")
+            Log.d(TAG, "OnNewIntent received, action=${it.action}, data=${it.data}, type=${it.type}")
             consumedIntent = null
             
             // Restore delay to fix race condition where JS isn't ready for the event
@@ -116,6 +118,8 @@ class ShareIntentModule : Module() {
         }
 
         OnCreate {
+            val act = appContext.currentActivity?.intent
+            Log.d(TAG, "OnCreate, activity intent action=${act?.action}, data=${act?.data}, type=${act?.type}")
             processIntent(null, false)
         }
     }
@@ -124,7 +128,49 @@ class ShareIntentModule : Module() {
         val currentActivity = appContext.currentActivity
         val targetIntent = intent ?: currentActivity?.intent
         
-        if (targetIntent?.action != Intent.ACTION_SEND) {
+        Log.d(TAG, "processIntent: force=$force, action=${targetIntent?.action}, data=${targetIntent?.data}, scheme=${targetIntent?.data?.scheme}")
+
+        if (targetIntent == null) return
+
+        // Handle ACTION_VIEW with content:// or file:// URIs (e.g. Google Files "Open with")
+        // ONLY handle on OnNewIntent (force=true). On fresh launch (OnCreate, force=false),
+        // let expo-router handle it via the openUri deep link flow, since JS listeners 
+        // aren't ready yet at OnCreate time.
+        if (targetIntent.action == Intent.ACTION_VIEW && force) {
+            val dataUri = targetIntent.data
+            Log.d(TAG, "ACTION_VIEW detected: dataUri=$dataUri, scheme=${dataUri?.scheme}")
+            // Only handle external file URIs, not internal app scheme URIs (appacadabra://, runapp://)
+            if (dataUri != null && (dataUri.scheme == "content" || dataUri.scheme == "file")) {
+                // Skip if this exact intent was already consumed
+                if (targetIntent === consumedIntent) {
+                    Log.d(TAG, "ACTION_VIEW: skipped (consumed)")
+                    return
+                }
+                if (targetIntent === lastProcessedIntent) {
+                    Log.d(TAG, "ACTION_VIEW: skipped (already processed)")
+                    return
+                }
+                
+                val sharedData = mutableMapOf<String, Any?>()
+                sharedData["mimeType"] = targetIntent.type ?: "application/octet-stream"
+                sharedData["uri"] = dataUri.toString()
+                sharedData["fileName"] = getFileName(dataUri)
+                
+                pendingSharedContent = sharedData
+                lastProcessedIntent = targetIntent
+                Log.d(TAG, "Emitting onShareReceived from ACTION_VIEW: ${dataUri}")
+                sendEvent("onShareReceived", sharedData)
+                
+                // Clear the intent data so expo-router doesn't try to handle it as a deep link
+                currentActivity?.intent = Intent(Intent.ACTION_MAIN)
+            } else {
+                Log.d(TAG, "ACTION_VIEW: skipped (scheme=${dataUri?.scheme} not content/file)")
+            }
+            return
+        }
+
+        if (targetIntent.action != Intent.ACTION_SEND) {
+            Log.d(TAG, "processIntent: skipped (action=${targetIntent.action} is not ACTION_SEND)")
             return
         }
 

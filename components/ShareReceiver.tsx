@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, FlatList, Image, AppState, Platform, Animated } from 'react-native';
 
 import { useRouter, useGlobalSearchParams } from 'expo-router';
@@ -30,24 +30,43 @@ function getInitials(name: string): string {
     return name.slice(0, 2).toUpperCase();
 }
 
-function getFileIcon(fileName: string): string {
+function getFileIcon(fileName: string, mimeType?: string): string {
     const ext = fileName.split('.').pop()?.toLowerCase() || '';
     if (ext === 'spell') return '✨';
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext)) return '🖼️';
-    if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return '🎬';
-    if (['mp3', 'wav', 'ogg', 'aac', 'flac'].includes(ext)) return '🎵';
+    if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return '▶️';
+    if (['mp3', 'wav', 'ogg', 'aac', 'flac', 'opus', 'm4a', 'wma'].includes(ext)) return '🎵';
     if (['pdf'].includes(ext)) return '📄';
     if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return '📦';
     if (['txt', 'md', 'csv', 'json', 'xml', 'html', 'css', 'js', 'ts'].includes(ext)) return '📝';
+    // Fallback to mime type when extension is not recognized
+    const mime = (mimeType || '').toLowerCase();
+    if (mime.startsWith('audio/')) return '🎵';
+    if (mime.startsWith('video/')) return '▶️';
+    if (mime.startsWith('image/')) return '🖼️';
+    if (mime.startsWith('text/')) return '📝';
     return '📎';
 }
 
 function getFileTypeLabel(fileName: string, mimeType?: string): string {
     const ext = fileName.split('.').pop()?.toLowerCase() || '';
-    if (ext === 'spell') return '.spell';
-    if (ext) return `.${ext}`;
-    if (mimeType) return mimeType.split('/').pop() || mimeType;
-    return '';
+    if (ext === 'spell') return ''; // Spells without desc will just be perfectly centered
+
+    // Check mime type first for generic but friendly names
+    const mime = (mimeType || '').toLowerCase();
+    if (mime.startsWith('image/')) return t('typeImage');
+    if (mime.startsWith('video/')) return t('typeVideo');
+    if (mime.startsWith('audio/')) return t('typeAudio');
+    if (mime.startsWith('text/')) return t('typeText');
+    if (mime === 'application/pdf') return t('typePdf');
+    if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar') || mime.includes('compressed')) return t('typeArchive');
+
+    // Fallback to extension if known
+    if (ext && !['bin', 'dat', 'tmp', 'octet-stream'].includes(ext)) {
+        return `.${ext.toUpperCase()}`;
+    }
+
+    return t('typeFile'); // generic "File" instead of octet-stream
 }
 
 type ShareContentType = 'text' | 'image' | 'file';
@@ -82,12 +101,26 @@ let isHandlingAction = false;
 let lastRouteOpenUri: string | null = null;
 let lastRouteOpenUriAt: number = 0;
 const ROUTE_URI_DEDUPE_MS = 500;
+// Track the currently displayed content ID outside React closures
+// so that listener callbacks always have the freshest value.
+let currentContentId: string = '';
+let dismissedContentIds = new Set<string>();
+
+function dismissContent(id: string) {
+    if (id) dismissedContentIds.add(id);
+    // Keep the set small to prevent memory leaks
+    if (dismissedContentIds.size > 10) {
+        const arr = Array.from(dismissedContentIds);
+        dismissedContentIds = new Set(arr.slice(-5));
+    }
+}
 
 export default function ShareReceiver() {
     const [sharedContent, setSharedContent] = useState<ShareIntent.SharedContent | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [resolvedSpellName, setResolvedSpellName] = useState<string>('');
     const [resolvedSpellDesc, setResolvedSpellDesc] = useState<string>('');
+    const [resolvedSpellIcon, setResolvedSpellIcon] = useState<string | null>(null);
     const [openUriPriority, setOpenUriPriority] = useState(false);
     const router = useRouter();
     const { openUri } = useGlobalSearchParams<{ openUri?: string }>();
@@ -111,30 +144,60 @@ export default function ShareReceiver() {
         }
     }, [router]);
 
-    // Helper to check and lock content
-    const tryLockContent = (_content: ShareIntent.SharedContent): boolean => true;
+    // Helper to check and lock content - avoids updating state with exactly identical content in loop
+    const tryLockContent = (content: ShareIntent.SharedContent): boolean => {
+        if (!content) return false;
+        // If content is strictly identical to what we already show, skip to avoid flicker
+        if (sharedContent &&
+            sharedContent.uri === content.uri &&
+            sharedContent.text === content.text &&
+            sharedContent.mimeType === content.mimeType) {
+            return false;
+        }
 
-    // Helper to check for content and verify it's not dismissed
+        // If the checking loop finds an OLDER or DIFFERENT intent but we already purposefully 
+        // updated to a new one via the listener, do NOT let background polling overwrite it
+        // unless the content is genuinely new from the system. 
+        // React's closure might have an old `sharedContent` in `checkContent`, so we rely on 
+        // the fact that we clear `ShareIntent` when handling, and new intents trigger `addShareListener` directly.
+
+        return true;
+    };
+
+    // Polling-based check: ONLY used for initial detection when no content is showing.
     const checkContent = React.useCallback(() => {
         if (isLoading) return;
-        // If an "open with" URI is pending, prefer it over stale ACTION_SEND content
         if (hasPendingOpenUri) return;
+        if (isHandlingAction) return;
 
-        // Skip if user already selected an app (prevents modal from returning)
-        if (appSelectionInProgress) {
-            console.log('ShareReceiver: Skipping check - app selection in progress');
+        // If React state was reset by a remount but we had content before,
+        // try to restore it from the native module.
+        if (!sharedContent && currentContentId) {
+            const content = ShareIntent.getSharedContent();
+            const contentId = content?.uri || content?.text || '';
+            if (content && contentId === currentContentId) {
+                console.log('ShareReceiver: Restoring content after remount:', contentId);
+                setSharedContent(content);
+            } else {
+                // Content was cleared natively, reset the module-level tracker
+                console.log('ShareReceiver: Content lost after remount, resetting tracker');
+                currentContentId = '';
+            }
             return;
         }
 
+        // If content is already showing, polling must NOT touch it.
+        if (sharedContent) return;
+
         const content = ShareIntent.getSharedContent();
-        if (content) {
-            if (!tryLockContent(content)) {
-                return;
-            }
-            console.log('ShareReceiver: Content found (initial/resume) and locked:', content.uri || 'text content');
+        const contentId = content?.uri || content?.text || '';
+        if (content && contentId) {
+            if (dismissedContentIds.has(contentId)) return;
+            console.log('ShareReceiver: Content found via POLLING (initial):', content.uri || 'text content');
+            currentContentId = contentId;
             setSharedContent(content);
         }
-    }, [isLoading, hasPendingOpenUri]);
+    }, [isLoading, hasPendingOpenUri, sharedContent]);
 
     // Initial check when store is ready
     useEffect(() => {
@@ -163,7 +226,7 @@ export default function ShareReceiver() {
 
         const resolvedName = ShareIntent.getContentFileName(decodedUri)
             || decodedUri.split('/').pop()
-            || 'shared_file';
+            || 'file';
 
         const syntheticContent = {
             mimeType: 'application/octet-stream',
@@ -178,6 +241,9 @@ export default function ShareReceiver() {
         // Clear stale shared payload from previous ACTION_SEND before showing openUri content
         ShareIntent.clearSharedContent();
         storeClearSharedContent();
+        // Clear any dismissed marker for this URI so it can be re-shared
+        dismissedContentIds.delete(decodedUri);
+        currentContentId = decodedUri;
         setSharedContent(syntheticContent);
 
         // Clean URL query to avoid retriggering on remounts.
@@ -197,12 +263,14 @@ export default function ShareReceiver() {
             if (!sharedContent?.uri) {
                 setResolvedSpellName('');
                 setResolvedSpellDesc('');
+                setResolvedSpellIcon(null);
                 return;
             }
 
             const fallbackName = sharedContent.fileName || sharedContent.uri.split('/').pop() || '';
             setResolvedSpellName(fallbackName);
             setResolvedSpellDesc('');
+            setResolvedSpellIcon(null);
 
             try {
                 const meta = await peekBackupMetadata(sharedContent.uri);
@@ -211,6 +279,9 @@ export default function ShareReceiver() {
                 }
                 if (!cancelled && meta?.shortDescription) {
                     setResolvedSpellDesc(meta.shortDescription);
+                }
+                if (!cancelled && meta?.iconBase64) {
+                    setResolvedSpellIcon(meta.iconBase64);
                 }
             } catch {
                 // keep fallback name
@@ -229,49 +300,62 @@ export default function ShareReceiver() {
 
         // Listen for new shared content (when app is already open)
         const subscription = ShareIntent.addShareListener((event) => {
-            console.log('ShareReceiver: [LISTENER] addShareListener fired, appSelectionInProgress:', appSelectionInProgress, ' uri:', event.uri);
-            if (appSelectionInProgress) return;
+            const eventId = event.uri || event.text || '';
+            console.log('ShareReceiver: [LISTENER] fired, eventId:', eventId, 'currentContentId:', currentContentId);
+            if (isHandlingAction) return;
             if (hasPendingOpenUri) return;
-            if (!tryLockContent(event)) {
-                return;
-            }
-            console.log('ShareReceiver: [LISTENER] Setting sharedContent from listener');
+            if (!eventId) return;
+            // If this is already what we're showing, skip
+            if (eventId === currentContentId) return;
+            // If this was dismissed, skip
+            if (dismissedContentIds.has(eventId)) return;
+            console.log('ShareReceiver: [LISTENER] Accepting new content');
+            // This is genuinely new content — allow re-sharing by clearing dismissed
+            dismissedContentIds.delete(eventId);
+            currentContentId = eventId;
+            appSelectionInProgress = false;
             setSharedContent(event);
         });
 
         // Safety Monitor: Poll every 600ms
         const safetyInterval = setInterval(() => {
-            if (appSelectionInProgress) return;
+            if (isHandlingAction) return;
             if (hasPendingOpenUri) return;
-            ShareIntent.checkShareIntent();
-            checkContent();
+            // Only poll for initial detection when nothing is showing
+            if (!currentContentId) {
+                ShareIntent.checkShareIntent();
+                checkContent();
+            }
         }, 600);
 
         // Listen for AppState changes to catch missed events
         const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
             if (nextAppState === 'active') {
                 console.log('ShareReceiver: App active, checking immediately');
-                if (appSelectionInProgress) return;
+                if (isHandlingAction) return;
                 if (hasPendingOpenUri) return;
 
-                ShareIntent.checkShareIntent();
-                checkContent();
-
-                // Burst poll: Check every 500ms for 3 seconds
-                let checks = 0;
-                const burstInterval = setInterval(() => {
-                    if (checks >= 6) {
-                        clearInterval(burstInterval);
-                        return;
-                    }
-                    if (appSelectionInProgress) {
-                        clearInterval(burstInterval);
-                        return;
-                    }
-                    console.log('ShareReceiver: Burst check', checks + 1);
+                // Only do initial detection if nothing is showing
+                if (!currentContentId) {
                     ShareIntent.checkShareIntent();
                     checkContent();
+                }
+
+                // Burst poll: only run if no content is showing
+                let checks = 0;
+                const burstInterval = setInterval(() => {
+                    if (checks >= 6 || currentContentId) {
+                        clearInterval(burstInterval);
+                        return;
+                    }
+                    if (isHandlingAction) {
+                        clearInterval(burstInterval);
+                        return;
+                    }
                     checks++;
+                    console.log('ShareReceiver: Burst check', checks);
+                    ShareIntent.checkShareIntent();
+                    checkContent();
                 }, 500);
             }
         });
@@ -286,6 +370,8 @@ export default function ShareReceiver() {
 
     const handleSelectApp = async (app: GeneratedApp) => {
         if (!sharedContent || isHandlingAction) return;
+        dismissContent(sharedContent.uri || sharedContent.text || '');
+        currentContentId = '';
         isHandlingAction = true;
         setIsProcessing(true);
         appSelectionInProgress = true;
@@ -300,7 +386,7 @@ export default function ShareReceiver() {
                 console.log('ShareReceiver: Reading file from URI:', sharedContent.uri);
 
                 // content:// URIs need to be copied to local cache first
-                const fileName = sharedContent.uri.split('/').pop() || 'shared_file';
+                const fileName = sharedContent.uri.split('/').pop() || 'shared_cache';
                 const cacheUri = FileSystem.cacheDirectory + fileName;
 
                 // Copy to cache
@@ -330,7 +416,7 @@ export default function ShareReceiver() {
             text: sharedContent.text,
             uri: sharedContent.uri,
             base64: base64Data,
-            fileName: sharedContent.fileName || sharedContent.uri?.split('/').pop() || 'shared_file',
+            fileName: sharedContent.fileName || sharedContent.uri?.split('/').pop() || 'file',
             shareId: shareId,
             targetAppId: app.id, // Include target app for routing
         };
@@ -386,6 +472,8 @@ export default function ShareReceiver() {
         appSelectionInProgress = true;
 
         const uri = sharedContent.uri;
+        dismissContent(uri);
+        currentContentId = '';
 
         // Close modal immediately
         setSharedContent(null);
@@ -396,12 +484,15 @@ export default function ShareReceiver() {
         importBackup(uri).finally(() => {
             console.log('ShareReceiver: [IMPORT] importBackup finished, resetting guards');
             isHandlingAction = false;
-            // Keep appSelectionInProgress true a bit longer so burst checks don't re-trigger
             setTimeout(() => { appSelectionInProgress = false; }, 3000);
         });
     };
 
     const handleClose = () => {
+        // Mark current content as dismissed so it won't be resurrected
+        const contentId = sharedContent?.uri || sharedContent?.text || '';
+        if (contentId) dismissContent(contentId);
+        currentContentId = '';
         ShareIntent.clearSharedContent();
         storeClearSharedContent();
         setSharedContent(null);
@@ -418,7 +509,10 @@ export default function ShareReceiver() {
     const isSpell = name.endsWith('.spell') || uri.endsWith('.spell') || mime === 'application/octet-stream';
     const displaySpellName = resolvedSpellName || sharedContent.fileName || sharedContent.uri?.split('/').pop() || '';
     const displaySpellDescription = resolvedSpellDesc;
-    const displayFileName = sharedContent.fileName || sharedContent.uri?.split('/').pop() || 'shared_file';
+    const displaySpellIcon = resolvedSpellIcon;
+    const displayFileName = sharedContent.text
+        ? (sharedContent.text.length > 60 ? sharedContent.text.slice(0, 60) + '...' : sharedContent.text)
+        : (sharedContent.fileName || sharedContent.uri?.split('/').pop() || t('typeFile'));
     const contentType = detectContentType(sharedContent.mimeType, !!sharedContent.uri, !!sharedContent.text);
 
     return (
@@ -426,7 +520,9 @@ export default function ShareReceiver() {
             isSpell={isSpell}
             displaySpellName={displaySpellName}
             displaySpellDescription={displaySpellDescription}
+            displaySpellIcon={displaySpellIcon}
             displayFileName={displayFileName}
+            uri={uri}
             mimeType={sharedContent.mimeType}
             contentType={contentType}
             isProcessing={isProcessing}
@@ -443,7 +539,9 @@ function ShareReceiverUI({
     isSpell,
     displaySpellName,
     displaySpellDescription,
+    displaySpellIcon,
     displayFileName,
+    uri,
     mimeType,
     contentType,
     isProcessing,
@@ -455,7 +553,9 @@ function ShareReceiverUI({
     isSpell: boolean;
     displaySpellName: string;
     displaySpellDescription: string;
+    displaySpellIcon: string | null;
     displayFileName: string;
+    uri: string;
     mimeType?: string;
     contentType: ShareContentType;
     isProcessing: boolean;
@@ -465,7 +565,6 @@ function ShareReceiverUI({
     onClose: () => void;
 }) {
     const insets = useSafeAreaInsets();
-    const [activeTab, setActiveTab] = useState<'spell' | 'file'>(isSpell ? 'spell' : 'file');
     const slideAnim = useMemo(() => new Animated.Value(0), []);
     const compatibleApps = useMemo(
         () => apps.filter(app => canSpellReceive(app.code, contentType)),
@@ -481,7 +580,7 @@ function ShareReceiverUI({
         }).start();
     }, [slideAnim]);
 
-    const fileIcon = getFileIcon(displayFileName);
+    const fileIcon = getFileIcon(displayFileName, mimeType);
     const fileType = getFileTypeLabel(displayFileName, mimeType);
 
     const renderSpellItem = ({ item }: { item: GeneratedApp }) => {
@@ -535,44 +634,28 @@ function ShareReceiverUI({
                         <View style={styles.handle} />
                     </View>
 
-                    {/* Tabs */}
-                    <View style={styles.tabRow}>
-                        <TouchableOpacity
-                            style={[styles.tab, activeTab === 'spell' && styles.tabActive]}
-                            onPress={() => setActiveTab('spell')}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={[styles.tabText, activeTab === 'spell' && styles.tabTextActive]}>
-                                ✨ {t('shareTabSpell')}
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.tab, activeTab === 'file' && styles.tabActive]}
-                            onPress={() => setActiveTab('file')}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={[styles.tabText, activeTab === 'file' && styles.tabTextActive]}>
-                                📎 {t('shareTabFile')}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-
                     {/* File preview card */}
                     <View style={styles.previewCard}>
-                        <Text style={styles.previewIcon}>{fileIcon}</Text>
+                        {isSpell && displaySpellIcon ? (
+                            <Image style={styles.previewIconImage} source={{ uri: `data:image/png;base64,${displaySpellIcon}` }} />
+                        ) : contentType === 'image' && uri ? (
+                            <Image style={styles.previewIconImage} source={{ uri: uri }} />
+                        ) : (
+                            <Text style={styles.previewIcon}>{fileIcon}</Text>
+                        )}
                         <View style={styles.previewInfo}>
                             <Text style={styles.previewName} numberOfLines={1}>
-                                {activeTab === 'spell' ? displaySpellName : displayFileName}
+                                {isSpell ? displaySpellName : displayFileName}
                             </Text>
-                            {activeTab === 'spell' && !!displaySpellDescription ? (
-                                <Text style={styles.previewDesc} numberOfLines={2}>{displaySpellDescription}</Text>
-                            ) : (
-                                <Text style={styles.previewType}>{fileType}</Text>
-                            )}
+                            {(isSpell && displaySpellDescription) || (!isSpell && fileType) ? (
+                                <Text style={styles.previewDesc} numberOfLines={2}>
+                                    {isSpell ? displaySpellDescription : fileType}
+                                </Text>
+                            ) : null}
                         </View>
                     </View>
 
-                    {activeTab === 'spell' ? (
+                    {isSpell ? (
                         /* ——— Spell tab ——— */
                         <>
                             {/* Import button */}
@@ -663,32 +746,6 @@ const styles = StyleSheet.create({
         opacity: 0.4,
     },
 
-    // Tabs
-    tabRow: {
-        flexDirection: 'row',
-        backgroundColor: colors.surfaceVariant,
-        borderRadius: borderRadius.md,
-        padding: 3,
-        marginBottom: spacing.md,
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: 10,
-        borderRadius: borderRadius.md - 2,
-        alignItems: 'center',
-    },
-    tabActive: {
-        backgroundColor: colors.primaryContainer,
-    },
-    tabText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    tabTextActive: {
-        color: colors.onPrimaryContainer,
-    },
-
     // Preview card
     previewCard: {
         flexDirection: 'row',
@@ -700,6 +757,12 @@ const styles = StyleSheet.create({
     },
     previewIcon: {
         fontSize: 28,
+        marginRight: spacing.md,
+    },
+    previewIconImage: {
+        width: 36,
+        height: 36,
+        borderRadius: 8,
         marginRight: spacing.md,
     },
     previewInfo: {

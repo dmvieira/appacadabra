@@ -4,13 +4,16 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
+    Pressable,
     Modal,
     StyleSheet,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
+    ScrollView,
 } from 'react-native';
 import { colors, spacing, borderRadius } from '../lib/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSpeechToText } from '../lib/useSpeech';
 import { t } from '../lib/i18n';
 
@@ -146,6 +149,7 @@ interface EditDetailsDialogProps {
 }
 
 export function EditDetailsDialog({ visible, currentName, currentDescription, onDismiss, onConfirm }: EditDetailsDialogProps) {
+    const insets = useSafeAreaInsets();
     const [name, setName] = useState(currentName);
     const [description, setDescription] = useState(currentDescription || '');
 
@@ -166,50 +170,172 @@ export function EditDetailsDialog({ visible, currentName, currentDescription, on
         <Modal
             visible={visible}
             transparent
-            animationType="fade"
+            animationType="slide"
             onRequestClose={onDismiss}
         >
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={styles.overlay}
-                keyboardVerticalOffset={0}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
             >
-                <View style={[styles.dialog, { maxHeight: '80%' }]}>
-                    <Text style={styles.title}>{t('editAppDetails')}</Text>
+                <Pressable style={editStyles.overlay} onPress={onDismiss}>
+                    <Pressable style={[editStyles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
+                        <View style={editStyles.handle} />
 
-                    <Text style={styles.label}>{t('spellNameLabel')}</Text>
-                    <TextInput
-                        style={styles.singleInput}
-                        value={name}
-                        onChangeText={setName}
-                        placeholder={t('appNamePlaceholder')}
-                        placeholderTextColor={colors.onSurfaceVariant}
-                    />
+                        {/* Header */}
+                        <View style={editStyles.header}>
+                            <View style={editStyles.headerIcon}>
+                                <Text style={{ fontSize: 20 }}>✏️</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={editStyles.headerTitle}>{t('editAppDetails')}</Text>
+                            </View>
+                            <TouchableOpacity style={editStyles.closeBtn} onPress={onDismiss}>
+                                <Text style={editStyles.closeBtnText}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <Text style={[styles.label, { marginTop: spacing.md }]}>{t('shortDescriptionLabel')}</Text>
-                    <TextInput
-                        style={[styles.input, { minHeight: 80, height: 100 }]}
-                        value={description}
-                        onChangeText={setDescription}
-                        placeholder={t('createPlaceholder')}
-                        placeholderTextColor={colors.onSurfaceVariant}
-                        multiline
-                        textAlignVertical="top"
-                    />
+                        {/* Body */}
+                        <ScrollView style={editStyles.body} keyboardShouldPersistTaps="handled">
+                            <Text style={editStyles.label}>{t('spellNameLabel')}</Text>
+                            <TextInput
+                                style={editStyles.input}
+                                value={name}
+                                onChangeText={setName}
+                                placeholder={t('appNamePlaceholder')}
+                                placeholderTextColor="#6B7280"
+                            />
 
-                    <View style={styles.buttons}>
-                        <TouchableOpacity style={styles.cancelBtn} onPress={onDismiss}>
-                            <Text style={styles.cancelText}>{t('cancel')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.sendBtn} onPress={handleConfirm}>
-                            <Text style={styles.sendText}>{t('save')}</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                            <Text style={[editStyles.label, { marginTop: 16 }]}>{t('shortDescriptionLabel')}</Text>
+                            <TextInput
+                                style={[editStyles.input, { minHeight: 80, textAlignVertical: 'top' }]}
+                                value={description}
+                                onChangeText={setDescription}
+                                placeholder={t('createPlaceholder')}
+                                placeholderTextColor="#6B7280"
+                                multiline
+                            />
+
+                            <View style={editStyles.buttons}>
+                                <TouchableOpacity style={editStyles.cancelBtn} onPress={onDismiss}>
+                                    <Text style={editStyles.cancelText}>{t('cancel')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={editStyles.saveBtn} onPress={handleConfirm}>
+                                    <Text style={editStyles.saveText}>{t('save')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
+                    </Pressable>
+                </Pressable>
             </KeyboardAvoidingView>
         </Modal>
     );
 }
+
+const editStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        justifyContent: 'flex-end',
+    },
+    sheet: {
+        backgroundColor: '#111827',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+    },
+    handle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#374151',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginTop: 12,
+        marginBottom: 20,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 20,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#1F2937',
+    },
+    headerIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    headerTitle: {
+        color: '#F9FAFB',
+        fontSize: 15,
+        fontWeight: '800',
+    },
+    closeBtn: {
+        marginLeft: 'auto',
+        width: 32,
+        height: 32,
+        borderRadius: 99,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    closeBtnText: {
+        color: '#9CA3AF',
+        fontSize: 16,
+    },
+    body: {
+        paddingHorizontal: 20,
+        paddingTop: 20,
+    },
+    label: {
+        color: '#9CA3AF',
+        fontSize: 13,
+        fontWeight: '700',
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: '#0D0D1A',
+        borderWidth: 1,
+        borderColor: '#1F2937',
+        borderRadius: 14,
+        padding: 14,
+        color: '#F9FAFB',
+        fontSize: 15,
+    },
+    buttons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+        marginTop: 24,
+    },
+    cancelBtn: {
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#1F2937',
+    },
+    cancelText: {
+        color: '#9CA3AF',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    saveBtn: {
+        paddingVertical: 10,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        backgroundColor: '#7C3AED',
+    },
+    saveText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+});
 
 interface ConfirmDialogProps {
     visible: boolean;

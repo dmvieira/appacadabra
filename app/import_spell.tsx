@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../lib/store';
@@ -9,6 +8,7 @@ import { t } from '../lib/i18n';
 import * as FileSystem from 'expo-file-system';
 import * as ShareIntent from 'share-intent';
 import { peekBackupMetadata } from '../lib/backup';
+import { readBackupFile } from '../lib/backup';
 
 export default function ImportSpellScreen() {
     const router = useRouter();
@@ -16,6 +16,7 @@ export default function ImportSpellScreen() {
     const { importBackup, isImporting, statusMessage, error, clearError } = useAppStore();
     const [fileName, setFileName] = useState<string>('Unknown Spell');
     const [fileSize, setFileSize] = useState<string>('');
+    const [spellIcon, setSpellIcon] = useState<string | null>(null);
 
     useEffect(() => {
         if (uri) {
@@ -40,11 +41,39 @@ export default function ImportSpellScreen() {
             // This bypasses any weird OS filenames like "DOC-2024..."
             peekBackupMetadata(uri).then(meta => {
                 if (meta) {
-                    console.log('ImportSpell: Found internal spell name:', meta.name);
                     setFileName(meta.name);
+                    if (name.endsWith('.spell')) {
+                        readBackupFile(uri).then(json => {
+                            try {
+                                const backup = JSON.parse(json);
+                                if (backup && backup.apps && backup.apps[0]) {
+                                    const app = backup.apps[0];
+                                    if (app.iconBase64) {
+                                        setSpellIcon(app.iconBase64);
+                                    } else if (app.iconPath) {
+                                        setSpellIcon(app.iconPath);
+                                    } else {
+                                        setSpellIcon(null);
+                                    }
+                                } else {
+                                    setSpellIcon(null);
+                                    console.log('ImportSpell: No icon found in backup:', backup);
+                                }
+                            } catch (e) {
+                                setSpellIcon(null);
+                                console.log('ImportSpell: JSON parse error', e);
+                            }
+                        }).catch(e => {
+                            setSpellIcon(null);
+                            console.log('ImportSpell: readBackupFile error', e);
+                        });
+                    } else {
+                        console.log('ImportSpell: Not a .spell file:', name);
+                    }
                 } else {
                     // If parsing failed (not a valid spell?), keep the filename we found earlier
                     setFileName(name);
+                    console.log('ImportSpell: peekBackupMetadata failed');
                 }
             }).catch(err => {
                 console.warn('ImportSpell: Failed to peek file:', err);
@@ -104,7 +133,28 @@ export default function ImportSpellScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.card}>
-                <Text style={styles.icon}>✨</Text>
+                <View style={[styles.avatarWrap, { marginBottom: spacing.md }]}> 
+                    <View style={[styles.cardAvatar, { backgroundColor: '#222' }]}> 
+                        {spellIcon ? (
+                            <Image
+                                source={{ uri: spellIcon.startsWith('data:image') || spellIcon.length > 100 ? `data:image/png;base64,${spellIcon}` : spellIcon }}
+                                style={styles.avatarImage}
+                                resizeMode="cover"
+                                onError={e => {
+                                    console.log('ImportSpell: Falha ao renderizar imagem', e.nativeEvent);
+                                }}
+                            />
+                        ) : (
+                            <Text style={[styles.avatarInitials, { color: '#fff' }]}>✨</Text>
+                        )}
+                    </View>
+                </View>
+                {/* Fallback visual caso a imagem não carregue */}
+                {spellIcon && (
+                    <Text style={{ color: colors.secondary, fontSize: 12, marginTop: 4 }}>
+                        Se a imagem não aparecer, verifique se o arquivo .spell está correto.
+                    </Text>
+                )}
                 <Text style={styles.title}>{t('importSpell')}</Text>
 
                 <View style={styles.fileInfo}>
@@ -171,9 +221,27 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 8,
     },
-    icon: {
-        fontSize: 48,
-        marginBottom: spacing.md,
+    avatarWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cardAvatar: {
+        width: 64,
+        height: 64,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#222',
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: 64,
+        height: 64,
+        borderRadius: 16,
+    },
+    avatarInitials: {
+        fontSize: 32,
+        fontWeight: '900',
     },
     title: {
         fontSize: 24,

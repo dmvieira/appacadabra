@@ -73,7 +73,7 @@ interface AppState {
     exportBackup: () => Promise<void>;
     importBackup: (uri?: string) => Promise<void>;
     importDemoSpell: () => Promise<void>;
-    importOnboardingSpell: (chipIndex: number) => Promise<void>;
+    importOnboardingSpell: (chipIndex: number) => Promise<number | null>;
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
     clearStatusMessage: () => void;
@@ -150,7 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     if (!isOld) {
                         get()._processCompletedJob(job);
                     } else {
-                        console.log('[St1ore] Ignoring old completed job from history:', job.id);
+                        console.log('[Store] Ignoring old completed job from history:', job.id);
                     }
                 } else if (job.status === 'failed' && !wasFailed) {
                     // Similar logic for failed jobs? Usually we want to know it failed recently
@@ -706,7 +706,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     importOnboardingSpell: async (chipIndex: number) => {
         try {
             const templateFactory = onboardingTemplates[chipIndex];
-            if (!templateFactory) return;
+            if (!templateFactory) return null;
 
             const template = templateFactory(t);
 
@@ -736,8 +736,10 @@ export const useAppStore = create<AppState>((set, get) => ({
             // Refresh the app list
             const apps = await db.getAllApps();
             set({ apps });
+            return newId;
         } catch (error) {
             console.error('Failed to import onboarding spell:', error);
+            return null;
         }
     },
 

@@ -223,7 +223,7 @@ export async function exportSingleApp(appId: number): Promise<boolean> {
 /**
  * Helper to read a backup file from a URI (handles content:// and file://)
  */
-async function readBackupFile(fileUri: string): Promise<string> {
+export async function readBackupFile(fileUri: string): Promise<string> {
     // Use FileSystem logic to handle content:// URIs safely
     try {
         // Try reading as string directly (works for content:// on Android often)
@@ -259,7 +259,7 @@ async function readBackupFile(fileUri: string): Promise<string> {
 /**
  * Peek at a backup file to get its metadata (name, count) without importing
  */
-export async function peekBackupMetadata(uri: string): Promise<{ name: string; shortDescription?: string; count: number; version: number } | null> {
+export async function peekBackupMetadata(uri: string): Promise<{ name: string; shortDescription?: string; iconBase64?: string; count: number; version: number } | null> {
     try {
         const json = await readBackupFile(uri);
         const backup: BackupData = JSON.parse(json);
@@ -277,6 +277,7 @@ export async function peekBackupMetadata(uri: string): Promise<{ name: string; s
         return {
             name,
             shortDescription: firstApp.shortDescription || undefined,
+            iconBase64: firstApp.iconBase64 || undefined,
             count,
             version: backup.version
         };
@@ -377,14 +378,18 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                 }
             }
 
+            // If it's a full backup, it will have createdAt. Otherwise (like a .spell single export), we treat it as new.
+            const isFullBackup = app.createdAt !== undefined;
+            const now = Date.now();
+
             // Insert app with new ID
             const newApp: NewGeneratedApp = {
                 name: app.name,
                 code: app.code,
                 currentVersion: app.currentVersion,
                 iconPath,
-                lastUpdated: app.lastUpdated,
-                createdAt: app.createdAt || app.lastUpdated,
+                lastUpdated: isFullBackup ? app.lastUpdated : now,
+                createdAt: isFullBackup ? app.createdAt! : now,
                 consoleLogs: app.consoleLogs || '',
                 totalManaCost: app.totalManaCost || 0,
                 jobId: app.jobId || undefined,

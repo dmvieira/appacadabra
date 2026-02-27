@@ -90,7 +90,7 @@ export default function RootLayout() {
             if (notificationType === 'app_created') {
                 // For create notifications we want listing/setup flow, not runner.
                 try {
-                    router.replace('/');
+                    router.replace({ pathname: '/', params: { setupAppId: String(appId) } });
                 } catch {
                     // If navigator isn't ready yet, initial route is listing anyway.
                 }

@@ -8,6 +8,7 @@ import {
     StyleSheet,
     ActivityIndicator,
     Modal,
+    Pressable,
     Platform,
     ScrollView,
     KeyboardAvoidingView,
@@ -17,7 +18,7 @@ import {
     RefreshControl,
     useWindowDimensions,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -46,12 +47,12 @@ import { useManaStore } from '../lib/manaStore';
 import SpellSetup from '../components/SpellSetup';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
-const SHORTCUT_NUDGES_KEY = 'appacadabra_shortcut_nudges_dismissed';
 
 export default function HomeScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
+    const { setupAppId } = useLocalSearchParams<{ setupAppId?: string }>();
     const { balance, openShop } = useManaStore();
     const {
         apps,
@@ -102,7 +103,6 @@ export default function HomeScreen() {
     const [setupTarget, setSetupTarget] = useState<GeneratedApp | null>(null);
     const [setupName, setSetupName] = useState('');
     const [setupDescription, setSetupDescription] = useState('');
-    const [dismissedShortcutNudges, setDismissedShortcutNudges] = useState<Record<number, boolean>>({});
     const [firstRunSetupTarget, setFirstRunSetupTarget] = useState<GeneratedApp | null>(null);
     const [notifCounts, setNotifCounts] = useState<Record<number, number>>({});
     const [coachStep, setCoachStep] = useState(0); // 0=off, 1=dots menu hint, 2=edit hint
@@ -124,6 +124,25 @@ export default function HomeScreen() {
             }
         }
     }, [lastCreatedAppId, apps]);
+
+    // Notification tap: open setup modal for newly created spell
+    useEffect(() => {
+        if (setupAppId && apps.length > 0) {
+            const app = apps.find(a => String(a.id) === setupAppId);
+            if (app && !setupTarget) {
+                // Only show setup if it hasn't been done yet
+                AsyncStorage.getItem(`spell_setup_done_${app.id}`).then(done => {
+                    if (!done) {
+                        setSetupTarget(app);
+                        setSetupName(app.name);
+                        setSetupDescription(app.shortDescription || '');
+                    }
+                });
+                // Clear the param so it doesn't re-trigger
+                router.setParams({ setupAppId: '' });
+            }
+        }
+    }, [setupAppId, apps]);
 
     // Keep setup modal target in sync with apps (e.g. after icon change)
     useEffect(() => {
@@ -148,28 +167,6 @@ export default function HomeScreen() {
         checkOnboarding();
     }, []);
 
-    // Load shortcut nudge dismissals in a single batched read (avoid per-card AsyncStorage calls)
-    useEffect(() => {
-        let active = true;
-        AsyncStorage.getItem(SHORTCUT_NUDGES_KEY)
-            .then(raw => {
-                if (!active || !raw) return;
-                const parsed = JSON.parse(raw);
-                if (!Array.isArray(parsed)) return;
-                const map: Record<number, boolean> = {};
-                parsed.forEach((value: any) => {
-                    const id = Number(value);
-                    if (Number.isFinite(id)) map[id] = true;
-                });
-                if (active) setDismissedShortcutNudges(map);
-            })
-            .catch(() => { });
-
-        return () => {
-            active = false;
-        };
-    }, []);
-
     const onboardingChipKeys = [
         'obChipShoppingFull',
         'obChipDiaryFull',
@@ -187,7 +184,10 @@ export default function HomeScreen() {
 
         // If user selected a chip, import the free template spell directly
         if (selectedChip !== null && selectedChip >= 0 && selectedChip < onboardingChipKeys.length) {
-            importOnboardingSpell(selectedChip);
+            const newId = await importOnboardingSpell(selectedChip);
+            if (newId) {
+                maybeStartCoach(newId);
+            }
         }
     };
 
@@ -197,31 +197,63 @@ export default function HomeScreen() {
     // (Old effect removed - now handled by /import_spell route)
 
 
+    const refreshNotifCounts = useCallback(() => {
+        Notifications.getAllScheduledNotificationsAsync().then(all => {
+            const counts: Record<number, number> = {};
+            for (const n of all) {
+                const c = n.content as any;
+                let appId: number | undefined;
+
+                // 1. Check data.appId (iOS / older Android)
+                if (c.data?.appId) {
+                    appId = Number(c.data.appId);
+                }
+
+                // 2. Check data.payload (stringified workaround)
+                if (!appId && c.data?.payload) {
+                    try {
+                        const p = typeof c.data.payload === 'string' ? JSON.parse(c.data.payload) : c.data.payload;
+                        if (p.appId) appId = Number(p.appId);
+                    } catch { }
+                }
+
+                // 3. Check channelId "spell-{id}" (Android primary)
+                if (!appId && typeof c.channelId === 'string' && c.channelId.startsWith('spell-')) {
+                    const parsed = Number(c.channelId.replace('spell-', ''));
+                    if (!isNaN(parsed) && parsed > 0) appId = parsed;
+                }
+
+                // 4. Check badge (Android fallback)
+                if (!appId && typeof c.badge === 'number' && c.badge > 0) {
+                    appId = c.badge;
+                }
+
+                if (appId) counts[appId] = (counts[appId] || 0) + 1;
+            }
+            setNotifCounts(counts);
+        }).catch(() => { });
+    }, []);
+
     useFocusEffect(
         useCallback(() => {
             loadApps();
-            // Count scheduled notifications per spell
-            Notifications.getAllScheduledNotificationsAsync().then(all => {
-                const counts: Record<number, number> = {};
-                for (const n of all) {
-                    const c = n.content as any;
-                    let appId = c.data?.appId;
-                    if (!appId && c.data?.payload) {
-                        try {
-                            const p = typeof c.data.payload === 'string' ? JSON.parse(c.data.payload) : c.data.payload;
-                            appId = p.appId;
-                        } catch { }
-                    }
-                    if (appId) counts[appId] = (counts[appId] || 0) + 1;
-                }
-                setNotifCounts(counts);
-            }).catch(() => { });
+            refreshNotifCounts();
+
+            // Poll notification counts while screen is focused (catches notifs scheduled by running spells)
+            const interval = setInterval(refreshNotifCounts, 5000);
+            return () => clearInterval(interval);
         }, [])
     );
+
+    // Also refresh notification counts whenever apps change (e.g. after returning from a spell)
+    useEffect(() => {
+        if (apps.length > 0) refreshNotifCounts();
+    }, [apps]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         await loadApps();
+        refreshNotifCounts();
         setRefreshing(false);
     }, []);
 
@@ -252,6 +284,16 @@ export default function HomeScreen() {
     // Error handling is managed globally by Toast in _layout.tsx
     // (Old alert effect removed to prevent conflict)
 
+    // Compute showSearch early so we can use it in the hook above the early return
+    const searchThreshold = width >= 768 ? 8 : 4;
+    const showSearch = apps.length > searchThreshold;
+
+    // Clear search query when search bar disappears
+    useEffect(() => {
+        if (!showSearch && searchQuery) {
+            setSearchQuery('');
+        }
+    }, [showSearch]);
 
     const handleCreateApp = async (description: string) => {
         // Double check mana before submitting (though button should be intercepted)
@@ -370,6 +412,9 @@ export default function HomeScreen() {
         // Mark setup as done
         await AsyncStorage.setItem(`spell_setup_done_${app.id}`, '1');
 
+        // Trigger coach marks so they appear when user returns from the runner
+        maybeStartCoach(app.id);
+
         // Now actually open the spell
         if (Platform.OS === 'ios') {
             router.push({ pathname: '/runner/[id]', params: { id: app.id } });
@@ -422,15 +467,19 @@ export default function HomeScreen() {
         if (setupDescription !== (setupTarget.shortDescription || '')) {
             await updateAppDescription(setupTarget.id, setupDescription);
         }
+        // Don't mark spell_setup_done here — let SpellSetup (biometric/homescreen) handle it
         setSetupTarget(null);
         // Show coach marks if this was the first spell
         maybeStartCoach(targetId);
     };
 
-    const handleSetupSkip = () => {
+    const handleSetupSkip = async () => {
         const targetId = setupTarget?.id;
         setSetupTarget(null);
-        if (targetId) maybeStartCoach(targetId);
+        if (targetId) {
+            // Don't mark spell_setup_done here — let SpellSetup (biometric/homescreen) handle it
+            maybeStartCoach(targetId);
+        }
     };
 
     const maybeStartCoach = async (appId: number) => {
@@ -511,6 +560,8 @@ export default function HomeScreen() {
                 await updateAppIcon(setupTarget.id, iconPath);
                 if (creditsUsed > 0) {
                     await incrementAppManaCost(setupTarget.id, creditsUsed);
+                    // Force mana balance refresh from server
+                    firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => {});
                 }
                 setStatusMessage(t('iconGenerated'));
             }
@@ -632,6 +683,8 @@ export default function HomeScreen() {
                 // Update per-spell mana cost in real-time
                 if (creditsUsed > 0) {
                     await incrementAppManaCost(iconTarget.id, creditsUsed);
+                    // Force mana balance refresh from server
+                    firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => {});
                 }
 
                 setStatusMessage(t('iconGenerated'));
@@ -687,19 +740,6 @@ export default function HomeScreen() {
             setStatusMessage(`${t('shortcutCreated')} ${app.name}`);
         } else {
             setStatusMessage(t('shortcutError'));
-        }
-    };
-
-    const handleDismissShortcutNudge = (app: GeneratedApp, andCreateShortcut: boolean) => {
-        setDismissedShortcutNudges(prev => {
-            if (prev[app.id]) return prev;
-            const next = { ...prev, [app.id]: true };
-            AsyncStorage.setItem(SHORTCUT_NUDGES_KEY, JSON.stringify(Object.keys(next))).catch(() => { });
-            return next;
-        });
-
-        if (andCreateShortcut) {
-            handleCreateShortcut(app);
         }
     };
 
@@ -800,8 +840,6 @@ export default function HomeScreen() {
     } as GeneratedApp)); // Cast to satisfy type, we handle isPlaceholder in renderItem
 
     const allApps = [...placeholderApps, ...apps];
-    const searchThreshold = width >= 768 ? 8 : 4;
-    const showSearch = apps.length > searchThreshold;
 
     const filteredApps = searchQuery.trim()
         ? allApps.filter(a =>
@@ -812,12 +850,6 @@ export default function HomeScreen() {
 
         const fabBottom = spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom;
         const listBottomPadding = fabBottom + 92;
-
-    useEffect(() => {
-        if (!showSearch && searchQuery) {
-            setSearchQuery('');
-        }
-    }, [showSearch]);
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -909,8 +941,6 @@ export default function HomeScreen() {
                                 onRename={() => setEditTarget(item)}
                                 onIconPress={() => setIconTarget(item)}
                                 onShortcut={() => handleCreateShortcut(item)}
-                                shortcutNudgeDismissed={!!dismissedShortcutNudges[item.id]}
-                                onDismissShortcutNudge={(andCreateShortcut) => handleDismissShortcutNudge(item, andCreateShortcut)}
                                 onToggleBiometric={() => handleToggleBiometric(item)}
                                 onShare={() => handleShareApp(item)}
                                 onViewSchedules={() => setScheduleTarget(item)}
@@ -952,81 +982,117 @@ export default function HomeScreen() {
             </View>
 
             {/* Menu Modal */}
-            <Modal visible={showMenu} transparent animationType="fade">
-                <TouchableOpacity
-                    style={styles.menuOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowMenu(false)}
-                >
-                    <View style={styles.menuSheet}>
-                        {/* TODO: Uncomment when Import Scroll feature is ready
-                        <TouchableOpacity style={styles.menuItem} onPress={handleImportProject}>
-                            <Text style={styles.menuItemIcon}>📦</Text>
-                            <Text style={styles.menuItemText}>{t('importProject')}</Text>
-                        </TouchableOpacity>
-                        <View style={styles.menuDivider} />
-                        */}
-                        <TouchableOpacity style={styles.menuItem} onPress={handleExport} accessibilityLabel={t('exportBackup')} accessibilityRole="menuitem">
-                            <Text style={styles.menuItemIcon}>📤</Text>
-                            <Text style={styles.menuItemText}>{t('exportBackup')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={handleImport} accessibilityLabel={t('importBackup')} accessibilityRole="menuitem">
-                            <Text style={styles.menuItemIcon}>📥</Text>
-                            <Text style={styles.menuItemText}>{t('importBackup')}</Text>
-                        </TouchableOpacity>
-                        <View style={styles.menuDivider} />
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowOnboarding(true); }} accessibilityLabel={t('replayOnboarding')} accessibilityRole="menuitem">
-                            <Text style={styles.menuItemIcon}>📖</Text>
-                            <Text style={styles.menuItemText}>{t('replayOnboarding')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { setShowMenu(false); setShowLegal(true); }} accessibilityLabel={t('legal')} accessibilityRole="menuitem">
-                            <Text style={styles.menuItemIcon}>📜</Text>
-                            <Text style={styles.menuItemText}>{t('legal')}</Text>
-                        </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
+            <Modal visible={showMenu} transparent animationType="slide" onRequestClose={() => setShowMenu(false)}>
+                <Pressable style={styles.sheetOverlay} onPress={() => setShowMenu(false)}>
+                    <Pressable style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
+                        <View style={styles.sheetHandle} />
+
+                        {/* Header */}
+                        <View style={styles.sheetHeader}>
+                            <View style={styles.sheetHeaderIcon}>
+                                <Text style={{ fontSize: 20 }}>⚙️</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.sheetHeaderTitle}>{t('options')}</Text>
+                            </View>
+                            <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => setShowMenu(false)}>
+                                <Text style={styles.sheetCloseBtnText}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Items */}
+                        <View style={styles.sheetBody}>
+                            <TouchableOpacity style={styles.sheetItem} onPress={handleExport} accessibilityLabel={t('exportBackup')} accessibilityRole="menuitem">
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📤</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('exportBackup')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.sheetItem} onPress={handleImport} accessibilityLabel={t('importBackup')} accessibilityRole="menuitem">
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📥</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('importBackup')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowOnboarding(true); }} accessibilityLabel={t('replayOnboarding')} accessibilityRole="menuitem">
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📖</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('replayOnboarding')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowLegal(true); }} accessibilityLabel={t('legal')} accessibilityRole="menuitem">
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📜</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('legal')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    </Pressable>
+                </Pressable>
             </Modal>
 
             {/* Icon Picker Modal */}
-            <Modal visible={!!iconTarget} transparent animationType="fade">
-                <View style={styles.menuOverlay}>
-                    <View style={styles.iconSheet}>
-                        <Text style={styles.iconSheetTitle}>{t('chooseIcon')}</Text>
-                        <Text style={styles.iconSheetSubtitle}>{iconTarget?.name}</Text>
-                        <TouchableOpacity style={styles.iconBtn} onPress={handleSelectIconFromGallery}>
-                            <Text style={styles.iconBtnIcon}>🖼️</Text>
-                            <Text style={styles.iconBtnText}>{t('fromGallery')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.iconBtn} onPress={handleSelectIconFromFile}>
-                            <Text style={styles.iconBtnIcon}>📁</Text>
-                            <Text style={styles.iconBtnText}>{t('fromFiles')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.iconBtn} onPress={handleSearchIconOnGoogle}>
-                            <Text style={styles.iconBtnIcon}>🔍</Text>
-                            <Text style={styles.iconBtnText}>{t('searchGoogle')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.iconBtn}
-                            onPress={handleGenerateIconWithAI}
-                            disabled={isGeneratingIcon}
-                        >
-                            {isGeneratingIcon ? (
-                                <ActivityIndicator size="small" color={colors.onPrimaryContainer} style={{ marginEnd: 12 }} />
-                            ) : (
-                                <Text style={styles.iconBtnIcon}>✨</Text>
-                            )}
-                            <Text style={styles.iconBtnText}>
-                                {isGeneratingIcon ? t('generatingIcon') : t('generateWithAI')}
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.cancelBtn}
-                            onPress={() => setIconTarget(null)}
-                        >
-                            <Text style={styles.cancelText}>{t('cancel')}</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+            <Modal visible={!!iconTarget} transparent animationType="slide" onRequestClose={() => setIconTarget(null)}>
+                <Pressable style={styles.sheetOverlay} onPress={() => setIconTarget(null)}>
+                    <Pressable style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
+                        <View style={styles.sheetHandle} />
+
+                        {/* Header */}
+                        <View style={styles.sheetHeader}>
+                            <View style={styles.sheetHeaderIcon}>
+                                <Text style={{ fontSize: 20 }}>🖼️</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.sheetHeaderTitle}>{t('chooseIcon')}</Text>
+                                <Text style={styles.sheetHeaderSub}>{iconTarget?.name}</Text>
+                            </View>
+                            <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => setIconTarget(null)}>
+                                <Text style={styles.sheetCloseBtnText}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Items */}
+                        <View style={styles.sheetBody}>
+                            <TouchableOpacity style={styles.sheetItem} onPress={handleSelectIconFromGallery}>
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🖼️</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('fromGallery')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.sheetItem} onPress={handleSelectIconFromFile}>
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📁</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('fromFiles')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.sheetItem} onPress={handleSearchIconOnGoogle}>
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🔍</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('searchGoogle')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.sheetItem}
+                                onPress={handleGenerateIconWithAI}
+                                disabled={isGeneratingIcon}
+                            >
+                                <View style={styles.sheetItemIcon}>
+                                    {isGeneratingIcon ? (
+                                        <ActivityIndicator size="small" color="#a78bfa" />
+                                    ) : (
+                                        <Text style={styles.sheetItemEmoji}>✨</Text>
+                                    )}
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>
+                                        {isGeneratingIcon ? t('generatingIcon') : t('generateWithAI')}
+                                    </Text>
+                                    <Text style={styles.sheetItemSub}>{t('iconCostHint')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    </Pressable>
+                </Pressable>
             </Modal>
 
             {/* Dialogs */}
@@ -1157,7 +1223,7 @@ export default function HomeScreen() {
 
             {/* Import Progress Modal */}
             <Modal visible={isImporting} transparent animationType="fade">
-                <View style={styles.menuOverlay}>
+                <View style={styles.importOverlay}>
                     <View style={styles.importingModal}>
                         <ActivityIndicator size="large" color={colors.primary} />
                         <Text style={styles.importingText}>{t('importing')}</Text>
@@ -1256,7 +1322,7 @@ export default function HomeScreen() {
                 visible={!!scheduleTarget}
                 appId={scheduleTarget?.id || null}
                 appName={scheduleTarget?.name || ''}
-                onClose={() => setScheduleTarget(null)}
+                onClose={() => { setScheduleTarget(null); refreshNotifCounts(); }}
             />
 
             {/* Onboarding */}
@@ -1382,80 +1448,118 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
     },
-    menuOverlay: {
+
+
+    // ── Unified bottom sheet styles (matches AppCard sheet) ──
+    sheetOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.55)',
         justifyContent: 'flex-end',
     },
-    menuSheet: {
-        backgroundColor: colors.surface,
-        borderTopLeftRadius: borderRadius.xl,
-        borderTopRightRadius: borderRadius.xl,
-        padding: spacing.lg,
+    sheetContainer: {
+        backgroundColor: '#111827',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
     },
-    menuItem: {
+    sheetHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#374151',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginTop: 12,
+        marginBottom: 20,
+    },
+    sheetHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.md,
+        gap: 12,
+        paddingHorizontal: 20,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#1F2937',
     },
-    menuItemIcon: {
-        fontSize: 24,
-        marginEnd: spacing.md,
+    sheetHeaderIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
     },
-    menuItemText: {
-        color: colors.onSurface,
-        fontSize: 16,
+    sheetHeaderTitle: {
+        color: '#F9FAFB',
+        fontSize: 15,
+        fontWeight: '800',
     },
-    menuDivider: {
-        height: 1,
-        backgroundColor: colors.surfaceVariant,
-        marginVertical: spacing.sm,
+    sheetHeaderSub: {
+        color: '#6B7280',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 1,
     },
-    iconSheet: {
-        backgroundColor: colors.surface,
-        borderTopLeftRadius: borderRadius.xl,
-        borderTopRightRadius: borderRadius.xl,
-        padding: spacing.lg,
+    sheetCloseBtn: {
+        marginLeft: 'auto',
+        width: 32,
+        height: 32,
+        borderRadius: 99,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
         alignItems: 'center',
     },
-    iconSheetTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: colors.onSurface,
+    sheetCloseBtnText: {
+        color: '#9CA3AF',
+        fontSize: 16,
     },
-    iconSheetSubtitle: {
-        color: colors.onSurfaceVariant,
-        marginBottom: spacing.lg,
+    sheetBody: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        gap: 8,
     },
-    iconBtn: {
+    sheetItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.primaryContainer,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
-        borderRadius: borderRadius.md,
-        marginBottom: spacing.md,
-    },
-    iconBtnIcon: {
-        fontSize: 24,
-        marginEnd: spacing.sm,
-    },
-    iconBtnText: {
-        color: colors.onPrimaryContainer,
-        fontSize: 16,
-    },
-    cancelBtn: {
-        padding: spacing.md,
-    },
-    iconBtnAI: {
+        gap: 14,
+        padding: 14,
+        backgroundColor: '#0D0D1A',
         borderWidth: 1,
-        borderColor: colors.primary,
-        backgroundColor: `${colors.primary}15`,
+        borderColor: '#1F2937',
+        borderRadius: 14,
     },
-    cancelText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 16,
+    sheetItemIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
     },
+    sheetItemEmoji: {
+        fontSize: 20,
+    },
+    sheetItemTitle: {
+        color: '#F9FAFB',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+    sheetItemSub: {
+        color: '#6B7280',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 2,
+    },
+    sheetItemDanger: {
+        borderColor: 'rgba(248,113,113,0.13)',
+    },
+    sheetItemDangerTitle: {
+        color: '#f87171',
+    },
+    sheetItemIconDanger: {
+        backgroundColor: '#2a1a1a',
+    },
+
     errorBar: {
         position: 'absolute',
         bottom: spacing.xl * 3,
@@ -1507,6 +1611,12 @@ const styles = StyleSheet.create({
     iconSourceCancelText: {
         fontSize: 14,
         color: colors.onSurfaceVariant,
+    },
+    importOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     importingModal: {
         backgroundColor: colors.surface,

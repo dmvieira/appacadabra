@@ -59,8 +59,6 @@ interface AppCardProps {
     onShare?: () => void;
     onIconPress?: () => void;
     onShortcut?: () => void;
-    shortcutNudgeDismissed?: boolean;
-    onDismissShortcutNudge?: (andCreateShortcut: boolean) => void;
     onToggleBiometric?: () => void;
     onViewSchedules?: () => void;
     isPlaceholder?: boolean;
@@ -73,7 +71,7 @@ interface AppCardProps {
 
 export function AppCard({
     app, onRun, onEdit, onDelete, onRename,
-    onShare, onIconPress, onShortcut, shortcutNudgeDismissed, onDismissShortcutNudge, onToggleBiometric, onViewSchedules,
+    onShare, onIconPress, onShortcut, onToggleBiometric, onViewSchedules,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
 }: AppCardProps) {
     const [showSheet, setShowSheet] = useState(false);
@@ -219,34 +217,6 @@ export function AppCard({
                         accessibilityRole="button"
                     >
                         <Text style={styles.btnOpenText}>{t('openSpell')} ✨</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {/* ── Shortcut nudge strip ───────────────────────────────── */}
-            {!isInteractionDisabled && !shortcutNudgeDismissed && !!onShortcut && (
-                <View style={styles.nudgeStrip}>
-                    <TouchableOpacity
-                        style={styles.nudgeMain}
-                        onPress={() => {
-                            onDismissShortcutNudge?.(true);
-                            if (!onDismissShortcutNudge && onShortcut) onShortcut();
-                        }}
-                        activeOpacity={0.7}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('shortcutNudgeText')}
-                    >
-                        <Text style={styles.nudgeText}>🏠 {t('shortcutNudgeText')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.nudgeDismiss}
-                        onPress={() => onDismissShortcutNudge?.(false)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        activeOpacity={0.6}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('cancel')}
-                    >
-                        <Text style={styles.nudgeDismissIcon}>✕</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -637,40 +607,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         fontWeight: '800',
-    },
-
-    // ── Nudge strip ──
-    nudgeStrip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(245,158,11,0.07)',
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(245,158,11,0.13)',
-    },
-    nudgeMain: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-    },
-    nudgeText: {
-        fontSize: 11,
-        color: '#d97706',
-        flex: 1,
-    },
-    nudgeDismiss: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        alignSelf: 'stretch',
-        justifyContent: 'center',
-        borderLeftWidth: 1,
-        borderLeftColor: 'rgba(245,158,11,0.13)',
-    },
-    nudgeDismissIcon: {
-        fontSize: 11,
-        color: 'rgba(245,158,11,0.5)',
     },
 
     // ── Bottom sheet ──

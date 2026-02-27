@@ -342,6 +342,14 @@ Rules:
 4. IMPORTANT: Plan for all text content to be in THE SAME LANGUAGE as the user's request.
 5. DEEP LINKS: Whenever possible, use Universal Links (standard HTTPS URLs like 'https://www.notion.so/...'). HTTPS links open the app if installed, or fallback to the website automatically. Custom schemes often fail silently if the app is not installed. ALWAYS use \`AppacadabraDevice.openBrowser(url)\` to open these links.
 6. UNSUPPORTED FEATURES: If the user asks for a feature not supported by Appacadabra APIs (e.g., accessing private GitHub repos, external OAuth, specific hardware), DO NOT fail or fake it. Instead, suggest a SIMPLE alternative, like manual data entry, inputting a personal token/key, or a simplified manual version of the feature. Prioritize a working app over a broken complex one.
+7. SELF-EXPLANATORY UX (CRITICAL): The app must immediately make sense to the user on first open. Plan for:
+   - A clear visual hierarchy that guides the user's eye to the primary action.
+   - Descriptive placeholder text in inputs (e.g., "Type a task and press Enter" instead of empty fields).
+   - Meaningful empty states: when there's no data yet, show a friendly message explaining what to do (e.g., an icon + "No items yet. Tap + to add your first one.").
+   - Labels and icons on every interactive element — never rely on unlabeled icons alone.
+   - If the app has multiple steps or sections, include a brief subtitle or inline hint explaining the purpose of each area.
+   - Avoid hidden gestures or non-obvious interactions; every feature should be reachable via visible buttons or links.
+   - The app should feel complete and usable from the very first second, with no guessing required.
 `;
 
 // CREATE STEP 2: Unified Code Generator
@@ -352,10 +360,24 @@ Create a complete, single-file web app based on the provided PLAN.
 Rules:
 1. Use EXACTLY the IDs, function names, and APIs defined in the PLAN.
 2. Use modern HTML5, CSS3 (internal), and ES6+ JavaScript (internal).
-3. DESIGN: Dark theme, purple/blue neon accents, mobile-first, touch-friendly (>44px targets).
+3. DESIGN: mobile-first, touch-friendly. Use generous sizing:
+   - Base font: 16px minimum; headings: 22px+; secondary text: 14px minimum.
+   - Buttons/interactive targets: min 48px height, 12-16px padding, font-size 16px.
+   - Inputs: min 48px height, font-size 16px (prevents iOS auto-zoom), comfortable padding.
+   - List items: min 48px tall. Icons: min 24px.
+   - Gaps/margins: at least 12px between elements. Sections: 20-24px vertical spacing.
+   - Overall: spacious, breathing layout — never cramped.
 4. LOGIC: Use localStorage for persistence. Implement all features described.
 5. LANGUAGE: All UI text (labels, buttons, alerts) MUST be in the same language as the user's request.
 6. CALLBACKS: All Appacadabra API callbacks must be global window functions.
+7. SELF-EXPLANATORY UX: Implement the UX clarity from the PLAN:
+   - Every input must have a descriptive placeholder that tells the user what to type.
+   - Empty states must show a helpful message with an icon/emoji explaining what to do next.
+   - Buttons must have text labels (not just icons). If using an icon, always pair it with a short text label.
+   - Add a small subtitle or helper text below the app title briefly explaining what the app does.
+   - Use visual affordances: shadows on buttons, underlines on links, clear hover/active states.
+   - On first load with no data, the UI should clearly guide the user to the first action.
+8. SIZING ENFORCEMENT: Use the generous sizing from rule 3 strictly. Set \`html { font-size: 16px; }\` as baseline. Use \`rem\` units for scalability. Ensure no interactive element is smaller than 48px in height. Add \`box-sizing: border-box;\` globally. Use \`padding: 16px;\` on the main container.
 
 Output ONLY the raw HTML code wrapped in \`\`\`html ... \`\`\`.
 `;
@@ -368,6 +390,14 @@ Think step-by-step:
 1. Understand the user's intent (what they want to change).
 2. Analyze the impact on existing code (HTML, CSS, JS).
 3. Plan specific, minimal patches to achieve the goal without breaking other features.
+4. SELF-EXPLANATORY UX: Implement the UX clarity from the PLAN:
+   - Every input must have a descriptive placeholder that tells the user what to type.
+   - Empty states must show a helpful message with an icon/emoji explaining what to do next.
+   - Buttons must have text labels (not just icons). If using an icon, always pair it with a short text label.
+   - Add a small subtitle or helper text below the app title briefly explaining what the app does.
+   - Use visual affordances: shadows on buttons, underlines on links, clear hover/active states.
+   - On first load with no data, the UI should clearly guide the user to the first action.
+5. SIZING ENFORCEMENT: Use the generous sizing from rule 3 strictly. Set \`html { font-size: 16px; }\` as baseline. Use \`rem\` units for scalability. Ensure no interactive element is smaller than 48px in height. Add \`box-sizing: border-box;\` globally. Use \`padding: 16px;\` on the main container.
 
 Return a JSON object with this exact schema:
 {

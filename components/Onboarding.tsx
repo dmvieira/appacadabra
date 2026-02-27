@@ -244,38 +244,40 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                     {currentScreen === 1 && (
                         <View style={s.screenContent}>
                             <View style={s.heroArea}>
-                                <View>
-                                    <Text style={[s.heading, { fontSize: 28 }]}>
-                                        {t('obPowersTitle1')} <Text style={s.headingAccent}>{t('obPowersTitle2')}</Text>
-                                    </Text>
-                                    <Text style={s.subtext}>{t('obPowersSubtext')}</Text>
-                                </View>
+                                <View style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
+                                    <View>
+                                        <Text style={[s.heading, { fontSize: 28 }]}>
+                                            {t('obPowersTitle1')} <Text style={s.headingAccent}>{t('obPowersTitle2')}</Text>
+                                        </Text>
+                                        <Text style={s.subtext}>{t('obPowersSubtext')}</Text>
+                                    </View>
 
-                                {/* Featured cards */}
-                                <View style={s.featuredCards}>
-                                    <FeatCard
-                                        icon="🔗"
-                                        title={t('obFeatIntegratedTitle')}
-                                        desc={t('obFeatIntegratedDesc')}
-                                        delay={0}
-                                    />
-                                    <FeatCard
-                                        icon="📅"
-                                        title={t('obFeatCalendarTitle')}
-                                        desc={t('obFeatCalendarDesc')}
-                                        delay={150}
-                                    />
-                                </View>
+                                    {/* Featured cards */}
+                                    <View style={s.featuredCards}>
+                                        <FeatCard
+                                            icon="🔗"
+                                            title={t('obFeatIntegratedTitle')}
+                                            desc={t('obFeatIntegratedDesc')}
+                                            delay={0}
+                                        />
+                                        <FeatCard
+                                            icon="📅"
+                                            title={t('obFeatCalendarTitle')}
+                                            desc={t('obFeatCalendarDesc')}
+                                            delay={150}
+                                        />
+                                    </View>
 
-                                {/* More tags */}
-                                <View>
-                                    <Text style={s.moreLabel}>{t('obMoreLabel')}</Text>
-                                    <View style={s.moreRow}>
-                                        {moreTags.map((tag, i) => (
-                                            <View key={i} style={s.moreTag}>
-                                                <Text style={s.moreTagText}>{tag.emoji} {t(tag.key)}</Text>
-                                            </View>
-                                        ))}
+                                    {/* More tags */}
+                                    <View style={{ marginTop: 8 }}>
+                                        <Text style={s.moreLabel}>{t('obMoreLabel')}</Text>
+                                        <View style={s.moreRow}>
+                                            {moreTags.map((tag, i) => (
+                                                <View key={i} style={s.moreTag}>
+                                                    <Text style={s.moreTagText}>{tag.emoji} {t(tag.key)}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
                                     </View>
                                 </View>
                             </View>
@@ -336,7 +338,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                 </Animated.View>
 
                 {/* Footer CTA */}
-                <View style={s.footer}>
+                <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
                     <TouchableOpacity
                         style={[s.ctaButton, currentScreen === 2 && selectedChip === null && { opacity: 0.5 }]}
                         onPress={handleNext}
@@ -375,6 +377,7 @@ const s = StyleSheet.create({
     screenContainer: {
         flex: 1,
         paddingHorizontal: 28,
+        paddingTop: 16,
     },
     skipButton: {
         alignSelf: 'flex-end',
@@ -383,7 +386,7 @@ const s = StyleSheet.create({
     },
     skipText: {
         color: colors.onSurfaceVariant,
-        fontSize: 14,
+        fontSize: 15,
     },
     screenContent: {
         flex: 1,
@@ -401,19 +404,19 @@ const s = StyleSheet.create({
 
     // ── Typography ──
     heading: {
-        fontSize: 26,
+        fontSize: 28,
         fontWeight: '800',
         color: colors.onSurface,
-        lineHeight: 32,
+        lineHeight: 36,
         marginBottom: 8,
     },
     headingAccent: {
         color: '#a855f7',
     },
     subtext: {
-        fontSize: 14,
+        fontSize: 16,
         color: colors.onSurfaceVariant,
-        lineHeight: 22,
+        lineHeight: 24,
         marginBottom: 20,
     },
 
@@ -434,7 +437,7 @@ const s = StyleSheet.create({
         alignSelf: 'flex-end',
     },
     chatBubbleText: {
-        fontSize: 13,
+        fontSize: 15,
         color: colors.onSurface,
     },
     typingDotsRow: {
@@ -472,12 +475,12 @@ const s = StyleSheet.create({
         justifyContent: 'center',
     },
     miniAppName: {
-        fontSize: 13,
+        fontSize: 15,
         fontWeight: '600',
         color: colors.onSurface,
     },
     miniAppTag: {
-        fontSize: 11,
+        fontSize: 13,
         color: '#10b981',
     },
 
@@ -512,14 +515,14 @@ const s = StyleSheet.create({
         borderColor: colors.primary,
     },
     tryInputLabel: {
-        fontSize: 13,
+        fontSize: 15,
         color: colors.onSurfaceVariant,
         marginBottom: 8,
     },
     tryTypedText: {
-        fontSize: 15,
+        fontSize: 16,
         color: colors.onSurface,
-        minHeight: 22,
+        minHeight: 24,
     },
     chipsRow: {
         flexDirection: 'row',
@@ -542,7 +545,7 @@ const s = StyleSheet.create({
         backgroundColor: colors.primaryContainer,
     },
     chipText: {
-        fontSize: 12,
+        fontSize: 14,
         color: colors.onSurfaceVariant,
     },
     chipTextSelected: {
@@ -552,8 +555,6 @@ const s = StyleSheet.create({
     // ── Powers grid (Screen 3) ──
     heroArea: {
         flex: 1,
-        justifyContent: 'center',
-        gap: 28,
     },
     featuredCards: {
         gap: 12,
@@ -590,15 +591,15 @@ const s = StyleSheet.create({
     },
     featDesc: {
         color: '#9CA3AF',
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: '600',
-        lineHeight: 19,
+        lineHeight: 20,
     },
     moreLabel: {
         color: '#4B5563',
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '700',
-        marginBottom: 6,
+        marginBottom: 8,
     },
     moreRow: {
         flexDirection: 'row',
@@ -608,19 +609,18 @@ const s = StyleSheet.create({
     moreTag: {
         backgroundColor: '#1F2937',
         borderRadius: 99,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
     },
     moreTagText: {
         color: '#6B7280',
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '700',
     },
 
     // ── Footer ──
     footer: {
         paddingHorizontal: 28,
-        paddingBottom: 36,
         paddingTop: 20,
         gap: 12,
     },
@@ -638,7 +638,7 @@ const s = StyleSheet.create({
     },
     footerHint: {
         textAlign: 'center',
-        fontSize: 12,
+        fontSize: 13,
         color: colors.onSurfaceVariant,
     },
 });

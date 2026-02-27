@@ -1,4 +1,4 @@
-import { getAuth, signInAnonymously, onAuthStateChanged as onAuthStateChangedModular, getIdToken } from '@react-native-firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged as onAuthStateChangedModular, getIdToken, reload as reloadUser } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, query, where, orderBy, limit } from '@react-native-firebase/firestore';
 import { getApp } from '@react-native-firebase/app';
@@ -393,7 +393,12 @@ export function onCreditsChanged(callback: (credits: number) => void, explicitUs
         console.log('Firebase: Real-time credit update:', credits);
         callback(credits);
     }, (error) => {
-        console.error('Firebase: Error listening to credits:', error);
+        // permission-denied is expected briefly during auth state transitions (e.g. anonymous→Google link)
+        if (error.code === 'firestore/permission-denied') {
+            console.warn('Firebase: Credits listener permission-denied (auth transition, will auto-recover)');
+        } else {
+            console.error('Firebase: Error listening to credits:', error);
+        }
     });
 
     return unsubscribe;

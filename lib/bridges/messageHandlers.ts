@@ -72,9 +72,26 @@ async function getSpellNotifications(appId: number | null) {
         const all = await Notifications.getAllScheduledNotificationsAsync();
         return all.filter(n => {
             const content = n.content as any;
-            return content.channelId === `spell-${appId}` ||
-                content.data?.appId == appId || // Loose equality to match string/number
-                (content.data && content.data.appId && content.data.appId.toString() === appId.toString());
+
+            // 1. channelId "spell-{id}" (Android primary)
+            if (content.channelId === `spell-${appId}`) return true;
+
+            // 2. data.appId (iOS / older Android) — loose equality for string/number
+            if (content.data?.appId == appId) return true;
+            if (content.data?.appId && content.data.appId.toString() === appId.toString()) return true;
+
+            // 3. data.payload (stringified workaround)
+            if (content.data?.payload) {
+                try {
+                    const p = typeof content.data.payload === 'string' ? JSON.parse(content.data.payload) : content.data.payload;
+                    if (p.appId && Number(p.appId) === Number(appId)) return true;
+                } catch { }
+            }
+
+            // 4. badge (Android fallback — stores appId as badge number)
+            if (typeof content.badge === 'number' && content.badge === Number(appId)) return true;
+
+            return false;
         });
     } catch (e) {
         console.error('Error fetching notifications:', e);
@@ -531,12 +548,7 @@ export async function handleBridgeMessage(
             debugLog(`Notify get scheduled request`);
             // Get all scheduled notifications for this spell
             try {
-                const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
-                // Filter to only this spell's notifications (by channelId or data.appId)
-                const spellNotifications = allScheduled.filter(n =>
-                    (n.content as any).channelId === `spell-${ctx.appId}` ||
-                    n.content.data?.appId === ctx.appId
-                );
+                const spellNotifications = await getSpellNotifications(ctx.appId);
                 result = JSON.stringify(spellNotifications.map(n => ({
                     id: n.identifier,
                     title: n.content.title,
@@ -563,14 +575,11 @@ export async function handleBridgeMessage(
             break;
 
         case 'NOTIFY_CANCEL_ALL':
-            debugLog(`Notify cancel all`);
+            debugLog(`Notify cancel all for spell ${ctx.appId}`);
             // Cancel all notifications for this spell
             try {
-                const allToCancel = await Notifications.getAllScheduledNotificationsAsync();
-                const spellToCancel = allToCancel.filter(n =>
-                    (n.content as any).channelId === `spell-${ctx.appId}` ||
-                    n.content.data?.appId === ctx.appId
-                );
+                const spellToCancel = await getSpellNotifications(ctx.appId);
+                debugLog(`Found ${spellToCancel.length} notifications to cancel`);
                 for (const n of spellToCancel) {
                     await Notifications.cancelScheduledNotificationAsync(n.identifier);
                 }

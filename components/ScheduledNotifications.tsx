@@ -3,14 +3,16 @@ import {
     View,
     Text,
     TouchableOpacity,
+    Pressable,
     StyleSheet,
     Modal,
     ScrollView,
     ActivityIndicator,
     Alert,
+    Platform,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { colors, spacing, borderRadius } from '../lib/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../lib/i18n';
 
 interface ScheduledNotification {
@@ -29,6 +31,7 @@ interface ScheduledNotificationsProps {
 }
 
 export function ScheduledNotifications({ visible, appId, appName, onClose }: ScheduledNotificationsProps) {
+    const insets = useSafeAreaInsets();
     const [notifications, setNotifications] = useState<ScheduledNotification[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -140,19 +143,28 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View style={styles.overlay}>
-                <View style={styles.modal}>
+            <Pressable style={styles.overlay} onPress={onClose}>
+                <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
+                    <View style={styles.handle} />
+
+                    {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>🔔 {t('scheduledNotifications')}</Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <Text style={styles.close}>✕</Text>
+                        <View style={styles.headerIcon}>
+                            <Text style={{ fontSize: 20 }}>🔔</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.headerTitle}>{t('scheduledNotifications')}</Text>
+                            <Text style={styles.headerSub}>{appName}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+                            <Text style={styles.closeBtnText}>✕</Text>
                         </TouchableOpacity>
                     </View>
-                    <Text style={styles.subtitle}>{appName}</Text>
 
+                    {/* Body */}
                     {loading ? (
                         <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={colors.primary} />
+                            <ActivityIndicator size="large" color="#a78bfa" />
                         </View>
                     ) : notifications.length === 0 ? (
                         <View style={styles.emptyContainer}>
@@ -160,26 +172,29 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                             <Text style={styles.emptyText}>{t('noScheduledNotifications')}</Text>
                         </View>
                     ) : (
-                        <ScrollView style={styles.list}>
+                        <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
                             {notifications.map((n) => (
-                                <View key={n.identifier} style={styles.card}>
-                                    <View style={styles.cardContent}>
-                                        <Text style={styles.cardTitle}>{n.title || '(No title)'}</Text>
-                                        {n.body && <Text style={styles.cardBody} numberOfLines={2}>{n.body}</Text>}
-                                        <Text style={styles.cardTrigger}>🗓 {formatTrigger(n)}</Text>
+                                <View key={n.identifier} style={styles.item}>
+                                    <View style={styles.itemIconWrap}>
+                                        <Text style={styles.itemEmoji}>🔔</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.itemTitle} numberOfLines={1}>{n.title || '(No title)'}</Text>
+                                        {n.body && <Text style={styles.itemSub} numberOfLines={2}>{n.body}</Text>}
+                                        <Text style={styles.itemTrigger}>🗓 {formatTrigger(n)}</Text>
                                     </View>
                                     <TouchableOpacity
-                                        style={styles.cancelBtn}
+                                        style={styles.itemDeleteBtn}
                                         onPress={() => handleCancel(n.identifier)}
                                     >
-                                        <Text style={styles.cancelIcon}>🗑️</Text>
+                                        <Text style={styles.itemDeleteIcon}>🗑️</Text>
                                     </TouchableOpacity>
                                 </View>
                             ))}
                         </ScrollView>
                     )}
-                </View>
-            </View>
+                </Pressable>
+            </Pressable>
         </Modal>
     );
 }
@@ -187,86 +202,140 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.55)',
         justifyContent: 'flex-end',
     },
-    modal: {
-        backgroundColor: colors.surface,
-        borderTopLeftRadius: borderRadius.xl,
-        borderTopRightRadius: borderRadius.xl,
+    sheet: {
+        backgroundColor: '#111827',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         maxHeight: '70%',
-        padding: spacing.md,
+    },
+    handle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#374151',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginTop: 12,
+        marginBottom: 20,
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 20,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#1F2937',
+    },
+    headerIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    headerTitle: {
+        color: '#F9FAFB',
+        fontSize: 15,
+        fontWeight: '800',
+    },
+    headerSub: {
+        color: '#6B7280',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 1,
+    },
+    closeBtn: {
+        marginLeft: 'auto',
+        width: 32,
+        height: 32,
+        borderRadius: 99,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
         alignItems: 'center',
     },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: colors.onSurface,
-    },
-    close: {
-        fontSize: 24,
-        color: colors.onSurfaceVariant,
-        padding: 4,
-    },
-    subtitle: {
-        color: colors.onSurfaceVariant,
-        fontSize: 14,
-        marginBottom: spacing.md,
+    closeBtnText: {
+        color: '#9CA3AF',
+        fontSize: 16,
     },
     loadingContainer: {
-        paddingVertical: spacing.xl,
+        paddingVertical: 40,
         alignItems: 'center',
     },
     emptyContainer: {
-        paddingVertical: spacing.xl,
+        paddingVertical: 40,
         alignItems: 'center',
     },
     emptyIcon: {
         fontSize: 48,
-        marginBottom: spacing.md,
+        marginBottom: 12,
     },
     emptyText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 16,
+        color: '#6B7280',
+        fontSize: 15,
+        fontWeight: '600',
     },
     list: {
         maxHeight: 400,
     },
-    card: {
+    listContent: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        gap: 8,
+    },
+    item: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surfaceVariant,
-        borderRadius: borderRadius.md,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
+        gap: 14,
+        padding: 14,
+        backgroundColor: '#0D0D1A',
+        borderWidth: 1,
+        borderColor: '#1F2937',
+        borderRadius: 14,
     },
-    cardContent: {
-        flex: 1,
+    itemIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#1F2937',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
     },
-    cardTitle: {
-        color: colors.onSurface,
-        fontSize: 16,
-        fontWeight: '600',
+    itemEmoji: {
+        fontSize: 20,
     },
-    cardBody: {
-        color: colors.onSurfaceVariant,
+    itemTitle: {
+        color: '#F9FAFB',
         fontSize: 14,
+        fontWeight: '800',
+    },
+    itemSub: {
+        color: '#6B7280',
+        fontSize: 12,
+        fontWeight: '600',
         marginTop: 2,
     },
-    cardTrigger: {
-        color: colors.primary,
+    itemTrigger: {
+        color: '#a78bfa',
         fontSize: 12,
+        fontWeight: '600',
         marginTop: 4,
     },
-    cancelBtn: {
-        padding: spacing.sm,
-        marginStart: spacing.sm,
+    itemDeleteBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: '#2a1a1a',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
     },
-    cancelIcon: {
-        fontSize: 20,
+    itemDeleteIcon: {
+        fontSize: 16,
     },
 });

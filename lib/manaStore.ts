@@ -76,7 +76,8 @@ export const useManaStore = create<ManaState>()(
             refreshUser: async () => {
                 console.log('ManaStore: Refreshing user state...');
                 const user = firebase.getCurrentUser();
-                await user?.reload();
+                const { reload: reloadUser } = await import('@react-native-firebase/auth');
+                if (user) await reloadUser(user);
                 const updatedUser = firebase.getCurrentUser();
                 set({
                     userEmail: updatedUser?.email || null,

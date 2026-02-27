@@ -1058,7 +1058,7 @@ export default function RunnerScreen() {
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={styles.sheetOverlay}
                 >
-                    <View style={styles.sheet}>
+                    <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
                         <Text style={styles.sheetTitle}>{t('editWithAI')}</Text>
 
                         {isEditing ? (
@@ -1232,7 +1232,7 @@ export default function RunnerScreen() {
             {/* Version History Modal */}
             <Modal visible={showHistory} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
-                    <View style={[styles.sheet, { maxHeight: '70%' }]}>
+                    <View style={[styles.sheet, { maxHeight: '70%', paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
                         <Text style={styles.sheetTitle}>{t('versionHistory')}</Text>
 
                         <ScrollView style={styles.versionList}>
@@ -1283,7 +1283,7 @@ export default function RunnerScreen() {
             {/* Debug Panel Modal */}
             <Modal visible={showDebugPanel} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
-                    <View style={[styles.sheet, { maxHeight: '80%' }]}>
+                    <View style={[styles.sheet, { maxHeight: '80%', paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
                         <Text style={styles.sheetTitle}>🐛 {t('debug')}</Text>
 
                         <Text style={styles.debugSectionTitle}>{t('consoleLogs')} ({consoleLogs.length})</Text>
