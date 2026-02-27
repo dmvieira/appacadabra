@@ -180,9 +180,6 @@ AppacadabraAI.generate("Hello", handleResult);
 - \`stopAll()\`
     - **Note**: Stops ALL active sensors. ALWAYS call this when leaving the screen or pausing.
 
-DEBUGGING:
-
-
 📋 CLIPBOARD (AppacadabraClipboard)
 - \`setString(text)\` - Copy text to clipboard
 - \`getString(callback)\` - Get text from clipboard

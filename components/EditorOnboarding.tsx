@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -59,6 +59,212 @@ const PREVIEW_TABS = [
 
 type Screen = 'onboarding' | 'finish';
 
+// ─── Tap Animation Component ───
+function TapAnimation({ color }: { color: string }) {
+    const fingerY = useRef(new Animated.Value(-20)).current;
+    const fingerScale = useRef(new Animated.Value(0.8)).current;
+    const fingerOpacity = useRef(new Animated.Value(0)).current;
+    const highlightOpacity = useRef(new Animated.Value(0)).current;
+    const rippleScale = useRef(new Animated.Value(0)).current;
+    const rippleOpacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const animation = Animated.loop(
+            Animated.sequence([
+                // 1. Finger appears and moves down toward button
+                Animated.parallel([
+                    Animated.timing(fingerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+                    Animated.timing(fingerY, { toValue: 8, duration: 500, useNativeDriver: true }),
+                    Animated.timing(fingerScale, { toValue: 1, duration: 500, useNativeDriver: true }),
+                ]),
+                // 2. Tap: finger presses down
+                Animated.parallel([
+                    Animated.timing(fingerScale, { toValue: 0.85, duration: 100, useNativeDriver: true }),
+                    Animated.timing(highlightOpacity, { toValue: 1, duration: 100, useNativeDriver: true }),
+                    Animated.timing(rippleScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+                    Animated.timing(rippleOpacity, { toValue: 0.5, duration: 100, useNativeDriver: true }),
+                ]),
+                // 3. Tap release: finger bounces back
+                Animated.parallel([
+                    Animated.timing(fingerScale, { toValue: 1, duration: 150, useNativeDriver: true }),
+                    Animated.timing(rippleScale, { toValue: 2, duration: 400, useNativeDriver: true }),
+                    Animated.timing(rippleOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+                ]),
+                // 4. Hold with highlight visible
+                Animated.delay(800),
+                // 5. Finger fades out, highlight fades
+                Animated.parallel([
+                    Animated.timing(fingerOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+                    Animated.timing(highlightOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+                ]),
+                // 6. Reset
+                Animated.parallel([
+                    Animated.timing(fingerY, { toValue: -20, duration: 0, useNativeDriver: true }),
+                    Animated.timing(fingerScale, { toValue: 0.8, duration: 0, useNativeDriver: true }),
+                    Animated.timing(rippleScale, { toValue: 0, duration: 0, useNativeDriver: true }),
+                ]),
+                Animated.delay(600),
+            ])
+        );
+        animation.start();
+        return () => animation.stop();
+    }, []);
+
+    return (
+        <View style={tapStyles.container}>
+            {/* Mock website */}
+            <View style={tapStyles.mockSite}>
+                {/* Header bar */}
+                <View style={tapStyles.mockHeader}>
+                    <View style={tapStyles.mockHeaderDot} />
+                    <View style={tapStyles.mockHeaderBar} />
+                </View>
+                {/* Content */}
+                <View style={tapStyles.mockBody}>
+                    <View style={tapStyles.mockTextLine} />
+                    <View style={tapStyles.mockTextLineShort} />
+                    {/* Button target */}
+                    <View style={tapStyles.mockBtnWrap}>
+                        <Animated.View style={[
+                            tapStyles.mockBtn,
+                            {
+                                borderColor: Animated.diffClamp(highlightOpacity, 0, 1).interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: ['transparent', color],
+                                })
+                            },
+                        ]}>
+                            <Text style={tapStyles.mockBtnText}>Button</Text>
+                        </Animated.View>
+                        {/* Highlight outline */}
+                        <Animated.View style={[
+                            tapStyles.highlight,
+                            { opacity: highlightOpacity, borderColor: color, shadowColor: color },
+                        ]} />
+                        {/* Ripple */}
+                        <Animated.View style={[
+                            tapStyles.ripple,
+                            {
+                                opacity: rippleOpacity,
+                                backgroundColor: color + '30',
+                                transform: [{ scale: rippleScale }],
+                            },
+                        ]} />
+                    </View>
+                    <View style={tapStyles.mockTextLine} />
+                </View>
+            </View>
+            {/* Animated finger */}
+            <Animated.Text style={[
+                tapStyles.finger,
+                {
+                    opacity: fingerOpacity,
+                    transform: [
+                        { translateY: fingerY },
+                        { scale: fingerScale },
+                    ],
+                },
+            ]}>
+                👆
+            </Animated.Text>
+        </View>
+    );
+}
+
+const tapStyles = StyleSheet.create({
+    container: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 160,
+        position: 'relative',
+    },
+    mockSite: {
+        width: 200,
+        backgroundColor: '#1a1a2e',
+        borderRadius: 12,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#2a2a4a',
+    },
+    mockHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        backgroundColor: '#12122a',
+    },
+    mockHeaderDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#7C3AED',
+    },
+    mockHeaderBar: {
+        flex: 1,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#2a2a4a',
+    },
+    mockBody: {
+        padding: 10,
+        gap: 8,
+    },
+    mockTextLine: {
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#2a2a4a',
+    },
+    mockTextLineShort: {
+        height: 6,
+        width: '60%',
+        borderRadius: 3,
+        backgroundColor: '#2a2a4a',
+    },
+    mockBtnWrap: {
+        alignItems: 'center',
+        position: 'relative',
+    },
+    mockBtn: {
+        backgroundColor: '#7C3AED',
+        paddingVertical: 6,
+        paddingHorizontal: 20,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    mockBtnText: {
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    highlight: {
+        position: 'absolute',
+        top: -4,
+        left: '20%',
+        right: '20%',
+        bottom: -4,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
+    },
+    ripple: {
+        position: 'absolute',
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+    },
+    finger: {
+        position: 'absolute',
+        bottom: 10,
+        fontSize: 32,
+    },
+});
+
+// ─── Main Component ───
 export default function EditorOnboarding({ onComplete }: EditorOnboardingProps) {
     const [current, setCurrent] = useState(0);
     const [screen, setScreen] = useState<Screen>('onboarding');
@@ -173,12 +379,16 @@ export default function EditorOnboarding({ onComplete }: EditorOnboardingProps) 
                     { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
                 ]}
             >
-                {/* Icon */}
-                <View style={styles.iconBox}>
-                    <View style={[styles.iconInner, { backgroundColor: step.color + '18', borderColor: step.color + '44' }]}>
-                        <Text style={styles.iconText}>{step.icon}</Text>
+                {/* Step 1: Tap animation; other steps: static icon */}
+                {current === 0 ? (
+                    <TapAnimation color={step.color} />
+                ) : (
+                    <View style={styles.iconBox}>
+                        <View style={[styles.iconInner, { backgroundColor: step.color + '18', borderColor: step.color + '44' }]}>
+                            <Text style={styles.iconText}>{step.icon}</Text>
+                        </View>
                     </View>
-                </View>
+                )}
 
                 {/* Title + Description */}
                 <View style={styles.textBlock}>

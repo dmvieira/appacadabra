@@ -614,10 +614,15 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         console.log(`[WEBVIEW_AI_IMAGE] Generating image for: ${prompt.substring(0, 80)}...`);
 
                         const imageModel = genAI.getGenerativeModel({
+                            // TODO: evaluate change in the future
+                            //model: 'gemini-3.1-flash-image-preview',
                             model: 'gemini-2.5-flash-image',
                             generationConfig: {
                                 // @ts-ignore - responseModalities available in newer SDK
                                 responseModalities: ['IMAGE', 'TEXT'],
+                                //imageConfig: {
+                                //    imageSize: "512x512",
+                                //},
                             },
                         });
 
@@ -796,7 +801,7 @@ export const processSpellJob = onDocumentCreated(
         document: "jobs/{jobId}",
         region: "southamerica-east1",
         memory: "512MiB",
-        timeoutSeconds: 300, // 5 minutes Max
+        timeoutSeconds: 540, // 9 minutes (thinkingLevel: high needs more time)
         secrets: ["GEMINI_API_KEY"],
     },
     async (event) => {

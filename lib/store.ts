@@ -157,6 +157,17 @@ export const useAppStore = create<AppState>((set, get) => ({
                     if (!isOld) {
                         get()._processFailedJob(job);
                     }
+                } else if (job.status === 'processing' && isOld) {
+                    // Stuck job: processing for > 10 minutes = likely Cloud Function timeout
+                    const wasAlreadyHandled = previousJob?.status === 'failed';
+                    if (!wasAlreadyHandled) {
+                        console.warn('[Store] Stuck job detected (processing > 10min):', job.id);
+                        get()._processFailedJob({
+                            ...job,
+                            status: 'failed',
+                            error: 'timeout',
+                        });
+                    }
                 }
             });
 

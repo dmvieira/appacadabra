@@ -1040,6 +1040,14 @@ export default function RunnerScreen() {
                                 <Text style={styles.navIcon}>🐛</Text>
                                 <Text style={styles.navLabelAdv}>{t('debug')}</Text>
                             </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.navItemAdv}
+                                onPress={() => setShowEditorOnboarding(true)}
+                            >
+                                <Text style={styles.navIcon}>❓</Text>
+                                <Text style={styles.navLabelAdv}>{t('editorReplayTutorial')}</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
                 </View>

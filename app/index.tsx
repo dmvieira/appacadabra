@@ -561,7 +561,7 @@ export default function HomeScreen() {
                 if (creditsUsed > 0) {
                     await incrementAppManaCost(setupTarget.id, creditsUsed);
                     // Force mana balance refresh from server
-                    firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => {});
+                    firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => { });
                 }
                 setStatusMessage(t('iconGenerated'));
             }
@@ -684,7 +684,7 @@ export default function HomeScreen() {
                 if (creditsUsed > 0) {
                     await incrementAppManaCost(iconTarget.id, creditsUsed);
                     // Force mana balance refresh from server
-                    firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => {});
+                    firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => { });
                 }
 
                 setStatusMessage(t('iconGenerated'));
@@ -845,11 +845,11 @@ export default function HomeScreen() {
         ? allApps.filter(a =>
             a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (a.shortDescription || '').toLowerCase().includes(searchQuery.toLowerCase())
-          )
+        )
         : allApps;
 
-        const fabBottom = spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom;
-        const listBottomPadding = fabBottom + 92;
+    const fabBottom = spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom;
+    const listBottomPadding = fabBottom + 92;
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -1085,9 +1085,8 @@ export default function HomeScreen() {
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.sheetItemTitle}>
-                                        {isGeneratingIcon ? t('generatingIcon') : t('generateWithAI')}
+                                        {isGeneratingIcon ? t('generatingIcon') : `${t('generateWithAI')}  ⚡ ${(0.5).toLocaleString(getCurrentLanguage(), { minimumFractionDigits: 1 })}`}
                                     </Text>
-                                    <Text style={styles.sheetItemSub}>{t('iconCostHint')}</Text>
                                 </View>
                             </TouchableOpacity>
                         </View>

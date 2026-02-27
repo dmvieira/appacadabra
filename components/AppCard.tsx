@@ -259,29 +259,9 @@ export function AppCard({
 
                         {/* Sheet items */}
                         <View style={styles.sheetBody}>
-                            {/* Scheduled notifications */}
-                            {onViewSchedules && (
-                                <TouchableOpacity
-                                    style={styles.sheetItem}
-                                    onPress={() => { setShowSheet(false); onViewSchedules(); }}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('scheduledNotifications')}
-                                >
-                                    <View style={styles.sheetItemIconWrap}>
-                                        <Text style={styles.sheetItemIconEmoji}>🔔</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.sheetItemTitle}>{t('scheduledNotifications')}</Text>
-                                        {hasNotifs && (
-                                            <Text style={styles.sheetItemSub}>
-                                                {t('notifCountScheduled', { count: notificationCount })}
-                                            </Text>
-                                        )}
-                                    </View>
-                                </TouchableOpacity>
-                            )}
+                            {/* ── Personalization ── */}
 
-                            {/* Edit spell details (name, desc, icon) */}
+                            {/* Edit spell details (name, desc) */}
                             <TouchableOpacity
                                 style={styles.sheetItem}
                                 onPress={() => { setShowSheet(false); onRename(); }}
@@ -289,31 +269,13 @@ export function AppCard({
                                 accessibilityLabel={t('editAppDetails')}
                             >
                                 <View style={styles.sheetItemIconWrap}>
-                                    <Text style={styles.sheetItemIconEmoji}>✏️</Text>
+                                    <Text style={styles.sheetItemIconEmoji}>📝</Text>
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.sheetItemTitle}>{t('editAppDetails')}</Text>
                                     <Text style={styles.sheetItemSub}>{t('editDetailsSub')}</Text>
                                 </View>
                             </TouchableOpacity>
-
-                            {/* Add to home screen */}
-                            {onShortcut && (
-                                <TouchableOpacity
-                                    style={styles.sheetItem}
-                                    onPress={() => { setShowSheet(false); onShortcut(); }}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('createShortcut')}
-                                >
-                                    <View style={styles.sheetItemIconWrap}>
-                                        <Text style={styles.sheetItemIconEmoji}>🏠</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.sheetItemTitle}>{t('createShortcut')}</Text>
-                                        <Text style={styles.sheetItemSub}>{t('shortcutSubtitle')}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            )}
 
                             {/* Choose icon */}
                             {onIconPress && (
@@ -333,6 +295,26 @@ export function AppCard({
                                 </TouchableOpacity>
                             )}
 
+                            {/* ── Access ── */}
+
+                            {/* Add to home screen */}
+                            {onShortcut && (
+                                <TouchableOpacity
+                                    style={styles.sheetItem}
+                                    onPress={() => { setShowSheet(false); onShortcut(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('createShortcut')}
+                                >
+                                    <View style={styles.sheetItemIconWrap}>
+                                        <Text style={styles.sheetItemIconEmoji}>🏠</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.sheetItemTitle}>{t('createShortcut')}</Text>
+                                        <Text style={styles.sheetItemSub}>{t('shortcutSubtitle')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+
                             {/* Biometric toggle */}
                             {onToggleBiometric && (
                                 <TouchableOpacity
@@ -348,6 +330,30 @@ export function AppCard({
                                         <Text style={styles.sheetItemTitle}>
                                             {app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
                                         </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+
+                            {/* ── Extras ── */}
+
+                            {/* Scheduled notifications */}
+                            {onViewSchedules && (
+                                <TouchableOpacity
+                                    style={styles.sheetItem}
+                                    onPress={() => { setShowSheet(false); onViewSchedules(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('scheduledNotifications')}
+                                >
+                                    <View style={styles.sheetItemIconWrap}>
+                                        <Text style={styles.sheetItemIconEmoji}>🔔</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.sheetItemTitle}>{t('scheduledNotifications')}</Text>
+                                        {hasNotifs && (
+                                            <Text style={styles.sheetItemSub}>
+                                                {t('notifCountScheduled', { count: notificationCount })}
+                                            </Text>
+                                        )}
                                     </View>
                                 </TouchableOpacity>
                             )}
