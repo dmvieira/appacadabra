@@ -477,7 +477,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     return (
         <SafeAreaView
             style={[styles.container, !isVisible && styles.hidden]}
-            edges={['top']}
+            edges={['top', 'bottom']}
             pointerEvents={isVisible ? 'auto' : 'none'}
         >
             {/* Header - Only in Edit Mode */}

@@ -826,7 +826,7 @@ export default function RunnerScreen() {
 
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             {/* Configure Header Options */}
             <Stack.Screen
                 options={{
