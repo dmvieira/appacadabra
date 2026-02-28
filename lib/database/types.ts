@@ -14,6 +14,7 @@ export interface GeneratedApp {
     jobId?: string; // Link to the async job that created this app
     requiresBiometric: boolean; // If true, requires biometric auth to open
     shortDescription?: string; // Short description of the app (editable)
+    sortOrder: number; // Custom sort order (lower = higher in list)
 }
 
 export interface AppVersion {

@@ -83,6 +83,7 @@ export default function HomeScreen() {
         initializeListeners,
         lastCreatedAppId,
         clearLastCreatedApp,
+        reorderApp,
     } = useAppStore();
 
     // Dialog states
@@ -836,6 +837,7 @@ export default function HomeScreen() {
         consoleLogs: '',
         totalManaCost: 0,
         requiresBiometric: false,
+        sortOrder: 0,
         isPlaceholder: true, // Marker property
     } as GeneratedApp)); // Cast to satisfy type, we handle isPlaceholder in renderItem
 
@@ -926,11 +928,14 @@ export default function HomeScreen() {
                     ListHeaderComponent={
                         <Text style={styles.listLabel}>{t('yourApps').toUpperCase()}</Text>
                     }
-                    renderItem={({ item }) => {
+                    renderItem={({ item, index }) => {
                         // Check if this item is a placeholder (from our manual mapping above)
                         const isPlaceholder = (item as any).isPlaceholder;
                         // Check if this real app is currently updating
                         const isLocked = updatingAppIds.includes(item.id);
+                        // Find position among real (non-placeholder) apps for reordering
+                        const realApps = filteredApps.filter(a => !(a as any).isPlaceholder);
+                        const realIdx = realApps.findIndex(a => a.id === item.id);
 
                         return (
                             <AppCard
@@ -944,6 +949,10 @@ export default function HomeScreen() {
                                 onToggleBiometric={() => handleToggleBiometric(item)}
                                 onShare={() => handleShareApp(item)}
                                 onViewSchedules={() => setScheduleTarget(item)}
+                                onMoveUp={!isPlaceholder && !isLocked ? () => reorderApp(item.id, 'up') : undefined}
+                                onMoveDown={!isPlaceholder && !isLocked ? () => reorderApp(item.id, 'down') : undefined}
+                                isFirst={realIdx <= 0}
+                                isLast={realIdx >= realApps.length - 1}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
                                 notificationCount={notifCounts[item.id] || 0}

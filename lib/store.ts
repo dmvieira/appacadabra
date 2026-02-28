@@ -83,6 +83,7 @@ interface AppState {
     clearSharedContent: () => void;
     _processCompletedJob: (job: Job) => Promise<void>;
     _processFailedJob: (job: Job) => void;
+    reorderApp: (appId: number, direction: 'up' | 'down') => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -232,7 +233,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                     totalManaCost: 0,
                     jobId: job.id,
                     requiresBiometric: false,
-                    shortDescription: job.payload?.prompt ? firebase.decompressContent(job.payload.prompt) : '' // Set initial description from prompt
+                    shortDescription: job.payload?.prompt ? firebase.decompressContent(job.payload.prompt) : '', // Set initial description from prompt
+                    sortOrder: 0,
                 };
 
                 // Insert into DB (idempotent check inside db.insertApp)
@@ -732,6 +734,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 totalManaCost: 0, // Free!
                 requiresBiometric: false,
                 shortDescription: template.shortDescription,
+                sortOrder: 0,
             };
 
             const newId = await db.insertApp(newApp);
@@ -778,6 +781,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 consoleLogs: '',
                 totalManaCost: 0,
                 requiresBiometric: false,
+                sortOrder: 0,
             };
 
             const id = await db.insertApp(newApp);
@@ -849,4 +853,49 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
     setSharedContent: (content: AppState['sharedContent']) => set({ sharedContent: content }),
     clearSharedContent: () => set({ sharedContent: null }),
+
+    reorderApp: async (appId: number, direction: 'up' | 'down') => {
+        const apps = get().apps.filter(a => a.id > 0); // Exclude placeholders
+        if (apps.length < 2) return;
+
+        // If no custom order yet (all sortOrder=0), assign sequential order
+        const allZero = apps.every(a => (a.sortOrder ?? 0) === 0);
+        if (allZero) {
+            const updates = apps.map((a, i) => ({ id: a.id, sortOrder: i + 1 }));
+            await db.updateSortOrders(updates);
+            // Refresh apps with new sort orders
+            const refreshed = await db.getAllApps();
+            set({ apps: refreshed });
+            // Re-run with updated data
+            return get().reorderApp(appId, direction);
+        }
+
+        const idx = apps.findIndex(a => a.id === appId);
+        if (idx === -1) return;
+
+        const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (targetIdx < 0 || targetIdx >= apps.length) return;
+
+        const current = apps[idx];
+        const neighbor = apps[targetIdx];
+
+        // Swap sortOrders
+        const updates = [
+            { id: current.id, sortOrder: neighbor.sortOrder },
+            { id: neighbor.id, sortOrder: current.sortOrder },
+        ];
+        await db.updateSortOrders(updates);
+
+        // Update local state immediately
+        const updatedApps = [...apps];
+        updatedApps[idx] = { ...current, sortOrder: neighbor.sortOrder };
+        updatedApps[targetIdx] = { ...neighbor, sortOrder: current.sortOrder };
+        // Re-sort to match query order
+        updatedApps.sort((a, b) => {
+            if ((a.sortOrder === 0) !== (b.sortOrder === 0)) return a.sortOrder === 0 ? -1 : 1;
+            if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+            return b.lastUpdated - a.lastUpdated;
+        });
+        set({ apps: updatedApps });
+    },
 }));

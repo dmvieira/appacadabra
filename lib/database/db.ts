@@ -90,6 +90,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await addColumn('generated_apps', 'requiresBiometric', 'INTEGER NOT NULL DEFAULT 0');
     await addColumn('generated_apps', 'shortDescription', 'TEXT');
     await addColumn('generated_apps', 'createdAt', 'INTEGER NOT NULL DEFAULT 0');
+    await addColumn('generated_apps', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
     await addColumn('app_versions', 'jobId', 'TEXT');
 
     await database.execAsync(`
@@ -127,6 +128,9 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       )
       WHERE createdAt = 0;
 
+      -- Backfill sortOrder for apps that still have default 0
+      -- Assign sequential order based on lastUpdated DESC (preserves current visual order)
+
       -- Backfill mana_events for existing spells that have totalManaCost but no events yet.
       -- Uses createdAt as timestamp so the windowed query picks it up correctly.
       INSERT OR IGNORE INTO mana_events (appId, amount, timestamp)
@@ -156,7 +160,7 @@ export async function getAllApps(): Promise<GeneratedApp[]> {
                AND me.timestamp >= MAX(g.createdAt, ?)
            ), 0) AS recentManaCost
          FROM generated_apps g
-         ORDER BY g.lastUpdated DESC`,
+         ORDER BY CASE WHEN g.sortOrder = 0 THEN 0 ELSE 1 END, g.sortOrder ASC, g.lastUpdated DESC`,
         [thirtyDaysAgo]
     );
 }
@@ -200,15 +204,16 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         Number(app.totalManaCost ?? 0),
         app.jobId ? String(app.jobId) : "", // Empty string instead of null to test NPE fix
         app.requiresBiometric ? 1 : 0,
-        String(app.shortDescription ?? '')
+        String(app.shortDescription ?? ''),
+        Number(app.sortOrder ?? 0)
     ];
 
     console.log('[DB] Inserting App. Bindings:', JSON.stringify(bindings));
 
     try {
         const result = await database.runAsync(
-            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription, sortOrder)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             bindings as any[]
         );
         return result.lastInsertRowId;
@@ -247,7 +252,7 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
 export async function updateApp(app: GeneratedApp): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?
+        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?, sortOrder = ?
      WHERE id = ?`,
         [
             app.name ?? 'Untitled',
@@ -260,6 +265,7 @@ export async function updateApp(app: GeneratedApp): Promise<void> {
             app.jobId ?? "",
             app.requiresBiometric ? 1 : 0,
             app.shortDescription ?? '',
+            app.sortOrder ?? 0,
             app.id
         ]
     );
@@ -277,6 +283,17 @@ export async function updateBiometricLock(appId: number, enabled: boolean): Prom
         'UPDATE generated_apps SET requiresBiometric = ? WHERE id = ?',
         [enabled ? 1 : 0, appId]
     );
+}
+
+export async function updateSortOrders(updates: { id: number; sortOrder: number }[]): Promise<void> {
+    if (updates.length === 0) return;
+    const database = await getDatabase();
+    for (const u of updates) {
+        await database.runAsync(
+            'UPDATE generated_apps SET sortOrder = ? WHERE id = ?',
+            [u.sortOrder, u.id]
+        );
+    }
 }
 
 export async function incrementManaCost(appId: number, amount: number): Promise<void> {

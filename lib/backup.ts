@@ -34,6 +34,7 @@ export interface BackupApp {
     totalManaCost?: number;
     jobId?: string;
     shortDescription?: string;
+    sortOrder?: number;
     // Individual mana charge events with original timestamps
     manaEvents?: { amount: number; timestamp: number }[];
     // Scheduled notifications (absolute fire timestamps)
@@ -395,6 +396,7 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                 jobId: app.jobId || undefined,
                 requiresBiometric: false, // Imported apps start unlocked
                 shortDescription: app.shortDescription || undefined,
+                sortOrder: app.sortOrder || 0,
             };
 
             const newId = await db.insertApp(newApp);

@@ -10,6 +10,9 @@ import {
     ActivityIndicator,
     Platform,
     Animated,
+    PanResponder,
+    GestureResponderEvent,
+    PanResponderGestureState,
 } from 'react-native';
 import { GeneratedApp } from '../lib/database/types';
 import { colors } from '../lib/theme';
@@ -61,6 +64,10 @@ interface AppCardProps {
     onShortcut?: () => void;
     onToggleBiometric?: () => void;
     onViewSchedules?: () => void;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
+    isFirst?: boolean;
+    isLast?: boolean;
     isPlaceholder?: boolean;
     isLocked?: boolean;
     notificationCount?: number;
@@ -72,6 +79,7 @@ interface AppCardProps {
 export function AppCard({
     app, onRun, onEdit, onDelete, onRename,
     onShare, onIconPress, onShortcut, onToggleBiometric, onViewSchedules,
+    onMoveUp, onMoveDown, isFirst, isLast,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
 }: AppCardProps) {
     const [showSheet, setShowSheet] = useState(false);
@@ -99,10 +107,97 @@ export function AppCard({
 
     const hasNotifs = (notificationCount ?? 0) > 0;
 
+    // ── Jiggle + Drag reorder ──
+    const jiggleAnim = React.useRef(new Animated.Value(0)).current;
+    const translateY = React.useRef(new Animated.Value(0)).current;
+    const isDragging = React.useRef(false);
+    const dragAccum = React.useRef(0); // accumulated drag distance
+    const SWAP_THRESHOLD = 70; // pixels to drag before swapping
+
+    const startJiggle = () => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(jiggleAnim, { toValue: 1, duration: 60, useNativeDriver: true }),
+                Animated.timing(jiggleAnim, { toValue: -1, duration: 120, useNativeDriver: true }),
+                Animated.timing(jiggleAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+            ])
+        ).start();
+    };
+
+    const stopJiggle = () => {
+        jiggleAnim.stopAnimation();
+        jiggleAnim.setValue(0);
+        translateY.setValue(0);
+        isDragging.current = false;
+        dragAccum.current = 0;
+    };
+
+    const panResponder = React.useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => false,
+            onMoveShouldSetPanResponder: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+                // Only capture if we're in drag mode and moving vertically
+                return isDragging.current && Math.abs(gs.dy) > 5;
+            },
+            onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+                if (!isDragging.current) return;
+                translateY.setValue(gs.dy);
+
+                // Check if we've dragged enough to swap
+                if (gs.dy < -SWAP_THRESHOLD && !isFirst) {
+                    isDragging.current = false;
+                    stopJiggle();
+                    onMoveUp?.();
+                } else if (gs.dy > SWAP_THRESHOLD && !isLast) {
+                    isDragging.current = false;
+                    stopJiggle();
+                    onMoveDown?.();
+                }
+            },
+            onPanResponderRelease: () => {
+                stopJiggle();
+            },
+            onPanResponderTerminate: () => {
+                stopJiggle();
+            },
+        })
+    ).current;
+
+    const jiggleRotation = jiggleAnim.interpolate({
+        inputRange: [-1, 1],
+        outputRange: ['-1deg', '1deg'],
+    });
+
     return (
-        <View style={styles.card} accessible={false}>
+        <Animated.View
+            style={[
+                styles.card,
+                {
+                    transform: [
+                        { rotate: jiggleRotation },
+                        { translateY: translateY },
+                    ],
+                },
+                isDragging.current && { zIndex: 100, elevation: 20 },
+            ]}
+            accessible={false}
+            {...panResponder.panHandlers}
+        >
             {/* ── Card main row ───────────────────────────────────────── */}
-            <View style={styles.cardMain}>
+            <TouchableOpacity
+                style={styles.cardMain}
+                activeOpacity={0.9}
+                onLongPress={() => {
+                    if (!isInteractionDisabled && (onMoveUp || onMoveDown)) {
+                        isDragging.current = true;
+                        startJiggle();
+                    }
+                }}
+                onPress={() => {
+                    if (!isInteractionDisabled) onRun();
+                }}
+                delayLongPress={400}
+            >
                 {/* Avatar with optional notification badge */}
                 <View style={styles.avatarWrap}>
                     <View style={[styles.cardAvatar, { backgroundColor: avatarColors.bg }]}>
@@ -150,7 +245,7 @@ export function AppCard({
                     )}
                 </View>
 
-                {/* Action buttons */}
+                {/* Action buttons — always normal */}
                 {!isInteractionDisabled && (
                     <View style={styles.cardActions}>
                         <TouchableOpacity
@@ -200,7 +295,7 @@ export function AppCard({
                         )}
                     </View>
                 )}
-            </View>
+            </TouchableOpacity>
 
             {/* ── Card footer ──────────────────────────────────────── */}
             {!isInteractionDisabled && (
@@ -219,7 +314,8 @@ export function AppCard({
                         <Text style={styles.btnOpenText}>{t('openSpell')} ✨</Text>
                     </TouchableOpacity>
                 </View>
-            )}
+            )
+            }
 
             {/* ── Action Sheet (Bottom Sheet) ────────────────────────── */}
             <Modal
@@ -393,7 +489,7 @@ export function AppCard({
                     </Pressable>
                 </Pressable>
             </Modal>
-        </View>
+        </Animated.View>
     );
 }
 
@@ -525,6 +621,9 @@ const styles = StyleSheet.create({
     btnIconHighlight: {
         borderColor: '#7C3AED',
         backgroundColor: 'rgba(124,58,237,0.15)',
+    },
+    btnIconDisabled: {
+        opacity: 0.4,
     },
 
     // ── Coach mark bubble ──
