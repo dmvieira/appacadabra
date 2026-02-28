@@ -84,6 +84,7 @@ interface AppState {
     _processCompletedJob: (job: Job) => Promise<void>;
     _processFailedJob: (job: Job) => void;
     reorderApp: (appId: number, direction: 'up' | 'down') => Promise<void>;
+    wipeAllData: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -862,12 +863,17 @@ export const useAppStore = create<AppState>((set, get) => ({
         const allZero = apps.every(a => (a.sortOrder ?? 0) === 0);
         if (allZero) {
             const updates = apps.map((a, i) => ({ id: a.id, sortOrder: i + 1 }));
-            await db.updateSortOrders(updates);
-            // Refresh apps with new sort orders
-            const refreshed = await db.getAllApps();
-            set({ apps: refreshed });
-            // Re-run with updated data
-            return get().reorderApp(appId, direction);
+            try {
+                await db.updateSortOrders(updates);
+                // Refresh apps with new sort orders
+                const refreshed = await db.getAllApps();
+                set({ apps: refreshed });
+                // Re-run with updated data
+                return get().reorderApp(appId, direction);
+            } catch (error) {
+                console.error('Failed to initialize sort orders:', error);
+                return;
+            }
         }
 
         const idx = apps.findIndex(a => a.id === appId);
@@ -884,18 +890,35 @@ export const useAppStore = create<AppState>((set, get) => ({
             { id: current.id, sortOrder: neighbor.sortOrder },
             { id: neighbor.id, sortOrder: current.sortOrder },
         ];
-        await db.updateSortOrders(updates);
 
-        // Update local state immediately
-        const updatedApps = [...apps];
-        updatedApps[idx] = { ...current, sortOrder: neighbor.sortOrder };
-        updatedApps[targetIdx] = { ...neighbor, sortOrder: current.sortOrder };
-        // Re-sort to match query order
-        updatedApps.sort((a, b) => {
-            if ((a.sortOrder === 0) !== (b.sortOrder === 0)) return a.sortOrder === 0 ? -1 : 1;
-            if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-            return b.lastUpdated - a.lastUpdated;
-        });
-        set({ apps: updatedApps });
+        try {
+            await db.updateSortOrders(updates);
+
+            // Update local state immediately
+            const updatedApps = [...apps];
+            updatedApps[idx] = { ...current, sortOrder: neighbor.sortOrder };
+            updatedApps[targetIdx] = { ...neighbor, sortOrder: current.sortOrder };
+
+            // Re-sort to match query order
+            updatedApps.sort((a, b) => {
+                if ((a.sortOrder === 0) !== (b.sortOrder === 0)) return a.sortOrder === 0 ? -1 : 1;
+                if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+                return b.lastUpdated - a.lastUpdated;
+            });
+            set({ apps: updatedApps });
+        } catch (error) {
+            console.error('Failed to reorder app:', error);
+        }
+    },
+
+    wipeAllData: async () => {
+        try {
+            set({ isLoading: true });
+            await db.wipeAllData();
+            set({ apps: [], isLoading: false });
+        } catch (error) {
+            console.error('Failed to wipe all data:', error);
+            set({ error: t('errorDeletingApp'), isLoading: false });
+        }
     },
 }));

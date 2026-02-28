@@ -34,6 +34,7 @@ import { EmptyState } from '../components/EmptyState';
 import { ChatDialog, EditDetailsDialog, ConfirmDialog } from '../components/Dialogs';
 import { Onboarding } from '../components/Onboarding';
 import { colors, spacing, borderRadius } from '../lib/theme';
+import SignOutModal from '../components/SignOutModal';
 
 import { GeneratedApp } from '../lib/database/types';
 import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
@@ -53,23 +54,17 @@ export default function HomeScreen() {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const { setupAppId } = useLocalSearchParams<{ setupAppId?: string }>();
-    const { balance, openShop } = useManaStore();
+    const { balance, openShop, isAnonymous } = useManaStore();
     const {
         apps,
         isLoading,
         isGenerating,
         isImporting,
+        creatingApps,
         error,
         statusMessage,
-        creatingApps,
-        updatingAppIds,
-        pendingImportUrl, // Get pending import from store
-        setPendingImportUrl, // To clear it
         loadApps,
         openApp,
-        createApp,
-        deleteApp,
-        renameApp,
         updateAppDescription,
         updateAppIcon,
         incrementAppManaCost,
@@ -84,7 +79,17 @@ export default function HomeScreen() {
         lastCreatedAppId,
         clearLastCreatedApp,
         reorderApp,
+        wipeAllData,
+        createApp,
+        deleteApp,
+        renameApp,
+        updatingAppIds,
+        pendingImportUrl,
+        setPendingImportUrl,
     } = useAppStore();
+
+    const [showSignOutModal, setShowSignOutModal] = useState(false);
+    const [signOutBanner, setSignOutBanner] = useState<'keep' | 'clear' | null>(null);
 
     // Dialog states
     const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -853,8 +858,46 @@ export default function HomeScreen() {
     const fabBottom = spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom;
     const listBottomPadding = fabBottom + 92;
 
+    const handleSignOutKeep = async () => {
+        try {
+            await firebase.signOut();
+            setSignOutBanner('keep');
+        } catch (e) {
+            console.error('Sign out failed:', e);
+        }
+    };
+
+    const handleSignOutClear = async () => {
+        try {
+            await wipeAllData();
+            await firebase.signOut();
+            setSignOutBanner('clear');
+        } catch (e) {
+            console.error('Sign out & clear failed:', e);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+            {/* Status Banner (Post-logout) */}
+            {signOutBanner && (
+                <TouchableOpacity
+                    style={styles.statusBanner}
+                    onPress={() => setSignOutBanner(null)}
+                    activeOpacity={0.9}
+                >
+                    <View style={styles.statusBannerIcon}>
+                        <Text style={{ fontSize: 16 }}>ℹ️</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.statusBannerText}>
+                            {signOutBanner === 'keep' ? t('signOutSuccessKeep') : t('signOutSuccessClear')}
+                        </Text>
+                    </View>
+                    <Text style={styles.statusBannerClose}>✕</Text>
+                </TouchableOpacity>
+            )}
+
             {/* Header with menu */}
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
@@ -1035,10 +1078,41 @@ export default function HomeScreen() {
                                     <Text style={styles.sheetItemTitle}>{t('legal')}</Text>
                                 </View>
                             </TouchableOpacity>
+
+                            {/* Sign Out - only when logged in */}
+                            {!isAnonymous && (
+                                <>
+                                    <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginVertical: 8 }} />
+                                    <TouchableOpacity
+                                        style={styles.sheetItem}
+                                        onPress={() => {
+                                            setShowMenu(false);
+                                            setShowSignOutModal(true);
+                                        }}
+                                        accessibilityLabel={t('signOut')}
+                                        accessibilityRole="menuitem"
+                                    >
+                                        <View style={[styles.sheetItemIcon, { backgroundColor: 'rgba(248,113,113,0.15)' }]}>
+                                            <Text style={styles.sheetItemEmoji}>🚪</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.sheetItemTitle, { color: '#f87171' }]}>{t('signOut')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                </>
+                            )}
                         </View>
                     </Pressable>
                 </Pressable>
             </Modal>
+
+            {/* Advanced Sign-Out Modal */}
+            <SignOutModal
+                visible={showSignOutModal}
+                onClose={() => setShowSignOutModal(false)}
+                onSelectKeep={handleSignOutKeep}
+                onSelectClear={handleSignOutClear}
+            />
 
             {/* Icon Picker Modal */}
             <Modal visible={!!iconTarget} transparent animationType="slide" onRequestClose={() => setIconTarget(null)}>
@@ -1868,5 +1942,32 @@ const styles = StyleSheet.create({
     setupSkipBtnText: {
         color: colors.onSurfaceVariant,
         fontSize: 15,
+    },
+    statusBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        padding: spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    statusBannerIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: spacing.md,
+    },
+    statusBannerText: {
+        fontSize: 13,
+        color: colors.onSurface,
+        fontWeight: '500',
+    },
+    statusBannerClose: {
+        fontSize: 18,
+        color: colors.onSurfaceVariant,
+        paddingHorizontal: spacing.sm,
     },
 });

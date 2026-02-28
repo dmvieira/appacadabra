@@ -193,11 +193,13 @@ export function ManaShop() {
                     toastMessage = `👀 ${t('rewardNone')}`;
                 }
 
-                ToastAndroid.show(toastMessage, ToastAndroid.LONG);
+                setRewardBanner({ message: toastMessage, type: manaToGive > 0 ? 'success' : 'error' });
+                // Hide banner after 5 seconds
+                setTimeout(() => setRewardBanner(null), 5000);
 
             } catch (error) {
                 console.error('Failed to add reward:', error);
-                ToastAndroid.show(t('rewardError'), ToastAndroid.SHORT);
+                setRewardBanner({ message: t('rewardError'), type: 'error' });
             }
 
         });
@@ -259,7 +261,56 @@ export function ManaShop() {
         }
         // If already loading, do nothing - UI shows loading state
     };
+    // Login prompt state
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const [isSigningIn, setIsSigningIn] = useState(false);
+    const [rewardBanner, setRewardBanner] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+    const closeShopWithCleanup = () => {
+        setRewardBanner(null);
+        setShowLoginPrompt(false);
+        closeShop();
+    };
+
+    const handleLoginRequired = () => {
+        setShowLoginPrompt(true);
+    };
+
+    const handleGoogleSignIn = async () => {
+        setIsSigningIn(true);
+        try {
+            await firebase.ensureAuthenticated();
+            await firebase.linkWithGoogle();
+            await refreshUser();
+            setShowLoginPrompt(false);
+        } catch (e: any) {
+            console.error(e);
+            if (e.message && (e.message.includes('credential-already-in-use') || e.code === 'auth/credential-already-in-use')) {
+                Alert.alert(
+                    t('account'),
+                    t('accountConflict'),
+                    [
+                        { text: t('cancel'), style: 'cancel' },
+                        {
+                            text: t('signInGoogle'), onPress: async () => {
+                                try {
+                                    await firebase.signInWithGoogle();
+                                    await refreshUser();
+                                    setShowLoginPrompt(false);
+                                } catch (err) {
+                                    Alert.alert(t('error'), t('signInFailed'));
+                                }
+                            }
+                        }
+                    ]
+                );
+            } else {
+                Alert.alert(t('error'), t('linkError'));
+            }
+        } finally {
+            setIsSigningIn(false);
+        }
+    };
 
     return (
         <Modal visible={isShopOpen} transparent animationType="slide" onRequestClose={closeShop}>
@@ -267,138 +318,150 @@ export function ManaShop() {
                 <View style={styles.modal}>
                     <View style={styles.header}>
                         <Text style={styles.title}>⚡ {t('manaShopTitle')}</Text>
-                        <TouchableOpacity onPress={closeShop} accessibilityLabel={t('close')} accessibilityRole="button">
+                        <TouchableOpacity onPress={closeShopWithCleanup} accessibilityLabel={t('close')} accessibilityRole="button">
                             <Text style={styles.close}>✕</Text>
                         </TouchableOpacity>
                     </View>
 
                     <ScrollView contentContainerStyle={styles.content}>
-                        {/* Google Account Section - Prominent CTA when anonymous */}
-                        {isAnonymous ? (
-                            <View style={styles.googleCTAContainer}>
-                                <View style={styles.googleCTACard}>
-                                    <Text style={styles.googleCTAEmoji}>🔐</Text>
-                                    <Text style={styles.googleCTATitle}>{t('linkAccountCTA')}</Text>
-                                    <Text style={styles.googleCTADesc}>{t('linkAccountCTADesc')}</Text>
-                                    <TouchableOpacity
-                                        style={styles.googleCTAButton}
-                                        onPress={async () => {
-                                            try {
-                                                await firebase.ensureAuthenticated();
-                                                await firebase.linkWithGoogle();
-                                                await refreshUser();
-                                                Alert.alert(t('success'), t('linkSuccess'));
-                                            } catch (e: any) {
-                                                console.error(e);
-                                                if (e.message && (e.message.includes('credential-already-in-use') || e.code === 'auth/credential-already-in-use')) {
-                                                    Alert.alert(
-                                                        t('account'),
-                                                        t('accountConflict'),
-                                                        [
-                                                            { text: t('cancel'), style: 'cancel' },
-                                                            {
-                                                                text: t('signInGoogle'), onPress: async () => {
-                                                                    try {
-                                                                        await firebase.signInWithGoogle();
-                                                                        await refreshUser();
-                                                                    } catch (err) {
-                                                                        Alert.alert(t('error'), t('signInFailed'));
-                                                                    }
-                                                                }
-                                                            }
-                                                        ]
-                                                    );
-                                                } else {
-                                                    Alert.alert(t('error'), t('linkError'));
-                                                }
-                                            }
-                                        }}
-                                        accessibilityLabel={t('signInGoogle')}
-                                        accessibilityRole="button"
-                                    >
-                                        <Text style={styles.googleCTAButtonText}>🔗 {t('signInGoogle')}</Text>
-                                    </TouchableOpacity>
-                                    <Text style={styles.googleCTANote}>{t('spellsStayLocal')}</Text>
-                                </View>
+                        {rewardBanner && (
+                            <TouchableOpacity
+                                style={[styles.rewardBanner, rewardBanner.type === 'error' && styles.rewardBannerError]}
+                                onPress={() => setRewardBanner(null)}
+                            >
+                                <Text style={styles.rewardBannerText}>{rewardBanner.message}</Text>
+                            </TouchableOpacity>
+                        )}
+                        {showLoginPrompt ? (
+                            /* ── Login Prompt ── */
+                            <View style={styles.loginPromptContainer}>
+                                <Text style={styles.loginPromptEmoji}>⚡</Text>
+                                <Text style={styles.loginPromptTitle}>{t('loginRequired')}</Text>
+                                <Text style={styles.loginPromptDesc}>{t('loginRequiredDesc')}</Text>
+
+                                <TouchableOpacity
+                                    style={styles.googleButton}
+                                    onPress={handleGoogleSignIn}
+                                    disabled={isSigningIn}
+                                    accessibilityLabel={t('signInGoogle')}
+                                    accessibilityRole="button"
+                                >
+                                    {isSigningIn ? (
+                                        <ActivityIndicator size="small" color="#1a1a1a" />
+                                    ) : (
+                                        <Text style={styles.googleButtonText}>🔗 {t('signInGoogle')}</Text>
+                                    )}
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.cancelButton}
+                                    onPress={() => setShowLoginPrompt(false)}
+                                    accessibilityLabel={t('cancel')}
+                                    accessibilityRole="button"
+                                >
+                                    <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
+                                </TouchableOpacity>
                             </View>
                         ) : (
-                            <View style={styles.accountContainer}>
-                                <View style={styles.accountCard}>
-                                    <Text style={styles.accountEmail}>👤 {userEmail || 'User'}</Text>
-                                    <TouchableOpacity onPress={() => firebase.signOut()} accessibilityLabel={t('signOut')} accessibilityRole="button">
-                                        <Text style={styles.signOutLink}>{t('signOut')}</Text>
-                                    </TouchableOpacity>
+                            /* ── Shop Content ── */
+                            <>
+                                {/* Balance + Account */}
+                                <View style={styles.balanceRow}>
+                                    <View>
+                                        <Text style={styles.balanceLabel}>{t('currentBalance')}</Text>
+                                        <Text style={styles.balanceValue}>
+                                            {(Math.floor(balance * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚡
+                                        </Text>
+                                    </View>
+                                    {isAnonymous ? (
+                                        <View style={styles.lockPill}>
+                                            <Text style={styles.lockPillText}>🔒 {t('noLogin')}</Text>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.accountChip}>
+                                            <Text style={styles.accountAvatar}>👤</Text>
+                                            <Text style={styles.accountEmailText}>{userEmail || 'User'}</Text>
+                                        </View>
+                                    )}
                                 </View>
-                            </View>
-                        )}
 
-                        {balance <= 0 && (
-                            <View style={styles.manaWarningBanner}>
-                                <Text style={styles.manaWarningEmoji}>⚡</Text>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.manaWarningTitle}>{t('manaDepletedTitle')}</Text>
-                                    <Text style={styles.manaWarningText}>{t('manaDepletedMessage')}</Text>
-                                </View>
-                            </View>
-                        )}
-
-                        <View style={styles.balanceContainer}>
-                            <Text style={styles.balanceLabel}>{t('currentBalance')}</Text>
-                            <Text style={styles.balanceValue}>{(Math.floor(balance * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ⚡</Text>
-                        </View>
-                        <Text style={styles.sectionTitle}>{t('freeMana')}</Text>
-                        <TouchableOpacity
-                            style={[styles.adCard, isAdLoading && styles.adCardLoading]}
-                            onPress={handleWatchAd}
-                            disabled={isAdLoading}
-                            accessibilityLabel={t('watchAd')}
-                            accessibilityRole="button"
-                        >
-                            {isAdLoading ? (
-                                <View style={styles.adLoadingRow}>
-                                    <ActivityIndicator size="small" color={colors.primary} />
-                                    <Text style={styles.adLoadingText}>{t('adLoading')}</Text>
-                                </View>
-                            ) : rewardedAd && rewardedAd.loaded ? (
-                                <Text style={styles.adText}>📺 {t('watchAd')}</Text>
-                            ) : (
-                                <Text style={styles.adTextRetry}>📺 {t('watchAd')} — {t('tapToLoad')}</Text>
-                            )}
-                        </TouchableOpacity>
-                        <Text style={styles.sectionTitle}>{t('buyMana')}</Text>
-
-                        {products.map((product, index) => (
-                            <TouchableOpacity
-                                key={product.productId}
-                                style={[
-                                    styles.packageCard,
-                                    index === 1 && styles.popularCard,
-                                    isPurchasing && styles.disabledCard
-                                ]}
-                                onPress={() => handlePurchase(product.productId)}
-                                disabled={isPurchasing}
-                                accessibilityLabel={product.manaAmount + ' Mana — ' + product.localizedPrice}
-                                accessibilityRole="button"
-                            >
-                                <View>
-                                    <Text style={styles.packageTitle}>{product.manaAmount} Mana ⚡</Text>
-                                    <Text style={styles.packageSub}>{product.localizedPrice}</Text>
-                                </View>
-                                {index === 1 && (
-                                    <View style={styles.badge}>
-                                        <Text style={styles.badgeText}>POPULAR</Text>
+                                {balance <= 0 && (
+                                    <View style={styles.manaWarningBanner}>
+                                        <Text style={styles.manaWarningEmoji}>⚡</Text>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.manaWarningTitle}>{t('manaDepletedTitle')}</Text>
+                                            <Text style={styles.manaWarningText}>{t('manaDepletedMessage')}</Text>
+                                        </View>
                                     </View>
                                 )}
-                                {isPurchasing ? (
-                                    <ActivityIndicator size="small" color={colors.primary} />
-                                ) : (
-                                    <Text style={styles.buyBtn}>{product.localizedPrice}</Text>
-                                )}
-                            </TouchableOpacity>
-                        ))}
 
+                                {/* Free Mana Section */}
+                                <Text style={styles.sectionLabel}>{t('freeMana')}</Text>
+                                <TouchableOpacity
+                                    style={[styles.adRow, isAnonymous && styles.disabledRow]}
+                                    onPress={isAnonymous ? handleLoginRequired : handleWatchAd}
+                                    disabled={!isAnonymous && isAdLoading}
+                                    accessibilityLabel={t('watchAd')}
+                                    accessibilityRole="button"
+                                >
+                                    <View style={styles.adIconWrap}>
+                                        {isAdLoading && !isAnonymous ? (
+                                            <ActivityIndicator size="small" color={colors.primary} />
+                                        ) : (
+                                            <Text style={{ fontSize: 16 }}>📺</Text>
+                                        )}
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.adLabel}>{t('watchAd')}</Text>
+                                        <Text style={styles.adSub}>{t('freeMana')}</Text>
+                                    </View>
+                                    {isAnonymous ? (
+                                        <View style={styles.lockBtn}>
+                                            <Text style={styles.lockBtnText}>🔒 Login</Text>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.adActionBtn}>
+                                            <Text style={styles.adActionBtnText}>{t('watchAd')}</Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
 
-
+                                {/* Buy Mana Section */}
+                                <Text style={styles.sectionLabel}>{t('buyMana')}</Text>
+                                {products.map((product, index) => (
+                                    <TouchableOpacity
+                                        key={product.productId}
+                                        style={[
+                                            styles.packageCard,
+                                            index === 1 && styles.popularCard,
+                                            (isAnonymous || isPurchasing) && styles.disabledCard
+                                        ]}
+                                        onPress={isAnonymous ? handleLoginRequired : () => handlePurchase(product.productId)}
+                                        disabled={!isAnonymous && isPurchasing}
+                                        accessibilityLabel={product.manaAmount + ' Mana — ' + product.localizedPrice}
+                                        accessibilityRole="button"
+                                    >
+                                        <View>
+                                            <Text style={styles.packageTitle}>{product.manaAmount} Mana ⚡</Text>
+                                            <Text style={styles.packageSub}>{product.localizedPrice}</Text>
+                                        </View>
+                                        {index === 1 && (
+                                            <View style={styles.badge}>
+                                                <Text style={styles.badgeText}>POPULAR</Text>
+                                            </View>
+                                        )}
+                                        {isAnonymous ? (
+                                            <View style={styles.lockBtn}>
+                                                <Text style={styles.lockBtnText}>🔒 Login</Text>
+                                            </View>
+                                        ) : isPurchasing ? (
+                                            <ActivityIndicator size="small" color={colors.primary} />
+                                        ) : (
+                                            <Text style={styles.buyBtn}>{product.localizedPrice}</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </>
+                        )}
                     </ScrollView>
                 </View>
             </View>
@@ -438,35 +501,144 @@ const styles = StyleSheet.create({
     content: {
         paddingBottom: spacing.xl,
     },
-    balanceContainer: {
-        alignItems: 'center',
-        marginBottom: spacing.lg,
+
+    // ── Balance Row ──
+    balanceRow: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        justifyContent: 'space-between' as const,
         backgroundColor: colors.background,
         padding: spacing.md,
         borderRadius: borderRadius.lg,
+        marginBottom: spacing.md,
         borderWidth: 1,
         borderColor: colors.surfaceVariant,
     },
     balanceLabel: {
         color: colors.onSurfaceVariant,
-        marginBottom: 4,
+        fontSize: 11,
+        marginBottom: 3,
     },
     balanceValue: {
-        fontSize: 32,
-        fontWeight: 'bold',
+        fontSize: 24,
+        fontWeight: 'bold' as const,
         color: '#FFD700',
     },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: colors.onSurface,
-        marginBottom: spacing.md,
+
+    // ── Lock Pill (anonymous) ──
+    lockPill: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    lockPillText: {
+        fontSize: 10,
+        color: colors.onSurfaceVariant,
+    },
+
+    // ── Account Chip (logged in) ──
+    accountChip: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        backgroundColor: colors.surfaceVariant,
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.07)',
+    },
+    accountAvatar: {
+        fontSize: 12,
+        marginRight: 5,
+    },
+    accountEmailText: {
+        fontSize: 11,
+        color: colors.onSurfaceVariant,
+        flexShrink: 1,
+    },
+
+    // ── Section Label ──
+    sectionLabel: {
+        fontSize: 10,
+        fontWeight: '700' as const,
+        letterSpacing: 1,
+        textTransform: 'uppercase' as const,
+        color: colors.onSurfaceVariant,
+        marginBottom: 8,
         marginTop: spacing.md,
     },
+
+    // ── Ad Row ──
+    adRow: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        backgroundColor: colors.background,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.07)',
+        gap: 12,
+    },
+    disabledRow: {
+        opacity: 0.45,
+    },
+    adIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: 'rgba(124,58,237,0.15)',
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+    },
+    adLabel: {
+        fontSize: 13,
+        fontWeight: '600' as const,
+        color: colors.onSurface,
+    },
+    adSub: {
+        fontSize: 11,
+        color: colors.onSurfaceVariant,
+        marginTop: 2,
+    },
+    adActionBtn: {
+        marginLeft: 'auto' as any,
+        backgroundColor: 'rgba(124,58,237,0.2)',
+        borderWidth: 1,
+        borderColor: 'rgba(124,58,237,0.3)',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+    },
+    adActionBtnText: {
+        fontSize: 11,
+        fontWeight: '700' as const,
+        color: colors.primary,
+    },
+
+    // ── Lock Button ──
+    lockBtn: {
+        backgroundColor: 'rgba(255,255,255,0.07)',
+        borderRadius: 9,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+    },
+    lockBtnText: {
+        fontSize: 12,
+        fontWeight: '700' as const,
+        color: colors.onSurfaceVariant,
+    },
+
+    // ── Package Cards ──
     packageCard: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
         backgroundColor: colors.surfaceVariant,
         padding: spacing.md,
         borderRadius: borderRadius.lg,
@@ -479,28 +651,30 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 215, 0, 0.05)',
     },
     disabledCard: {
-        opacity: 0.6,
+        opacity: 0.45,
     },
     packageTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
+        fontSize: 14,
+        fontWeight: 'bold' as const,
         color: colors.onSurface,
     },
     packageSub: {
         color: colors.onSurfaceVariant,
+        fontSize: 12,
         marginTop: 2,
     },
     buyBtn: {
         backgroundColor: colors.primary,
         color: 'white',
-        fontWeight: 'bold',
-        paddingHorizontal: 16,
+        fontWeight: 'bold' as const,
+        paddingHorizontal: 14,
         paddingVertical: 8,
         borderRadius: borderRadius.md,
-        overflow: 'hidden',
+        overflow: 'hidden' as const,
+        fontSize: 12,
     },
     badge: {
-        position: 'absolute',
+        position: 'absolute' as const,
         top: -10,
         right: 10,
         backgroundColor: '#FFD700',
@@ -509,113 +683,66 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     badgeText: {
-        fontSize: 10,
-        fontWeight: 'bold',
+        fontSize: 9,
+        fontWeight: 'bold' as const,
         color: 'black',
+        letterSpacing: 0.5,
     },
-    adCard: {
-        backgroundColor: colors.surfaceVariant,
-        padding: spacing.md,
-        borderRadius: borderRadius.lg,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.primaryContainer,
-        borderStyle: 'dashed',
-    },
-    adCardLoading: {
-        opacity: 0.7,
-    },
-    adText: {
-        color: colors.primary,
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    adTextRetry: {
-        color: colors.onSurfaceVariant,
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    adLoadingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-    },
-    adLoadingText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 14,
-    },
-    accountContainer: {
-        marginBottom: spacing.lg,
-    },
-    googleCTAContainer: {
-        marginBottom: spacing.lg,
-    },
-    googleCTACard: {
-        backgroundColor: colors.primaryContainer,
-        padding: spacing.lg,
-        borderRadius: borderRadius.xl,
+
+    // ── Login Prompt ──
+    loginPromptContainer: {
         alignItems: 'center' as const,
-        borderWidth: 2,
-        borderColor: colors.primary,
+        paddingVertical: spacing.xl,
+        paddingHorizontal: spacing.md,
     },
-    googleCTAEmoji: {
+    loginPromptEmoji: {
         fontSize: 48,
-        marginBottom: spacing.sm,
+        marginBottom: spacing.md,
     },
-    googleCTATitle: {
-        fontSize: 20,
+    loginPromptTitle: {
+        fontSize: 18,
         fontWeight: 'bold' as const,
         color: colors.onSurface,
         textAlign: 'center' as const,
-        marginBottom: spacing.xs,
+        marginBottom: spacing.sm,
     },
-    googleCTADesc: {
-        fontSize: 14,
+    loginPromptDesc: {
+        fontSize: 13,
         color: colors.onSurfaceVariant,
         textAlign: 'center' as const,
         lineHeight: 20,
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
     },
-    googleCTAButton: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.md,
-        borderRadius: borderRadius.lg,
-        width: '100%' as const,
+    googleButton: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 11,
+        paddingVertical: 13,
+        paddingHorizontal: spacing.lg,
+        width: '100%' as any,
         alignItems: 'center' as const,
+        justifyContent: 'center' as const,
         marginBottom: spacing.sm,
     },
-    googleCTAButtonText: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: 'bold' as const,
+    googleButtonText: {
+        fontSize: 14,
+        fontWeight: '600' as const,
+        color: '#1a1a1a',
     },
-    googleCTANote: {
-        fontSize: 12,
+    cancelButton: {
+        paddingVertical: 8,
+        width: '100%' as any,
+        alignItems: 'center' as const,
+    },
+    cancelButtonText: {
+        fontSize: 13,
         color: colors.onSurfaceVariant,
-        textAlign: 'center' as const,
-        fontStyle: 'italic' as const,
     },
-    accountCard: {
-        backgroundColor: colors.surfaceVariant,
-        padding: spacing.md,
-        borderRadius: borderRadius.lg,
+
+    // ── Mana Warning ──
+    manaWarningBanner: {
         flexDirection: 'row' as const,
         alignItems: 'center' as const,
-        justifyContent: 'space-between' as const,
-    },
-    accountEmail: {
-        color: colors.onSurface,
-        fontWeight: 'bold' as const,
-    },
-    signOutLink: {
-        color: colors.error,
-        fontWeight: 'bold' as const,
-    },
-    manaWarningBanner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.error + '15', // Subtle error background
+        backgroundColor: colors.error + '15',
         marginBottom: spacing.lg,
         padding: spacing.md,
         borderRadius: borderRadius.lg,
@@ -628,17 +755,32 @@ const styles = StyleSheet.create({
     },
     manaWarningTitle: {
         fontSize: 14,
-        fontWeight: 'bold',
+        fontWeight: 'bold' as const,
         color: colors.error,
     },
     manaWarningText: {
         fontSize: 12,
         color: colors.onSurfaceVariant,
     },
-    manaWarningAction: {
-        fontSize: 20,
-        color: colors.error,
-        opacity: 0.5,
-        marginStart: spacing.sm,
+    // ── Reward Banner ──
+    rewardBanner: {
+        backgroundColor: colors.success + '25',
+        borderColor: colors.success + '50',
+        borderWidth: 1,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        alignItems: 'center',
+    },
+    rewardBannerError: {
+        backgroundColor: colors.error + '25',
+        borderColor: colors.error + '50',
+    },
+    rewardBannerText: {
+        color: colors.onSurface,
+        fontSize: 14,
+        fontWeight: '600',
+        textAlign: 'center',
     },
 });
+

@@ -392,7 +392,7 @@ export function onCreditsChanged(callback: (credits: number) => void, explicitUs
         const credits = docSnapshot.data()?.credits || 0;
         console.log('Firebase: Real-time credit update:', credits);
         callback(credits);
-    }, (error) => {
+    }, (error: any) => {
         // permission-denied is expected briefly during auth state transitions (e.g. anonymous→Google link)
         if (error.code === 'firestore/permission-denied') {
             console.warn('Firebase: Credits listener permission-denied (auth transition, will auto-recover)');

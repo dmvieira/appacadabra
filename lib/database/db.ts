@@ -459,3 +459,13 @@ export async function clearOldDismissedUris(olderThanMs: number): Promise<void> 
     const limit = Date.now() - olderThanMs;
     await database.runAsync('DELETE FROM dismissed_uris WHERE timestamp < ?', [limit]);
 }
+
+export async function wipeAllData(): Promise<void> {
+    const database = await getDatabase();
+    await database.execAsync(`
+        DELETE FROM generated_apps;
+        DELETE FROM dismissed_uris;
+        DELETE FROM processed_jobs;
+    `);
+    // Note: app_versions, app_storage, and mana_events are deleted via CASCADE from generated_apps
+}
