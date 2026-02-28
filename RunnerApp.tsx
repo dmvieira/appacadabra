@@ -451,7 +451,7 @@ export default function RunnerApp(props: RunnerAppProps) {
 
     return (
         <SafeAreaProvider>
-            <SafeAreaView style={styles.container} edges={['top']}>
+            <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
                 <RunnerContent key={appId} appId={appId} />
             </SafeAreaView>
         </SafeAreaProvider>
