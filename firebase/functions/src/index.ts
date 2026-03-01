@@ -830,7 +830,14 @@ export const processSpellJob = onDocumentCreated(
         const currentCode = decompressContent(payload.currentCode || "");
         const instruction = decompressContent(payload.instruction || "");
         const selectedContext = payload.selectedContext ? decompressContent(payload.selectedContext) : undefined;
-        const previousEdits = payload.previousEdits;
+        let previousEdits = payload.previousEdits;
+        // limit number of versions sent to model for context (e.g. 10), but always include first version if exists, as it usually contains original instruction
+        if (Array.isArray(previousEdits) && previousEdits.length > 0) {
+            const first = previousEdits[0];
+            const last10 = previousEdits.slice(-10);
+            const last10NoFirst = last10.filter(e => e.version !== first.version);
+            previousEdits = [first, ...last10NoFirst];
+        }
 
         const userRef = db.collection("users").doc(uid);
 

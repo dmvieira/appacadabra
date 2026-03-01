@@ -112,6 +112,7 @@ export default function HomeScreen() {
     const [firstRunSetupTarget, setFirstRunSetupTarget] = useState<GeneratedApp | null>(null);
     const [notifCounts, setNotifCounts] = useState<Record<number, number>>({});
     const [coachStep, setCoachStep] = useState(0); // 0=off, 1=dots menu hint, 2=edit hint
+    const [isReordering, setIsReordering] = useState(false);
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -959,13 +960,14 @@ export default function HomeScreen() {
                     contentContainerStyle={[styles.list, { paddingBottom: listBottomPadding }]}
                     onScroll={onScroll}
                     scrollEventThrottle={16}
+                    scrollEnabled={!isReordering}
                     refreshControl={
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={onRefresh}
                             colors={[colors.primary]}
                             tintColor={colors.primary}
-                            enabled={isAtTop || refreshing} // Only enable if at top or already refreshing
+                            enabled={!isReordering && (isAtTop || refreshing)} // Disable when reordering
                         />
                     }
                     ListHeaderComponent={
@@ -1001,6 +1003,8 @@ export default function HomeScreen() {
                                 notificationCount={notifCounts[item.id] || 0}
                                 coachStep={!isPlaceholder && !isLocked && filteredApps.indexOf(item) === 0 ? coachStep : 0}
                                 onCoachDismiss={handleCoachDismiss}
+                                onDragStart={() => setIsReordering(true)}
+                                onDragEnd={() => setIsReordering(false)}
                             />
                         );
                     }}

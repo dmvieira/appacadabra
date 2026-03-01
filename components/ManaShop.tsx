@@ -373,9 +373,9 @@ export function ManaShop() {
                                         </Text>
                                     </View>
                                     {isAnonymous ? (
-                                        <View style={styles.lockPill}>
+                                        <TouchableOpacity style={styles.lockPill} onPress={handleLoginRequired}>
                                             <Text style={styles.lockPillText}>🔒 {t('noLogin')}</Text>
-                                        </View>
+                                        </TouchableOpacity>
                                     ) : (
                                         <View style={styles.accountChip}>
                                             <Text style={styles.accountAvatar}>👤</Text>

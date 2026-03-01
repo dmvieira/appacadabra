@@ -14,6 +14,7 @@ import {
     GestureResponderEvent,
     PanResponderGestureState,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { GeneratedApp } from '../lib/database/types';
 import { colors } from '../lib/theme';
 import { getCurrentLanguage, t } from '../lib/i18n';
@@ -74,6 +75,8 @@ interface AppCardProps {
     /** 0 = no coach mark, 1 = spotlight ⋯ menu, 2 = spotlight ✏️ edit */
     coachStep?: number;
     onCoachDismiss?: () => void;
+    onDragStart?: () => void;
+    onDragEnd?: () => void;
 }
 
 export function AppCard({
@@ -81,8 +84,10 @@ export function AppCard({
     onShare, onIconPress, onShortcut, onToggleBiometric, onViewSchedules,
     onMoveUp, onMoveDown, isFirst, isLast,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
+    onDragStart, onDragEnd,
 }: AppCardProps) {
     const [showSheet, setShowSheet] = useState(false);
+    const [dragging, setDragging] = useState(false);
 
     const locale = getCurrentLanguage() || 'en';
     const d = new Date(app.lastUpdated);
@@ -111,8 +116,24 @@ export function AppCard({
     const jiggleAnim = React.useRef(new Animated.Value(0)).current;
     const translateY = React.useRef(new Animated.Value(0)).current;
     const isDragging = React.useRef(false);
+    const isMoving = React.useRef(false);
+    const offsetY = React.useRef(0); // tracks position shifts from swaps
     const dragAccum = React.useRef(0); // accumulated drag distance
+    const ITEM_HEIGHT = 144; // approx card height + margin
     const SWAP_THRESHOLD = 70; // pixels to drag before swapping
+
+    // Refs to keep props up to date for PanResponder closure
+    const isFirstRef = React.useRef(isFirst);
+    const isLastRef = React.useRef(isLast);
+    const onMoveUpRef = React.useRef(onMoveUp);
+    const onMoveDownRef = React.useRef(onMoveDown);
+
+    React.useEffect(() => {
+        isFirstRef.current = isFirst;
+        isLastRef.current = isLast;
+        onMoveUpRef.current = onMoveUp;
+        onMoveDownRef.current = onMoveDown;
+    }, [isFirst, isLast, onMoveUp, onMoveDown]);
 
     const startJiggle = () => {
         Animated.loop(
@@ -129,6 +150,10 @@ export function AppCard({
         jiggleAnim.setValue(0);
         translateY.setValue(0);
         isDragging.current = false;
+        isMoving.current = false;
+        offsetY.current = 0;
+        if (dragging) setDragging(false);
+        onDragEnd?.();
         dragAccum.current = 0;
     };
 
@@ -136,22 +161,32 @@ export function AppCard({
         PanResponder.create({
             onStartShouldSetPanResponder: () => false,
             onMoveShouldSetPanResponder: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
-                // Only capture if we're in drag mode and moving vertically
-                return isDragging.current && Math.abs(gs.dy) > 5;
+                // Only capture if we're in drag mode and moving vertically enough
+                return isDragging.current && Math.abs(gs.dy) > 2;
+            },
+            onMoveShouldSetPanResponderCapture: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
+                // Force priority when dragging
+                return isDragging.current && Math.abs(gs.dy) > 2;
+            },
+            onPanResponderGrant: () => {
+                isMoving.current = true;
             },
             onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
                 if (!isDragging.current) return;
-                translateY.setValue(gs.dy);
+
+                // Calculate position including offsets from previous swaps in this gesture
+                const currentDy = gs.dy + offsetY.current;
+                translateY.setValue(currentDy);
 
                 // Check if we've dragged enough to swap
-                if (gs.dy < -SWAP_THRESHOLD && !isFirst) {
-                    isDragging.current = false;
-                    stopJiggle();
-                    onMoveUp?.();
-                } else if (gs.dy > SWAP_THRESHOLD && !isLast) {
-                    isDragging.current = false;
-                    stopJiggle();
-                    onMoveDown?.();
+                if (currentDy < -SWAP_THRESHOLD && !isFirstRef.current) {
+                    offsetY.current += ITEM_HEIGHT;
+                    onMoveUpRef.current?.();
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                } else if (currentDy > SWAP_THRESHOLD && !isLastRef.current) {
+                    offsetY.current -= ITEM_HEIGHT;
+                    onMoveDownRef.current?.();
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }
             },
             onPanResponderRelease: () => {
@@ -160,6 +195,7 @@ export function AppCard({
             onPanResponderTerminate: () => {
                 stopJiggle();
             },
+            onPanResponderTerminationRequest: () => !isDragging.current, // Stay locked if dragging
         })
     ).current;
 
@@ -170,325 +206,340 @@ export function AppCard({
 
     return (
         <Animated.View
+            collapsable={false}
             style={[
                 styles.card,
                 {
-                    transform: [
-                        { rotate: jiggleRotation },
-                        { translateY: translateY },
-                    ],
+                    transform: [{ translateY }],
                 },
-                isDragging.current && { zIndex: 100, elevation: 20 },
+                dragging && { zIndex: 100, elevation: 20 },
             ]}
             accessible={false}
             {...panResponder.panHandlers}
         >
-            {/* ── Card main row ───────────────────────────────────────── */}
-            <TouchableOpacity
-                style={styles.cardMain}
-                activeOpacity={0.9}
-                onLongPress={() => {
-                    if (!isInteractionDisabled && (onMoveUp || onMoveDown)) {
-                        isDragging.current = true;
-                        startJiggle();
-                    }
+            <Animated.View
+                style={{
+                    flex: 1,
+                    transform: [{ rotate: jiggleRotation }],
                 }}
-                onPress={() => {
-                    if (!isInteractionDisabled) onRun();
-                }}
-                delayLongPress={400}
             >
-                {/* Avatar with optional notification badge */}
-                <View style={styles.avatarWrap}>
-                    <View style={[styles.cardAvatar, { backgroundColor: avatarColors.bg }]}>
+                {/* ── Card main row ───────────────────────────────────────── */}
+                <TouchableOpacity
+                    style={styles.cardMain}
+                    activeOpacity={0.9}
+                    onLongPress={() => {
+                        if (!isInteractionDisabled && (onMoveUp || onMoveDown)) {
+                            isDragging.current = true;
+                            setDragging(true);
+                            onDragStart?.();
+                            startJiggle();
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        }
+                    }}
+                    onPressOut={() => {
+                        // On Android, onPressOut fires as soon as PanResponder captures travel.
+                        // We check isMoving to avoid stopping the jiggle/drag prematurely.
+                        if (isDragging.current && !isMoving.current) {
+                            stopJiggle();
+                        }
+                    }}
+                    onPress={() => {
+                        if (!isInteractionDisabled) onRun();
+                    }}
+                    delayLongPress={400}
+                >
+                    {/* Avatar with optional notification badge */}
+                    <View style={styles.avatarWrap}>
+                        <View style={[styles.cardAvatar, { backgroundColor: avatarColors.bg }]}>
+                            {isPlaceholder ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : app.iconPath ? (
+                                <Image source={{ uri: app.iconPath }} style={styles.avatarImage} />
+                            ) : (
+                                <Text style={[styles.avatarInitials, { color: avatarColors.fg }]} numberOfLines={1}>
+                                    {app.name.slice(0, 2).toUpperCase()}
+                                </Text>
+                            )}
+                            {!!app.requiresBiometric && (
+                                <View style={styles.lockBadge}>
+                                    <Text style={styles.lockBadgeIcon}>🔒</Text>
+                                </View>
+                            )}
+                        </View>
+                        {hasNotifs && (
+                            <View style={styles.notifBadge} accessibilityLabel={t('notifCountScheduled', { count: notificationCount })}>
+                                <Text style={styles.notifBadgeIcon}>🔔</Text>
+                                <Text style={styles.notifBadgeText}>{notificationCount}</Text>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Info */}
+                    <View style={styles.cardInfo}>
+                        <Text style={styles.cardTitle} numberOfLines={1}>{app.name}</Text>
+
                         {isPlaceholder ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                        ) : app.iconPath ? (
-                            <Image source={{ uri: app.iconPath }} style={styles.avatarImage} />
-                        ) : (
-                            <Text style={[styles.avatarInitials, { color: avatarColors.fg }]} numberOfLines={1}>
-                                {app.name.slice(0, 2).toUpperCase()}
+                            <Text style={[styles.cardMeta, { color: colors.primary, fontStyle: 'italic' }]}>
+                                {t('generatingApp')}
                             </Text>
-                        )}
-                        {!!app.requiresBiometric && (
-                            <View style={styles.lockBadge}>
-                                <Text style={styles.lockBadgeIcon}>🔒</Text>
-                            </View>
-                        )}
-                    </View>
-                    {hasNotifs && (
-                        <View style={styles.notifBadge} accessibilityLabel={t('notifCountScheduled', { count: notificationCount })}>
-                            <Text style={styles.notifBadgeIcon}>🔔</Text>
-                            <Text style={styles.notifBadgeText}>{notificationCount}</Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Info */}
-                <View style={styles.cardInfo}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>{app.name}</Text>
-
-                    {isPlaceholder ? (
-                        <Text style={[styles.cardMeta, { color: colors.primary, fontStyle: 'italic' }]}>
-                            {t('generatingApp')}
-                        </Text>
-                    ) : isLocked ? (
-                        <Text style={[styles.cardMeta, { color: colors.primary, fontStyle: 'italic' }]}>
-                            {t('updatingApp')}
-                        </Text>
-                    ) : (
-                        <>
-                            {!!app.shortDescription && (
-                                <Text style={styles.cardDesc} numberOfLines={2}>{app.shortDescription}</Text>
-                            )}
-                        </>
-                    )}
-                </View>
-
-                {/* Action buttons — always normal */}
-                {!isInteractionDisabled && (
-                    <View style={styles.cardActions}>
-                        <TouchableOpacity
-                            style={[styles.btnIcon, coachStep === 2 && styles.btnIconHighlight]}
-                            onPress={() => onEdit()}
-                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                            accessibilityLabel={t('editWithAI')}
-                            accessibilityRole="button"
-                        >
-                            <Text style={styles.btnIconText}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.btnIcon, coachStep === 1 && styles.btnIconHighlight]}
-                            onPress={() => setShowSheet(true)}
-                            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                            accessibilityLabel={t('options')}
-                            accessibilityRole="button"
-                        >
-                            <Text style={styles.btnIconDots}>⋯</Text>
-                        </TouchableOpacity>
-
-                        {/* Coach mark tooltip */}
-                        {!!coachStep && (
-                            <View style={styles.coachBubble}>
-                                <View style={styles.coachArrow} />
-                                <Text style={styles.coachStep}>
-                                    {coachStep === 1 ? '1 ' + t('coachOf') + ' 2' : '2 ' + t('coachOf') + ' 2'}
-                                </Text>
-                                <Text style={styles.coachText}>
-                                    {coachStep === 1
-                                        ? t('coachMenuHint')
-                                        : t('coachEditHint')
-                                    }
-                                </Text>
-                                <TouchableOpacity
-                                    style={styles.coachDismissBtn}
-                                    onPress={onCoachDismiss}
-                                    activeOpacity={0.7}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={coachStep === 1 ? t('coachNext') : t('coachGotIt')}
-                                >
-                                    <Text style={styles.coachDismissText}>
-                                        {coachStep === 1 ? t('coachNext') : t('coachGotIt')}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                    </View>
-                )}
-            </TouchableOpacity>
-
-            {/* ── Card footer ──────────────────────────────────────── */}
-            {!isInteractionDisabled && (
-                <View style={styles.cardFooter}>
-                    <View style={styles.usage}>
-                        <View style={[styles.usageDot, { backgroundColor: manaColor }]} />
-                        <Text style={styles.usageText}>⚡ {manaStr} {periodLabel}</Text>
-                    </View>
-                    <TouchableOpacity
-                        style={styles.btnOpen}
-                        onPress={onRun}
-                        activeOpacity={0.8}
-                        accessibilityLabel={`${t('openSpell')} ${app.name}`}
-                        accessibilityRole="button"
-                    >
-                        <Text style={styles.btnOpenText}>{t('openSpell')} ✨</Text>
-                    </TouchableOpacity>
-                </View>
-            )
-            }
-
-            {/* ── Action Sheet (Bottom Sheet) ────────────────────────── */}
-            <Modal
-                visible={showSheet}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setShowSheet(false)}
-            >
-                <Pressable style={styles.sheetOverlay} onPress={() => setShowSheet(false)}>
-                    <Pressable style={styles.sheet}>
-                        <View style={styles.sheetHandle} />
-
-                        {/* Sheet header with avatar */}
-                        <View style={styles.sheetHeader}>
-                            <View style={[styles.sheetAvatar, { backgroundColor: avatarColors.bg }]}>
-                                {app.iconPath ? (
-                                    <Image source={{ uri: app.iconPath }} style={styles.sheetAvatarImage} />
-                                ) : (
-                                    <Text style={[styles.sheetAvatarInitials, { color: avatarColors.fg }]}>
-                                        {app.name.slice(0, 2).toUpperCase()}
-                                    </Text>
+                        ) : isLocked ? (
+                            <Text style={[styles.cardMeta, { color: colors.primary, fontStyle: 'italic' }]}>
+                                {t('updatingApp')}
+                            </Text>
+                        ) : (
+                            <>
+                                {!!app.shortDescription && (
+                                    <Text style={styles.cardDesc} numberOfLines={2}>{app.shortDescription}</Text>
                                 )}
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.sheetName} numberOfLines={1}>{app.name}</Text>
-                                <Text style={styles.sheetSub}>v{app.currentVersion} • {formattedDate}</Text>
-                            </View>
+                            </>
+                        )}
+                    </View>
+
+                    {/* Action buttons — always normal */}
+                    {!isInteractionDisabled && (
+                        <View style={styles.cardActions}>
                             <TouchableOpacity
-                                style={styles.sheetClose}
-                                onPress={() => setShowSheet(false)}
+                                style={[styles.btnIcon, coachStep === 2 && styles.btnIconHighlight]}
+                                onPress={() => onEdit()}
+                                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                                accessibilityLabel={t('editWithAI')}
                                 accessibilityRole="button"
-                                accessibilityLabel={t('cancel')}
                             >
-                                <Text style={styles.sheetCloseText}>✕</Text>
+                                <Text style={styles.btnIconText}>✏️</Text>
                             </TouchableOpacity>
-                        </View>
-
-                        {/* Sheet items */}
-                        <View style={styles.sheetBody}>
-                            {/* ── Personalization ── */}
-
-                            {/* Edit spell details (name, desc) */}
                             <TouchableOpacity
-                                style={styles.sheetItem}
-                                onPress={() => { setShowSheet(false); onRename(); }}
+                                style={[styles.btnIcon, coachStep === 1 && styles.btnIconHighlight]}
+                                onPress={() => setShowSheet(true)}
+                                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                                accessibilityLabel={t('options')}
                                 accessibilityRole="button"
-                                accessibilityLabel={t('editAppDetails')}
                             >
-                                <View style={styles.sheetItemIconWrap}>
-                                    <Text style={styles.sheetItemIconEmoji}>📝</Text>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.sheetItemTitle}>{t('editAppDetails')}</Text>
-                                    <Text style={styles.sheetItemSub}>{t('editDetailsSub')}</Text>
-                                </View>
+                                <Text style={styles.btnIconDots}>⋯</Text>
                             </TouchableOpacity>
 
-                            {/* Choose icon */}
-                            {onIconPress && (
-                                <TouchableOpacity
-                                    style={styles.sheetItem}
-                                    onPress={() => { setShowSheet(false); onIconPress(); }}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('chooseIcon')}
-                                >
-                                    <View style={styles.sheetItemIconWrap}>
-                                        <Text style={styles.sheetItemIconEmoji}>🖼️</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.sheetItemTitle}>{t('chooseIcon')}</Text>
-                                        <Text style={styles.sheetItemSub}>{t('iconCostHint')}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            )}
-
-                            {/* ── Access ── */}
-
-                            {/* Add to home screen */}
-                            {onShortcut && (
-                                <TouchableOpacity
-                                    style={styles.sheetItem}
-                                    onPress={() => { setShowSheet(false); onShortcut(); }}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('createShortcut')}
-                                >
-                                    <View style={styles.sheetItemIconWrap}>
-                                        <Text style={styles.sheetItemIconEmoji}>🏠</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.sheetItemTitle}>{t('createShortcut')}</Text>
-                                        <Text style={styles.sheetItemSub}>{t('shortcutSubtitle')}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            )}
-
-                            {/* Biometric toggle */}
-                            {onToggleBiometric && (
-                                <TouchableOpacity
-                                    style={styles.sheetItem}
-                                    onPress={() => { setShowSheet(false); onToggleBiometric(); }}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
-                                >
-                                    <View style={styles.sheetItemIconWrap}>
-                                        <Text style={styles.sheetItemIconEmoji}>{app.requiresBiometric ? '🔓' : '🔒'}</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.sheetItemTitle}>
-                                            {app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
+                            {/* Coach mark tooltip */}
+                            {!!coachStep && (
+                                <View style={styles.coachBubble}>
+                                    <View style={styles.coachArrow} />
+                                    <Text style={styles.coachStep}>
+                                        {coachStep === 1 ? '1 ' + t('coachOf') + ' 2' : '2 ' + t('coachOf') + ' 2'}
+                                    </Text>
+                                    <Text style={styles.coachText}>
+                                        {coachStep === 1
+                                            ? t('coachMenuHint')
+                                            : t('coachEditHint')
+                                        }
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={styles.coachDismissBtn}
+                                        onPress={onCoachDismiss}
+                                        activeOpacity={0.7}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={coachStep === 1 ? t('coachNext') : t('coachGotIt')}
+                                    >
+                                        <Text style={styles.coachDismissText}>
+                                            {coachStep === 1 ? t('coachNext') : t('coachGotIt')}
                                         </Text>
-                                    </View>
-                                </TouchableOpacity>
+                                    </TouchableOpacity>
+                                </View>
                             )}
+                        </View>
+                    )}
+                </TouchableOpacity>
 
-                            {/* ── Extras ── */}
+                {/* ── Card footer ──────────────────────────────────────── */}
+                {!isInteractionDisabled && (
+                    <View style={styles.cardFooter}>
+                        <View style={styles.usage}>
+                            <View style={[styles.usageDot, { backgroundColor: manaColor }]} />
+                            <Text style={styles.usageText}>⚡ {manaStr} {periodLabel}</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.btnOpen}
+                            onPress={onRun}
+                            activeOpacity={0.8}
+                            accessibilityLabel={`${t('openSpell')} ${app.name}`}
+                            accessibilityRole="button"
+                        >
+                            <Text style={styles.btnOpenText}>{t('openSpell')} ✨</Text>
+                        </TouchableOpacity>
+                    </View>
+                )
+                }
 
-                            {/* Scheduled notifications */}
-                            {onViewSchedules && (
-                                <TouchableOpacity
-                                    style={styles.sheetItem}
-                                    onPress={() => { setShowSheet(false); onViewSchedules(); }}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('scheduledNotifications')}
-                                >
-                                    <View style={styles.sheetItemIconWrap}>
-                                        <Text style={styles.sheetItemIconEmoji}>🔔</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.sheetItemTitle}>{t('scheduledNotifications')}</Text>
-                                        {hasNotifs && (
-                                            <Text style={styles.sheetItemSub}>
-                                                {t('notifCountScheduled', { count: notificationCount })}
-                                            </Text>
-                                        )}
-                                    </View>
-                                </TouchableOpacity>
-                            )}
+                {/* ── Action Sheet (Bottom Sheet) ────────────────────────── */}
+                <Modal
+                    visible={showSheet}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowSheet(false)}
+                >
+                    <Pressable style={styles.sheetOverlay} onPress={() => setShowSheet(false)}>
+                        <Pressable style={styles.sheet}>
+                            <View style={styles.sheetHandle} />
 
-                            {/* Share */}
-                            {onShare && (
-                                <TouchableOpacity
-                                    style={styles.sheetItem}
-                                    onPress={() => { setShowSheet(false); onShare(); }}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={t('shareSpell')}
-                                >
-                                    <View style={styles.sheetItemIconWrap}>
-                                        <Text style={styles.sheetItemIconEmoji}>📤</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.sheetItemTitle}>{t('shareSpell')}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            )}
-
-                            {/* Delete */}
-                            <TouchableOpacity
-                                style={[styles.sheetItem, styles.sheetItemDanger]}
-                                onPress={() => { setShowSheet(false); onDelete(); }}
-                                accessibilityRole="button"
-                                accessibilityLabel={t('delete')}
-                            >
-                                <View style={[styles.sheetItemIconWrap, styles.sheetItemIconDanger]}>
-                                    <Text style={styles.sheetItemIconEmoji}>🗑️</Text>
+                            {/* Sheet header with avatar */}
+                            <View style={styles.sheetHeader}>
+                                <View style={[styles.sheetAvatar, { backgroundColor: avatarColors.bg }]}>
+                                    {app.iconPath ? (
+                                        <Image source={{ uri: app.iconPath }} style={styles.sheetAvatarImage} />
+                                    ) : (
+                                        <Text style={[styles.sheetAvatarInitials, { color: avatarColors.fg }]}>
+                                            {app.name.slice(0, 2).toUpperCase()}
+                                        </Text>
+                                    )}
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={[styles.sheetItemTitle, { color: '#f87171' }]}>{t('delete')}</Text>
+                                    <Text style={styles.sheetName} numberOfLines={1}>{app.name}</Text>
+                                    <Text style={styles.sheetSub}>v{app.currentVersion} • {formattedDate}</Text>
                                 </View>
-                            </TouchableOpacity>
-                        </View>
+                                <TouchableOpacity
+                                    style={styles.sheetClose}
+                                    onPress={() => setShowSheet(false)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('cancel')}
+                                >
+                                    <Text style={styles.sheetCloseText}>✕</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Sheet items */}
+                            <View style={styles.sheetBody}>
+                                {/* ── Personalization ── */}
+
+                                {/* Edit spell details (name, desc) */}
+                                <TouchableOpacity
+                                    style={styles.sheetItem}
+                                    onPress={() => { setShowSheet(false); onRename(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('editAppDetails')}
+                                >
+                                    <View style={styles.sheetItemIconWrap}>
+                                        <Text style={styles.sheetItemIconEmoji}>📝</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.sheetItemTitle}>{t('editAppDetails')}</Text>
+                                        <Text style={styles.sheetItemSub}>{t('editDetailsSub')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+
+                                {/* Choose icon */}
+                                {onIconPress && (
+                                    <TouchableOpacity
+                                        style={styles.sheetItem}
+                                        onPress={() => { setShowSheet(false); onIconPress(); }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('chooseIcon')}
+                                    >
+                                        <View style={styles.sheetItemIconWrap}>
+                                            <Text style={styles.sheetItemIconEmoji}>🖼️</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('chooseIcon')}</Text>
+                                            <Text style={styles.sheetItemSub}>{t('iconCostHint')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* ── Access ── */}
+
+                                {/* Add to home screen */}
+                                {onShortcut && (
+                                    <TouchableOpacity
+                                        style={styles.sheetItem}
+                                        onPress={() => { setShowSheet(false); onShortcut(); }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('createShortcut')}
+                                    >
+                                        <View style={styles.sheetItemIconWrap}>
+                                            <Text style={styles.sheetItemIconEmoji}>🏠</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('createShortcut')}</Text>
+                                            <Text style={styles.sheetItemSub}>{t('shortcutSubtitle')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Biometric toggle */}
+                                {onToggleBiometric && (
+                                    <TouchableOpacity
+                                        style={styles.sheetItem}
+                                        onPress={() => { setShowSheet(false); onToggleBiometric(); }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
+                                    >
+                                        <View style={styles.sheetItemIconWrap}>
+                                            <Text style={styles.sheetItemIconEmoji}>{app.requiresBiometric ? '🔓' : '🔒'}</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>
+                                                {app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* ── Extras ── */}
+
+                                {/* Scheduled notifications */}
+                                {onViewSchedules && (
+                                    <TouchableOpacity
+                                        style={styles.sheetItem}
+                                        onPress={() => { setShowSheet(false); onViewSchedules(); }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('scheduledNotifications')}
+                                    >
+                                        <View style={styles.sheetItemIconWrap}>
+                                            <Text style={styles.sheetItemIconEmoji}>🔔</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('scheduledNotifications')}</Text>
+                                            {hasNotifs && (
+                                                <Text style={styles.sheetItemSub}>
+                                                    {t('notifCountScheduled', { count: notificationCount })}
+                                                </Text>
+                                            )}
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Share */}
+                                {onShare && (
+                                    <TouchableOpacity
+                                        style={styles.sheetItem}
+                                        onPress={() => { setShowSheet(false); onShare(); }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('shareSpell')}
+                                    >
+                                        <View style={styles.sheetItemIconWrap}>
+                                            <Text style={styles.sheetItemIconEmoji}>📤</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('shareSpell')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Delete */}
+                                <TouchableOpacity
+                                    style={[styles.sheetItem, styles.sheetItemDanger]}
+                                    onPress={() => { setShowSheet(false); onDelete(); }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('delete')}
+                                >
+                                    <View style={[styles.sheetItemIconWrap, styles.sheetItemIconDanger]}>
+                                        <Text style={styles.sheetItemIconEmoji}>🗑️</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.sheetItemTitle, { color: '#f87171' }]}>{t('delete')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
+                        </Pressable>
                     </Pressable>
-                </Pressable>
-            </Modal>
+                </Modal>
+            </Animated.View>
         </Animated.View>
     );
 }
@@ -496,7 +547,6 @@ export function AppCard({
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-    // Card shell
     card: {
         backgroundColor: '#111827',
         borderRadius: 18,
@@ -505,17 +555,15 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         overflow: 'visible',
     },
-
-    // ── Card main row ──
     cardMain: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 16,
         padding: 16,
         paddingBottom: 10,
+        zIndex: 2,
+        elevation: 0.1,
     },
-
-    // Avatar
     avatarWrap: {
         position: 'relative',
         flexShrink: 0,
@@ -544,8 +592,6 @@ const styles = StyleSheet.create({
     lockBadgeIcon: {
         fontSize: 10,
     },
-
-    // Notification badge
     notifBadge: {
         position: 'absolute',
         top: -6,
@@ -569,8 +615,6 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '900',
     },
-
-    // Info
     cardInfo: {
         flex: 1,
         minWidth: 0,
@@ -592,8 +636,6 @@ const styles = StyleSheet.create({
         lineHeight: 19,
         marginTop: 3,
     },
-
-    // Action buttons
     cardActions: {
         flexDirection: 'column',
         gap: 6,
@@ -625,8 +667,6 @@ const styles = StyleSheet.create({
     btnIconDisabled: {
         opacity: 0.4,
     },
-
-    // ── Coach mark bubble ──
     coachBubble: {
         position: 'absolute',
         top: 84,
@@ -678,14 +718,13 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '800',
     },
-
-    // ── Card footer ──
     cardFooter: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingBottom: 14,
+        zIndex: 1,
     },
     usage: {
         flexDirection: 'row',
@@ -713,8 +752,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '800',
     },
-
-    // ── Bottom sheet ──
     sheetOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.55)',
@@ -735,8 +772,6 @@ const styles = StyleSheet.create({
         marginTop: 12,
         marginBottom: 20,
     },
-
-    // Sheet header
     sheetHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -787,8 +822,6 @@ const styles = StyleSheet.create({
         color: '#9CA3AF',
         fontSize: 16,
     },
-
-    // Sheet body
     sheetBody: {
         paddingHorizontal: 20,
         paddingTop: 16,

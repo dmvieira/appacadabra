@@ -185,16 +185,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     _processCompletedJob: async (job: Job) => {
         console.log('[Store] Processing completed job:', job.id, 'Action:', job.action);
 
-        // Cleanup placeholders/locks
-        if (job.action === 'create') {
-            set(state => ({
-                creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
-            }));
-        } else if (job.action === 'edit' && job.payload?.appId) {
-            set(state => ({
-                updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId)
-            }));
-        }
+        // Cleanup placeholders/locks moved to end of action-specific blocks
 
         if (!job.result) {
             console.warn('[Store] Job completed but has no result:', job.id);
@@ -274,6 +265,11 @@ export const useAppStore = create<AppState>((set, get) => ({
                     await get().loadApps();
                     set({ statusMessage: t('appReadyNotify', { name: appName }), lastCreatedAppId: id });
 
+                    // Cleanup placeholder at the very end
+                    set(state => ({
+                        creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
+                    }));
+
                     // Schedule Local Notification
                     await Notifications.scheduleNotificationAsync({
                         content: {
@@ -345,6 +341,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                         // Notify Listeners (RunnerApp)
                         DeviceEventEmitter.emit('APP_UPDATED', { appId });
+
+                        // Unlock card at the very end
+                        set(state => ({
+                            updatingAppIds: state.updatingAppIds.filter(id => id !== appId)
+                        }));
                     }
                 }
             }
