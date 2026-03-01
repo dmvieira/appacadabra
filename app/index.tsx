@@ -91,6 +91,16 @@ export default function HomeScreen() {
     const [showSignOutModal, setShowSignOutModal] = useState(false);
     const [signOutBanner, setSignOutBanner] = useState<'keep' | 'clear' | null>(null);
 
+    // Auto-dismiss sign-out banner after 1 minute
+    useEffect(() => {
+        if (signOutBanner) {
+            const timer = setTimeout(() => {
+                setSignOutBanner(null);
+            }, 60000); // 1 minute
+            return () => clearTimeout(timer);
+        }
+    }, [signOutBanner]);
+
     // Dialog states
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [editTarget, setEditTarget] = useState<GeneratedApp | null>(null);
