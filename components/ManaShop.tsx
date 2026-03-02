@@ -296,9 +296,13 @@ export function ManaShop() {
                         { text: t('cancel'), style: 'cancel' },
                         {
                             text: t('signInGoogle'), onPress: async () => {
+                                const anonBalance = useManaStore.getState().balance;
                                 try {
                                     await firebase.signInWithGoogle();
                                     await refreshUser();
+                                    if (anonBalance > 0) {
+                                        await firebase.addCredits(anonBalance, 'device_merge');
+                                    }
                                     setShowLoginPrompt(false);
                                 } catch (err) {
                                     Alert.alert(t('error'), t('signInFailed'));
