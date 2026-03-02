@@ -9,12 +9,7 @@ import {
     Pressable,
     ActivityIndicator,
     Platform,
-    Animated,
-    PanResponder,
-    GestureResponderEvent,
-    PanResponderGestureState,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { GeneratedApp } from '../lib/database/types';
 import { colors } from '../lib/theme';
 import { getCurrentLanguage, t } from '../lib/i18n';
@@ -65,29 +60,22 @@ interface AppCardProps {
     onShortcut?: () => void;
     onToggleBiometric?: () => void;
     onViewSchedules?: () => void;
-    onMoveUp?: () => void;
-    onMoveDown?: () => void;
-    isFirst?: boolean;
-    isLast?: boolean;
     isPlaceholder?: boolean;
     isLocked?: boolean;
     notificationCount?: number;
     /** 0 = no coach mark, 1 = spotlight ⋯ menu, 2 = spotlight ✏️ edit */
     coachStep?: number;
     onCoachDismiss?: () => void;
-    onDragStart?: () => void;
-    onDragEnd?: () => void;
+    onLongPress?: () => void;
 }
 
 export function AppCard({
     app, onRun, onEdit, onDelete, onRename,
     onShare, onIconPress, onShortcut, onToggleBiometric, onViewSchedules,
-    onMoveUp, onMoveDown, isFirst, isLast,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
-    onDragStart, onDragEnd,
+    onLongPress,
 }: AppCardProps) {
     const [showSheet, setShowSheet] = useState(false);
-    const [dragging, setDragging] = useState(false);
 
     const locale = getCurrentLanguage() || 'en';
     const d = new Date(app.lastUpdated);
@@ -112,137 +100,14 @@ export function AppCard({
 
     const hasNotifs = (notificationCount ?? 0) > 0;
 
-    // ── Jiggle + Drag reorder ──
-    const jiggleAnim = React.useRef(new Animated.Value(0)).current;
-    const translateY = React.useRef(new Animated.Value(0)).current;
-    const isDragging = React.useRef(false);
-    const isMoving = React.useRef(false);
-    const offsetY = React.useRef(0); // tracks position shifts from swaps
-    const dragAccum = React.useRef(0); // accumulated drag distance
-    const ITEM_HEIGHT = 144; // approx card height + margin
-    const SWAP_THRESHOLD = 70; // pixels to drag before swapping
-
-    // Refs to keep props up to date for PanResponder closure
-    const isFirstRef = React.useRef(isFirst);
-    const isLastRef = React.useRef(isLast);
-    const onMoveUpRef = React.useRef(onMoveUp);
-    const onMoveDownRef = React.useRef(onMoveDown);
-
-    React.useEffect(() => {
-        isFirstRef.current = isFirst;
-        isLastRef.current = isLast;
-        onMoveUpRef.current = onMoveUp;
-        onMoveDownRef.current = onMoveDown;
-    }, [isFirst, isLast, onMoveUp, onMoveDown]);
-
-    const startJiggle = () => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(jiggleAnim, { toValue: 1, duration: 60, useNativeDriver: true }),
-                Animated.timing(jiggleAnim, { toValue: -1, duration: 120, useNativeDriver: true }),
-                Animated.timing(jiggleAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
-            ])
-        ).start();
-    };
-
-    const stopJiggle = () => {
-        jiggleAnim.stopAnimation();
-        jiggleAnim.setValue(0);
-        translateY.setValue(0);
-        isDragging.current = false;
-        isMoving.current = false;
-        offsetY.current = 0;
-        if (dragging) setDragging(false);
-        onDragEnd?.();
-        dragAccum.current = 0;
-    };
-
-    const panResponder = React.useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => false,
-            onMoveShouldSetPanResponder: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
-                // Only capture if we're in drag mode and moving vertically enough
-                return isDragging.current && Math.abs(gs.dy) > 2;
-            },
-            onMoveShouldSetPanResponderCapture: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
-                // Force priority when dragging
-                return isDragging.current && Math.abs(gs.dy) > 2;
-            },
-            onPanResponderGrant: () => {
-                isMoving.current = true;
-            },
-            onPanResponderMove: (_: GestureResponderEvent, gs: PanResponderGestureState) => {
-                if (!isDragging.current) return;
-
-                // Calculate position including offsets from previous swaps in this gesture
-                const currentDy = gs.dy + offsetY.current;
-                translateY.setValue(currentDy);
-
-                // Check if we've dragged enough to swap
-                if (currentDy < -SWAP_THRESHOLD && !isFirstRef.current) {
-                    offsetY.current += ITEM_HEIGHT;
-                    onMoveUpRef.current?.();
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                } else if (currentDy > SWAP_THRESHOLD && !isLastRef.current) {
-                    offsetY.current -= ITEM_HEIGHT;
-                    onMoveDownRef.current?.();
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }
-            },
-            onPanResponderRelease: () => {
-                stopJiggle();
-            },
-            onPanResponderTerminate: () => {
-                stopJiggle();
-            },
-            onPanResponderTerminationRequest: () => !isDragging.current, // Stay locked if dragging
-        })
-    ).current;
-
-    const jiggleRotation = jiggleAnim.interpolate({
-        inputRange: [-1, 1],
-        outputRange: ['-1deg', '1deg'],
-    });
-
     return (
-        <Animated.View
-            collapsable={false}
-            style={[
-                styles.card,
-                {
-                    transform: [{ translateY }],
-                },
-                dragging && { zIndex: 100, elevation: 20 },
-            ]}
-            accessible={false}
-            {...panResponder.panHandlers}
-        >
-            <Animated.View
-                style={{
-                    flex: 1,
-                    transform: [{ rotate: jiggleRotation }],
-                }}
-            >
+        <View style={styles.card}>
+            <View style={{ flex: 1 }}>
                 {/* ── Card main row ───────────────────────────────────────── */}
                 <TouchableOpacity
                     style={styles.cardMain}
                     activeOpacity={0.9}
-                    onLongPress={() => {
-                        if (!isInteractionDisabled && (onMoveUp || onMoveDown)) {
-                            isDragging.current = true;
-                            setDragging(true);
-                            onDragStart?.();
-                            startJiggle();
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        }
-                    }}
-                    onPressOut={() => {
-                        // On Android, onPressOut fires as soon as PanResponder captures travel.
-                        // We check isMoving to avoid stopping the jiggle/drag prematurely.
-                        if (isDragging.current && !isMoving.current) {
-                            stopJiggle();
-                        }
-                    }}
+                    onLongPress={!isInteractionDisabled ? onLongPress : undefined}
                     onPress={() => {
                         if (!isInteractionDisabled) onRun();
                     }}
@@ -539,8 +404,8 @@ export function AppCard({
                         </Pressable>
                     </Pressable>
                 </Modal>
-            </Animated.View>
-        </Animated.View>
+            </View>
+        </View>
     );
 }
 

@@ -28,6 +28,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
@@ -123,7 +124,7 @@ export default function HomeScreen() {
     const [firstRunSetupTarget, setFirstRunSetupTarget] = useState<GeneratedApp | null>(null);
     const [notifCounts, setNotifCounts] = useState<Record<number, number>>({});
     const [coachStep, setCoachStep] = useState(0); // 0=off, 1=dots menu hint, 2=edit hint
-    const [isReordering, setIsReordering] = useState(false);
+    const [contextMenuApp, setContextMenuApp] = useState<GeneratedApp | null>(null);
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -973,14 +974,13 @@ export default function HomeScreen() {
                     contentContainerStyle={[styles.list, { paddingBottom: listBottomPadding }]}
                     onScroll={onScroll}
                     scrollEventThrottle={16}
-                    scrollEnabled={!isReordering}
                     refreshControl={
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={onRefresh}
                             colors={[colors.primary]}
                             tintColor={colors.primary}
-                            enabled={!isReordering && (isAtTop || refreshing)} // Disable when reordering
+                            enabled={isAtTop || refreshing}
                         />
                     }
                     ListHeaderComponent={
@@ -991,9 +991,6 @@ export default function HomeScreen() {
                         const isPlaceholder = (item as any).isPlaceholder;
                         // Check if this real app is currently updating
                         const isLocked = updatingAppIds.includes(item.id);
-                        // Find position among real (non-placeholder) apps for reordering
-                        const realApps = filteredApps.filter(a => !(a as any).isPlaceholder);
-                        const realIdx = realApps.findIndex(a => a.id === item.id);
 
                         return (
                             <AppCard
@@ -1007,17 +1004,15 @@ export default function HomeScreen() {
                                 onToggleBiometric={() => handleToggleBiometric(item)}
                                 onShare={() => handleShareApp(item)}
                                 onViewSchedules={() => setScheduleTarget(item)}
-                                onMoveUp={!isPlaceholder && !isLocked ? () => reorderApp(item.id, 'up') : undefined}
-                                onMoveDown={!isPlaceholder && !isLocked ? () => reorderApp(item.id, 'down') : undefined}
-                                isFirst={realIdx <= 0}
-                                isLast={realIdx >= realApps.length - 1}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
                                 notificationCount={notifCounts[item.id] || 0}
                                 coachStep={!isPlaceholder && !isLocked && filteredApps.indexOf(item) === 0 ? coachStep : 0}
                                 onCoachDismiss={handleCoachDismiss}
-                                onDragStart={() => setIsReordering(true)}
-                                onDragEnd={() => setIsReordering(false)}
+                                onLongPress={!isPlaceholder && !isLocked ? () => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    setContextMenuApp(item);
+                                } : undefined}
                             />
                         );
                     }}
@@ -1049,6 +1044,75 @@ export default function HomeScreen() {
                     <Text style={styles.fabText}>{t('createApp')}</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Context Menu Modal */}
+            {contextMenuApp && (() => {
+                const ctxRealApps = filteredApps.filter(a => !(a as any).isPlaceholder);
+                const ctxIdx = ctxRealApps.findIndex(a => a.id === contextMenuApp.id);
+                const isFirst = ctxIdx <= 0;
+                const isLast = ctxIdx >= ctxRealApps.length - 1;
+                return (
+                    <Modal transparent animationType="fade" onRequestClose={() => setContextMenuApp(null)}>
+                        <Pressable style={styles.ctxBackdrop} onPress={() => setContextMenuApp(null)}>
+                            <Pressable style={styles.ctxMenu} onPress={() => {}}>
+                                <TouchableOpacity
+                                    style={styles.ctxItem}
+                                    onPress={() => {
+                                        setContextMenuApp(null);
+                                        handleShareApp(contextMenuApp);
+                                    }}
+                                >
+                                    <View style={[styles.ctxIconWrap, { backgroundColor: 'rgba(96,165,250,0.15)' }]}>
+                                        <Text style={styles.ctxIconText}>📤</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.ctxItemTitle}>{t('shareSpell')}</Text>
+                                        <Text style={styles.ctxItemSub}>{t('shareSpellFile')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+
+                                <View style={styles.ctxSeparator} />
+
+                                <TouchableOpacity
+                                    style={[styles.ctxItem, isFirst && styles.ctxItemDisabled]}
+                                    onPress={() => {
+                                        if (isFirst) return;
+                                        reorderApp(contextMenuApp.id, 'up');
+                                        setContextMenuApp(null);
+                                    }}
+                                    disabled={isFirst}
+                                >
+                                    <View style={[styles.ctxIconWrap, { backgroundColor: isFirst ? 'rgba(255,255,255,0.04)' : 'rgba(74,222,128,0.15)' }]}>
+                                        <Text style={styles.ctxIconText}>↑</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.ctxItemTitle, isFirst && styles.ctxTextDisabled]}>{t('moveUp')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+
+                                <View style={styles.ctxSeparator} />
+
+                                <TouchableOpacity
+                                    style={[styles.ctxItem, isLast && styles.ctxItemDisabled]}
+                                    onPress={() => {
+                                        if (isLast) return;
+                                        reorderApp(contextMenuApp.id, 'down');
+                                        setContextMenuApp(null);
+                                    }}
+                                    disabled={isLast}
+                                >
+                                    <View style={[styles.ctxIconWrap, { backgroundColor: isLast ? 'rgba(255,255,255,0.04)' : 'rgba(251,146,60,0.15)' }]}>
+                                        <Text style={styles.ctxIconText}>↓</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.ctxItemTitle, isLast && styles.ctxTextDisabled]}>{t('moveDown')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            </Pressable>
+                        </Pressable>
+                    </Modal>
+                );
+            })()}
 
             {/* Menu Modal */}
             <Modal visible={showMenu} transparent animationType="slide" onRequestClose={() => setShowMenu(false)}>
@@ -1548,6 +1612,63 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 
+
+    // ── Context Menu styles ──
+    ctxBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(5,5,14,0.75)',
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+        paddingRight: 16,
+    },
+    ctxMenu: {
+        backgroundColor: '#1c1c2e',
+        borderRadius: 16,
+        minWidth: 220,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        overflow: 'hidden',
+    },
+    ctxItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+    },
+    ctxItemDisabled: {
+        opacity: 0.4,
+    },
+    ctxIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    ctxIconText: {
+        fontSize: 18,
+    },
+    ctxItemTitle: {
+        color: '#F9FAFB',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    ctxItemSub: {
+        color: '#6B7280',
+        fontSize: 12,
+        fontWeight: '500',
+        marginTop: 1,
+    },
+    ctxTextDisabled: {
+        color: '#6B7280',
+    },
+    ctxSeparator: {
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        marginHorizontal: 14,
+    },
 
     // ── Unified bottom sheet styles (matches AppCard sheet) ──
     sheetOverlay: {
