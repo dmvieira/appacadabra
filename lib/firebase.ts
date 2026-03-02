@@ -4,6 +4,8 @@ import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, que
 import { getApp } from '@react-native-firebase/app';
 // @ts-ignore - Index.d.ts exports class as type, but it is a value in runtime. Import from root to ensure module registration.
 import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
+import crashlytics from '@react-native-firebase/crashlytics';
+import analytics from '@react-native-firebase/analytics';
 import Constants from 'expo-constants';
 import pako from 'pako';
 
@@ -130,16 +132,15 @@ export async function ensureAuthenticated(): Promise<string> {
 // Initialize App Check
 async function initializeAppCheckWrapper() {
     try {
-        // Activate App Check with Debug provider
-        // Using the injected CI token from MainApplication.kt
+        // Activate App Check: debug provider in dev, production providers in release builds
         // @ts-ignore - Class is exported as type only in d.ts, but is a value at runtime
         const provider = new ReactNativeFirebaseAppCheckProvider();
         provider.configure({
             android: {
-                provider: 'debug',
+                provider: __DEV__ ? 'debug' : 'playIntegrity',
             },
             apple: {
-                provider: 'debug',
+                provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
             },
             web: {
                 provider: 'reCaptchaV3',
@@ -151,7 +152,7 @@ async function initializeAppCheckWrapper() {
             provider,
             isTokenAutoRefreshEnabled: true,
         });
-        console.log('Firebase: App Check activated (Debug Mode with CI Token)');
+        console.log(`Firebase: App Check activated (${__DEV__ ? 'Debug' : 'Production'} provider)`);
     } catch (e) {
         console.error('Firebase: App Check activation failed. Proceeding without App Check.', e);
         // We do NOT block app initialization. Functions will (hopefully) work if enforceAppCheck is false.
@@ -160,6 +161,10 @@ async function initializeAppCheckWrapper() {
 
 // Call initialization immediately
 initializeAppCheckWrapper();
+
+// Enable Crashlytics + Analytics collection (disabled in dev to reduce noise)
+crashlytics().setCrashlyticsCollectionEnabled(!__DEV__);
+analytics().setAnalyticsCollectionEnabled(!__DEV__);
 
 // Get current user ID (null if not authenticated)
 export function getCurrentUserId(): string | null {

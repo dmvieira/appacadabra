@@ -1,6 +1,7 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { logScreenView } from '../lib/analytics';
 import { Alert, LogBox, Platform } from 'react-native';
 import * as ShareIntent from 'share-intent';
 import { colors } from '../lib/theme';
@@ -53,6 +54,11 @@ try {
 
 export default function RootLayout() {
     const router = useRouter();
+    const pathname = usePathname();
+
+    useEffect(() => {
+        logScreenView(pathname);
+    }, [pathname]);
 
     useEffect(() => {
         console.log('RootLayout: Mounted');

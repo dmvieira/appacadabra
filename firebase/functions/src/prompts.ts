@@ -14,6 +14,13 @@ IMPORTANT: The app will run in a WebView. For data persistence:
 - Always use console.log e console.error for debugging to help us understand what's happening
 - NEVER return undefined, null or empty strings for user interface because user is not technical and will not understand what's happening
 - Build simple to use interfaces with clear instructions, simple UI and feedback
+- **AESTHETICS ARE CRITICAL**: The app must look premium, modern, and beautiful. Use:
+    - Curated, harmonious color palettes (avoid generic red/blue/green)
+    - Modern typography (e.g., Google Fonts like Inter, Outfit, or Roboto)
+    - Smooth gradients, subtle shadows, and generous whitespace
+    - Glassmorphism effects (backdrop-filter: blur) where appropriate
+    - Micro-animations for interactions (hover, active, transitions)
+    - Border-radius: 12px to 24px for a soft, modern feel
 
 PREFER DETERMINISTIC CODE:
 The generated app should use AI and other Appacadabra APIs when makes sense:
@@ -347,6 +354,11 @@ Rules:
    - If the app has multiple steps or sections, include a brief subtitle or inline hint explaining the purpose of each area.
    - Avoid hidden gestures or non-obvious interactions; every feature should be reachable via visible buttons or links.
    - The app should feel complete and usable from the very first second, with no guessing required.
+8. PREMIUM LOOK & FEEL: Plan for a high-end visual experience. Include:
+   - A cohesive color theme (e.g., "Deep Emerald & Soft Gold", "Midnight Slate & Electric Blue").
+   - A specific Google Font that matches the app's personality.
+   - Micro-interactions (e.g., buttons that scale slightly on tap, list items that fade in).
+   - Use of gradients and shadows to create depth and hierarchy.
 `;
 
 // CREATE STEP 2: Unified Code Generator
@@ -374,7 +386,12 @@ Rules:
    - Add a small subtitle or helper text below the app title briefly explaining what the app does.
    - Use visual affordances: shadows on buttons, underlines on links, clear hover/active states.
    - On first load with no data, the UI should clearly guide the user to the first action.
-8. SIZING ENFORCEMENT: Use the generous sizing from rule 3 strictly. Set \`html { font-size: 16px; }\` as baseline. Use \`rem\` units for scalability. Ensure no interactive element is smaller than 48px in height. Add \`box-sizing: border-box;\` globally. Use \`padding: 16px;\` on the main container.
+8. SIZING & AESTHETICS:
+   - Base font: 16px; headings: 22px+; interactive targets: min 48px height.
+   - Use \`box-sizing: border-box;\` and \`padding: 16px;\` on the main container.
+   - **Modern CSS**: Use CSS variables for colors, \`border-radius: 16px\`, \`box-shadow: 0 4px 12px rgba(0,0,0,0.1)\`, and \`transition: all 0.2s ease\`.
+   - **Typography**: Import a modern font from Google Fonts (e.g., \`<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">\`) and apply it.
+   - **Colors**: Use a premium, curated palette. No browser-default blue/purple.
 
 Output ONLY the raw HTML code wrapped in \`\`\`html ... \`\`\`.
 `;
@@ -394,7 +411,12 @@ Think step-by-step:
    - Add a small subtitle or helper text below the app title briefly explaining what the app does.
    - Use visual affordances: shadows on buttons, underlines on links, clear hover/active states.
    - On first load with no data, the UI should clearly guide the user to the first action.
-5. SIZING ENFORCEMENT: Use the generous sizing from rule 3 strictly. Set \`html { font-size: 16px; }\` as baseline. Use \`rem\` units for scalability. Ensure no interactive element is smaller than 48px in height. Add \`box-sizing: border-box;\` globally. Use \`padding: 16px;\` on the main container.
+5. SIZING & AESTHETICS:
+   - Base font: 16px; headings: 22px+; interactive targets: min 48px height.
+   - Use \`box-sizing: border-box;\` and \`padding: 16px;\` on the main container.
+   - **Modern CSS**: Use CSS variables for colors, \`border-radius: 16px\`, \`box-shadow: 0 4px 12px rgba(0,0,0,0.1)\`, and \`transition: all 0.2s ease\`.
+   - **Typography**: Import a modern font from Google Fonts (e.g., \`<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">\`) and apply it.
+   - **Colors**: Use a premium, curated palette. No browser-default blue/purple.
 
 Return a JSON object with this exact schema:
 {

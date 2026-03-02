@@ -6,6 +6,7 @@ import { colors, borderRadius, spacing } from '../lib/theme';
 import * as firebase from '../lib/firebase';
 import { RewardedAd, RewardedAdEventType, AdEventType } from 'react-native-google-mobile-ads';
 import * as iap from '../lib/iapService';
+import { logManaEarned, logShopOpened } from '../lib/analytics';
 
 // Production Ad Unit ID (always use real ads)
 const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
@@ -87,6 +88,7 @@ export function ManaShop() {
                 if (amount > 0) {
                     try {
                         await firebase.addCredits(amount, 'iap_purchase');
+                        logManaEarned('iap_purchase', amount);
                         Alert.alert(t('success'), t('purchaseSuccess', { amount }));
                         closeShop();
                     } catch (error) {
@@ -178,6 +180,7 @@ export function ManaShop() {
                 // Only add credits if there's something to add
                 if (manaToGive > 0) {
                     await firebase.addCredits(manaToGive, 'ad_reward');
+                    logManaEarned('ad_reward', manaToGive);
                 }
 
                 // Festive messages based on mana amount

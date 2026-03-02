@@ -46,6 +46,7 @@ import * as firebase from '../lib/firebase';
 import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useManaStore } from '../lib/manaStore';
 import SpellSetup from '../components/SpellSetup';
+import { logIconGenerated } from '../lib/analytics';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -580,6 +581,7 @@ export default function HomeScreen() {
                     // Force mana balance refresh from server
                     firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => { });
                 }
+                logIconGenerated('setup', creditsUsed);
                 setStatusMessage(t('iconGenerated'));
             }
         } catch (e: any) {
@@ -704,6 +706,7 @@ export default function HomeScreen() {
                     firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => { });
                 }
 
+                logIconGenerated('menu', creditsUsed);
                 setStatusMessage(t('iconGenerated'));
 
                 // Only close on success

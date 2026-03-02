@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import * as firebase from '../firebase';
 import { GenerationResult } from '../firebase';
+import { logAppCreated, logAppEdited, logAiGenerate, logAiGenerateImage } from '../analytics';
 
 // ============= CONTENT MODERATION =============
 // Validation disabled as per user request (2026-01-20)
@@ -55,7 +56,9 @@ export async function generateApp(description: string): Promise<GenerationResult
     }
 
     // 2. Call Firebase with retry
-    return withTimeoutAndRetry(() => firebase.generateSpellCreate(description));
+    const result = await withTimeoutAndRetry(() => firebase.generateSpellCreate(description));
+    logAppCreated(result.creditsUsed || 0);
+    return result;
 }
 
 export async function editApp(currentCode: string, instructions: string): Promise<GenerationResult> {
@@ -64,7 +67,9 @@ export async function editApp(currentCode: string, instructions: string): Promis
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    return withTimeoutAndRetry(() => firebase.generateSpellEdit(currentCode, instructions));
+    const result = await withTimeoutAndRetry(() => firebase.generateSpellEdit(currentCode, instructions));
+    logAppEdited(result.creditsUsed || 0);
+    return result;
 }
 
 export async function editAppWithContext(
@@ -83,10 +88,12 @@ export async function editAppWithContext(
         .filter(e => e.instruction !== null)
         .map(e => ({ version: e.version, instruction: e.instruction as string }));
 
-    return withTimeoutAndRetry(() => firebase.generateSpellEdit(currentCode, instructions, {
+    const result = await withTimeoutAndRetry(() => firebase.generateSpellEdit(currentCode, instructions, {
         previousEdits: validEdits,
         selectedContext
     }));
+    logAppEdited(result.creditsUsed || 0);
+    return result;
 }
 
 export async function convertNodeProject(sourceCode: string, frameworkHint: string): Promise<GenerationResult> {
@@ -121,10 +128,12 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
             useSearch: search
         });
 
+        const creditsUsed = result.creditsUsed || 0;
+        logAiGenerate(creditsUsed, !!cleanImage, !!cleanAudio);
         return {
             text: result.text,
             usage: result.usage,
-            creditsUsed: result.creditsUsed || 0
+            creditsUsed,
         };
     });
 }
@@ -136,10 +145,12 @@ export async function aiGenerateImage(prompt: string): Promise<{ imageBase64: st
     return withTimeoutAndRetry(async () => {
         const result = await firebase.generateSpellImageGen(prompt);
 
+        const creditsUsed = result.creditsUsed || 0;
+        logAiGenerateImage(creditsUsed);
         return {
             imageBase64: result.text, // Server returns base64 image data in text field
             usage: result.usage,
-            creditsUsed: result.creditsUsed || 0
+            creditsUsed,
         };
     });
 }

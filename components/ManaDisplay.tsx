@@ -2,12 +2,18 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useManaStore } from '../lib/manaStore';
 import { colors, borderRadius, spacing } from '../lib/theme';
+import { logShopOpened } from '../lib/analytics';
 
 export function ManaDisplay() {
     const { balance, openShop } = useManaStore();
 
+    const handlePress = () => {
+        logShopOpened();
+        openShop();
+    };
+
     return (
-        <TouchableOpacity style={styles.container} onPress={openShop}>
+        <TouchableOpacity style={styles.container} onPress={handlePress}>
             <Text style={styles.icon}>⚡</Text>
             <Text style={styles.text}>
                 {(Math.floor(balance * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
