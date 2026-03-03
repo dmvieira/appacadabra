@@ -56,7 +56,6 @@ interface AppCardProps {
     onDelete: () => void;
     onRename: () => void;
     onShare?: () => void;
-    onIconPress?: () => void;
     onShortcut?: () => void;
     onToggleBiometric?: () => void;
     onViewSchedules?: () => void;
@@ -71,7 +70,7 @@ interface AppCardProps {
 
 export function AppCard({
     app, onRun, onEdit, onDelete, onRename,
-    onShare, onIconPress, onShortcut, onToggleBiometric, onViewSchedules,
+    onShare, onShortcut, onToggleBiometric, onViewSchedules,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
     onLongPress,
 }: AppCardProps) {
@@ -288,24 +287,6 @@ export function AppCard({
                                         <Text style={styles.sheetItemSub}>{t('editDetailsSub')}</Text>
                                     </View>
                                 </TouchableOpacity>
-
-                                {/* Choose icon */}
-                                {onIconPress && (
-                                    <TouchableOpacity
-                                        style={styles.sheetItem}
-                                        onPress={() => { setShowSheet(false); onIconPress(); }}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={t('chooseIcon')}
-                                    >
-                                        <View style={styles.sheetItemIconWrap}>
-                                            <Text style={styles.sheetItemIconEmoji}>🖼️</Text>
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.sheetItemTitle}>{t('chooseIcon')}</Text>
-                                            <Text style={styles.sheetItemSub}>{t('iconCostHint')}</Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                )}
 
                                 {/* ── Access ── */}
 

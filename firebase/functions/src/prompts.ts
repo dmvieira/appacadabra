@@ -100,24 +100,36 @@ AppacadabraAI.generate("Hello", handleResult);
     - **Return**: JSON Object: \`{ "totalCalories": number, "records": [{ "startTime": "ISO", "endTime": "ISO", "energy": { "inKilocalories": number } }] }\`
 
 🤖 AI (AppacadabraAI)
-- **Fluent Builder API**: Chain methods to configure generation.
-- **Methods**:
-    - \`generate(prompt, callback)\`: Execute the request.
-    - \`withSearch()\`: Enable Google Search for current events/info.
-    - \`withSchema(jsonSchemaObj)\`: Force Structured JSON output.
-    - \`fromImage(base64String)\`: Input an image (Base64 string) for analysis.
-    - \`fromAudio(base64String)\`: Input audio (Base64 string from \`recordStop\`) for transcription/analysis.
-    - \`generateImage(prompt, callback)\`: Generate an image from a text description using AI. **Not chainable** — call directly.
+- **Fluent Builder API**: Chain methods to configure AI generation.
+- **Builder Methods** (chainable — call \`generate()\` last):
+    - \`generate(prompt, callback)\`: Execute the AI request with the configured options.
+    - \`withSearch()\`: Enable Google Search grounding for real-time info.
+    - \`withSchema(jsonSchemaObj)\`: Force structured JSON output matching the schema.
+    - \`fromImage(input)\`: Attach image(s) for vision analysis. Accepts a single Base64 string OR an array of Base64 strings.
+    - \`fromVideo(input)\`: Attach video(s) for analysis/summarization. Accepts a single Base64 string OR an array of Base64 strings.
+    - \`fromAudio(input)\`: Attach audio(s) for transcription/analysis. Accepts a single Base64 string (from \`recordStop\`) OR an array.
+- **Standalone Methods** (NOT chainable — call directly on \`AppacadabraAI\`):
+    - \`generateImage(prompt, callback)\`: Generate an image from text. Returns base64 PNG.
+    - \`generateVideo(prompt, callback)\`: Generate a video from text using Veo model. Returns base64 MP4. (Costs 2 mana per second).
+    - \`similarity(itemsArray, callback)\`: Compute semantic similarity between 2+ text strings. Returns a JSON object with a pairwise similarity \`matrix\` (values 0.0-1.0) and \`count\`.
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`
     - Search: \`AppacadabraAI.withSearch().generate("Who won the game?", callback)\`
     - JSON: \`AppacadabraAI.withSchema({ type: "object", properties: { ... } }).generate("Extract data", callback)\`
-    - Vision: \`AppacadabraAI.fromImage(base64).generate("Describe this", callback)\`
-    - Audio: \`AppacadabraAI.fromAudio(base64).generate("Transcribe this recording", callback)\`
-    - *Chained*: \`AppacadabraAI.withSearch().withSchema(schema).generate("Find phone numbers...", callback)\`
+    - Single image: \`AppacadabraAI.fromImage(base64).generate("Describe this", callback)\`
+    - Multiple images: \`AppacadabraAI.fromImage([img1, img2, img3]).generate("Compare these images", callback)\`
+    - Single video: \`AppacadabraAI.fromVideo(videoBase64).generate("Summarize this video", callback)\`
+    - Single audio: \`AppacadabraAI.fromAudio(base64).generate("Transcribe this", callback)\`
+    - Multiple audios: \`AppacadabraAI.fromAudio([audio1, audio2]).generate("Compare these recordings", callback)\`
+    - *Chained*: \`AppacadabraAI.withSearch().withSchema(schema).generate("Find data...", callback)\`
     - Image Gen: \`AppacadabraAI.generateImage("A cute cat wearing a hat", "onImageReady")\`
-- **Return**: Generated text (string). If \`withSchema\` is used, result is a JSON string.
-- **Return (generateImage)**: base64 PNG string. Use as img src: \`"data:image/png;base64," + result\`. Uses mana credits.
+    - Video Gen: \`AppacadabraAI.generateVideo("A cinematic drone shot of a beach", "onVideoReady")\`
+    - Similarity (2 items): \`AppacadabraAI.similarity(["cat", "kitten"], "onResult")\` → \`{ matrix: [[1, 0.87], [0.87, 1]], vectors: [[0.1, ...], [0.12, ...]], count: 2 }\`
+    - Similarity (3+ items): \`AppacadabraAI.similarity(["dog", "puppy", "car"], "onResult")\` → \`{ matrix: [[1, 0.91, 0.12], [0.91, 1, 0.10], [0.12, 0.10, 1]], vectors: [...], count: 3 }\`
+- **Return (generate)**: Generated text (string). If \`withSchema\` is used, result is a JSON string.
+- **Return (generateImage)**: base64 PNG string. Use as img src: \`"data:image/png;base64," + result\`.
+- **Return (generateVideo)**: base64 MP4 string. Use as video src: \`"data:video/mp4;base64," + result\`.
+- **Return (similarity)**: JSON string \`{ matrix: number[][], vectors: number[][], count: number }\`. \`matrix\` = pairwise cosine similarity (symmetric, 1.0 on diagonal, 0.0-1.0). \`vectors\` = raw embedding arrays (optional, for advanced use like caching or custom distance).
 
 📤 SHARE (AppacadabraShare)
 - \`share(text, url, callback)\`
@@ -217,6 +229,19 @@ AppacadabraAI.generate("Hello", handleResult);
 - \`takePhoto(callback)\` - Take a photo using the device camera
     - **Callback Data (string)**: Base64 encoded image string (without prefix, append 'data:image/jpeg;base64,' to use)
     - **Example**: \`AppacadabraCamera.takePhoto("onPhotoTaken")\`
+- \`recordVideo(options, callback)\` - Record a video using the device camera
+    - **options** (object, optional): \`{ maxDuration?: number (seconds, default 60, max 300), quality?: "high"|"low" }\`
+    - **Callback Data (string)**: Base64 encoded video string. Use with \`AppacadabraAI.fromVideo(base64).generate(...)\`.
+    - **Example**: \`AppacadabraCamera.recordVideo({ maxDuration: 30 }, "onVideoRecorded")\`
+    - **Example (no options)**: \`AppacadabraCamera.recordVideo("onVideoRecorded")\`
+- \`playVideo(base64, options, callback)\` - Play a video from base64 data
+    - **options** (object, optional): \`{ mimeType?: "video/mp4"|"video/webm" }\`
+    - **Return**: "Playing" (string)
+    - **Example**: \`AppacadabraCamera.playVideo(videoBase64, "onPlaying")\`
+- \`stopPlaying(callback)\` - Stop current video playback
+    - **Return**: "Stopped" (string)
+- \`isPlaying(callback)\` - Check if video is currently playing
+    - **Return**: "true" or "false" (string)
 - \`scan(callback)\` - Open QR/Barcode scanner overlay
     - **Callback Data (string)**: Scanned content string
     - **Example**: \`AppacadabraCamera.scan("onCodeScanned")\`
@@ -227,10 +252,16 @@ AppacadabraAI.generate("Hello", handleResult);
 - \`recordStop(callback)\` - Stop recording and get result
     - **Callback Data (string)**: Base64 encoded audio string. **CRITICAL**: Use this string immediately with \`AppacadabraAI.fromAudio(base64).generate(...)\`.
     - **Example**: \`AppacadabraAudio.recordStop("onAudioRecorded")\`
-- \`speak(text, options, callback)\` - Speak text aloud using device TTS engine
+- \`speak(text, options, callback)\` - Speak text aloud using device TTS engine (free)
     - **options** (object, optional): \`{ language?: "en-US"|"pt-BR"|..., pitch?: 0.5-2.0, rate?: 0.5-2.0, volume?: 0.0-1.0 }\`
     - **Return**: "Speaking" (string)
     - **Example**: \`AppacadabraAudio.speak("Hello world", { language: "en-US", rate: 1.0 }, "onSpeakDone")\`
+- \`speakAI(text, options, callback)\` - Generate high-quality AI voice using Gemini TTS (costs Mana ⚡)
+    - **options** (object, optional): \`{ voice?: "Aoede"|"Charon"|"Fenrir"|"Kore"|"Puck"|"Orbit"|"Zephyr", language?: "en-US"|"pt-BR"|... }\`
+    - Default voice: "Aoede". Cost: ~0.01–0.05 Mana per sentence (depends on text length)
+    - Use \`speak()\` for free device TTS; use \`speakAI()\` when voice quality matters
+    - **Return**: "Speaking" (string) — callback called when audio starts playing
+    - **Example**: \`AppacadabraAudio.speakAI("Welcome to your spell!", { voice: "Kore" }, "onSpeakDone")\`
 - \`stopSpeaking(callback)\` - Stop ALL speech (current + queued)
     - **Return**: "Stopped" (string)
 - \`isSpeaking(callback)\` - Check if currently speaking

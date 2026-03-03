@@ -93,12 +93,35 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
 
   // Expose fluent/builder AI API
   window.AppacadabraAI = (function() {
+    // Media limits (base64 char lengths ≈ file size * 4/3)
+    var LIMITS = {
+      images: { maxCount: 10, maxSizeChars: 7000000, label: 'image', sizeMB: '5MB' },
+      videos: { maxCount: 2,  maxSizeChars: 27000000, label: 'video', sizeMB: '20MB' },
+      audios: { maxCount: 5,  maxSizeChars: 14000000, label: 'audio', sizeMB: '10MB' }
+    };
+
+    function validateMedia(items, type) {
+      var limit = LIMITS[type];
+      if (!items || !items.length) return null;
+      if (items.length > limit.maxCount) {
+        return 'Too many ' + limit.label + 's: ' + items.length + ' provided, max ' + limit.maxCount;
+      }
+      for (var i = 0; i < items.length; i++) {
+        if (items[i] && items[i].length > limit.maxSizeChars) {
+          var approxMB = Math.round(items[i].length * 3 / 4 / 1048576 * 10) / 10;
+          return limit.label + ' #' + (i + 1) + ' is too large (' + approxMB + 'MB). Max ' + limit.sizeMB + ' per ' + limit.label;
+        }
+      }
+      return null;
+    }
+
     function AIBuilder() {
       this.options = {
         search: false,
         schema: null,
-        image: null,
-        audio: null
+        images: null,
+        videos: null,
+        audios: null
       };
     }
     
@@ -112,23 +135,44 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       return this;
     };
     
-    AIBuilder.prototype.fromImage = function(base64) {
-      this.options.image = base64;
+    AIBuilder.prototype.fromImage = function(input, options) {
+      this.options.images = Array.isArray(input) ? input : [input];
+      if (options) this.options.imageOptions = options;
       return this;
     };
     
-    AIBuilder.prototype.fromAudio = function(base64) {
-      this.options.audio = base64;
+    AIBuilder.prototype.fromVideo = function(input, options) {
+      this.options.videos = Array.isArray(input) ? input : [input];
+      if (options) this.options.videoOptions = options;
+      return this;
+    };
+    
+    AIBuilder.prototype.fromAudio = function(input, options) {
+      this.options.audios = Array.isArray(input) ? input : [input];
+      if (options) this.options.audioOptions = options;
       return this;
     };
     
     AIBuilder.prototype.generate = function(prompt, callbackName) {
+      // Validate media limits before sending
+      var err = validateMedia(this.options.images, 'images')
+             || validateMedia(this.options.videos, 'videos')
+             || validateMedia(this.options.audios, 'audios');
+      if (err) {
+        console.error('[AppacadabraAI] ' + err);
+        if (callbackName && window[callbackName]) {
+          window[callbackName](false, err);
+        }
+        return;
+      }
+
       // Build log message
       var logParts = ['[AppacadabraAI.generate]'];
       if (this.options.search) logParts.push('search:true');
       if (this.options.schema) logParts.push('schema:' + JSON.stringify(this.options.schema));
-      if (this.options.image) logParts.push('image:' + (this.options.image ? this.options.image.length : 0) + 'chars');
-      if (this.options.audio) logParts.push('audio:' + (this.options.audio ? this.options.audio.length : 0) + 'chars');
+      if (this.options.images) logParts.push('images:' + this.options.images.length + ' items');
+      if (this.options.videos) logParts.push('videos:' + this.options.videos.length + ' items');
+      if (this.options.audios) logParts.push('audios:' + this.options.audios.length + ' items');
       if (prompt) logParts.push('prompt:' + (prompt && prompt.substring ? prompt.substring(0, 80) : prompt));
       logParts.push('callback:' + callbackName);
       console.log(logParts.join(' '));
@@ -137,8 +181,9 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         prompt: prompt,
         search: this.options.search,
         schema: this.options.schema,
-        image: this.options.image,
-        audio: this.options.audio
+        images: this.options.images,
+        videos: this.options.videos,
+        audios: this.options.audios
       }, callbackName);
     };
     
@@ -146,12 +191,21 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     return {
       withSearch: function() { return new AIBuilder().withSearch(); },
       withSchema: function(s) { return new AIBuilder().withSchema(s); },
-      fromImage: function(b) { return new AIBuilder().fromImage(b); },
-      fromAudio: function(b) { return new AIBuilder().fromAudio(b); },
+      fromImage: function(input, opts) { return new AIBuilder().fromImage(input, opts); },
+      fromVideo: function(input, opts) { return new AIBuilder().fromVideo(input, opts); },
+      fromAudio: function(input, opts) { return new AIBuilder().fromAudio(input, opts); },
       generate: function(prompt, cb) { return new AIBuilder().generate(prompt, cb); },
       generateImage: function(prompt, callbackName) {
         console.log('[AppacadabraAI.generateImage] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
         sendMessage('AI_GENERATE_IMAGE', { prompt: prompt }, callbackName);
+      },
+      generateVideo: function(prompt, callbackName) {
+        console.log('[AppacadabraAI.generateVideo] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
+        sendMessage('AI_GENERATE_VIDEO', { prompt: prompt }, callbackName);
+      },
+      similarity: function(items, callbackName) {
+        console.log('[AppacadabraAI.similarity] items:', items ? items.length : 0, 'callback:', callbackName);
+        sendMessage('AI_SIMILARITY', { items: items }, callbackName);
       }
     };
   })();
@@ -768,6 +822,31 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       takePhoto: function(callbackName) {
           sendMessage('CAMERA_TAKE_PHOTO', {}, callbackName);
       },
+      // Video Recording (opens native camera, returns base64 when done)
+      recordVideo: function(options, callbackName) {
+          if (typeof options === 'string') { callbackName = options; options = {}; }
+          var opts = options || {};
+          console.log('[AppacadabraCamera.recordVideo] maxDuration:', opts.maxDuration || 60, 'callback:', callbackName);
+          sendMessage('CAMERA_RECORD_VIDEO', {
+              maxDuration: opts.maxDuration || 60,
+              quality: opts.quality || 'high'
+          }, callbackName);
+      },
+      // Video Playback
+      playVideo: function(base64, options, callbackName) {
+          if (typeof options === 'string') { callbackName = options; options = {}; }
+          var opts = options || {};
+          console.log('[AppacadabraCamera.playVideo] size:', base64 ? base64.length : 0, 'callback:', callbackName);
+          sendMessage('VIDEO_PLAY', { base64: base64, mimeType: opts.mimeType || 'video/mp4' }, callbackName);
+      },
+      stopPlaying: function(callbackName) {
+          console.log('[AppacadabraCamera.stopPlaying] callback:', callbackName);
+          sendMessage('VIDEO_STOP', {}, callbackName);
+      },
+      isPlaying: function(callbackName) {
+          console.log('[AppacadabraCamera.isPlaying] callback:', callbackName);
+          sendMessage('VIDEO_IS_PLAYING', {}, callbackName);
+      },
       scan: function(callbackName) {
           sendMessage('SCANNER_SCAN', {}, callbackName);
       }
@@ -787,6 +866,17 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         console.log('[AppacadabraAudio.speak] text:', text?.substring(0, 50), 'callback:', callbackName);
         var opts = options || {};
         sendMessage('TTS_SPEAK', { text: text, language: opts.language, pitch: opts.pitch, rate: opts.rate, volume: opts.volume }, callbackName);
+      },
+      // AI Text-to-Speech (Gemini TTS - costs Mana)
+      // Supported voices: 'Aoede' | 'Charon' | 'Fenrir' | 'Kore' | 'Puck' | 'Orbit' | 'Zephyr'
+      speakAI: function(text, options, callbackName) {
+        console.log('[AppacadabraAudio.speakAI] text:', text?.substring(0, 50), 'callback:', callbackName);
+        var opts = options || {};
+        sendMessage('AUDIO_SPEAK_AI', {
+          text: text,
+          voiceName: opts.voice || 'Aoede',
+          language: opts.language || null
+        }, callbackName);
       },
       stopSpeaking: function(callbackName) {
         console.log('[AppacadabraAudio.stopSpeaking] callback:', callbackName);

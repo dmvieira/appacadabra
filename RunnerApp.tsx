@@ -18,7 +18,7 @@ import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript } from './lib/bridges/injectedJS';
-import { handleBridgeMessage } from './lib/bridges/messageHandlers';
+import { handleBridgeMessage, cleanupAllMedia } from './lib/bridges/messageHandlers';
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
@@ -194,6 +194,7 @@ function RunnerContent({ appId }: Props) {
             if (nextAppState === 'background' || nextAppState === 'inactive') {
                 wasInBackground = true;
                 console.log('RunnerApp: App went to background');
+                cleanupAllMedia();
             }
 
             if (nextAppState === 'active' && wasInBackground && app) {

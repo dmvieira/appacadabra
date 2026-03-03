@@ -316,8 +316,9 @@ export async function generateSpellWebviewAI(
     prompt: string,
     options?: {
         schema?: object;
-        imageBase64?: string;
-        audioBase64?: string;
+        imagesBase64?: string[];
+        videosBase64?: string[];
+        audiosBase64?: string[];
         useSearch?: boolean;
     }
 ): Promise<GenerationResult> {
@@ -337,6 +338,22 @@ export async function generateSpellWebviewAI(
     return result.data;
 }
 
+// Similarity (embedding-based)
+export async function generateSpellSimilarity(
+    items: string[]
+): Promise<GenerationResult> {
+    await ensureAuthenticated();
+
+    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
+    const result = await generateSpell({
+        action: 'webview_ai_similarity',
+        items,
+        appVersion: APP_VERSION,
+    });
+
+    return result.data;
+}
+
 // Image Generation via Gemini
 export async function generateSpellImageGen(
     prompt: string
@@ -353,6 +370,47 @@ export async function generateSpellImageGen(
     if (result.data && result.data.text) {
         result.data.text = decompressContent(result.data.text);
     }
+    return result.data;
+}
+
+// TTS Generation via Gemini TTS
+export async function generateSpellTTS(
+    text: string,
+    voiceName?: string
+): Promise<GenerationResult> {
+    await ensureAuthenticated();
+
+    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
+    const result = await generateSpell({
+        action: 'webview_ai_tts',
+        prompt: compressContent(text),
+        voiceName: voiceName || 'Aoede',
+        appVersion: APP_VERSION,
+    });
+
+    if (result.data && result.data.text) {
+        result.data.text = decompressContent(result.data.text);
+    }
+    return result.data;
+}
+
+// Video Generation via Veo
+export async function generateSpellVideoGen(
+    prompt: string
+): Promise<GenerationResult> {
+    await ensureAuthenticated();
+
+    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
+    const result = await generateSpell({
+        action: 'webview_ai_video',
+        prompt: compressContent(prompt),
+        appVersion: APP_VERSION,
+    });
+
+    if (result.data && result.data.text) {
+        result.data.text = decompressContent(result.data.text);
+    }
+
     return result.data;
 }
 

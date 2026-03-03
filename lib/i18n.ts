@@ -23,14 +23,12 @@ const translations = {
         yourApps: 'Your Spell Stack',
 
         // Empty state
-        emptyTitle: 'Your spell stack is empty',
-        emptySubtitle: 'Cast your first spell with AI!',
 
         // Actions
         run: 'Cast',
         edit: 'Modify',
         delete: 'Remove',
-        rename: 'Rename',
+
         cancel: 'Cancel',
         confirm: 'Confirm',
         save: 'Save',
@@ -43,7 +41,7 @@ const translations = {
         appNamePlaceholder: 'Spell Name',
         generatingApp: 'Conjuring Spell...',
         updatingApp: 'Enhancing Spell...',
-        manaUsed: 'Mana Used',
+
         manaLastDays: 'in the last %{days} days',
         manaLast30Days: 'in the last 30 days',
 
@@ -74,7 +72,6 @@ const translations = {
         // Create Dialog
         createTitle: 'Cast New Spell',
         createPlaceholder: 'What do you want help with? Describe it...',
-        generating: 'Casting... (this may take a few minutes)',
 
         // Icons
         chooseIcon: 'Choose Icon',
@@ -92,7 +89,7 @@ const translations = {
         createShortcut: 'Add to Home',
         shortcutSubtitle: 'Open without entering Appacadabra',
         iconCostHint: 'Gallery free • Generate with AI ⚡ 0.5',
-        editCostHint: 'Manual coding free • Edit with AI ⚡ 1.0',
+
         setupModalTitle: '✨ Spell created!',
         setupModalSubtitle: 'Customize it before you start — or skip for now',
         setupModalSave: 'Save & start using',
@@ -104,8 +101,7 @@ const translations = {
         deleteMessage: "Are you sure you want to remove '%{name}'? This action cannot be undone.",
 
         // Rename
-        renameTitle: 'Rename Spell',
-        renamePlaceholder: 'New name',
+
         editAppDetails: 'Edit Spell Details',
         spellNameLabel: 'Spell Name',
         shortDescriptionLabel: 'Short Description (used for AI & Context)',
@@ -137,7 +133,7 @@ const translations = {
         manualEdit: 'Manual Edit',
         versionHistory: 'Version History',
         selectElement: 'Select',
-        applyEdit: 'Apply',
+
         debug: 'Debug',
         search: 'Search',
         searchSpells: 'Search spells...',
@@ -145,13 +141,8 @@ const translations = {
         noRequests: 'No network requests yet',
         clear: 'Clear',
         consoleLogs: 'Console Logs',
-        shareWithAppacadabra: 'Share with Appacadabra',
-        fileLabel: '(File)',
-        textLabel: '(Text)',
-        chooseApp: 'Choose an App:',
-        noAppsCreated: 'No apps created yet',
-        shareTabSpell: 'Spell (.spell)',
-        shareTabFile: 'Other file',
+
+
         shareImportSpell: 'Import spell',
         shareOrSendTo: 'or send to a spell',
         shareSendToWhich: 'Send to which spell?',
@@ -168,11 +159,9 @@ const translations = {
         setupSkip: 'Later',
 
         // Content filter
-        contentBlocked: 'Content not allowed. Please describe a legitimate and useful spell.',
 
         // Empty state / How it works
-        emptyMagic: 'Create spells with magic!',
-        emptyDesc: 'Describe your perfect spell and AI creates something 100% personalized to your needs.',
+
         howItWorks: 'How it works:',
         step1Title: 'Describe',
         step1Desc: 'Tell exactly what you need',
@@ -203,24 +192,25 @@ const translations = {
         projectFormatHint: 'Supported: .zip containing index.html (web) or package.json (node)',
 
         // Content Filter
-        contentBlockedReason: 'Content not allowed. Please describe a legitimate and useful spell.',
+
         requestBlocked: 'Request blocked by content filter.',
 
         // Bridge Messages
         newEvent: 'New Event',
-        confirmIdentity: 'Confirm identity',
+
         usePassword: 'Use password',
 
         // General Errors
         errorTitle: 'Error',
         shortcutCreationError: 'Could not create shortcut:',
         unknownError: 'Unknown error',
-        shareTitle: 'Share',
+
         authenticateBiometrics: 'Authenticate',
         enableBiometric: 'Enable Biometric Lock',
         disableBiometric: 'Disable Biometric Lock',
         biometricRequired: 'Biometric authentication required',
         biometricUnlockFailed: 'Authentication failed',
+        biometricsNotAvailable: 'Biometrics not available on this device',
         errorOpeningWindow: 'Unable to open spell in new window',
         history: 'History',
         code: 'Code',
@@ -263,19 +253,15 @@ const translations = {
         editorCloseAdvanced: 'Close advanced',
 
         // Mana
-        mana: 'Mana',
-        manaBalance: 'Mana: %{amount}',
+
+
         // Account
         account: 'Account',
-        linkAccount: 'Link Google Account',
-        linkAccountDesc: 'Backup your mana to the cloud',
-        linkAccountCTA: 'Protect your Mana ⚡',
-        linkAccountCTADesc: 'Sign in with Google to save your Mana in the cloud. Switch devices without losing your credits!',
-        spellsStayLocal: '🔒 Your spells stay on your device — safe and private.',
-        linkedAs: 'Signed in as %{email}',
+
+
         signInGoogle: 'Sign in with Google',
         linkError: 'Link failed. Try again.',
-        linkSuccess: 'Account linked successfully!',
+
         signOut: 'Sign Out',
         signOutTitle: 'What to do with spells?',
         keepLocal: 'Keep on device',
@@ -285,8 +271,8 @@ const translations = {
         manaCloudNote: 'Your Mana ⚡ %{amount} stays in the Google account and returns when you log in again.',
         signOutSuccessKeep: 'You signed out. Your spells are still here.',
         signOutSuccessClear: 'You signed out. All local data was cleared.',
-        signOutConfirm: 'Sign out of your account?',
-        signOutConfirmDesc: 'Keep spells on your device or clear everything. Mana always stays safe in your Google account.',
+
+
         loginRequired: 'Sign in to continue',
         loginRequiredDesc: 'Your Mana is linked to your account — safe on any device.',
         accountConflict: 'Account already exists. Sign in instead? (Current mana will be replaced by cloud mana)',
@@ -298,8 +284,8 @@ const translations = {
         getMana: 'Get Mana',
 
         buyMana: 'Buy Mana',
-        insufficientMana: 'Insufficient Mana',
-        insufficientManaMessage: 'You need %{cost} Mana to perform this action. Your balance is %{balance}.',
+
+
         manaDepletedTitle: '⚡ Out of Mana!',
         manaDepletedMessage: 'Your Mana is depleted. Recharge to continue using AI features.',
         manaShopTitle: 'Mana Shop',
@@ -311,21 +297,16 @@ const translations = {
         purchaseFailed: 'Purchase failed. Please try again.',
         watchAd: 'Watch Ad (Mana)',
         freeMana: 'Free Mana',
-        confirmPurchase: 'Confirm Purchase',
-        purchaseConfirmMessage: 'Buy %{amount} Mana?',
+
+
         currentBalance: 'Current Balance',
-        watchingAd: 'Watching Ad...',
-        loading: 'Loading',
-        adLoading: 'Ad is loading, please wait...',
-        adNotReady: 'Ad Not Ready',
-        adLoadingRetry: 'Please wait while we load an ad...',
-        rewardEarned: 'Reward Earned!',
+
+
         rewardAmazing: 'Amazing!',
         rewardGreat: 'Great!',
         rewardNice: 'Nice!',
         rewardNone: "This ad didn't generate a reward",
         rewardError: 'Failed to add reward. Please try again.',
-        tapToLoad: 'Tap to load',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -381,7 +362,7 @@ const translations = {
         errorLoadingApps: 'Error loading spells',
         spellFailedCreate: '🧙 The spell fizzled! The magic didn\'t work this time. Please try again with different words.',
         spellFailedEdit: '🧙 Oops! The enchantment failed. Try rephrasing your request and cast again.',
-        errorCreatingApp: 'Error creating spell:',
+
         errorUpdatingApp: 'Error updating spell:',
         errorDeletingApp: 'Error removing spell',
         errorRenamingApp: 'Error renaming spell',
@@ -547,14 +528,12 @@ const translations = {
         errorProcessingJob: 'O feitiço falhou! A magia se dissipou.',
 
         // Empty state
-        emptyTitle: 'Sua lista de feitiços está vazia',
-        emptySubtitle: 'Lance seu primeiro feitiço com IA!',
 
         // Actions
         run: 'Lançar',
         edit: 'Modificar',
         delete: 'Remover',
-        rename: 'Renomear',
+
         cancel: 'Cancelar',
         confirm: 'Confirmar',
         save: 'Salvar',
@@ -567,7 +546,7 @@ const translations = {
         appNamePlaceholder: 'Nome do Feitiço',
         generatingApp: 'Conjurando Feitiço...',
         updatingApp: 'Melhorando Feitiço...',
-        manaUsed: 'Mana Usada',
+
         manaLastDays: 'nos últimos %{days} dias',
         manaLast30Days: 'nos últimos 30 dias',
 
@@ -587,7 +566,6 @@ const translations = {
         // Create Dialog
         createTitle: 'Fazer Novo Feitiço',
         createPlaceholder: 'No que você precisa de ajuda? Descreva...',
-        generating: 'Conjurando... (isso pode levar alguns minutos)',
 
         // Icons
         chooseIcon: 'Escolher Ícone',
@@ -605,7 +583,7 @@ const translations = {
         createShortcut: 'Adicionar à Tela Inicial',
         shortcutSubtitle: 'Abra sem entrar no Appacadabra',
         iconCostHint: 'Galeria grátis • Gerar com IA ⚡ 0,5',
-        editCostHint: 'Código grátis • Editar com IA ⚡ 1,0',
+
         setupModalTitle: '✨ Feitiço criado!',
         setupModalSubtitle: 'Personalize antes de começar — ou pule por agora',
         setupModalSave: 'Salvar e começar a usar',
@@ -617,8 +595,7 @@ const translations = {
         deleteMessage: "Tem certeza que deseja remover '%{name}'? Ação irreversível.",
 
         // Rename
-        renameTitle: 'Renomear Feitiço',
-        renamePlaceholder: 'Novo nome',
+
         editAppDetails: 'Editar Detalhes do Feitiço',
         spellNameLabel: 'Nome do Feitiço',
         shortDescriptionLabel: 'Descrição Curta (usada para IA e Contexto)',
@@ -650,7 +627,7 @@ const translations = {
         manualEdit: 'Edição manual',
         versionHistory: 'Histórico de Versões',
         selectElement: 'Selecionar',
-        applyEdit: 'Aplicar',
+
         debug: 'Debug',
         search: 'Buscar',
         searchSpells: 'Buscar feitiços...',
@@ -658,13 +635,8 @@ const translations = {
         noRequests: 'Nenhuma requisição ainda',
         clear: 'Limpar',
         consoleLogs: 'Console Logs',
-        shareWithAppacadabra: 'Compartilhar com Appacadabra',
-        fileLabel: '(Arquivo)',
-        textLabel: '(Texto)',
-        chooseApp: 'Escolha um App:',
-        noAppsCreated: 'Nenhum app criado ainda',
-        shareTabSpell: 'Feitiço (.spell)',
-        shareTabFile: 'Outro arquivo',
+
+
         shareImportSpell: 'Importar feitiço',
         shareOrSendTo: 'ou enviar para um feitiço',
         shareSendToWhich: 'Enviar para qual feitiço?',
@@ -682,15 +654,11 @@ const translations = {
 
         // Account
         account: 'Conta',
-        linkAccount: 'Vincular Conta Google',
-        linkAccountDesc: 'Salve sua mana na nuvem',
-        linkAccountCTA: 'Proteja sua Mana ⚡',
-        linkAccountCTADesc: 'Entre com Google para salvar sua Mana na nuvem. Troque de dispositivo sem perder créditos!',
-        spellsStayLocal: '🔒 Seus feitiços ficam no seu dispositivo — seguros e privados.',
-        linkedAs: 'Conectado como %{email}',
+
+
         signInGoogle: 'Entrar com Google',
         linkError: 'Falha ao vincular. Tente novamente.',
-        linkSuccess: 'Conta vinculada com sucesso!',
+
         signOut: 'Sair da conta',
         signOutTitle: 'O que fazer com os feitiços?',
         keepLocal: 'Manter no celular',
@@ -700,8 +668,8 @@ const translations = {
         manaCloudNote: 'Sua Mana ⚡ %{amount} fica na conta Google e volta quando você logar de novo.',
         signOutSuccessKeep: 'Você saiu. Seus feitiços continuam aqui.',
         signOutSuccessClear: 'Você saiu. Todos os dados locais foram limpos.',
-        signOutConfirm: 'Sair da sua conta?',
-        signOutConfirmDesc: 'Manter feitiços no celular ou limpar tudo. Mana sempre fica na conta Google.',
+
+
         loginRequired: 'Entrar para continuar',
         loginRequiredDesc: 'Sua Mana fica vinculada à conta — segura em qualquer celular.',
         accountConflict: 'Esta conta já existe. Deseja entrar nela? (A mana atual será substituída pela mana na nuvem)',
@@ -713,11 +681,9 @@ const translations = {
         getMana: 'Obter Mana',
 
         // Content filter
-        contentBlocked: 'Conteúdo não permitido. Por favor, descreva um feitiço legítimo e útil.',
 
         // Empty state / How it works
-        emptyMagic: 'Crie feitiços com magia!',
-        emptyDesc: 'Descreva o feitiço perfeito para você e a IA cria algo 100% personalizado às suas necessidades.',
+
         howItWorks: 'Como funciona:',
         step1Title: 'Descreva',
         step1Desc: 'Diga exatamente o que você precisa',
@@ -748,24 +714,25 @@ const translations = {
         projectFormatHint: 'Suportado: .zip contendo index.html (web) ou package.json (node)',
 
         // Content Filter
-        contentBlockedReason: 'Conteúdo não permitido. Por favor, descreva um feitiço legítimo e útil.',
+
         requestBlocked: 'Solicitação bloqueada pelo filtro de conteúdo.',
 
         // Bridge Messages
         newEvent: 'Novo Evento',
-        confirmIdentity: 'Confirmar identidade',
+
         usePassword: 'Usar senha',
 
         // General Errors
         errorTitle: 'Erro',
         shortcutCreationError: 'Não foi possível criar o atalho:',
         unknownError: 'Erro desconhecido',
-        shareTitle: 'Compartilhar',
+
         authenticateBiometrics: 'Autenticar',
         enableBiometric: 'Ativar Bloqueio Biométrico',
         disableBiometric: 'Desativar Bloqueio Biométrico',
         biometricRequired: 'Autenticação biométrica necessária',
         biometricUnlockFailed: 'Autenticação falhou',
+        biometricsNotAvailable: 'Biometria não disponível neste dispositivo',
         errorOpeningWindow: 'Não foi possível iniciar o feitiço em nova janela',
         history: 'Histórico',
         code: 'Código',
@@ -808,11 +775,11 @@ const translations = {
         editorCloseAdvanced: 'Fechar avançado',
 
         // Mana
-        mana: 'Mana',
-        manaBalance: 'Mana: %{amount}',
+
+
         buyMana: 'Comprar Mana',
-        insufficientMana: 'Mana Insuficiente',
-        insufficientManaMessage: 'Você precisa de %{cost} Mana para esta ação. Seu saldo é %{balance}.',
+
+
         manaDepletedTitle: '⚡ Mana Acabou!',
         manaDepletedMessage: 'Sua Mana acabou. Recarregue para continuar usando recursos de IA.',
         manaShopTitle: 'Loja de Mana',
@@ -824,21 +791,16 @@ const translations = {
         purchaseFailed: 'Falha na compra. Tente novamente.',
         watchAd: 'Ver Anúncio (Mana)',
         freeMana: 'Mana Grátis',
-        confirmPurchase: 'Confirmar Compra',
-        purchaseConfirmMessage: 'Comprar %{amount} Mana?',
+
+
         currentBalance: 'Saldo Atual',
-        watchingAd: 'Assistindo Anúncio...',
-        loading: 'Carregando',
-        adLoading: 'Anúncio carregando, aguarde...',
-        adNotReady: 'Anúncio Não Pronto',
-        adLoadingRetry: 'Aguarde enquanto carregamos um anúncio...',
-        rewardEarned: 'Recompensa Recebida!',
+
+
         rewardAmazing: 'Incrível!',
         rewardGreat: 'Ótimo!',
         rewardNice: 'Legal!',
         rewardNone: 'Este anúncio não gerou recompensa',
         rewardError: 'Falha ao adicionar recompensa. Tente novamente.',
-        tapToLoad: 'Toque para carregar',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -892,7 +854,7 @@ const translations = {
         errorLoadingApps: 'Erro ao carregar feitiços',
         spellFailedCreate: '🧙 O feitiço falhou! A magia não funcionou dessa vez. Tente novamente com outras palavras.',
         spellFailedEdit: '🧙 Ops! O encantamento falhou. Reformule seu pedido e lance de novo.',
-        errorCreatingApp: 'Erro ao criar feitiço:',
+
         errorUpdatingApp: 'Erro ao atualizar feitiço:',
         errorDeletingApp: 'Erro ao remover feitiço',
         errorRenamingApp: 'Erro ao renomear feitiço',
@@ -1058,12 +1020,11 @@ const translations = {
         generatingApp: 'Conjurando Hechizo...',
         updatingApp: 'Mejorando Hechizo...',
 
-        emptyTitle: 'Tu lista de hechizos está vacía',
-        emptySubtitle: '¡Lanza tu primer hechizo con IA!',
+
         run: 'Lanzar',
         edit: 'Modificar',
         delete: 'Eliminar',
-        rename: 'Renombrar',
+
         cancel: 'Cancelar',
         confirm: 'Confirmar',
         save: 'Guardar',
@@ -1074,7 +1035,7 @@ const translations = {
         listeningTap: '🎤 Escuchando... Toca para detener',
         describeOrMic: '💡 Describe o usa el micrófono',
         appNamePlaceholder: 'Nombre del Hechizo',
-        manaUsed: 'Maná Usado',
+
         manaLastDays: 'en los últimos %{days} días',
         manaLast30Days: 'en los últimos 30 días',
         importProject: 'Importar Pergamino 📜',
@@ -1090,7 +1051,7 @@ const translations = {
         termsTab: 'Términos',
         createTitle: 'Lanzar Nuevo Hechizo',
         createPlaceholder: '¿Con qué necesitas ayuda? Descríbelo...',
-        generating: 'Conjurando... (esto puede tomar algunos minutos)',
+
         chooseIcon: 'Elegir Ícono',
         fromGallery: 'Elegir de Galería',
         fromFiles: 'Elegir de Archivos',
@@ -1104,7 +1065,7 @@ const translations = {
         createShortcut: 'Añadir a Inicio',
         shortcutSubtitle: 'Abre sin entrar en Appacadabra',
         iconCostHint: 'Galería gratis • Generar con IA ⚡ 0,5',
-        editCostHint: 'Código gratis • Editar con IA ⚡ 1,0',
+
         setupModalTitle: '✨ ¡Hechizo creado!',
         setupModalSubtitle: 'Personalízalo antes de empezar — o salta por ahora',
         setupModalSave: 'Guardar y empezar a usar',
@@ -1112,8 +1073,7 @@ const translations = {
         setupCostNotice: 'Crear este hechizo costó ⚡ %{cost}. Las ediciones con IA cuestan ⚡ 1,0 cada una.',
         deleteTitle: '¿Eliminar hechizo?',
         deleteMessage: "¿Seguro que quieres eliminar '%{name}'? Acción irreversible.",
-        renameTitle: 'Renombrar Hechizo',
-        renamePlaceholder: 'Nuevo nombre',
+
         editAppDetails: 'Editar Detalles del Hechizo',
         spellNameLabel: 'Nombre del Hechizo',
         shortDescriptionLabel: 'Descripción Corta (usada para IA y Contexto)',
@@ -1131,11 +1091,9 @@ const translations = {
         importDemoBtn: 'Importar Universo Demo 🪐',
         importingDemo: 'Invocando Universo...',
         // Legal - uses EN fallback
-        contentBlocked: 'Contenido no permitido. Por favor, describe un hechizo legítimo y útil.',
 
         // Empty state / How it works
-        emptyMagic: '¡Crea hechizos con magia!',
-        emptyDesc: 'Describe el hechizo perfecto para ti y la IA creará algo 100% personalizado a tus necesidades.',
+
         howItWorks: 'Cómo funciona:',
         step1Title: 'Describe',
         step1Desc: 'Di exactamente lo que necesitas',
@@ -1160,7 +1118,7 @@ const translations = {
         manualEdit: 'Edición manual',
         versionHistory: 'Historial',
         selectElement: 'Seleccionar',
-        applyEdit: 'Aplicar',
+
         debug: 'Debug',
         search: 'Buscar',
         searchSpells: 'Buscar hechizos...',
@@ -1168,13 +1126,8 @@ const translations = {
         noRequests: 'No hay solicitudes de red aún',
         clear: 'Limpiar',
         consoleLogs: 'Console Logs',
-        shareWithAppacadabra: 'Compartir con Appacadabra',
-        fileLabel: '(Archivo)',
-        textLabel: '(Texto)',
-        chooseApp: 'Elegir un App:',
-        noAppsCreated: 'Ningún app creado aún',
-        shareTabSpell: 'Hechizo (.spell)',
-        shareTabFile: 'Otro archivo',
+
+
         shareImportSpell: 'Importar hechizo',
         shareOrSendTo: 'o enviar a un hechizo',
         shareSendToWhich: '¿Enviar a qué hechizo?',
@@ -1201,22 +1154,23 @@ const translations = {
         projectFormatHint: 'Soportado: .zip con index.html (web) o package.json (node)',
 
         // Content
-        contentBlockedReason: 'Contenido no permitido. Describe un hechizo legítimo.',
+
         requestBlocked: 'Solicitud bloqueada por filtro.',
 
         // Bridge & Errors
         newEvent: 'Nuevo Evento',
-        confirmIdentity: 'Confirmar identidad',
+
         usePassword: 'Usar contraseña',
         errorTitle: 'Error',
         shortcutCreationError: 'No se pudo crear atajo:',
         unknownError: 'Error desconocido',
-        shareTitle: 'Compartir',
+
         authenticateBiometrics: 'Autenticar',
         enableBiometric: 'Activar Bloqueo Biométrico',
         disableBiometric: 'Desactivar Bloqueo Biométrico',
         biometricRequired: 'Se requiere autenticación biométrica',
         biometricUnlockFailed: 'Autenticación fallida',
+        biometricsNotAvailable: 'Biometría no disponible en este dispositivo',
         errorOpeningWindow: 'No se pudo abrir el hechizo en nueva ventana',
         history: 'Historial',
         code: 'Código',
@@ -1236,19 +1190,15 @@ const translations = {
         editExample: 'Ej: cambia el color a azul, añade un icono...',
 
         // Mana
-        mana: 'Mana',
-        manaBalance: 'Mana: %{amount}',
+
+
         // Account
         account: 'Cuenta',
-        linkAccount: 'Vincular cuenta de Google',
-        linkAccountDesc: 'Guarda tu mana en la nube',
-        linkAccountCTA: 'Protege tu Maná ⚡',
-        linkAccountCTADesc: 'Inicia sesión con Google para guardar tu Maná en la nube. ¡Cambia de dispositivo sin perder créditos!',
-        spellsStayLocal: '🔒 Tus hechizos se quedan en tu dispositivo — seguros y privados.',
-        linkedAs: 'Sesión iniciada como %{email}',
+
+
         signInGoogle: 'Iniciar sesión con Google',
         linkError: 'Error al vincular. Inténtalo de nuevo.',
-        linkSuccess: '¡Cuenta vinculada con successo!',
+
         signOut: 'Cerrar sesión',
         signOutTitle: '¿Qué hacer con los hechizos?',
         keepLocal: 'Mantener en el móvil',
@@ -1258,8 +1208,8 @@ const translations = {
         manaCloudNote: 'Tu Maná ⚡ %{amount} se queda en la cuenta de Google y vuelve cuando vuelvas a entrar.',
         signOutSuccessKeep: 'Has salido. Tus hechizos siguen aquí.',
         signOutSuccessClear: 'Has salido. Todos los datos locales han sido borrados.',
-        signOutConfirm: '¿Cerrar sesión?',
-        signOutConfirmDesc: 'Mantén tus hechizos en tu dispositivo o borra todo. El maná siempre está seguro en tu cuenta de Google.',
+
+
         loginRequired: 'Inicia sesión para continuar',
         loginRequiredDesc: 'Tu maná está vinculado a tu cuenta — seguro en cualquier dispositivo.',
         accountConflict: 'La cuenta ya existe. ¿Iniciar sesión en su lugar? (El maná actual será reemplazado por el maná en la nube)',
@@ -1270,8 +1220,8 @@ const translations = {
         noLogin: 'Sin login',
         getMana: 'Conseguir Mana',
         buyMana: 'Comprar Mana',
-        insufficientMana: 'Mana Insuficiente',
-        insufficientManaMessage: 'Necesitas %{cost} Mana para esta acción. Tu saldo es %{balance}.',
+
+
         manaDepletedTitle: '⚡ ¡Sin Mana!',
         manaDepletedMessage: 'Tu Mana se agotó. Recarga para seguir usando funciones de IA.',
         manaShopTitle: 'Tienda de Mana',
@@ -1283,23 +1233,16 @@ const translations = {
         purchaseFailed: 'Compra fallida. Inténtalo de nuevo.',
         watchAd: 'Ver Anuncio (Mana)',
         freeMana: 'Mana Gratis',
-        confirmPurchase: 'Confirmar Compra',
-        purchaseConfirmMessage: '¿Comprar %{amount} Mana?',
+
+
         currentBalance: 'Saldo Actual',
-        watchingAd: 'Viendo Anuncio...',
-        loading: 'Cargando',
-        adLoading: 'Cargando anuncio, espera...',
-        adNotReady: 'Anuncio No Listo',
-        adLoadingRetry: 'Espera mientras cargamos un anuncio...',
-        rewardEarned: '¡Recompensa Recibida!',
+
+
         rewardAmazing: '¡Increíble!',
         rewardGreat: '¡Genial!',
         rewardNice: '¡Bien!',
         rewardNone: 'Este anuncio no generó recompensa',
         rewardError: 'Error al añadir recompensa. Intenta de nuevo.',
-        tapToLoad: 'Toca para cargar',
-
-
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -1312,6 +1255,28 @@ const translations = {
         noScheduledNotifications: 'No hay notificaciones programadas',
         cancelNotification: 'Cancelar Notificación',
         cancelNotificationConfirm: '¿Eliminar esta notificación programada?',
+        // Backup Sync
+        backupTitle: '¿Dónde guardar tu copia de seguridad?',
+        backupSubtitle: 'Hechizos guardados automáticamente en este lugar.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Automático, funciona en cualquier dispositivo',
+        backupGoogleDriveDefault: 'PREDETERMINADO',
+        backupLocalFolder: 'Carpeta local',
+        backupLocalFolderDesc: 'Avanzado — tú eliges dónde guardar',
+        backupConfirm: 'Confirmar',
+        backupSkip: 'Ignorar copia de seguridad',
+        backupReconnectTitle: 'Reconectar copia de seguridad',
+        backupReconnectWarning: 'Tu cuenta usaba una carpeta local. Elige dónde encontrar la copia de seguridad en este dispositivo.',
+        backupChooseFolder: 'Elegir carpeta de copia de seguridad',
+        backupSwitchToDrive: 'Cambiar a Google Drive',
+        backupStartFresh: 'Empezar desde cero',
+        backupActive: 'Copia de seguridad activa',
+        backupActiveDesc: 'Hechizos guardados automáticamente en Google Drive.',
+        backupActiveLocalDesc: 'Hechizos guardados automáticamente en carpeta local.',
+        backupRestoredCount: '%{count} hechizos restaurados!',
+        backupRestoredDesc: 'Copia de seguridad de Google Drive aplicada automáticamente.',
+        noBackupTitle: 'Sin copia de seguridad',
+        noBackupDesc: 'Tus hechizos no están protegidos',
 
         // Backup
         exportBackupDialog: 'Exportar Respaldo',
@@ -1328,7 +1293,7 @@ const translations = {
         errorLoadingApps: 'Error al cargar hechizos',
         spellFailedCreate: '🧙 ¡El hechizo falló! La magia no funcionó esta vez. Intenta de nuevo con otras palabras.',
         spellFailedEdit: '🧙 ¡Ups! El encantamiento falló. Reformula tu petición e intenta de nuevo.',
-        errorCreatingApp: 'Error al crear hechizo:',
+
         errorUpdatingApp: 'Error al actualizar hechizo:',
         errorDeletingApp: 'Error al eliminar hechizo',
         errorRenamingApp: 'Error al renombrar hechizo',
@@ -1510,12 +1475,11 @@ const translations = {
         generatingApp: 'Incantation du Sort...',
         updatingApp: 'Amélioration du Sort...',
 
-        emptyTitle: 'Votre liste de sorts est vide',
-        emptySubtitle: 'Lancez votre premier sort avec l\'IA!',
+
         run: 'Lancer',
         edit: 'Modifier',
         delete: 'Supprimer',
-        rename: 'Renommer',
+
         cancel: 'Annuler',
         confirm: 'Confirmer',
         save: 'Enregistrer',
@@ -1526,7 +1490,7 @@ const translations = {
         listeningTap: '🎤 Écoute... Appuyez pour arrêter',
         describeOrMic: '💡 Décrivez ou utilisez le micro',
         appNamePlaceholder: 'Nom du Sort',
-        manaUsed: 'Mana Utilisé',
+
         manaLastDays: 'dans les %{days} derniers jours',
         manaLast30Days: 'dans les 30 derniers jours',
         importProject: 'Importer Parchemin 📜',
@@ -1542,7 +1506,7 @@ const translations = {
         termsTab: 'Conditions',
         createTitle: 'Lancer Nouveau Sort',
         createPlaceholder: 'De quoi avez-vous besoin ? Décrivez-le...',
-        generating: 'Incantation... (cela peut prendre quelques minutes)',
+
         chooseIcon: 'Choisir Icône',
         fromGallery: 'Depuis la Galerie',
         fromFiles: 'Depuis les Fichiers',
@@ -1556,7 +1520,7 @@ const translations = {
         createShortcut: 'Ajouter à l\'Écran',
         shortcutSubtitle: 'Ouvrez sans entrer dans Appacadabra',
         iconCostHint: 'Galerie gratuite • Générer avec IA ⚡ 0,5',
-        editCostHint: 'Code gratuit • Modifier avec IA ⚡ 1,0',
+
         setupModalTitle: '✨ Sort créé !',
         setupModalSubtitle: "Personnalisez avant de commencer — ou ignorez pour l'instant",
         setupModalSave: 'Enregistrer et commencer',
@@ -1564,8 +1528,7 @@ const translations = {
         setupCostNotice: 'Créer ce sort a coûté ⚡ %{cost}. Les modifications IA coûtent ⚡ 1,0 chacune.',
         deleteTitle: 'Supprimer sort?',
         deleteMessage: "Êtes-vous sûr de vouloir supprimer '%{name}'? Action irréversible.",
-        renameTitle: 'Renommer Sort',
-        renamePlaceholder: 'Nouveau nom',
+
         openSpell: 'Ouvrir',
         editDetailsSub: 'Nom, description et image',
         notifCountScheduled: '{{count}} programmées',
@@ -1580,11 +1543,9 @@ const translations = {
         importDemoBtn: 'Importer Univers Démo 🪐',
         importingDemo: 'Invocation de l\'Univers...',
         // Legal - uses EN fallback
-        contentBlocked: 'Contenu non autorisé. Veuillez décrire un sort légitime et utile.',
 
         // Empty state / How it works
-        emptyMagic: 'Créez des sorts avec la magie !',
-        emptyDesc: 'Décrivez le sort parfait pour vous et l\'IA crée quelque chose de 100% personnalisé.',
+
         howItWorks: 'Comment ça marche :',
         step1Title: 'Décrivez',
         step1Desc: 'Dites exactement ce que vous voulez',
@@ -1609,7 +1570,7 @@ const translations = {
         manualEdit: 'Modification manuelle',
         versionHistory: 'Historique',
         selectElement: 'Sélectionner',
-        applyEdit: 'Appliquer',
+
         debug: 'Debug',
         search: 'Rechercher',
         searchSpells: 'Rechercher des sorts...',
@@ -1617,13 +1578,8 @@ const translations = {
         noRequests: 'Aucune requête réseau pour le moment',
         clear: 'Effacer',
         consoleLogs: 'Logs de Console',
-        shareWithAppacadabra: 'Partager avec Appacadabra',
-        fileLabel: '(Fichier)',
-        textLabel: '(Texte)',
-        chooseApp: 'Choisir une App :',
-        noAppsCreated: 'Aucune app créée pour le moment',
-        shareTabSpell: 'Sort (.spell)',
-        shareTabFile: 'Autre fichier',
+
+
         shareImportSpell: 'Importer le sort',
         shareOrSendTo: 'ou envoyer à un sort',
         shareSendToWhich: 'Envoyer à quel sort ?',
@@ -1650,22 +1606,23 @@ const translations = {
         projectFormatHint: 'Supporté : .zip contenant index.html (web) ou package.json (node)',
 
         // Content
-        contentBlockedReason: 'Contenu non autorisé.',
+
         requestBlocked: 'Bloqué par filtre contenu.',
 
         // Bridge & Errors
         newEvent: 'Nouvel Événement',
-        confirmIdentity: 'Confirmer identité',
+
         usePassword: 'Utiliser mot de passe',
         errorTitle: 'Erreur',
         shortcutCreationError: 'Impossible créer raccourci:',
         unknownError: 'Erreur inconnue',
-        shareTitle: 'Partager',
+
         authenticateBiometrics: 'Authentifier',
         enableBiometric: 'Activer Verrouillage Biométrique',
         disableBiometric: 'Désactiver Verrouillage Biométrique',
         biometricRequired: 'Authentification biométrique requise',
         biometricUnlockFailed: 'Échec de l\'authentification',
+        biometricsNotAvailable: 'Biométrie non disponible sur cet appareil',
         errorOpeningWindow: 'Impossible d\'ouvrir le sort dans une nouvelle fenêtre',
         history: 'Historique',
         code: 'Code',
@@ -1685,19 +1642,15 @@ const translations = {
         editExample: 'Ex : changer la couleur en bleu, ajouter une icône...',
 
         // Mana
-        mana: 'Mana',
-        manaBalance: 'Mana: %{amount}',
+
+
         // Account
         account: 'Compte',
-        linkAccount: 'Lier le compte Google',
-        linkAccountDesc: 'Sauvegardez votre mana dans le cloud',
-        linkAccountCTA: 'Protégez votre Mana ⚡',
-        linkAccountCTADesc: 'Connectez-vous avec Google pour sauvegarder votre Mana dans le cloud. Changez d\'appareil sans perdre vos crédits !',
-        spellsStayLocal: '🔒 Vos sorts restent sur votre appareil — sûrs et privés.',
-        linkedAs: 'Connecté en tant que %{email}',
+
+
         signInGoogle: 'Se connecter avec Google',
         linkError: 'Échec de la liaison. Réessayez.',
-        linkSuccess: 'Compte lié avec succès !',
+
         signOut: 'Se déconnecter',
         signOutTitle: 'Que faire des sorts ?',
         keepLocal: 'Garder sur le téléphone',
@@ -1707,8 +1660,8 @@ const translations = {
         manaCloudNote: 'Votre Mana ⚡ %{amount} reste sur le compte Google et revient lors de votre prochaine connexion.',
         signOutSuccessKeep: 'Vous êtes déconnecté. Vos sorts sont toujours là.',
         signOutSuccessClear: 'Vous êtes déconnecté. Toutes les données locales ont été effacées.',
-        signOutConfirm: 'Se déconnecter de votre compte ?',
-        signOutConfirmDesc: 'Conservez vos sorts sur votre appareil ou effacez tout. Le mana reste toujours en sécurité sur votre compte Google.',
+
+
         loginRequired: 'Connectez-vous pour continuer',
         loginRequiredDesc: 'Votre Mana est lié à votre compte — en sécurité sur n\'importe quel appareil.',
         accountConflict: 'Le compte existe déjà. Se connecter à la place ? (Le mana actuel sera remplacé par le mana du cloud)',
@@ -1719,8 +1672,8 @@ const translations = {
         noLogin: 'Non connecté',
         getMana: 'Obtenir du Mana',
         buyMana: 'Acheter Mana',
-        insufficientMana: 'Mana Insuffisant',
-        insufficientManaMessage: 'Vous avez besoin de %{cost} Mana pour cette action. Votre solde est de %{balance}.',
+
+
         manaDepletedTitle: '⚡ Plus de Mana !',
         manaDepletedMessage: 'Votre Mana est épuisé. Rechargez pour continuer à utiliser les fonctions IA.',
         manaShopTitle: 'Boutique Mana',
@@ -1732,22 +1685,16 @@ const translations = {
         purchaseFailed: 'Échec de l\'achat. Veuillez réessayer.',
         watchAd: 'Regarder Pub (Mana)',
         freeMana: 'Mana Gratuit',
-        confirmPurchase: 'Confirmer Achat',
-        purchaseConfirmMessage: 'Acheter %{amount} Mana ?',
+
+
         currentBalance: 'Solde Actuel',
-        watchingAd: 'Regarder Pub...',
-        loading: 'Chargement',
-        adLoading: 'Chargement pub, veuillez patienter...',
-        adNotReady: 'Pub Non Prête',
-        adLoadingRetry: 'Veuillez patienter pendant le chargement...',
-        rewardEarned: 'Récompense Gagnée !',
+
+
         rewardAmazing: 'Incroyable !',
         rewardGreat: 'Super !',
         rewardNice: 'Bien !',
         rewardNone: 'Cette pub n\'a pas généré de récompense',
         rewardError: 'Échec ajout récompense. Réessayez.',
-        tapToLoad: 'Appuyer pour charger',
-
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -1760,6 +1707,28 @@ const translations = {
         noScheduledNotifications: 'Aucune notification programmée',
         cancelNotification: 'Annuler la Notification',
         cancelNotificationConfirm: 'Supprimer cette notification programmée ?',
+        // Backup Sync
+        backupTitle: 'Où sauvegarder votre sauvegarde ?',
+        backupSubtitle: 'Sorts sauvegardés automatiquement à cet emplacement.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Automatique, fonctionne sur tous les appareils',
+        backupGoogleDriveDefault: 'DÉFAUT',
+        backupLocalFolder: 'Dossier local',
+        backupLocalFolderDesc: 'Avancé — vous choisissez où sauvegarder',
+        backupConfirm: 'Confirmer',
+        backupSkip: 'Ignorer la sauvegarde',
+        backupReconnectTitle: 'Reconnecter la sauvegarde',
+        backupReconnectWarning: 'Votre compte utilisait un dossier local. Choisissez où trouver la sauvegarde sur cet appareil.',
+        backupChooseFolder: 'Choisir le dossier de sauvegarde',
+        backupSwitchToDrive: 'Passer à Google Drive',
+        backupStartFresh: 'Recommencer à zéro',
+        backupActive: 'Sauvegarde active',
+        backupActiveDesc: 'Sorts sauvegardés automatiquement sur Google Drive.',
+        backupActiveLocalDesc: 'Sorts sauvegardés automatiquement dans le dossier local.',
+        backupRestoredCount: '%{count} sorts restaurés !',
+        backupRestoredDesc: 'Sauvegarde Google Drive appliquée automatiquement.',
+        noBackupTitle: 'Pas de sauvegarde',
+        noBackupDesc: 'Vos sorts ne sont pas protégés',
 
         // Backup
         exportBackupDialog: 'Exporter Sauvegarde',
@@ -1778,7 +1747,7 @@ const translations = {
         errorLoadingApps: 'Erreur chargement sorts',
         spellFailedCreate: '🧙 Le sort a échoué ! La magie n\'a pas fonctionné cette fois. Réessayez avec d\'autres mots.',
         spellFailedEdit: '🧙 Oups ! L\'enchantement a échoué. Reformulez votre demande et réessayez.',
-        errorCreatingApp: 'Erreur création:',
+
         errorUpdatingApp: 'Erreur mise à jour:',
         errorDeletingApp: 'Erreur suppression',
         errorRenamingApp: 'Erreur renommage',
@@ -1960,12 +1929,11 @@ const translations = {
         generatingApp: 'Zauber wird beschworen...',
         updatingApp: 'Zauber wird verbessert...',
 
-        emptyTitle: 'Deine Zauberliste ist leer',
-        emptySubtitle: 'Wirke deinen ersten Zauber mit KI!',
+
         run: 'Wirken',
         edit: 'Ändern',
         delete: 'Löschen',
-        rename: 'Umbenennen',
+
         cancel: 'Abbrechen',
         confirm: 'Bestätigen',
         save: 'Speichern',
@@ -1976,7 +1944,7 @@ const translations = {
         listeningTap: '🎤 Zuhören... Tippen zum Stoppen',
         describeOrMic: '💡 Beschreibe oder benutze das Mikrofon',
         appNamePlaceholder: 'Zaubername',
-        manaUsed: 'Mana Verbraucht',
+
         manaLastDays: 'in den letzten %{days} Tagen',
         manaLast30Days: 'in den letzten 30 Tagen',
         importProject: 'Schriftrolle Importieren 📜',
@@ -1992,7 +1960,7 @@ const translations = {
         termsTab: 'AGB',
         createTitle: 'Neuen Zauber Wirken',
         createPlaceholder: 'Wobei brauchst du Hilfe? Beschreibe es...',
-        generating: 'Zaubere... (dies kann einige Minuten dauern)',
+
         chooseIcon: 'Symbol Wählen',
         fromGallery: 'Aus Galerie',
         fromFiles: 'Aus Dateien',
@@ -2006,7 +1974,7 @@ const translations = {
         createShortcut: 'Zum Startbildschirm',
         shortcutSubtitle: 'Ohne Appacadabra öffnen',
         iconCostHint: 'Galerie kostenlos • Mit KI generieren ⚡ 0,5',
-        editCostHint: 'Code kostenlos • Mit KI bearbeiten ⚡ 1,0',
+
         setupModalTitle: '✨ Zauber erstellt!',
         setupModalSubtitle: 'Passe ihn an — oder überspringe für jetzt',
         setupModalSave: 'Speichern & starten',
@@ -2014,8 +1982,7 @@ const translations = {
         setupCostNotice: 'Dieser Zauber kostete ⚡ %{cost}. KI-Bearbeitungen kosten ⚡ 1,0 je.',
         deleteTitle: 'Zauber löschen?',
         deleteMessage: "Möchtest du '%{name}' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-        renameTitle: 'Zauber Umbenennen',
-        renamePlaceholder: 'Neuer Name',
+
         openSpell: 'Öffnen',
         editDetailsSub: 'Name, Beschreibung und Bild',
         notifCountScheduled: '{{count}} geplant',
@@ -2030,11 +1997,9 @@ const translations = {
         importDemoBtn: 'Demo-Universum importieren 🪐',
         importingDemo: 'Universum beschwören...',
         // Legal - uses EN fallback
-        contentBlocked: 'Inhalt nicht erlaubt. Bitte beschreibe ein legitimes und nützliches Tool.',
 
         // Empty state / How it works
-        emptyMagic: 'Erschaffe Zauber mit Magie!',
-        emptyDesc: 'Beschreibe den perfekten Zauber für dich und die KI erstellt etwas 100% Persönliches.',
+
         howItWorks: 'Wie es funktioniert:',
         step1Title: 'Beschreibe',
         step1Desc: 'Sage genau, was du brauchst',
@@ -2059,7 +2024,7 @@ const translations = {
         manualEdit: 'Code Bearbeiten',
         versionHistory: 'Versionen',
         selectElement: 'Auswählen',
-        applyEdit: 'Anwenden',
+
         debug: 'Debug',
         search: 'Suchen',
         searchSpells: 'Zauber suchen...',
@@ -2076,13 +2041,8 @@ const translations = {
         noRequests: 'Noch keine Netzwerkanfragen',
         clear: 'Leeren',
         consoleLogs: 'Konsolenprotokolle',
-        shareWithAppacadabra: 'Mit Appacadabra teilen',
-        fileLabel: '(Datei)',
-        textLabel: '(Text)',
-        chooseApp: 'Wähle eine App:',
-        noAppsCreated: 'Noch keine Apps erstellt',
-        shareTabSpell: 'Zauber (.spell)',
-        shareTabFile: 'Andere Datei',
+
+
         shareImportSpell: 'Zauber importieren',
         shareOrSendTo: 'oder an einen Zauber senden',
         shareSendToWhich: 'An welchen Zauber senden?',
@@ -2098,18 +2058,14 @@ const translations = {
         setupEnter: 'Zauber betreten →',
         setupSkip: 'Später',
 
-        manaBalance: 'Mana: %{amount}',
+
         // Account
         account: 'Konto',
-        linkAccount: 'Google-Konto verknüpfen',
-        linkAccountDesc: 'Sichere dein Mana in der Cloud',
-        linkAccountCTA: 'Schütze dein Mana ⚡',
-        linkAccountCTADesc: 'Melde dich mit Google an, um dein Mana in der Cloud zu speichern. Wechsle das Gerät, ohne Guthaben zu verlieren!',
-        spellsStayLocal: '🔒 Deine Zauber bleiben auf deinem Gerät — sicher und privat.',
-        linkedAs: 'Angemeldet als %{email}',
+
+
         signInGoogle: 'Mit Google anmelden',
         linkError: 'Verknüpfung fehlgeschlagen. Erneut versuchen.',
-        linkSuccess: 'Konto erfolgreich verknüpft!',
+
         signOut: 'Abmelden',
         signOutTitle: 'Was tun mit Zaubersprüchen?',
         keepLocal: 'Auf dem Handy behalten',
@@ -2119,8 +2075,8 @@ const translations = {
         manaCloudNote: 'Dein Mana ⚡ %{amount} bleibt im Google-Konto und kehrt bei erneuter Anmeldung zurück.',
         signOutSuccessKeep: 'Du hast dich abgemeldet. Deine Zauber sind noch da.',
         signOutSuccessClear: 'Du hast dich abgemeldet. Alle lokalen Daten wurden gelöscht.',
-        signOutConfirm: 'Vom Konto abmelden?',
-        signOutConfirmDesc: 'Behalte Zaubersprüche auf deinem Gerät oder lösche alles. Mana bleibt immer sicher in deinem Google-Konto.',
+
+
         loginRequired: 'Anmelden, um fortzufahren',
         loginRequiredDesc: 'Dein Mana ist mit deinem Konto verknüpft – sicher auf jedem Gerät.',
         accountConflict: 'Konto existiert bereits. Stattdessen anmelden? (Das aktuelle Mana wird durch Cloud-Mana ersetzt)',
@@ -2131,8 +2087,8 @@ const translations = {
         noLogin: 'Nicht angemeldet',
         getMana: 'Mana erhalten',
         buyMana: 'Mana Kaufen',
-        insufficientMana: 'Nicht Genug Mana',
-        insufficientManaMessage: 'Du benötigst %{cost} Mana für diese Aktion. Dein Guthaben ist %{balance}.',
+
+
         manaDepletedTitle: '⚡ Kein Mana Mehr!',
         manaDepletedMessage: 'Dein Mana ist aufgebraucht. Lade auf, um KI-Funktionen weiter zu nutzen.',
         manaShopTitle: 'Mana Shop',
@@ -2144,21 +2100,16 @@ const translations = {
         purchaseFailed: 'Kauf fehlgeschlagen. Bitte versuchen Sie es erneut.',
         watchAd: 'Werbung ansehen (Mana)',
         freeMana: 'Gratis Mana',
-        confirmPurchase: 'Kauf Bestätigen',
-        purchaseConfirmMessage: '%{amount} Mana kaufen?',
+
+
         currentBalance: 'Aktuelles Guthaben',
-        watchingAd: 'Werbung ansehen...',
-        loading: 'Laden',
-        adLoading: 'Werbung lädt, bitte warten...',
-        adNotReady: 'Werbung nicht bereit',
-        adLoadingRetry: 'Bitte warte, während wir Werbung laden...',
-        rewardEarned: 'Belohnung Verdient!',
+
+
         rewardAmazing: 'Unglaublich!',
         rewardGreat: 'Super!',
         rewardNice: 'Gut!',
         rewardNone: 'Diese Werbung hat keine Belohnung generiert',
         rewardError: 'Fehler beim Hinzufügen der Belohnung. Bitte erneut versuchen.',
-        tapToLoad: 'Tippen zum Laden',
 
         // Network
         network_wifi: 'WLAN',
@@ -2171,6 +2122,28 @@ const translations = {
         noScheduledNotifications: 'Keine geplanten Benachrichtigungen',
         cancelNotification: 'Benachrichtigung Abbrechen',
         cancelNotificationConfirm: 'Diese geplante Benachrichtigung entfernen?',
+        // Backup Sync
+        backupTitle: 'Wo soll Ihr Backup gespeichert werden?',
+        backupSubtitle: 'Zauber werden automatisch an diesem Ort gespeichert.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Automatisch, funktioniert auf jedem Gerät',
+        backupGoogleDriveDefault: 'STANDARD',
+        backupLocalFolder: 'Lokaler Ordner',
+        backupLocalFolderDesc: 'Erweitert — Sie wählen den Speicherort',
+        backupConfirm: 'Bestätigen',
+        backupSkip: 'Backup ignorieren',
+        backupReconnectTitle: 'Backup neu verbinden',
+        backupReconnectWarning: 'Ihr Konto hat einen lokalen Ordner verwendet. Wählen Sie, wo das Backup auf diesem Gerät zu finden ist.',
+        backupChooseFolder: 'Backup-Ordner wählen',
+        backupSwitchToDrive: 'Zu Google Drive wechseln',
+        backupStartFresh: 'Von vorn anfangen',
+        backupActive: 'Backup aktiv',
+        backupActiveDesc: 'Zauber werden automatisch in Google Drive gespeichert.',
+        backupActiveLocalDesc: 'Zauber werden automatisch im lokalen Ordner gespeichert.',
+        backupRestoredCount: '%{count} Zauber wiederhergestellt!',
+        backupRestoredDesc: 'Backup von Google Drive automatisch angewendet.',
+        noBackupTitle: 'Kein Backup',
+        noBackupDesc: 'Ihre Zauber sind nicht geschützt',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Überspringen',
@@ -2340,12 +2313,11 @@ const translations = {
         generatingApp: 'Evocazione Incantesimo...',
         updatingApp: 'Miglioramento Incantesimo...',
 
-        emptyTitle: 'La tua lista incantesimi è vuota',
-        emptySubtitle: 'Lancia il tuo primo incantesimo con l\'IA!',
+
         run: 'Lancia',
         edit: 'Modifica',
         delete: 'Elimina',
-        rename: 'Rinomina',
+
         cancel: 'Annulla',
         confirm: 'Conferma',
         save: 'Salva',
@@ -2356,7 +2328,7 @@ const translations = {
         listeningTap: '🎤 Ascolto... Tocca per fermare',
         describeOrMic: '💡 Descrivi o usa il microfono',
         appNamePlaceholder: 'Nome Incantesimo',
-        manaUsed: 'Mana Usato',
+
         manaLastDays: 'negli ultimi %{days} giorni',
         manaLast30Days: 'negli ultimi 30 giorni',
         importProject: 'Importa Pergamena 📜',
@@ -2372,7 +2344,7 @@ const translations = {
         termsTab: 'Termini',
         createTitle: 'Lancia Nuovo Incantesimo',
         createPlaceholder: 'Di cosa hai bisogno? Descrivilo...',
-        generating: 'Evocando... (potrebbe richiedere alcuni minuti)',
+
         chooseIcon: 'Scegli Icona',
         fromGallery: 'Dalla Galleria',
         fromFiles: 'Dai File',
@@ -2386,7 +2358,7 @@ const translations = {
         createShortcut: 'Aggiungi a Home',
         shortcutSubtitle: 'Apri senza entrare in Appacadabra',
         iconCostHint: 'Galleria gratis • Genera con IA ⚡ 0,5',
-        editCostHint: 'Codice gratis • Modifica con IA ⚡ 1,0',
+
         setupModalTitle: '✨ Incantesimo creato!',
         setupModalSubtitle: 'Personalizza prima di iniziare — o salta per ora',
         setupModalSave: 'Salva e inizia ad usare',
@@ -2394,8 +2366,7 @@ const translations = {
         setupCostNotice: 'Creare questo incantesimo è costato ⚡ %{cost}. Le modifiche IA costano ⚡ 1,0 ciascuna.',
         deleteTitle: 'Eliminare incantesimo?',
         deleteMessage: "Sei sicuro di voler eliminare '%{name}'? Azione irreversibile.",
-        renameTitle: 'Rinomina Incantesimo',
-        renamePlaceholder: 'Nuovo nome',
+
         openSpell: 'Apri',
         editDetailsSub: 'Nome, descrizione e immagine',
         notifCountScheduled: '{{count}} programmate',
@@ -2410,11 +2381,9 @@ const translations = {
         importDemoBtn: 'Importa Universo Demo 🪐',
         importingDemo: 'Evocando Universo...',
         // Legal - uses EN fallback
-        contentBlocked: 'Contenuto non consentito. Per favore descrivi uno strumento legittimo e utile.',
 
         // Empty state / How it works
-        emptyMagic: 'Crea incantesimi con la magia!',
-        emptyDesc: 'Descrivi l\'incantesimo perfetto per te e l\'IA crea qualcosa personalizzato al 100%.',
+
         howItWorks: 'Come funziona:',
         step1Title: 'Descrivi',
         step1Desc: 'Dì esattamente cosa ti serve',
@@ -2439,7 +2408,7 @@ const translations = {
         manualEdit: 'Modifica manuale',
         versionHistory: 'Cronologia',
         selectElement: 'Seleziona',
-        applyEdit: 'Applica',
+
         debug: 'Debug',
         search: 'Cerca',
         searchSpells: 'Cerca incantesimi...',
@@ -2456,13 +2425,8 @@ const translations = {
         noRequests: 'Nessuna richiesta di rete ancora',
         clear: 'Pulisci',
         consoleLogs: 'Log della Console',
-        shareWithAppacadabra: 'Condividi con Appacadabra',
-        fileLabel: '(File)',
-        textLabel: '(Testo)',
-        chooseApp: 'Scegli un\'app:',
-        noAppsCreated: 'Nessuna app creata ancora',
-        shareTabSpell: 'Incantesimo (.spell)',
-        shareTabFile: 'Altro file',
+
+
         shareImportSpell: 'Importa incantesimo',
         shareOrSendTo: 'o invia a un incantesimo',
         shareSendToWhich: 'Inviare a quale incantesimo?',
@@ -2478,18 +2442,14 @@ const translations = {
         setupEnter: 'Entra nell\'incantesimo →',
         setupSkip: 'Più tardi',
 
-        manaBalance: 'Mana: %{amount}',
+
         // Account
         account: 'Account',
-        linkAccount: 'Collega account Google',
-        linkAccountDesc: 'Salva il tuo mana nel cloud',
-        linkAccountCTA: 'Proteggi il tuo Mana ⚡',
-        linkAccountCTADesc: 'Accedi con Google per salvare il Mana nel cloud. Cambia dispositivo senza perdere crediti!',
-        spellsStayLocal: '🔒 I tuoi incantesimi restano sul dispositivo — sicuri e privati.',
-        linkedAs: 'Accesso effettuato come %{email}',
+
+
         signInGoogle: 'Accedi con Google',
         linkError: 'Collegamento fallito. Riprova.',
-        linkSuccess: 'Account collegato con successo!',
+
         signOut: 'Esci',
         signOutTitle: 'Cosa fare con gli incantesimi?',
         keepLocal: 'Mantieni sul telefono',
@@ -2499,8 +2459,8 @@ const translations = {
         manaCloudNote: 'Il tuo Mana ⚡ %{amount} rimane nel tuo account Google e torna quando accedi di nuovo.',
         signOutSuccessKeep: 'Sei uscito. I tuoi incantesimi sono ancora qui.',
         signOutSuccessClear: 'Sei uscito. Tutti i dati locali sono stati cancellati.',
-        signOutConfirm: 'Disconnettersi dall\'account?',
-        signOutConfirmDesc: 'Mantieni gli incantesimi sul tuo dispositivo o cancella tutto. Il mana rimane sempre al sicuro nel tuo account Google.',
+
+
         loginRequired: 'Accedi per continuare',
         loginRequiredDesc: 'Il tuo Mana è collegato al tuo account, sicuro su qualsiasi dispositivo.',
         accountConflict: 'La account già esiste. Accedi invece? (Il mana attuale sarà sostituito dal mana nel cloud)',
@@ -2511,8 +2471,8 @@ const translations = {
         noLogin: 'Senza login',
         getMana: 'Ottieni Mana',
         buyMana: 'Compra Mana',
-        insufficientMana: 'Mana Insufficiente',
-        insufficientManaMessage: 'Hai bisogno di %{cost} Mana per questa azione. Il tuo saldo è %{balance}.',
+
+
         manaDepletedTitle: '⚡ Mana Esaurito!',
         manaDepletedMessage: 'Il tuo Mana è finito. Ricarica per continuare a usare le funzioni IA.',
         manaShopTitle: 'Negozio Mana',
@@ -2524,21 +2484,16 @@ const translations = {
         purchaseFailed: 'Acquisto fallito. Riprova.',
         watchAd: 'Guarda Pubblicità (Mana)',
         freeMana: 'Mana Gratis',
-        confirmPurchase: 'Conferma Acquisto',
-        purchaseConfirmMessage: 'Acquistare %{amount} Mana?',
+
+
         currentBalance: 'Saldo Attuale',
-        watchingAd: 'Guardando pubblicità...',
-        loading: 'Caricamento',
-        adLoading: 'Caricamento pubblicità, attendere...',
-        adNotReady: 'Pubblicità Non Pronta',
-        adLoadingRetry: 'Attendi mentre carichiamo una pubblicità...',
-        rewardEarned: 'Ricompensa Guadagnata!',
+
+
         rewardAmazing: 'Incredibile!',
         rewardGreat: 'Ottimo!',
         rewardNice: 'Bene!',
         rewardNone: 'Questa pubblicità non ha generato ricompensa',
         rewardError: 'Errore aggiunta ricompensa. Riprova.',
-        tapToLoad: 'Tocca per caricare',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -2551,6 +2506,28 @@ const translations = {
         noScheduledNotifications: 'Nessuna notifica programmata',
         cancelNotification: 'Annulla Notifica',
         cancelNotificationConfirm: 'Rimuovere questa notifica programmata?',
+        // Backup Sync
+        backupTitle: 'Dove salvare il tuo backup?',
+        backupSubtitle: 'Incantesimi salvati automaticamente in questa posizione.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Automatico, funziona su qualsiasi dispositivo',
+        backupGoogleDriveDefault: 'PREDEFINITO',
+        backupLocalFolder: 'Cartella locale',
+        backupLocalFolderDesc: 'Avanzato — scegli tu dove salvare',
+        backupConfirm: 'Conferma',
+        backupSkip: 'Ignora backup',
+        backupReconnectTitle: 'Riconnetti backup',
+        backupReconnectWarning: 'Il tuo account usava una cartella locale. Scegli dove trovare il backup su questo dispositivo.',
+        backupChooseFolder: 'Scegli cartella backup',
+        backupSwitchToDrive: 'Passa a Google Drive',
+        backupStartFresh: 'Ricominciare da capo',
+        backupActive: 'Backup attivo',
+        backupActiveDesc: 'Incantesimi salvati automaticamente su Google Drive.',
+        backupActiveLocalDesc: 'Incantesimi salvati automaticamente nella cartella locale.',
+        backupRestoredCount: '%{count} incantesimi ripristinati!',
+        backupRestoredDesc: 'Backup da Google Drive applicato automaticamente.',
+        noBackupTitle: 'Nessun backup',
+        noBackupDesc: 'I tuoi incantesimi non sono protetti',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Salta',
@@ -2720,12 +2697,11 @@ const translations = {
         generatingApp: '呪文を召喚中...',
         updatingApp: '呪文を強化中...',
 
-        emptyTitle: '呪文リストが空です',
-        emptySubtitle: 'AIで最初の呪文を唱えましょう！',
+
         run: '唱える',
         edit: '変更',
         delete: '削除',
-        rename: '名前変更',
+
         cancel: 'キャンセル',
         confirm: '確認',
         save: '保存',
@@ -2736,7 +2712,7 @@ const translations = {
         listeningTap: '🎤 聞き取り中... タップして停止',
         describeOrMic: '💡 説明するかマイクを使用',
         appNamePlaceholder: '呪文の名前',
-        manaUsed: '使用マナ',
+
         manaLastDays: '過去%{days}日間',
         manaLast30Days: '過去30日間',
         importProject: '巻物をインポート 📜',
@@ -2749,7 +2725,7 @@ const translations = {
         legal: '法的情報',
         createTitle: '新しいアプリを作成',
         createPlaceholder: '作成したいアプリを説明してください...',
-        generating: '生成中... (数分かかる場合があります)',
+
         chooseIcon: 'アイコンを選択',
         fromGallery: 'ギャラリーから',
         fromFiles: 'ファイルから',
@@ -2763,7 +2739,7 @@ const translations = {
         createShortcut: 'ショートカットを作成',
         shortcutSubtitle: 'Appacadabraを開かずに使用',
         iconCostHint: 'ギャラリー無料 • AIで生成 ⚡ 0.5',
-        editCostHint: 'コード編集無料 • AIで編集 ⚡ 1.0',
+
         setupModalTitle: '✨ 魔法が作成されました！',
         setupModalSubtitle: 'カスタマイズしてから始めるか、今はスキップ',
         setupModalSave: '保存して使い始める',
@@ -2771,8 +2747,7 @@ const translations = {
         setupCostNotice: 'この魔法の作成に ⚡ %{cost} かかりました。AI編集は ⚡ 1.0 ずつかかります。',
         deleteTitle: 'アプリを削除しますか？',
         deleteMessage: "'%{name}'を削除してもよろしいですか？この操作は取り消せません。",
-        renameTitle: 'アプリ名を変更',
-        renamePlaceholder: '新しい名前',
+
         openSpell: '開く',
         editDetailsSub: '名前、説明、画像',
         notifCountScheduled: '{{count}}件予定',
@@ -2792,11 +2767,9 @@ const translations = {
         privacyTitle: 'プライバシーポリシー',
         termsTitle: '利用規約',
         lastUpdated: '最終更新: 2026年1月',
-        contentBlocked: '許可されていないコンテンツです。正当で有用なアプリを説明してください。',
 
         // Empty state / How it works
-        emptyMagic: '魔法で呪文を作成しよう！',
-        emptyDesc: 'あなたにぴったりの呪文を説明すれば、AIがニーズに合わせて100%パーソナライズされたものを作成します。',
+
         howItWorks: '使い方:',
         step1Title: '説明する',
         step1Desc: '必要なものを正確に伝える',
@@ -2821,7 +2794,7 @@ const translations = {
         manualEdit: '手動編集',
         versionHistory: '履歴',
         selectElement: '選択',
-        applyEdit: '適用',
+
         debug: 'デバッグ',
         search: '検索',
         searchSpells: '魔法を検索...',
@@ -2838,13 +2811,8 @@ const translations = {
         noRequests: 'ネットワークリクエストはまだありません',
         clear: 'クリア',
         consoleLogs: 'コンソールログ',
-        shareWithAppacadabra: 'Appacadabraで共有',
-        fileLabel: '(ファイル)',
-        textLabel: '(テキスト)',
-        chooseApp: 'アプリを選択:',
-        noAppsCreated: 'アプリがまだ作成されていません',
-        shareTabSpell: 'スペル (.spell)',
-        shareTabFile: 'その他のファイル',
+
+
         shareImportSpell: 'スペルをインポート',
         shareOrSendTo: 'またはスペルに送信',
         shareSendToWhich: 'どのスペルに送信しますか？',
@@ -2860,18 +2828,14 @@ const translations = {
         setupEnter: 'スペルに入る →',
         setupSkip: '後で',
 
-        manaBalance: 'マナ: %{amount}',
+
         // Account
         account: 'アカウント',
-        linkAccount: 'Googleアカウントを連携',
-        linkAccountDesc: 'マナをクラウドにバックアップ',
-        linkAccountCTA: 'マナを守ろう ⚡',
-        linkAccountCTADesc: 'Googleでサインインしてマナをクラウドに保存。デバイスを変えてもクレジットを失いません！',
-        spellsStayLocal: '🔒 呪文はデバイスに保存されます — 安全でプライベート。',
-        linkedAs: '%{email} としてサインイン中',
+
+
         signInGoogle: 'Googleでサインイン',
         linkError: '連携に失敗しました。もう一度お試しください。',
-        linkSuccess: 'アカウントが正常に連携されました！',
+
         signOut: 'サインアウト',
         signOutTitle: '呪文をどうしますか？',
         keepLocal: 'スマホに残す',
@@ -2881,8 +2845,8 @@ const translations = {
         manaCloudNote: 'マナ ⚡ %{amount} はGoogleアカウントに保持され、再ログイン時に戻ります。',
         signOutSuccessKeep: 'サインアウトしました。呪文はまだここにあります。',
         signOutSuccessClear: 'サインアウトしました。すべてのローカルデータが削除されました。',
-        signOutConfirm: 'アカウントからサインアウトしますか？',
-        signOutConfirmDesc: '呪文をデバイスに残すか、すべて消去するか選べます。マナは常にGoogleアカウントで安全に保管されます。',
+
+
         loginRequired: '続行するにはログインしてください',
         loginRequiredDesc: 'マナはアカウントに紐付けられており、どのデバイスでも安全です。',
         accountConflict: 'アカウントは既に存在します。代わりにサインインしますか？（現在のマナはクラウドのマナに置き換えられます）',
@@ -2893,8 +2857,8 @@ const translations = {
         noLogin: '未ログイン',
         getMana: 'マナを入手',
         buyMana: 'マナを購入',
-        insufficientMana: 'マナ不足',
-        insufficientManaMessage: 'このアクションには %{cost} マナが必要です。残高は %{balance} です。',
+
+
         manaDepletedTitle: '⚡ マナ切れ！',
         manaDepletedMessage: 'マナが尽きました。AI機能を使い続けるにはチャージしてください。',
         manaShopTitle: 'マナショップ',
@@ -2906,21 +2870,16 @@ const translations = {
         purchaseFailed: '購入に失敗しました。もう一度お試しください。',
         watchAd: '広告を見る (マナ)',
         freeMana: '無料マナ',
-        confirmPurchase: '購入確認',
-        purchaseConfirmMessage: '%{amount} マナを購入しますか？',
+
+
         currentBalance: '現在の残高',
-        watchingAd: '広告を視聴中...',
-        loading: '読み込み中',
-        adLoading: '広告を読み込んでいます...',
-        adNotReady: '広告の準備ができていません',
-        adLoadingRetry: '広告を読み込んでいます。お待ちください...',
-        rewardEarned: '報酬獲得！',
+
+
         rewardAmazing: '素晴らしい！',
         rewardGreat: 'すごい！',
         rewardNice: 'いいですね！',
         rewardNone: 'この広告では報酬が発生しませんでした',
         rewardError: '報酬の追加に失敗しました。再試行してください。',
-        tapToLoad: 'タップして読み込む',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -2933,6 +2892,28 @@ const translations = {
         noScheduledNotifications: 'スケジュールされた通知はありません',
         cancelNotification: '通知をキャンセル',
         cancelNotificationConfirm: 'このスケジュールされた通知を削除しますか？',
+        // Backup Sync
+        backupTitle: 'バックアップの保存先は？',
+        backupSubtitle: '呪文はこの場所に自動的に保存されます。',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: '自動、任意のデバイスで動作',
+        backupGoogleDriveDefault: 'デフォルト',
+        backupLocalFolder: 'ローカルフォルダ',
+        backupLocalFolderDesc: '詳細設定 — 保存先を自分で選択',
+        backupConfirm: '確認',
+        backupSkip: 'バックアップをスキップ',
+        backupReconnectTitle: 'バックアップを再接続',
+        backupReconnectWarning: 'アカウントはローカルフォルダを使用していました。このデバイスでバックアップを見つける場所を選択してください。',
+        backupChooseFolder: 'バックアップフォルダを選択',
+        backupSwitchToDrive: 'Google Driveに切り替え',
+        backupStartFresh: 'ゼロから始める',
+        backupActive: 'バックアップ有効',
+        backupActiveDesc: '呪文はGoogle Driveに自動的に保存されます。',
+        backupActiveLocalDesc: '呪文はローカルフォルダに自動的に保存されます。',
+        backupRestoredCount: '%{count}件の呪文が復元されました！',
+        backupRestoredDesc: 'Google Driveのバックアップが自動的に適用されました。',
+        noBackupTitle: 'バックアップなし',
+        noBackupDesc: '呪文は保護されていません',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'スキップ',
@@ -3081,12 +3062,11 @@ const translations = {
         generatingApp: '正在召唤应用...',
         updatingApp: '正在改进应用...',
 
-        emptyTitle: '还没有应用',
-        emptySubtitle: '用AI创建你的第一个应用！',
+
         run: '运行',
         edit: '编辑',
         delete: '删除',
-        rename: '重命名',
+
         cancel: '取消',
         confirm: '确认',
         save: '保存',
@@ -3097,7 +3077,7 @@ const translations = {
         listeningTap: '🎤 正在聆听... 点击停止',
         describeOrMic: '💡 描述或使用麦克风',
         appNamePlaceholder: '应用名称',
-        manaUsed: '已用魔力',
+
         manaLastDays: '最近%{days}天',
         manaLast30Days: '最近30天',
         importProject: '导入ZIP项目',
@@ -3110,7 +3090,7 @@ const translations = {
         legal: '法律信息',
         createTitle: '创建新应用',
         createPlaceholder: '描述你想创建的应用...',
-        generating: '生成中... (可能需要几分钟)',
+
         chooseIcon: '选择图标',
         fromGallery: '从相册选择',
         fromFiles: '从文件选择',
@@ -3124,7 +3104,7 @@ const translations = {
         createShortcut: '创建快捷方式',
         shortcutSubtitle: '无需进入Appacadabra即可打开',
         iconCostHint: '图库免费 • AI生成 ⚡ 0.5',
-        editCostHint: '代码编辑免费 • AI编辑 ⚡ 1.0',
+
         setupModalTitle: '✨ 法术已创建！',
         setupModalSubtitle: '立即定制或稍后跳过',
         setupModalSave: '保存并开始使用',
@@ -3132,8 +3112,7 @@ const translations = {
         setupCostNotice: '创建此法术花费 ⚡ %{cost}。AI编辑每次花费 ⚡ 1.0。',
         deleteTitle: '删除应用？',
         deleteMessage: "确定要删除'%{name}'吗？此操作无法撤销。",
-        renameTitle: '重命名应用',
-        renamePlaceholder: '新名称',
+
         openSpell: '打开',
         editDetailsSub: '名称、描述和图片',
         notifCountScheduled: '{{count}}个已安排',
@@ -3153,11 +3132,9 @@ const translations = {
         privacyTitle: '隐私政策',
         termsTitle: '服务条款',
         lastUpdated: '最后更新：2026年1月',
-        contentBlocked: '不允许的内容。请描述一个合法有用的应用。',
 
         // Empty state / How it works
-        emptyMagic: '用魔法创建应用！',
-        emptyDesc: '描述适合你的完美应用，AI 将为你创建一个 100% 个性化的应用。',
+
         howItWorks: '如何使用：',
         step1Title: '描述',
         step1Desc: '确切说出你的需求',
@@ -3182,7 +3159,7 @@ const translations = {
         manualEdit: '代码编辑',
         versionHistory: '历史',
         selectElement: '选择',
-        applyEdit: '应用',
+
         debug: '调试',
         search: '搜索',
         searchSpells: '搜索法术...',
@@ -3199,13 +3176,8 @@ const translations = {
         noRequests: '暂无网络请求',
         clear: '清除',
         consoleLogs: '控制台日志',
-        shareWithAppacadabra: '分享至 Appacadabra',
-        fileLabel: '(文件)',
-        textLabel: '(文本)',
-        chooseApp: '选择一个应用:',
-        noAppsCreated: '尚未创建应用',
-        shareTabSpell: '咒语 (.spell)',
-        shareTabFile: '其他文件',
+
+
         shareImportSpell: '导入咒语',
         shareOrSendTo: '或发送至咒语',
         shareSendToWhich: '发送到哪个咒语？',
@@ -3221,18 +3193,14 @@ const translations = {
         setupEnter: '进入咒语 →',
         setupSkip: '稍后',
 
-        manaBalance: '魔力: %{amount}',
+
         // Account
         account: '账户',
-        linkAccount: '关联 Google 账户',
-        linkAccountDesc: '将您的魔力备份到云端',
-        linkAccountCTA: '保护您的魔力 ⚡',
-        linkAccountCTADesc: '使用Google登录将魔力保存到云端。更换设备不会丢失积分！',
-        spellsStayLocal: '🔒 您的应用保存在设备上 — 安全私密。',
-        linkedAs: '已登录为 %{email}',
+
+
         signInGoogle: '使用 Google 登录',
         linkError: '关联失败。请重试。',
-        linkSuccess: '账户关联成功！',
+
         signOut: '退出登录',
         signOutTitle: '如何处理呪文？',
         keepLocal: '保存在手机上',
@@ -3242,7 +3210,7 @@ const translations = {
         manaCloudNote: '您的法力 ⚡ %{amount} 将保留在 Google 帐户中，并在您再次登录时返回。',
         signOutSuccessKeep: '您已退出登录。您的呪文仍在这里。',
         signOutSuccessClear: '您已退出登录。所有本地数据已清除。',
-        signOutConfirm: '退出登录？',
+
         accountConflict: '账号已存在。要改为登录吗？（当前魔力将被云端魔力替换）',
         success: '成功',
         error: '错误',
@@ -3251,8 +3219,8 @@ const translations = {
         noLogin: '未登录',
         getMana: '获取魔力',
         buyMana: '购买魔力',
-        insufficientMana: '魔力不足',
-        insufficientManaMessage: '此操作需要 %{cost} 魔力。你的余额是 %{balance}。',
+
+
         manaDepletedTitle: '⚡ 魔力耗尽！',
         manaDepletedMessage: '你的魔力已用完。充值以继续使用 AI 功能。',
         manaShopTitle: '魔力商店',
@@ -3264,21 +3232,16 @@ const translations = {
         purchaseFailed: '购买失败。请重试。',
         watchAd: '观看广告 (魔力)',
         freeMana: '免费魔力',
-        confirmPurchase: '确认购买',
-        purchaseConfirmMessage: '购买 %{amount} 魔力？',
+
+
         currentBalance: '当前余额',
-        watchingAd: '正在观看广告...',
-        loading: '加载中',
-        adLoading: '广告加载中，请稍候...',
-        adNotReady: '广告未准备好',
-        adLoadingRetry: '请稍候，正在加载广告...',
-        rewardEarned: '获得奖励！',
+
+
         rewardAmazing: '太棒了！',
         rewardGreat: '好极了！',
         rewardNice: '不错！',
         rewardNone: '此广告未产生奖励',
         rewardError: '添加奖励时出错。请重试。',
-        tapToLoad: '点击加载',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -3291,6 +3254,28 @@ const translations = {
         noScheduledNotifications: '没有计划通知',
         cancelNotification: '取消通知',
         cancelNotificationConfirm: '要删除此计划通知吗？',
+        // Backup Sync
+        backupTitle: '在哪里保存备份？',
+        backupSubtitle: '法术自动保存在此位置。',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: '自动，适用于任何设备',
+        backupGoogleDriveDefault: '默认',
+        backupLocalFolder: '本地文件夹',
+        backupLocalFolderDesc: '高级 — 您选择保存位置',
+        backupConfirm: '确认',
+        backupSkip: '忽略备份',
+        backupReconnectTitle: '重新连接备份',
+        backupReconnectWarning: '您的账户使用了本地文件夹。选择在此设备上找到备份的位置。',
+        backupChooseFolder: '选择备份文件夹',
+        backupSwitchToDrive: '切换到 Google Drive',
+        backupStartFresh: '从头开始',
+        backupActive: '备份活跃',
+        backupActiveDesc: '法术自动保存到 Google Drive。',
+        backupActiveLocalDesc: '法术自动保存到本地文件夹。',
+        backupRestoredCount: '已恢复 %{count} 个法术！',
+        backupRestoredDesc: '已自动应用 Google Drive 的备份。',
+        noBackupTitle: '无备份',
+        noBackupDesc: '您的法术未受到保护',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: '跳过',
@@ -3445,12 +3430,11 @@ const translations = {
         generatingApp: '앱 소환 중...',
         updatingApp: '앱 개선 중...',
 
-        emptyTitle: '아직 앱이 없습니다',
-        emptySubtitle: 'AI로 첫 번째 앱을 만들어보세요!',
+
         run: '실행',
         edit: '편집',
         delete: '삭제',
-        rename: '이름 변경',
+
         cancel: '취소',
         confirm: '확인',
         save: '저장',
@@ -3461,7 +3445,7 @@ const translations = {
         listeningTap: '🎤 듣는 중... 탭하여 중지',
         describeOrMic: '💡 설명하거나 마이크 사용',
         appNamePlaceholder: '앱 이름',
-        manaUsed: '사용된 마나',
+
         manaLastDays: '최근 %{days}일',
         manaLast30Days: '최근 30일',
         importProject: 'ZIP 프로젝트 가져오기',
@@ -3474,7 +3458,7 @@ const translations = {
         legal: '법적 정보',
         createTitle: '새 앱 만들기',
         createPlaceholder: '만들고 싶은 앱을 설명하세요...',
-        generating: '생성 중... (몇 분 정도 걸릴 수 있습니다)',
+
         chooseIcon: '아이콘 선택',
         fromGallery: '갤러리에서',
         fromFiles: '파일에서',
@@ -3488,7 +3472,7 @@ const translations = {
         createShortcut: '바로가기 만들기',
         shortcutSubtitle: 'Appacadabra에 들어가지 않고 열기',
         iconCostHint: '갤러리 무료 • AI로 생성 ⚡ 0.5',
-        editCostHint: '코딩 무료 • AI로 편집 ⚡ 1.0',
+
         setupModalTitle: '✨ 마법 생성 완료!',
         setupModalSubtitle: '지금 커스터마이즈하거나 나중에 건너뛰기',
         setupModalSave: '저장 후 사용 시작',
@@ -3496,8 +3480,7 @@ const translations = {
         setupCostNotice: '이 마법을 만드는 데 ⚡ %{cost}가 사용됐습니다. AI 편집은 각 ⚡ 1.0이 필요합니다.',
         deleteTitle: '앱을 삭제하시겠습니까?',
         deleteMessage: "'%{name}'을(를) 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
-        renameTitle: '앱 이름 변경',
-        renamePlaceholder: '새 이름',
+
         openSpell: '열기',
         editDetailsSub: '이름, 설명 및 이미지',
         notifCountScheduled: '{{count}}개 예약됨',
@@ -3517,11 +3500,9 @@ const translations = {
         privacyTitle: '개인정보처리방침',
         termsTitle: '이용약관',
         lastUpdated: '최종 업데이트: 2026년 1월',
-        contentBlocked: '허용되지 않는 콘텐츠입니다. 합법적이고 유용한 앱을 설명해주세요.',
 
         // Empty state / How it works
-        emptyMagic: '마법으로 앱을 만드세요!',
-        emptyDesc: '완벽한 앱을 설명하면, AI가 100% 맞춤형 앱을 만들어 드립니다.',
+
         howItWorks: '사용 방법:',
         step1Title: '설명하기',
         step1Desc: '필요한 것을 정확히 말하세요',
@@ -3546,7 +3527,7 @@ const translations = {
         manualEdit: '수동 편집',
         versionHistory: '기록',
         selectElement: '선택',
-        applyEdit: '적용',
+
         debug: '디버그',
         search: '검색',
         searchSpells: '마법 검색...',
@@ -3563,13 +3544,8 @@ const translations = {
         noRequests: '아직 네트워크 요청 없음',
         clear: '지우기',
         consoleLogs: '콘솔 로그',
-        shareWithAppacadabra: 'Appacadabra로 공유',
-        fileLabel: '(파일)',
-        textLabel: '(텍스트)',
-        chooseApp: '앱 선택:',
-        noAppsCreated: '아직 생성된 앱이 없습니다',
-        shareTabSpell: '주문 (.spell)',
-        shareTabFile: '기타 파일',
+
+
         shareImportSpell: '주문 가져오기',
         shareOrSendTo: '또는 주문에 보내기',
         shareSendToWhich: '어떤 주문에 보낼까요?',
@@ -3585,18 +3561,14 @@ const translations = {
         setupEnter: '주문 입장 →',
         setupSkip: '나중에',
 
-        manaBalance: '마나: %{amount}',
+
         // Account
         account: '계정',
-        linkAccount: 'Google 계정 연동',
-        linkAccountDesc: '마나를 클라우드에 백업',
-        linkAccountCTA: '마나를 보호하세요 ⚡',
-        linkAccountCTADesc: 'Google로 로그인하여 마나를 클라우드에 저장하세요. 기기를 변경해도 크레딧을 잃지 않습니다!',
-        spellsStayLocal: '🔒 앱은 기기에 저장됩니다 — 안전하고 비공개입니다.',
-        linkedAs: '%{email}(으)로 로그인됨',
+
+
         signInGoogle: 'Google로 로그인',
         linkError: '연동 실패. 다시 시도해 주세요.',
-        linkSuccess: '계정이 성공적으로 연동되었습니다!',
+
         signOut: '로그아웃',
         signOutTitle: '스펠을 어떻게 처리할까요?',
         keepLocal: '휴대폰에 유지',
@@ -3606,7 +3578,7 @@ const translations = {
         manaCloudNote: '귀하의 마나 ⚡ %{amount}는 Google 계정에 유지되며 다시 로그인할 때 돌아옵니다.',
         signOutSuccessKeep: '로그아웃되었습니다. 스펠은 여전히 여기에 있습니다.',
         signOutSuccessClear: '로그아웃되었습니다. 모든 로컬 데이터가 삭제되었습니다.',
-        signOutConfirm: '로그아웃하시겠습니까?',
+
         accountConflict: '이미 계정이 존재합니다. 대신 로그인하시겠습니까? (현재 마나는 클라우드 마나로 대체됩니다)',
         success: '성공',
         error: '오류',
@@ -3615,8 +3587,8 @@ const translations = {
         noLogin: '로그인하지 않음',
         getMana: '마나 얻기',
         buyMana: '마나 구매',
-        insufficientMana: '마나 부족',
-        insufficientManaMessage: '이 작업을 수행하려면 %{cost} 마나가 필요합니다. 현재 잔액: %{balance}.',
+
+
         manaDepletedTitle: '⚡ 마나 소진!',
         manaDepletedMessage: '마나가 다 떨어졌습니다. AI 기능을 계속 사용하려면 충전하세요.',
         manaShopTitle: '마나 상점',
@@ -3628,27 +3600,44 @@ const translations = {
         purchaseFailed: '구매 실패. 다시 시도해 주세요.',
         watchAd: '광고 보기 (마나)',
         freeMana: '무료 마나',
-        confirmPurchase: '구매 확인',
-        purchaseConfirmMessage: '%{amount} 마나를 구매하시겠습니까?',
+
+
         currentBalance: '현재 잔액',
-        watchingAd: '광고 시청 중...',
-        loading: '로딩 중',
-        adLoading: '광고 로딩 중, 잠시만 기다려주세요...',
-        adNotReady: '광고 준비 안 됨',
-        adLoadingRetry: '광고를 불러오는 중입니다...',
-        rewardEarned: '보상 획득!',
+
+
         rewardAmazing: '놀라워요!',
         rewardGreat: '좋아요!',
         rewardNice: '멋져요!',
         rewardNone: '이 광고로 보상을 받지 못했습니다',
         rewardError: '보상 추가 오류. 다시 시도해주세요.',
-        tapToLoad: '탭하여 로드',
 
         // Scheduled Notifications
         scheduledNotifications: '예약된 알림',
         noScheduledNotifications: '예약된 알림이 없습니다',
         cancelNotification: '알림 취소',
         cancelNotificationConfirm: '이 예약된 알림을 삭제하시겠습니까?',
+        // Backup Sync
+        backupTitle: '백업을 어디에 저장할까요?',
+        backupSubtitle: '마법이 이 위치에 자동으로 저장됩니다.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: '자동, 모든 기기에서 작동',
+        backupGoogleDriveDefault: '기본값',
+        backupLocalFolder: '로컬 폴더',
+        backupLocalFolderDesc: '고급 — 저장 위치 직접 선택',
+        backupConfirm: '확인',
+        backupSkip: '백업 무시',
+        backupReconnectTitle: '백업 다시 연결',
+        backupReconnectWarning: '계정에서 로컬 폴더를 사용했습니다. 이 기기에서 백업을 찾을 위치를 선택하세요.',
+        backupChooseFolder: '백업 폴더 선택',
+        backupSwitchToDrive: 'Google Drive로 전환',
+        backupStartFresh: '처음부터 시작',
+        backupActive: '백업 활성화',
+        backupActiveDesc: '마법이 Google Drive에 자동으로 저장됩니다.',
+        backupActiveLocalDesc: '마법이 로컬 폴더에 자동으로 저장됩니다.',
+        backupRestoredCount: '%{count}개의 마법이 복원되었습니다!',
+        backupRestoredDesc: 'Google Drive의 백업이 자동으로 적용되었습니다.',
+        noBackupTitle: '백업 없음',
+        noBackupDesc: '마법이 보호되지 않습니다',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: '건너뛰기',
@@ -3797,12 +3786,11 @@ const translations = {
         generatingApp: 'استدعاء التطبيق...',
         updatingApp: 'تحسين التطبيق...',
 
-        emptyTitle: 'لا توجد تطبيقات بعد',
-        emptySubtitle: 'أنشئ أول تطبيق لك بالذكاء الاصطناعي!',
+
         run: 'تشغيل',
         edit: 'تعديل',
         delete: 'حذف',
-        rename: 'إعادة تسمية',
+
         cancel: 'إلغاء',
         confirm: 'تأكيد',
         save: 'حفظ',
@@ -3813,7 +3801,7 @@ const translations = {
         listeningTap: '🎤 جاري الاستماع... اضغط للإيقاف',
         describeOrMic: '💡 صف أو استخدم الميكروفون',
         appNamePlaceholder: 'اسم التطبيق',
-        manaUsed: 'المانا المستخدمة',
+
         manaLastDays: 'خلال %{days} أيام الماضية',
         manaLast30Days: 'خلال 30 يومًا الماضية',
         importProject: 'استيراد مشروع ZIP',
@@ -3826,7 +3814,7 @@ const translations = {
         legal: 'قانوني',
         createTitle: 'إنشاء تطبيق جديد',
         createPlaceholder: 'صف التطبيق الذي تريد إنشاءه...',
-        generating: 'جاري الإنشاء... (قد يستغرق ذلك بضع دقائق)',
+
         chooseIcon: 'اختر أيقونة',
         fromGallery: 'من المعرض',
         fromFiles: 'من الملفات',
@@ -3840,7 +3828,7 @@ const translations = {
         createShortcut: 'إنشاء اختصار',
         shortcutSubtitle: 'افتح بدون فتح Appacadabra',
         iconCostHint: 'المعرض مجاني • توليد بالذكاء الاصطناعي ⚡ 0.5',
-        editCostHint: 'الكود مجاني • تعديل بالذكاء الاصطناعي ⚡ 1.0',
+
         setupModalTitle: '✨ تم إنشاء التعويذة!',
         setupModalSubtitle: 'خصصها قبل البدء — أو تخطَّ الآن',
         setupModalSave: 'حفظ والبدء في الاستخدام',
@@ -3848,8 +3836,7 @@ const translations = {
         setupCostNotice: 'إنشاء هذه التعويذة كلّف ⚡ %{cost}. تعديلات AI تكلف ⚡ 1.0 لكل منها.',
         deleteTitle: 'حذف التطبيق؟',
         deleteMessage: "هل أنت متأكد من حذف '%{name}'؟ لا يمكن التراجع.",
-        renameTitle: 'إعادة تسمية التطبيق',
-        renamePlaceholder: 'اسم جديد',
+
         openSpell: 'فتح',
         editDetailsSub: 'الاسم والوصف والصورة',
         notifCountScheduled: '{{count}} مجدولة',
@@ -3869,11 +3856,9 @@ const translations = {
         privacyTitle: 'سياسة الخصوصية',
         termsTitle: 'شروط الخدمة',
         lastUpdated: 'آخر تحديث: يناير 2026',
-        contentBlocked: 'محتوى غير مسموح به. يرجى وصف تطبيق شرعي ومفيد.',
 
         // Empty state / How it works
-        emptyMagic: 'اصنع تطبيقات بالسحر!',
-        emptyDesc: 'صف التطبيق المثالي لك، وسيقوم الذكاء الاصطناعي بإنشاء شيء مخصص لك بنسبة 100%.',
+
         howItWorks: 'كيف يعمل:',
         step1Title: 'صف',
         step1Desc: 'قل بالضبط ما تحتاجه',
@@ -3898,7 +3883,7 @@ const translations = {
         manualEdit: 'تعديل الكود',
         versionHistory: 'السجل',
         selectElement: 'تحديد',
-        applyEdit: 'تطبيق',
+
         debug: 'تصحيح',
         search: 'بحث',
         searchSpells: 'بحث عن تعويذة...',
@@ -3915,13 +3900,8 @@ const translations = {
         noRequests: 'لا توجد طلبات شبكة بعد',
         clear: 'مسح',
         consoleLogs: 'سجلات وحدة التحكم',
-        shareWithAppacadabra: 'مشاركة مع Appacadabra',
-        fileLabel: '(ملف)',
-        textLabel: '(نص)',
-        chooseApp: 'اختر تطبيقاً:',
-        noAppsCreated: 'لم يتم إنشاء أي تطبيقات بعد',
-        shareTabSpell: 'تعويذة (.spell)',
-        shareTabFile: 'ملف آخر',
+
+
         shareImportSpell: 'استيراد تعويذة',
         shareOrSendTo: 'أو أرسل إلى تعويذة',
         shareSendToWhich: 'إرسال إلى أي تعويذة؟',
@@ -3943,18 +3923,14 @@ const translations = {
         network_none: 'لا يوجد اتصال',
         network_unknown: 'شبكة غير معروفة',
 
-        manaBalance: 'المانا: %{amount}',
+
         // Account
         account: 'الحساب',
-        linkAccount: 'ربط حساب Google',
-        linkAccountDesc: 'نسخ المانا احتياطيًا إلى السحابة',
-        linkAccountCTA: 'احمِ ماناك ⚡',
-        linkAccountCTADesc: 'سجّل الدخول بحساب Google لحفظ المانا في السحابة. غيّر جهازك دون فقدان الرصيد!',
-        spellsStayLocal: '🔒 تطبيقاتك تبقى على جهازك — آمنة وخاصة.',
-        linkedAs: 'تم تسجيل الدخول باسم %{email}',
+
+
         signInGoogle: 'تسجيل الدخول باستخدام Google',
         linkError: 'فشل الربط. حاول مرة أخرى.',
-        linkSuccess: 'تم ربط الحساب بنجاح!',
+
         signOut: 'تسجيل الخروج',
         signOutTitle: 'ماذا نفعل بالتعاويذ؟',
         keepLocal: 'الاحتفاظ على الهاتف',
@@ -3964,7 +3940,7 @@ const translations = {
         manaCloudNote: 'ستبقى المانا ⚡ %{amount} الخاصة بك في حساب Google وستعود عند تسجيل الدخول مرة أخرى.',
         signOutSuccessKeep: 'لقد سجلت الخروج. تعاويذك لا تزال هنا.',
         signOutSuccessClear: 'لقد سجلت الخروج. تم مسح جميع البيانات المحلية.',
-        signOutConfirm: 'تسجيل الخروج من حسابك؟',
+
         accountConflict: 'الحساب موجود بالفعل. هل تريد تسجيل الدخول بدلاً من ذلك؟ (سيتم استبدال المانا الحالية بمانا السحاب)',
         success: 'نجاح',
         error: 'خطأ',
@@ -3973,8 +3949,8 @@ const translations = {
         noLogin: 'غير مسجل الدخول',
         getMana: 'الحصول على مانا',
         buyMana: 'شراء المانا',
-        insufficientMana: 'المانا غير كافية',
-        insufficientManaMessage: 'تحتاج إلى %{cost} مانا لهذا الإجراء. رصيدك هو %{balance}.',
+
+
         manaDepletedTitle: '⚡ نفدت المانا!',
         manaDepletedMessage: 'لقد نفدت المانا لديك. قم بالشحن لمواصلة استخدام ميزات الذكاء الاصطناعي.',
         manaShopTitle: 'متجر المانا',
@@ -3986,27 +3962,44 @@ const translations = {
         purchaseFailed: 'فشلت عملية الشراء. حاول مرة أخرى.',
         watchAd: 'مشاهدة إعلان (مانا)',
         freeMana: 'مانا مجانية',
-        confirmPurchase: 'تأكيد الشراء',
-        purchaseConfirmMessage: 'شراء %{amount} مانا؟',
+
+
         currentBalance: 'الرصيد الحالي',
-        watchingAd: 'جاري مشاهدة الإعلان...',
-        loading: 'جاري التحميل',
-        adLoading: 'جاري تحميل الإعلان، يرجى الانتظار...',
-        adNotReady: 'الإعلان غير جاهز',
-        adLoadingRetry: 'يرجى الانتظار أثناء تحميل الإعلان...',
-        rewardEarned: 'تم الحصول على المكافأة!',
+
+
         rewardAmazing: 'مذهل!',
         rewardGreat: 'عظيم!',
         rewardNice: 'جيد!',
         rewardNone: 'لم يولد هذا الإعلان مكافأة',
         rewardError: 'خطأ في إضافة المكافأة. يرجى المحاولة مرة أخرى.',
-        tapToLoad: 'اضغط للتحميل',
 
         // Scheduled Notifications
         scheduledNotifications: 'الإشعارات المجدولة',
         noScheduledNotifications: 'لا توجد إشعارات مجدولة',
         cancelNotification: 'إلغاء الإشعار',
         cancelNotificationConfirm: 'هل تريد إزالة هذا الإشعار المجدول؟',
+        // Backup Sync
+        backupTitle: 'أين تريد حفظ نسختك الاحتياطية؟',
+        backupSubtitle: 'يتم حفظ التعاويذ تلقائياً في هذا الموقع.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'تلقائي، يعمل على أي جهاز',
+        backupGoogleDriveDefault: 'افتراضي',
+        backupLocalFolder: 'مجلد محلي',
+        backupLocalFolderDesc: 'متقدم — اختر أنت مكان الحفظ',
+        backupConfirm: 'تأكيد',
+        backupSkip: 'تجاهل النسخ الاحتياطي',
+        backupReconnectTitle: 'إعادة ربط النسخ الاحتياطي',
+        backupReconnectWarning: 'استخدم حسابك مجلداً محلياً. اختر مكان البحث عن النسخة الاحتياطية على هذا الجهاز.',
+        backupChooseFolder: 'اختر مجلد النسخ الاحتياطي',
+        backupSwitchToDrive: 'التبديل إلى Google Drive',
+        backupStartFresh: 'البدء من الصفر',
+        backupActive: 'النسخ الاحتياطي نشط',
+        backupActiveDesc: 'يتم حفظ التعاويذ تلقائياً في Google Drive.',
+        backupActiveLocalDesc: 'يتم حفظ التعاويذ تلقائياً في المجلد المحلي.',
+        backupRestoredCount: 'تم استعادة %{count} تعاويذ!',
+        backupRestoredDesc: 'تم تطبيق نسخة Google Drive الاحتياطية تلقائياً.',
+        noBackupTitle: 'لا توجد نسخة احتياطية',
+        noBackupDesc: 'تعاويذك غير محمية',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'تخطي',
@@ -4155,12 +4148,11 @@ const translations = {
         generatingApp: 'ऐप बुला रहा है...',
         updatingApp: 'ऐप सुधार रहा है...',
 
-        emptyTitle: 'अभी तक कोई ऐप नहीं',
-        emptySubtitle: 'AI के साथ अपना पहला ऐप बनाएं!',
+
         run: 'चलाएं',
         edit: 'संपादित करें',
         delete: 'हटाएं',
-        rename: 'नाम बदलें',
+
         cancel: 'रद्द करें',
         confirm: 'पुष्टि करें',
         save: 'सहेजें',
@@ -4171,7 +4163,7 @@ const translations = {
         listeningTap: '🎤 सुन रहा है... रोकने के लिए टैप करें',
         describeOrMic: '💡 वर्णन करें या माइक का उपयोग करें',
         appNamePlaceholder: 'ऐप का नाम',
-        manaUsed: 'उपयोग किया गया माना',
+
         manaLastDays: 'पिछले %{days} दिनों में',
         manaLast30Days: 'पिछले 30 दिनों में',
         importProject: 'ZIP प्रोजेक्ट आयात करें',
@@ -4184,7 +4176,7 @@ const translations = {
         legal: 'कानूनी',
         createTitle: 'नया ऐप बनाएं',
         createPlaceholder: 'आप जो ऐप बनाना चाहते हैं उसका वर्णन करें...',
-        generating: 'बना रहा है... (इसमें कुछ मिनट लग सकते हैं)',
+
         chooseIcon: 'आइकन चुनें',
         fromGallery: 'गैलरी से',
         fromFiles: 'फाइल से',
@@ -4198,7 +4190,7 @@ const translations = {
         createShortcut: 'शॉर्टकट बनाएं',
         shortcutSubtitle: 'Appacadabra में गए बिना खोलें',
         iconCostHint: 'गैलरी मुफ़्त • AI से बनाएं ⚡ 0.5',
-        editCostHint: 'कोडिंग मुफ़्त • AI से संपादित करें ⚡ 1.0',
+
         setupModalTitle: '✨ जादू बन गया!',
         setupModalSubtitle: 'शुरू होने से पहले कस्टमाइज़ करें — या अभी छोड़ दें',
         setupModalSave: 'सेव करें और उपयोग शुरू करें',
@@ -4206,8 +4198,7 @@ const translations = {
         setupCostNotice: 'यह जादू बनाने में ⚡ %{cost} खर्च हुए। AI संपादन प्रत्येक ⚡ 1.0 खर्च करते हैं।',
         deleteTitle: 'ऐप हटाएं?',
         deleteMessage: "क्या आप '%{name}' को हटाना चाहते हैं? यह पूर्ववत नहीं किया जा सकता।",
-        renameTitle: 'ऐप का नाम बदलें',
-        renamePlaceholder: 'नया नाम',
+
         openSpell: 'खोलें',
         editDetailsSub: 'नाम, विवरण और छवि',
         notifCountScheduled: '{{count}} निर्धारित',
@@ -4227,11 +4218,9 @@ const translations = {
         privacyTitle: 'गोपनीयता नीति',
         termsTitle: 'सेवा की शर्तें',
         lastUpdated: 'अंतिम अपडेट: जनवरी 2026',
-        contentBlocked: 'सामग्री अनुमत नहीं है। कृपया एक वैध और उपयोगी ऐप का वर्णन करें।',
 
         // Empty state / How it works
-        emptyMagic: 'जादू से ऐप बनाएं!',
-        emptyDesc: 'अपने लिए सही ऐप का वर्णन करें, और AI 100% व्यक्तिगत कुछ बनाएगा।',
+
         howItWorks: 'यह कैसे काम करता है:',
         step1Title: 'वर्णन करें',
         step1Desc: 'वही बताएं जो आपको चाहिए',
@@ -4256,7 +4245,7 @@ const translations = {
         manualEdit: 'कोड संपादित करें',
         versionHistory: 'इतिहास',
         selectElement: 'चुनें',
-        applyEdit: 'लागू करें',
+
         debug: 'डीबग',
         search: 'खोजें',
         searchSpells: 'जादू खोजें...',
@@ -4273,13 +4262,8 @@ const translations = {
         noRequests: 'अभी तक कोई नेटवर्क अनुरोध नहीं',
         clear: 'साफ़ करें',
         consoleLogs: 'कंसोल लॉग',
-        shareWithAppacadabra: 'Appacadabra के साथ साझा करें',
-        fileLabel: '(फाइल)',
-        textLabel: '(टेक्स्ट)',
-        chooseApp: 'एक ऐप चुनें:',
-        noAppsCreated: 'अभी तक कोई ऐप नहीं बनाया गया है',
-        shareTabSpell: 'मंत्र (.spell)',
-        shareTabFile: 'अन्य फ़ाइल',
+
+
         shareImportSpell: 'मंत्र आयात करें',
         shareOrSendTo: 'या किसी मंत्र को भेजें',
         shareSendToWhich: 'किस मंत्र को भेजें?',
@@ -4301,18 +4285,14 @@ const translations = {
         network_none: 'कोई कनेक्शन नहीं',
         network_unknown: 'अज्ञात नेटवर्क',
 
-        manaBalance: 'माना: %{amount}',
+
         // Account
         account: 'खाता',
-        linkAccount: 'Google खाता लिंक करें',
-        linkAccountDesc: 'क्लाउड पर अपना माना बैकअप लें',
-        linkAccountCTA: 'अपना माना सुरक्षित करें ⚡',
-        linkAccountCTADesc: 'माना को क्लाउड में सहेजने के लिए Google से साइन इन करें। डिवाइस बदलें और क्रेडिट न खोएं!',
-        spellsStayLocal: '🔒 आपके ऐप्स आपके डिवाइस पर रहते हैं — सुरक्षित और निजी।',
-        linkedAs: '%{email} के रूप में लॉग इन किया गया',
+
+
         signInGoogle: 'Google के साथ साइन इन करें',
         linkError: 'लिंक विफल रहा. पुनः प्रयास करें।',
-        linkSuccess: 'खाता सफलतापूर्वक लिंक किया गया!',
+
         signOut: 'साइन आउट',
         signOutTitle: 'मंत्रों का क्या करें?',
         keepLocal: 'फ़ोन पर रखें',
@@ -4322,7 +4302,7 @@ const translations = {
         manaCloudNote: 'आपका माना ⚡ %{amount} Google खाते में रहता है और दोबारा लॉग इन करने पर वापस आ जाता है।',
         signOutSuccessKeep: 'आपने साइन आउट कर दिया है। आपके मंत्र अभी भी यहीं हैं।',
         signOutSuccessClear: 'आपने साइन आउट कर दिया है। सारा स्थानीय डेटा मिटा दिया गया है।',
-        signOutConfirm: 'अपने खाते से साइन आउट करें?',
+
         accountConflict: 'अकाउंट पहले से मौजूद है। इसके बजाय साइन इन करें? (मौजूदा माना को क्लाउड माना से बदल दिया जाएगा)',
         success: 'सफलता',
         error: 'त्रुटि',
@@ -4331,8 +4311,8 @@ const translations = {
         noLogin: 'लॉग इन नहीं है',
         getMana: 'माना प्राप्त करें',
         buyMana: 'माना खरीदें',
-        insufficientMana: 'अपर्याप्त माना',
-        insufficientManaMessage: 'इस क्रिया के लिए आपको %{cost} माना की आवश्यकता है। आपका शेष %{balance} है।',
+
+
         manaDepletedTitle: '⚡ माना खत्म!',
         manaDepletedMessage: 'आपका माना खत्म हो गया है। AI सुविधाओं का उपयोग जारी रखने के लिए रिचार्ज करें।',
         manaShopTitle: 'माना दुकान',
@@ -4344,27 +4324,44 @@ const translations = {
         purchaseFailed: 'खरीद विफल रही। कृपया पुनः प्रयास करें।',
         watchAd: 'विज्ञापन देखें (माना)',
         freeMana: 'मुफ्त माना',
-        confirmPurchase: 'खरीद की पुष्टि करें',
-        purchaseConfirmMessage: '%{amount} माना खरीदें?',
+
+
         currentBalance: 'वर्तमान शेष',
-        watchingAd: 'विज्ञापन देख रहा है...',
-        loading: 'लोड हो रहा है',
-        adLoading: 'विज्ञापन लोड हो रहा है, कृपया प्रतीक्षा करें...',
-        adNotReady: 'विज्ञापन तैयार नहीं है',
-        adLoadingRetry: 'कृपया प्रतीक्षा करें जबकि हम एक विज्ञापन लोड करते हैं...',
-        rewardEarned: 'इनाम मिला!',
+
+
         rewardAmazing: 'अद्भुत!',
         rewardGreat: 'बढ़िया!',
         rewardNice: 'अच्छा!',
         rewardNone: 'इस विज्ञापन ने कोई इनाम नहीं दिया',
         rewardError: 'इनाम जोड़ने में त्रुटि। कृपया पुनः प्रयास करें।',
-        tapToLoad: 'लोड करने के लिए टैप करें',
 
         // Scheduled Notifications
         scheduledNotifications: 'अनुसूचित सूचनाएं',
         noScheduledNotifications: 'कोई अनुसूचित सूचना नहीं',
         cancelNotification: 'सूचना रद्द करें',
         cancelNotificationConfirm: 'क्या आप इस अनुसूचित सूचना को हटाना चाहते हैं?',
+        // Backup Sync
+        backupTitle: 'बैकअप कहाँ सहेजना है?',
+        backupSubtitle: 'जादू इस स्थान पर स्वचालित रूप से सहेजे जाते हैं।',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'स्वचालित, किसी भी डिवाइस पर काम करता है',
+        backupGoogleDriveDefault: 'डिफ़ॉल्ट',
+        backupLocalFolder: 'स्थानीय फ़ोल्डर',
+        backupLocalFolderDesc: 'उन्नत — आप बचत स्थान चुनें',
+        backupConfirm: 'पुष्टि करें',
+        backupSkip: 'बैकअप अनदेखा करें',
+        backupReconnectTitle: 'बैकअप पुनः कनेक्ट करें',
+        backupReconnectWarning: 'आपके खाते ने एक स्थानीय फ़ोल्डर का उपयोग किया। इस डिवाइस पर बैकअप खोजने के लिए स्थान चुनें।',
+        backupChooseFolder: 'बैकअप फ़ोल्डर चुनें',
+        backupSwitchToDrive: 'Google Drive पर स्विच करें',
+        backupStartFresh: 'नए सिरे से शुरू करें',
+        backupActive: 'बैकअप सक्रिय',
+        backupActiveDesc: 'जादू स्वचालित रूप से Google Drive में सहेजे जाते हैं।',
+        backupActiveLocalDesc: 'जादू स्वचालित रूप से स्थानीय फ़ोल्डर में सहेजे जाते हैं।',
+        backupRestoredCount: '%{count} जादू वापस आ गए!',
+        backupRestoredDesc: 'Google Drive का बैकअप स्वचालित रूप से लागू किया गया।',
+        noBackupTitle: 'कोई बैकअप नहीं',
+        noBackupDesc: 'आपके जादू सुरक्षित नहीं हैं',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'छोड़ें',
@@ -4513,12 +4510,11 @@ const translations = {
         generatingApp: 'Призыв приложения...',
         updatingApp: 'Улучшение приложения...',
 
-        emptyTitle: 'Пока нет приложений',
-        emptySubtitle: 'Создайте первое приложение с ИИ!',
+
         run: 'Запустить',
         edit: 'Редактировать',
         delete: 'Удалить',
-        rename: 'Переименовать',
+
         cancel: 'Отмена',
         confirm: 'Подтвердить',
         save: 'Сохранить',
@@ -4529,7 +4525,7 @@ const translations = {
         listeningTap: '🎤 Слушаю... Нажмите для остановки',
         describeOrMic: '💡 Опишите или используйте микрофон',
         appNamePlaceholder: 'Название приложения',
-        manaUsed: 'Использовано маны',
+
         manaLastDays: 'за последние %{days} дней',
         manaLast30Days: 'за последние 30 дней',
         importProject: 'Импорт ZIP проекта',
@@ -4542,7 +4538,7 @@ const translations = {
         legal: 'Правовая информация',
         createTitle: 'Создать новое приложение',
         createPlaceholder: 'Опишите приложение, которое хотите создать...',
-        generating: 'Генерация... (это может занять несколько минут)',
+
         chooseIcon: 'Выбрать иконку',
         fromGallery: 'Из галереи',
         fromFiles: 'Из файлов',
@@ -4556,7 +4552,7 @@ const translations = {
         createShortcut: 'Создать ярлык',
         shortcutSubtitle: 'Открыть без входа в Appacadabra',
         iconCostHint: 'Галерея бесплатно • Создать с ИИ ⚡ 0,5',
-        editCostHint: 'Код бесплатно • Редактировать с ИИ ⚡ 1,0',
+
         setupModalTitle: '✨ Заклинание создано!',
         setupModalSubtitle: 'Настройте перед началом — или пропустите пока',
         setupModalSave: 'Сохранить и начать использовать',
@@ -4564,8 +4560,7 @@ const translations = {
         setupCostNotice: 'Создание этого заклинания стоило ⚡ %{cost}. Редактирование с ИИ стоит ⚡ 1,0 каждое.',
         deleteTitle: 'Удалить приложение?',
         deleteMessage: "Вы уверены, что хотите удалить '%{name}'? Это действие необратимо.",
-        renameTitle: 'Переименовать приложение',
-        renamePlaceholder: 'Новое имя',
+
         openSpell: 'Открыть',
         editDetailsSub: 'Имя, описание и изображение',
         notifCountScheduled: '{{count}} запланировано',
@@ -4585,11 +4580,9 @@ const translations = {
         privacyTitle: 'Политика конфиденциальности',
         termsTitle: 'Условия использования',
         lastUpdated: 'Последнее обновление: Январь 2026',
-        contentBlocked: 'Контент не разрешен. Пожалуйста, опишите легитимное и полезное приложение.',
 
         // Empty state / How it works
-        emptyMagic: 'Создавайте приложения с магией!',
-        emptyDesc: 'Опишите идеальное приложение для вас, и ИИ создаст что-то на 100% персонализированное.',
+
         howItWorks: 'Как это работает:',
         step1Title: 'Опишите',
         step1Desc: 'Скажите точно, что вам нужно',
@@ -4614,7 +4607,7 @@ const translations = {
         manualEdit: 'Ручное редактирование',
         versionHistory: 'История',
         selectElement: 'Выбрать',
-        applyEdit: 'Применить',
+
         debug: 'Отладка',
         search: 'Поиск',
         searchSpells: 'Поиск заклинаний...',
@@ -4631,13 +4624,8 @@ const translations = {
         noRequests: 'Пока нет сетевых запросов',
         clear: 'Очистить',
         consoleLogs: 'Логи консоли',
-        shareWithAppacadabra: 'Поделиться с Appacadabra',
-        fileLabel: '(Файл)',
-        textLabel: '(Текст)',
-        chooseApp: 'Выберите приложение:',
-        noAppsCreated: 'Приложения еще не созданы',
-        shareTabSpell: 'Заклинание (.spell)',
-        shareTabFile: 'Другой файл',
+
+
         shareImportSpell: 'Импорт заклинания',
         shareOrSendTo: 'или отправить в заклинание',
         shareSendToWhich: 'В какое заклинание отправить?',
@@ -4659,18 +4647,14 @@ const translations = {
         network_none: 'Нет соединения',
         network_unknown: 'Неизвестная сеть',
 
-        manaBalance: 'Мана: %{amount}',
+
         // Account
         account: 'Аккаунт',
-        linkAccount: 'Привязать аккаунт Google',
-        linkAccountDesc: 'Резервное копирование маны в облако',
-        linkAccountCTA: 'Защитите свою Ману ⚡',
-        linkAccountCTADesc: 'Войдите через Google, чтобы сохранить Ману в облаке. Меняйте устройство без потери кредитов!',
-        spellsStayLocal: '🔒 Ваши приложения остаются на устройстве — в безопасности.',
-        linkedAs: 'Вы вошли как %{email}',
+
+
         signInGoogle: 'Войти через Google',
         linkError: 'Ошибка привязки. Попробуйте еще раз.',
-        linkSuccess: 'Аккаунт успешно привязан!',
+
         signOut: 'Выйти',
         signOutTitle: 'Что делать с заклинаниями?',
         keepLocal: 'Оставить на телефоне',
@@ -4680,7 +4664,7 @@ const translations = {
         manaCloudNote: 'Ваша Мана ⚡ %{amount} остается в аккаунте Google и вернется при повторном входе.',
         signOutSuccessKeep: 'Вы вышли из системы. Ваши заклинания все еще здесь.',
         signOutSuccessClear: 'Вы вышли из системы. Все локальные данные были удалены.',
-        signOutConfirm: 'Выйти из учетной записи?',
+
         accountConflict: 'Аккаунт уже существует. Войти вместо этого? (Текущая мана будет заменена на облачную ману)',
         success: 'Успех',
         error: 'Ошибка',
@@ -4689,8 +4673,8 @@ const translations = {
         noLogin: 'Не в сети',
         getMana: 'Получить Ману',
         buyMana: 'Купить ману',
-        insufficientMana: 'Недостаточно маны',
-        insufficientManaMessage: 'Для этого действия требуется %{cost} маны. Ваш баланс %{balance}.',
+
+
         manaDepletedTitle: '⚡ Мана закончилась!',
         manaDepletedMessage: 'Ваша мана исчерпана. Пополните баланс, чтобы продолжить использование функций ИИ.',
         manaShopTitle: 'Магазин маны',
@@ -4702,27 +4686,44 @@ const translations = {
         purchaseFailed: 'Покупка не удалась. Пожалуйста, попробуйте еще раз.',
         watchAd: 'Смотреть рекламу (Мана)',
         freeMana: 'Бесплатная мана',
-        confirmPurchase: 'Подтвердить покупку',
-        purchaseConfirmMessage: 'Купить %{amount} маны?',
+
+
         currentBalance: 'Текущий баланс',
-        watchingAd: 'Просмотр рекламы...',
-        loading: 'Загрузка',
-        adLoading: 'Загрузка рекламы, пожалуйста, подождите...',
-        adNotReady: 'Реклама не готова',
-        adLoadingRetry: 'Пожалуйста, подождите, пока мы загрузим рекламу...',
-        rewardEarned: 'Награда получена!',
+
+
         rewardAmazing: 'Потрясающе!',
         rewardGreat: 'Отлично!',
         rewardNice: 'Хорошо!',
         rewardNone: 'Эта реклама не принесла награды',
         rewardError: 'Ошибка добавления награды. Пожалуйста, попробуйте снова.',
-        tapToLoad: 'Нажмите для загрузки',
 
         // Scheduled Notifications
         scheduledNotifications: 'Запланированные уведомления',
         noScheduledNotifications: 'Нет запланированных уведомлений',
         cancelNotification: 'Отменить уведомление',
         cancelNotificationConfirm: 'Удалить это запланированное уведомление?',
+        // Backup Sync
+        backupTitle: 'Куда сохранить резервную копию?',
+        backupSubtitle: 'Заклинания автоматически сохраняются в этом месте.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Автоматически, работает на любом устройстве',
+        backupGoogleDriveDefault: 'ПО УМОЛЧАНИЮ',
+        backupLocalFolder: 'Локальная папка',
+        backupLocalFolderDesc: 'Расширенный — вы выбираете место хранения',
+        backupConfirm: 'Подтвердить',
+        backupSkip: 'Пропустить резервное копирование',
+        backupReconnectTitle: 'Переподключить резервную копию',
+        backupReconnectWarning: 'Ваш аккаунт использовал локальную папку. Выберите, где найти резервную копию на этом устройстве.',
+        backupChooseFolder: 'Выбрать папку резервной копии',
+        backupSwitchToDrive: 'Переключиться на Google Drive',
+        backupStartFresh: 'Начать заново',
+        backupActive: 'Резервное копирование активно',
+        backupActiveDesc: 'Заклинания автоматически сохраняются в Google Drive.',
+        backupActiveLocalDesc: 'Заклинания автоматически сохраняются в локальной папке.',
+        backupRestoredCount: '%{count} заклинаний восстановлено!',
+        backupRestoredDesc: 'Резервная копия Google Drive применена автоматически.',
+        noBackupTitle: 'Нет резервной копии',
+        noBackupDesc: 'Ваши заклинания не защищены',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Пропустить',
@@ -4871,12 +4872,11 @@ const translations = {
         generatingApp: 'Uygulama çağrılıyor...',
         updatingApp: 'Uygulama geliştiriliyor...',
 
-        emptyTitle: 'Henüz uygulama yok',
-        emptySubtitle: 'AI ile ilk uygulamanızı oluşturun!',
+
         run: 'Çalıştır',
         edit: 'Düzenle',
         delete: 'Sil',
-        rename: 'Yeniden Adlandır',
+
         cancel: 'İptal',
         confirm: 'Onayla',
         save: 'Kaydet',
@@ -4887,7 +4887,7 @@ const translations = {
         listeningTap: '🎤 Dinleniyor... Durdurmak için dokunun',
         describeOrMic: '💡 Tarif edin veya mikrofonu kullanın',
         appNamePlaceholder: 'Uygulama adı',
-        manaUsed: 'Kullanılan Mana',
+
         manaLastDays: 'son %{days} günde',
         manaLast30Days: 'son 30 günde',
         importProject: 'ZIP Projesi İçe Aktar',
@@ -4900,7 +4900,7 @@ const translations = {
         legal: 'Yasal',
         createTitle: 'Yeni Uygulama Oluştur',
         createPlaceholder: 'Oluşturmak istediğiniz uygulamayı açıklayın...',
-        generating: 'Oluşturuluyor... (bu birkaç dakika sürebilir)',
+
         chooseIcon: 'Simge Seç',
         fromGallery: 'Galeriden',
         fromFiles: 'Dosyalardan',
@@ -4914,7 +4914,7 @@ const translations = {
         createShortcut: 'Kısayol Oluştur',
         shortcutSubtitle: 'Appacadabra\'ya girmeden açın',
         iconCostHint: 'Galeri ücretsiz • Yapay Zeka ile Oluştur ⚡ 0,5',
-        editCostHint: 'Kodlama ücretsiz • Yapay Zeka ile Düzenle ⚡ 1,0',
+
         setupModalTitle: '✨ Büyü oluşturuldu!',
         setupModalSubtitle: 'Başlamadan önce özelleştir — ya da şimdi atla',
         setupModalSave: 'Kaydet ve kullanmaya başla',
@@ -4922,8 +4922,7 @@ const translations = {
         setupCostNotice: 'Bu büyüyü oluşturmak ⚡ %{cost} mana harcadı. AI düzenlemeleri her biri ⚡ 1,0 mana harcar.',
         deleteTitle: 'Uygulama silinsin mi?',
         deleteMessage: "'%{name}' silinsin mi? Bu işlem geri alınamaz.",
-        renameTitle: 'Uygulamayı Yeniden Adlandır',
-        renamePlaceholder: 'Yeni ad',
+
         openSpell: 'Aç',
         editDetailsSub: 'Ad, açıklama ve görsel',
         notifCountScheduled: '{{count}} planlanmış',
@@ -4943,11 +4942,9 @@ const translations = {
         privacyTitle: 'Gizlilik Politikası',
         termsTitle: 'Hizmet Şartları',
         lastUpdated: 'Son güncelleme: Ocak 2026',
-        contentBlocked: 'İçeriğe izin verilmiyor. Lütfen meşru ve faydalı bir uygulama tanımlayın.',
 
         // Empty state / How it works
-        emptyMagic: 'Büyü ile uygulamalar yaratın!',
-        emptyDesc: 'Sizin için mükemmel uygulamayı tarif edin, AI %100 kişiselleştirilmiş bir şey yaratsın.',
+
         howItWorks: 'Nasıl çalışır:',
         step1Title: 'Tarif Et',
         step1Desc: 'Tam olarak neye ihtiyacın olduğunu söyle',
@@ -4972,7 +4969,7 @@ const translations = {
         manualEdit: 'Manuel Düzenleme',
         versionHistory: 'Geçmiş',
         selectElement: 'Seç',
-        applyEdit: 'Uygula',
+
         debug: 'Hata Ayıkla',
         search: 'Ara',
         searchSpells: 'Büyü ara...',
@@ -4989,13 +4986,8 @@ const translations = {
         noRequests: 'Henüz ağ isteği yok',
         clear: 'Temizle',
         consoleLogs: 'Konsol Günlükleri',
-        shareWithAppacadabra: 'Appacadabra ile Paylaş',
-        fileLabel: '(Dosya)',
-        textLabel: '(Metin)',
-        chooseApp: 'Bir Uygulama Seçin:',
-        noAppsCreated: 'Henüz uygulama oluşturulmadı',
-        shareTabSpell: 'Büyü (.spell)',
-        shareTabFile: 'Diğer dosya',
+
+
         shareImportSpell: 'Büyü içe aktar',
         shareOrSendTo: 'veya bir büyüye gönder',
         shareSendToWhich: 'Hangi büyüye gönderilsin?',
@@ -5017,18 +5009,14 @@ const translations = {
         network_none: 'Bağlantı Yok',
         network_unknown: 'Bilinmeyen Ağ',
 
-        manaBalance: 'Mana: %{amount}',
+
         // Account
         account: 'Hesap',
-        linkAccount: 'Google Hesabını Bağla',
-        linkAccountDesc: 'Mananızı buluta yedekleyin',
-        linkAccountCTA: 'Mananı Koru ⚡',
-        linkAccountCTADesc: 'Mananızı buluta kaydetmek için Google ile giriş yapın. Cihaz değiştirseniz bile kredilerinizi kaybetmeyin!',
-        spellsStayLocal: '🔒 Uygulamalarınız cihazınızda kalır — güvenli ve özel.',
-        linkedAs: '%{email} olarak oturum açıldı',
+
+
         signInGoogle: 'Google ile oturum aç',
         linkError: 'Bağlama hatası. Tekrar deneyin.',
-        linkSuccess: 'Hesap başarıyla bağlandı!',
+
         signOut: 'Oturumu Kapat',
         signOutTitle: 'Büyüler ne yapılsın?',
         keepLocal: 'Telefonda tut',
@@ -5038,8 +5026,8 @@ const translations = {
         manaCloudNote: 'Mana ⚡ %{amount} miktarınız Google hesabınızda kalır ve tekrar giriş yaptığınızda geri gelir.',
         signOutSuccessKeep: 'Oturum kapatıldı. Büyüleriniz hala burada.',
         signOutSuccessClear: 'Oturum kapatıldı. Tüm yerel veriler temizlendi.',
-        signOutConfirm: 'Hesabınızdan çıkış yapılsın mı?',
-        signOutConfirmDesc: 'Büyüleri cihazınızda tutun veya her şeyi temizleyin. Mana her zaman Google hesabınızda güvende kalır.',
+
+
         loginRequired: 'Devam etmek için giriş yapın',
         loginRequiredDesc: 'Mananız hesabınıza bağlıdır — her cihazda güvende.',
         accountConflict: 'Hesap zaten mevcut. Bunun yerine oturum açmak ister misiniz? (Mevcut mana bulut manasıyla değiştirilecek)',
@@ -5050,8 +5038,8 @@ const translations = {
         noLogin: 'Giriş yapılmadı',
         getMana: 'Mana Al',
         buyMana: 'Mana Satın Al',
-        insufficientMana: 'Yetersiz Mana',
-        insufficientManaMessage: 'Bu işlem için %{cost} mana gerekiyor. Bakiyeniz: %{balance}.',
+
+
         manaDepletedTitle: '⚡ Mana Tükendi!',
         manaDepletedMessage: 'Mananız bitti. AI özelliklerini kullanmaya devam etmek için yükleme yapın.',
         manaShopTitle: 'Mana Mağazası',
@@ -5063,27 +5051,44 @@ const translations = {
         purchaseFailed: 'Satın alma başarısız. Lütfen tekrar deneyin.',
         watchAd: 'Reklam İzle (Mana)',
         freeMana: 'Ücretsiz Mana',
-        confirmPurchase: 'Satın Almayı Onayla',
-        purchaseConfirmMessage: '%{amount} Mana satın alınsın mı?',
+
+
         currentBalance: 'Mevcut Bakiye',
-        watchingAd: 'Reklam izleniyor...',
-        loading: 'Yükleniyor',
-        adLoading: 'Reklam yükleniyor, lütfen bekleyin...',
-        adNotReady: 'Reklam hazır değil',
-        adLoadingRetry: 'Reklam yüklenirken lütfen bekleyin...',
-        rewardEarned: 'Ödül kazanıldı!',
+
+
         rewardAmazing: 'Harika!',
         rewardGreat: 'Muhteşem!',
         rewardNice: 'Güzel!',
         rewardNone: 'Bu reklam ödül vermedi',
         rewardError: 'Ödül eklenirken hata. Lütfen tekrar deneyin.',
-        tapToLoad: 'Yüklemek için dokunun',
 
         // Scheduled Notifications
         scheduledNotifications: 'Planlanmış Bildirimler',
         noScheduledNotifications: 'Planlanmış bildirim yok',
         cancelNotification: 'Bildirimi İptal Et',
         cancelNotificationConfirm: 'Bu planlanmış bildirimi kaldırmak istiyor musunuz?',
+        // Backup Sync
+        backupTitle: 'Yedeğinizi nereye kaydetmek istersiniz?',
+        backupSubtitle: 'Büyüler otomatik olarak bu konuma kaydedilir.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Otomatik, her cihazda çalışır',
+        backupGoogleDriveDefault: 'VARSAYILAN',
+        backupLocalFolder: 'Yerel klasör',
+        backupLocalFolderDesc: 'Gelişmiş — kayıt yerini siz seçin',
+        backupConfirm: 'Onayla',
+        backupSkip: 'Yedeği yoksay',
+        backupReconnectTitle: 'Yedeği yeniden bağla',
+        backupReconnectWarning: 'Hesabınız yerel bir klasör kullandı. Bu cihazda yedeği nerede bulacağınızı seçin.',
+        backupChooseFolder: 'Yedek klasörü seç',
+        backupSwitchToDrive: 'Google Drive\'a geç',
+        backupStartFresh: 'Sıfırdan başla',
+        backupActive: 'Yedekleme aktif',
+        backupActiveDesc: 'Büyüler otomatik olarak Google Drive\'a kaydedilir.',
+        backupActiveLocalDesc: 'Büyüler otomatik olarak yerel klasöre kaydedilir.',
+        backupRestoredCount: '%{count} büyü geri yüklendi!',
+        backupRestoredDesc: 'Google Drive yedeklemesi otomatik olarak uygulandı.',
+        noBackupTitle: 'Yedek yok',
+        noBackupDesc: 'Büyüleriniz korunmuyor',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Atla',
@@ -5232,12 +5237,11 @@ const translations = {
         generatingApp: 'App oproepen...',
         updatingApp: 'App verbeteren...',
 
-        emptyTitle: 'Nog geen apps',
-        emptySubtitle: 'Maak je eerste app met AI!',
+
         run: 'Uitvoeren',
         edit: 'Bewerken',
         delete: 'Verwijderen',
-        rename: 'Hernoemen',
+
         cancel: 'Annuleren',
         confirm: 'Bevestigen',
         save: 'Opslaan',
@@ -5248,7 +5252,7 @@ const translations = {
         listeningTap: '🎤 Luistert... Tik om te stoppen',
         describeOrMic: '💡 Beschrijf of gebruik microfoon',
         appNamePlaceholder: 'App-naam',
-        manaUsed: 'Mana Gebruikt',
+
         manaLastDays: 'in de afgelopen %{days} dagen',
         manaLast30Days: 'in de afgelopen 30 dagen',
         importProject: 'ZIP Project Importeren',
@@ -5261,7 +5265,7 @@ const translations = {
         legal: 'Juridisch',
         createTitle: 'Nieuwe App Maken',
         createPlaceholder: 'Beschrijf de app die je wilt maken...',
-        generating: 'Genereren... (dit kan enkele minuten duren)',
+
         chooseIcon: 'Kies Icoon',
         fromGallery: 'Uit Galerij',
         fromFiles: 'Uit Bestanden',
@@ -5275,7 +5279,7 @@ const translations = {
         createShortcut: 'Snelkoppeling maken',
         shortcutSubtitle: 'Open zonder Appacadabra te openen',
         iconCostHint: 'Galerie gratis • Genereer met AI ⚡ 0,5',
-        editCostHint: 'Coderen gratis • Bewerken met AI ⚡ 1,0',
+
         setupModalTitle: '✨ Spreuk aangemaakt!',
         setupModalSubtitle: 'Pas aan voordat je begint — of sla nu over',
         setupModalSave: 'Opslaan en beginnen',
@@ -5283,8 +5287,7 @@ const translations = {
         setupCostNotice: 'Het aanmaken van deze spreuk kostte ⚡ %{cost}. AI-bewerkingen kosten ⚡ 1,0 per stuk.',
         deleteTitle: 'App verwijderen?',
         deleteMessage: "Weet je zeker dat je '%{name}' wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
-        renameTitle: 'App Hernoemen',
-        renamePlaceholder: 'Nieuwe naam',
+
         openSpell: 'Openen',
         editDetailsSub: 'Naam, beschrijving en afbeelding',
         notifCountScheduled: '{{count}} gepland',
@@ -5304,11 +5307,9 @@ const translations = {
         privacyTitle: 'Privacybeleid',
         termsTitle: 'Servicevoorwaarden',
         lastUpdated: 'Laatst bijgewerkt: Januari 2026',
-        contentBlocked: 'Inhoud niet toegestaan. Beschrijf een legitieme en nuttige app.',
 
         // Empty state / How it works
-        emptyMagic: 'Maak apps met magie!',
-        emptyDesc: 'Beschrijf de perfecte app voor jou, en AI maakt iets dat 100% gepersonaliseerd is.',
+
         howItWorks: 'Hoe het werkt:',
         step1Title: 'Beschrijf',
         step1Desc: 'Zeg precies wat je nodig hebt',
@@ -5333,7 +5334,7 @@ const translations = {
         manualEdit: 'Handmatige bewerking',
         versionHistory: 'Geschiedenis',
         selectElement: 'Selecteren',
-        applyEdit: 'Toepassen',
+
         debug: 'Debug',
         search: 'Zoeken',
         searchSpells: 'Spreuken zoeken...',
@@ -5350,13 +5351,8 @@ const translations = {
         noRequests: 'Nog geen netwerkverzoeken',
         clear: 'Wissen',
         consoleLogs: 'Console-logs',
-        shareWithAppacadabra: 'Delen met Appacadabra',
-        fileLabel: '(Bestand)',
-        textLabel: '(Tekst)',
-        chooseApp: 'Kies een app:',
-        noAppsCreated: 'Nog geen apps gemaakt',
-        shareTabSpell: 'Spreuk (.spell)',
-        shareTabFile: 'Ander bestand',
+
+
         shareImportSpell: 'Spreuk importeren',
         shareOrSendTo: 'of stuur naar een spreuk',
         shareSendToWhich: 'Naar welke spreuk sturen?',
@@ -5378,18 +5374,14 @@ const translations = {
         network_none: 'Geen Verbinding',
         network_unknown: 'Onbekend Netwerk',
 
-        manaBalance: 'Mana: %{amount}',
+
         // Account
         account: 'Account',
-        linkAccount: 'Google-account koppelen',
-        linkAccountDesc: 'Back-up je mana naar de cloud',
-        linkAccountCTA: 'Bescherm je Mana ⚡',
-        linkAccountCTADesc: 'Log in met Google om je Mana in de cloud op te slaan. Wissel van apparaat zonder krediet te verliezen!',
-        spellsStayLocal: '🔒 Je apps blijven op je apparaat — veilig en privé.',
-        linkedAs: 'Ingelogd als %{email}',
+
+
         signInGoogle: 'Inloggen met Google',
         linkError: 'Koppelen mislukt. Probeer het opnieuw.',
-        linkSuccess: 'Account succesvol gekoppeld!',
+
         signOut: 'Uitloggen',
         signOutTitle: 'Wat te doen met spreuken?',
         keepLocal: 'Bewaren op telefoon',
@@ -5399,8 +5391,8 @@ const translations = {
         manaCloudNote: 'Je Mana ⚡ %{amount} blijft in je Google-account en keert terug als je weer inlogt.',
         signOutSuccessKeep: 'Je bent uitgelogd. Je spreuken zijn er nog.',
         signOutSuccessClear: 'Je bent uitgelogd. Alle lokale gegevens zijn gewist.',
-        signOutConfirm: 'Uitloggen uit je account?',
-        signOutConfirmDesc: 'Bewaar spreuken op je apparaat of wis alles. Mana blijft altijd veilig in je Google-account.',
+
+
         loginRequired: 'Log in om verder te gaan',
         loginRequiredDesc: 'Je Mana is gekoppeld aan je account — veilig op elk apparaat.',
         accountConflict: 'Account bestaat al. In plaats daarvan inloggen? (Huidige mana wordt vervangen door cloudmana)',
@@ -5411,8 +5403,8 @@ const translations = {
         noLogin: 'Niet ingelogd',
         getMana: 'Mana verkrijgen',
         buyMana: 'Koop Mana',
-        insufficientMana: 'Onvoldoende Mana',
-        insufficientManaMessage: 'Je hebt %{cost} mana nodig voor deze actie. Je saldo is %{balance}.',
+
+
         manaDepletedTitle: '⚡ Mana is op!',
         manaDepletedMessage: 'Je mana is op. Waardeer op om AI-functies te blijven gebruiken.',
         manaShopTitle: 'Mana Winkel',
@@ -5424,27 +5416,44 @@ const translations = {
         purchaseFailed: 'Aankoop mislukt. Probeer het opnieuw.',
         watchAd: 'Bekijk advertentie (Mana)',
         freeMana: 'Gratis Mana',
-        confirmPurchase: 'Aankoop Bevestigen',
-        purchaseConfirmMessage: 'Koop %{amount} Mana?',
+
+
         currentBalance: 'Huidig Saldo',
-        watchingAd: 'Advertentie kijken...',
-        loading: 'Laden',
-        adLoading: 'Advertentie laden, even geduld...',
-        adNotReady: 'Advertentie niet klaar',
-        adLoadingRetry: 'Even geduld terwijl we een advertentie laden...',
-        rewardEarned: 'Beloning verdiend!',
+
+
         rewardAmazing: 'Geweldig!',
         rewardGreat: 'Super!',
         rewardNice: 'Mooi!',
         rewardNone: 'Deze advertentie gaf geen beloning',
         rewardError: 'Fout bij toevoegen beloning. Probeer het opnieuw.',
-        tapToLoad: 'Tik om te laden',
 
         // Scheduled Notifications
         scheduledNotifications: 'Geplande Meldingen',
         noScheduledNotifications: 'Geen geplande meldingen',
         cancelNotification: 'Melding Annuleren',
         cancelNotificationConfirm: 'Deze geplande melding verwijderen?',
+        // Backup Sync
+        backupTitle: 'Waar wil je je back-up opslaan?',
+        backupSubtitle: 'Spreuken worden automatisch opgeslagen op deze locatie.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Automatisch, werkt op elk apparaat',
+        backupGoogleDriveDefault: 'STANDAARD',
+        backupLocalFolder: 'Lokale map',
+        backupLocalFolderDesc: 'Geavanceerd — kies zelf waar je opslaat',
+        backupConfirm: 'Bevestigen',
+        backupSkip: 'Back-up overslaan',
+        backupReconnectTitle: 'Back-up opnieuw verbinden',
+        backupReconnectWarning: 'Uw account gebruikte een lokale map. Kies waar de back-up op dit apparaat te vinden is.',
+        backupChooseFolder: 'Back-upmap kiezen',
+        backupSwitchToDrive: 'Overschakelen naar Google Drive',
+        backupStartFresh: 'Opnieuw beginnen',
+        backupActive: 'Back-up actief',
+        backupActiveDesc: 'Spreuken worden automatisch opgeslagen in Google Drive.',
+        backupActiveLocalDesc: 'Spreuken worden automatisch opgeslagen in de lokale map.',
+        backupRestoredCount: '%{count} spreuken hersteld!',
+        backupRestoredDesc: 'Back-up van Google Drive automatisch toegepast.',
+        noBackupTitle: 'Geen back-up',
+        noBackupDesc: 'Je spreuken zijn niet beschermd',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Overslaan',
@@ -5593,12 +5602,11 @@ const translations = {
         generatingApp: 'Przywoływanie aplikacji...',
         updatingApp: 'Ulepszanie aplikacji...',
 
-        emptyTitle: 'Brak aplikacji',
-        emptySubtitle: 'Stwórz pierwszą aplikację z AI!',
+
         run: 'Uruchom',
         edit: 'Edytuj',
         delete: 'Usuń',
-        rename: 'Zmień nazwę',
+
         cancel: 'Anuluj',
         confirm: 'Potwierdź',
         save: 'Zapisz',
@@ -5609,7 +5617,7 @@ const translations = {
         listeningTap: '🎤 Słucham... Kliknij, aby zatrzymać',
         describeOrMic: '💡 Opisz lub użyj mikrofonu',
         appNamePlaceholder: 'Nazwa aplikacji',
-        manaUsed: 'Użyta Mana',
+
         manaLastDays: 'przez ostatnie %{days} dni',
         manaLast30Days: 'przez ostatnie 30 dni',
         importProject: 'Importuj Projekt ZIP',
@@ -5622,7 +5630,7 @@ const translations = {
         legal: 'Prawne',
         createTitle: 'Stwórz Nową Aplikację',
         createPlaceholder: 'Opisz aplikację, którą chcesz stworzyć...',
-        generating: 'Generowanie... (może to potrwać kilka minut)',
+
         chooseIcon: 'Wybierz Ikonę',
         fromGallery: 'Z Galerii',
         fromFiles: 'Z Plików',
@@ -5636,7 +5644,7 @@ const translations = {
         createShortcut: 'Utwórz skrót',
         shortcutSubtitle: 'Otwórz bez wchodzenia do Appacadabra',
         iconCostHint: 'Galeria bezpłatna • Generuj z AI ⚡ 0,5',
-        editCostHint: 'Kodowanie bezpłatne • Edytuj z AI ⚡ 1,0',
+
         setupModalTitle: '✨ Zaklęcie zostało stworzone!',
         setupModalSubtitle: 'Dostosuj przed rozpoczęciem — lub pomiń teraz',
         setupModalSave: 'Zapisz i zacznij używać',
@@ -5644,8 +5652,7 @@ const translations = {
         setupCostNotice: 'Stworzenie tego zaklęcia kosztowało ⚡ %{cost}. Edycje AI kosztują ⚡ 1,0 każda.',
         deleteTitle: 'Usunąć aplikację?',
         deleteMessage: "Czy na pewno chcesz usunąć '%{name}'? Tej operacji nie można cofnąć.",
-        renameTitle: 'Zmień Nazwę Aplikacji',
-        renamePlaceholder: 'Nowa nazwa',
+
         openSpell: 'Otwórz',
         editDetailsSub: 'Nazwa, opis i obraz',
         notifCountScheduled: '{{count}} zaplanowanych',
@@ -5665,11 +5672,9 @@ const translations = {
         privacyTitle: 'Polityka Prywatności',
         termsTitle: 'Warunki Usługi',
         lastUpdated: 'Ostatnia aktualizacja: Styczeń 2026',
-        contentBlocked: 'Treść niedozwolona. Opisz legalną i użyteczną aplikację.',
 
         // Empty state / How it works
-        emptyMagic: 'Twórz aplikacje dzięki magii!',
-        emptyDesc: 'Opisz idealną aplikację dla siebie, a AI stworzy coś w 100% spersonalizowanego.',
+
         howItWorks: 'Jak to działa:',
         step1Title: 'Opisz',
         step1Desc: 'Powiedz dokładnie, czego potrzebujesz',
@@ -5694,7 +5699,7 @@ const translations = {
         manualEdit: 'Ręczna edycja',
         versionHistory: 'Historia',
         selectElement: 'Wybierz',
-        applyEdit: 'Zastosuj',
+
         debug: 'Debuguj',
         search: 'Szukaj',
         searchSpells: 'Szukaj zaklęć...',
@@ -5711,13 +5716,8 @@ const translations = {
         noRequests: 'Brak żądań sieciowych',
         clear: 'Wyczyść',
         consoleLogs: 'Logi konsoli',
-        shareWithAppacadabra: 'Udostępnij przez Appacadabra',
-        fileLabel: '(Plik)',
-        textLabel: '(Tekst)',
-        chooseApp: 'Wybierz aplikację:',
-        noAppsCreated: 'Nie utworzono jeszcze żadnych aplikacji',
-        shareTabSpell: 'Zaklęcie (.spell)',
-        shareTabFile: 'Inny plik',
+
+
         shareImportSpell: 'Importuj zaklęcie',
         shareOrSendTo: 'lub wyślij do zaklęcia',
         shareSendToWhich: 'Do którego zaklęcia wysłać?',
@@ -5739,18 +5739,14 @@ const translations = {
         network_none: 'Brak Połączenia',
         network_unknown: 'Nieznana Sieć',
 
-        manaBalance: 'Mana: %{amount}',
+
         // Account
         account: 'Konto',
-        linkAccount: 'Połącz konto Google',
-        linkAccountDesc: 'Utwórz kopię zapasową many w chmurze',
-        linkAccountCTA: 'Chroń swoją Manę ⚡',
-        linkAccountCTADesc: 'Zaloguj się przez Google, aby zapisać Manę w chmurze. Zmień urządzenie bez utraty kredytów!',
-        spellsStayLocal: '🔒 Twoje aplikacje pozostają na urządzeniu — bezpieczne i prywatne.',
-        linkedAs: 'Zalogowano jako %{email}',
+
+
         signInGoogle: 'Zaloguj się przez Google',
         linkError: 'Połączenie nieudane. Spróbuj ponownie.',
-        linkSuccess: 'Konto połączone pomyślnie!',
+
         signOut: 'Wyloguj się',
         signOutTitle: 'Co zrobić z zaklęciami?',
         keepLocal: 'Zachowaj na telefonie',
@@ -5760,8 +5756,8 @@ const translations = {
         manaCloudNote: 'Twoja Mana ⚡ %{amount} pozostaje na koncie Google i wróci, gdy zalogujesz się ponownie.',
         signOutSuccessKeep: 'Wylogowano. Twoje zaklęcia nadal tu są.',
         signOutSuccessClear: 'Wylogowano. Wszystkie dane lokalne zostały wyczyszczone.',
-        signOutConfirm: 'Wylogować się z konta?',
-        signOutConfirmDesc: 'Zachowaj zaklęcia na urządzeniu lub wyczyść wszystko. Mana zawsze pozostaje bezpieczna na Twoim koncie Google.',
+
+
         loginRequired: 'Zaloguj się, aby kontynuować',
         loginRequiredDesc: 'Twoja Mana jest powiązana z kontem – bezpieczna na każdym urządzeniu.',
         accountConflict: 'Konto już istnieje. Zalogować się zamiast tego? (Obecna mana zostanie zastąpiona maną z chmury)',
@@ -5772,8 +5768,8 @@ const translations = {
         noLogin: 'Brak logowania',
         getMana: 'Zdobądź Manę',
         buyMana: 'Kup Manę',
-        insufficientMana: 'Niewystarczająca Mana',
-        insufficientManaMessage: 'Potrzebujesz %{cost} many do tej akcji. Twoje saldo wynosi %{balance}.',
+
+
         manaDepletedTitle: '⚡ Mana się skończyła!',
         manaDepletedMessage: 'Twoja mana się wyczerpała. Doładuj, aby nadal korzystać z funkcji AI.',
         manaShopTitle: 'Sklep Many',
@@ -5785,27 +5781,44 @@ const translations = {
         purchaseFailed: 'Zakup nie powiódł się. Spróbuj ponownie.',
         watchAd: 'Obejrzyj reklamę (Mana)',
         freeMana: 'Darmowa Mana',
-        confirmPurchase: 'Potwierdź Zakup',
-        purchaseConfirmMessage: 'Kupić %{amount} Many?',
+
+
         currentBalance: 'Obecne Saldo',
-        watchingAd: 'Oglądanie reklamy...',
-        loading: 'Ładowanie',
-        adLoading: 'Ładowanie reklamy, proszę czekać...',
-        adNotReady: 'Reklama niegotowa',
-        adLoadingRetry: 'Proszę czekać, ładujemy reklamę...',
-        rewardEarned: 'Nagroda zdobyta!',
+
+
         rewardAmazing: 'Niesamowite!',
         rewardGreat: 'Świetnie!',
         rewardNice: 'Dobrze!',
         rewardNone: 'Ta reklama nie dała nagrody',
         rewardError: 'Błąd dodawania nagrody. Spróbuj ponownie.',
-        tapToLoad: 'Dotknij, aby załadować',
 
         // Scheduled Notifications
         scheduledNotifications: 'Zaplanowane Powiadomienia',
         noScheduledNotifications: 'Brak zaplanowanych powiadomień',
         cancelNotification: 'Anuluj Powiadomienie',
         cancelNotificationConfirm: 'Usunąć to zaplanowane powiadomienie?',
+        // Backup Sync
+        backupTitle: 'Gdzie zapisać kopię zapasową?',
+        backupSubtitle: 'Zaklęcia są automatycznie zapisywane w tej lokalizacji.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Automatyczny, działa na każdym urządzeniu',
+        backupGoogleDriveDefault: 'DOMYŚLNY',
+        backupLocalFolder: 'Folder lokalny',
+        backupLocalFolderDesc: 'Zaawansowane — sam wybierz miejsce zapisywania',
+        backupConfirm: 'Potwierdź',
+        backupSkip: 'Pomiń kopię zapasową',
+        backupReconnectTitle: 'Ponownie połącz kopię zapasową',
+        backupReconnectWarning: 'Twoje konto używało folderu lokalnego. Wybierz, gdzie znaleźć kopię zapasową na tym urządzeniu.',
+        backupChooseFolder: 'Wybierz folder kopii zapasowej',
+        backupSwitchToDrive: 'Przełącz na Google Drive',
+        backupStartFresh: 'Zacznij od nowa',
+        backupActive: 'Kopia zapasowa aktywna',
+        backupActiveDesc: 'Zaklęcia są automatycznie zapisywane w Google Drive.',
+        backupActiveLocalDesc: 'Zaklęcia są automatycznie zapisywane w folderze lokalnym.',
+        backupRestoredCount: 'Przywrócono %{count} zaklęć!',
+        backupRestoredDesc: 'Kopia zapasowa Google Drive zastosowana automatycznie.',
+        noBackupTitle: 'Brak kopii zapasowej',
+        noBackupDesc: 'Twoje zaklęcia nie są chronione',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Pomiń',
@@ -5954,12 +5967,11 @@ const translations = {
         generatingApp: 'Đang triệu hồi ứng dụng...',
         updatingApp: 'Đang cải tiến ứng dụng...',
 
-        emptyTitle: 'Chưa có ứng dụng',
-        emptySubtitle: 'Tạo ứng dụng đầu tiên với AI!',
+
         run: 'Chạy',
         edit: 'Chỉnh sửa',
         delete: 'Xóa',
-        rename: 'Đổi tên',
+
         cancel: 'Hủy',
         confirm: 'Xác nhận',
         save: 'Lưu',
@@ -5970,7 +5982,7 @@ const translations = {
         listeningTap: '🎤 Đang nghe... Nhấn để dừng',
         describeOrMic: '💡 Mô tả hoặc dùng micro',
         appNamePlaceholder: 'Tên ứng dụng',
-        manaUsed: 'Mana đã dùng',
+
         manaLastDays: 'trong %{days} ngày qua',
         manaLast30Days: 'trong 30 ngày qua',
         importProject: 'Nhập Dự Án ZIP',
@@ -5983,7 +5995,7 @@ const translations = {
         legal: 'Pháp Lý',
         createTitle: 'Tạo Ứng Dụng Mới',
         createPlaceholder: 'Mô tả ứng dụng bạn muốn tạo...',
-        generating: 'Đang tạo... (quá trình này có thể mất vài phút)',
+
         chooseIcon: 'Chọn Biểu Tượng',
         fromGallery: 'Từ Thư Viện',
         fromFiles: 'Từ Tệp',
@@ -5997,7 +6009,7 @@ const translations = {
         createShortcut: 'Tạo lối tắt',
         shortcutSubtitle: 'Mở mà không cần vào Appacadabra',
         iconCostHint: 'Thư viện miễn phí • Tạo bằng AI ⚡ 0,5',
-        editCostHint: 'Lập trình miễn phí • Chỉnh sửa bằng AI ⚡ 1,0',
+
         setupModalTitle: '✨ Đã tạo bùa phép!',
         setupModalSubtitle: 'Tùy chỉnh trước khi bắt đầu — hoặc bỏ qua',
         setupModalSave: 'Lưu và bắt đầu sử dụng',
@@ -6005,8 +6017,7 @@ const translations = {
         setupCostNotice: 'Tạo bùa phép này tốn ⚡ %{cost}. Chỉnh sửa AI tốn ⚡ 1,0 mỗi lần.',
         deleteTitle: 'Xóa ứng dụng?',
         deleteMessage: "Bạn có chắc muốn xóa '%{name}'? Không thể hoàn tác.",
-        renameTitle: 'Đổi Tên Ứng Dụng',
-        renamePlaceholder: 'Tên mới',
+
         openSpell: 'Mở',
         editDetailsSub: 'Tên, mô tả và hình ảnh',
         notifCountScheduled: '{{count}} đã lên lịch',
@@ -6026,11 +6037,9 @@ const translations = {
         privacyTitle: 'Chính Sách Bảo Mật',
         termsTitle: 'Điều Khoản Dịch Vụ',
         lastUpdated: 'Cập nhật: Tháng 1 năm 2026',
-        contentBlocked: 'Nội dung không được phép. Vui lòng mô tả ứng dụng hợp pháp và hữu ích.',
 
         // Empty state / How it works
-        emptyMagic: 'Tạo ứng dụng bằng phép thuật!',
-        emptyDesc: 'Mô tả ứng dụng hoàn hảo cho bạn, và AI sẽ tạo ra thứ gì đó được cá nhân hóa 100%.',
+
         howItWorks: 'Cách hoạt động:',
         step1Title: 'Mô tả',
         step1Desc: 'Nói chính xác những gì bạn cần',
@@ -6055,7 +6064,7 @@ const translations = {
         manualEdit: 'Chỉnh sửa thủ công',
         versionHistory: 'Lịch Sử',
         selectElement: 'Chọn',
-        applyEdit: 'Áp Dụng',
+
         debug: 'Gỡ Lỗi',
         search: 'Tìm Kiếm',
         searchSpells: 'Tìm bùa phép...',
@@ -6072,13 +6081,8 @@ const translations = {
         noRequests: 'Chưa có yêu cầu mạng',
         clear: 'Xóa',
         consoleLogs: 'Nhật ký Console',
-        shareWithAppacadabra: 'Chia sẻ với Appacadabra',
-        fileLabel: '(Tệp)',
-        textLabel: '(Văn bản)',
-        chooseApp: 'Chọn một ứng dụng:',
-        noAppsCreated: 'Chưa có ứng dụng nào được tạo',
-        shareTabSpell: 'Phép thuật (.spell)',
-        shareTabFile: 'Tệp khác',
+
+
         shareImportSpell: 'Nhập phép thuật',
         shareOrSendTo: 'hoặc gửi đến phép thuật',
         shareSendToWhich: 'Gửi đến phép thuật nào?',
@@ -6100,18 +6104,14 @@ const translations = {
         network_none: 'Không Có Kết Nối',
         network_unknown: 'Mạng Không Xác Định',
 
-        manaBalance: 'Mana: %{amount}',
+
         // Account
         account: 'Tài khoản',
-        linkAccount: 'Liên kết tài khoản Google',
-        linkAccountDesc: 'Sao lưu mana lên đám mây',
-        linkAccountCTA: 'Bảo vệ Mana của bạn ⚡',
-        linkAccountCTADesc: 'Đăng nhập bằng Google để lưu Mana lên đám mây. Đổi thiết bị mà không mất tín dụng!',
-        spellsStayLocal: '🔒 Ứng dụng của bạn ở lại trên thiết bị — an toàn và riêng tư.',
-        linkedAs: 'Đã đăng nhập với %{email}',
+
+
         signInGoogle: 'Đăng nhập với Google',
         linkError: 'Liên kết thất bại. Hãy thử lại.',
-        linkSuccess: 'Liên kết tài khoản thành công!',
+
         signOut: 'Đăng xuất',
         signOutTitle: 'Làm gì với các câu chú?',
         keepLocal: 'Giữ trên điện thoại',
@@ -6121,8 +6121,8 @@ const translations = {
         manaCloudNote: 'Mana ⚡ %{amount} của bạn sẽ ở lại trong tài khoản Google và quay lại khi bạn đăng nhập lại.',
         signOutSuccessKeep: 'Bạn đã đăng xuất. Các câu chú của bạn vẫn còn ở đây.',
         signOutSuccessClear: 'Bạn đã đăng xuất. Tất cả dữ liệu cục bộ đã được xóa.',
-        signOutConfirm: 'Đăng xuất khỏi tài khoản của bạn?',
-        signOutConfirmDesc: 'Giữ các câu chú trên thiết bị của bạn hoặc xóa tất cả. Mana luôn an toàn trong tài khoản Google của bạn.',
+
+
         loginRequired: 'Đăng nhập để tiếp tục',
         loginRequiredDesc: 'Mana của bạn được liên kết với tài khoản — an toàn trên mọi thiết bị.',
         accountConflict: 'Tài khoản đã tồn tại. Đăng nhập thay thế? (Mana hiện tại sẽ được thay thế bằng mana đám mây)',
@@ -6133,8 +6133,8 @@ const translations = {
         noLogin: 'Chưa đăng nhập',
         getMana: 'Nhận Mana',
         buyMana: 'Mua Mana',
-        insufficientMana: 'Không đủ Mana',
-        insufficientManaMessage: 'Bạn cần %{cost} mana cho hành động này. Số dư của bạn là %{balance}.',
+
+
         manaDepletedTitle: '⚡ Hết Mana!',
         manaDepletedMessage: 'Mana của bạn đã hết. Hãy nạp thêm để tiếp tục sử dụng các tính năng AI.',
         manaShopTitle: 'Cửa Hàng Mana',
@@ -6146,27 +6146,44 @@ const translations = {
         purchaseFailed: 'Giao dịch thất bại. Vui lòng thử lại.',
         watchAd: 'Xem quảng cáo (Mana)',
         freeMana: 'Mana Miễn Phí',
-        confirmPurchase: 'Xác Nhận Mua',
-        purchaseConfirmMessage: 'Mua %{amount} Mana?',
+
+
         currentBalance: 'Số Dư Hiện Tại',
-        watchingAd: 'Đang xem quảng cáo...',
-        loading: 'Đang tải',
-        adLoading: 'Đang tải quảng cáo, vui lòng đợi...',
-        adNotReady: 'Quảng cáo chưa sẵn sàng',
-        adLoadingRetry: 'Vui lòng đợi trong khi tải quảng cáo...',
-        rewardEarned: 'Đã nhận phần thưởng!',
+
+
         rewardAmazing: 'Tuyệt vời!',
         rewardGreat: 'Tuyệt!',
         rewardNice: 'Tốt!',
         rewardNone: 'Quảng cáo này không có phần thưởng',
         rewardError: 'Lỗi thêm phần thưởng. Vui lòng thử lại.',
-        tapToLoad: 'Nhấn để tải',
 
         // Scheduled Notifications
         scheduledNotifications: 'Thông báo đã lên lịch',
         noScheduledNotifications: 'Không có thông báo nào được lên lịch',
         cancelNotification: 'Hủy thông báo',
         cancelNotificationConfirm: 'Xóa thông báo đã lên lịch này?',
+        // Backup Sync
+        backupTitle: 'Lưu bản sao lưu ở đâu?',
+        backupSubtitle: 'Bùa phép được tự động lưu ở vị trí này.',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'Tự động, hoạt động trên mọi thiết bị',
+        backupGoogleDriveDefault: 'MẶC ĐỊNH',
+        backupLocalFolder: 'Thư mục cục bộ',
+        backupLocalFolderDesc: 'Nâng cao — bạn chọn nơi lưu',
+        backupConfirm: 'Xác nhận',
+        backupSkip: 'Bỏ qua sao lưu',
+        backupReconnectTitle: 'Kết nối lại bản sao lưu',
+        backupReconnectWarning: 'Tài khoản của bạn đã dùng thư mục cục bộ. Chọn nơi tìm bản sao lưu trên thiết bị này.',
+        backupChooseFolder: 'Chọn thư mục sao lưu',
+        backupSwitchToDrive: 'Chuyển sang Google Drive',
+        backupStartFresh: 'Bắt đầu lại từ đầu',
+        backupActive: 'Sao lưu đang hoạt động',
+        backupActiveDesc: 'Bùa phép được tự động lưu vào Google Drive.',
+        backupActiveLocalDesc: 'Bùa phép được tự động lưu vào thư mục cục bộ.',
+        backupRestoredCount: 'Đã khôi phục %{count} bùa phép!',
+        backupRestoredDesc: 'Bản sao lưu Google Drive được áp dụng tự động.',
+        noBackupTitle: 'Không có bản sao lưu',
+        noBackupDesc: 'Bùa phép của bạn không được bảo vệ',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Bỏ qua',
@@ -6315,12 +6332,11 @@ const translations = {
         generatingApp: 'กำลังเรียกแอป...',
         updatingApp: 'กำลังปรับปรุงแอป...',
 
-        emptyTitle: 'ยังไม่มีแอป',
-        emptySubtitle: 'สร้างแอปแรกของคุณด้วย AI!',
+
         run: 'เรียกใช้',
         edit: 'แก้ไข',
         delete: 'ลบ',
-        rename: 'เปลี่ยนชื่อ',
+
         cancel: 'ยกเลิก',
         confirm: 'ยืนยัน',
         save: 'บันทึก',
@@ -6331,7 +6347,7 @@ const translations = {
         listeningTap: '🎤 กำลังฟัง... แตะเพื่อหยุด',
         describeOrMic: '💡 อธิบายหรือใช้ไมโครโฟน',
         appNamePlaceholder: 'ชื่อแอป',
-        manaUsed: 'มานาที่ใช้',
+
         manaLastDays: 'ใน %{days} วันที่ผ่านมา',
         manaLast30Days: 'ใน 30 วันที่ผ่านมา',
         importProject: 'นำเข้าโปรเจค ZIP',
@@ -6344,7 +6360,7 @@ const translations = {
         legal: 'กฎหมาย',
         createTitle: 'สร้างแอปใหม่',
         createPlaceholder: 'อธิบายแอปที่คุณต้องการสร้าง...',
-        generating: 'กำลังสร้าง... (อาจใช้เวลาสักครู่)',
+
         chooseIcon: 'เลือกไอคอน',
         fromGallery: 'จากแกลเลอรี',
         fromFiles: 'จากไฟล์',
@@ -6358,7 +6374,7 @@ const translations = {
         createShortcut: 'สร้างทางลัด',
         shortcutSubtitle: 'เปิดโดยไม่ต้องเข้า Appacadabra',
         iconCostHint: 'แกลเลอรีฟรี • สร้างด้วย AI ⚡ 0.5',
-        editCostHint: 'เขียนโค้ดฟรี • แก้ไขด้วย AI ⚡ 1.0',
+
         setupModalTitle: '✨ สร้างคาถาแล้ว!',
         setupModalSubtitle: 'ปรับแต่งก่อนเริ่มใช้งาน — หรือข้ามไปก่อน',
         setupModalSave: 'บันทึกและเริ่มใช้งาน',
@@ -6366,8 +6382,7 @@ const translations = {
         setupCostNotice: 'การสร้างคาถานี้ใช้ ⚡ %{cost} มานา การแก้ไขด้วย AI ใช้ ⚡ 1.0 ต่อครั้ง',
         deleteTitle: 'ลบแอป?',
         deleteMessage: "คุณแน่ใจหรือไม่ว่าต้องการลบ '%{name}'? การดำเนินการนี้ไม่สามารถย้อนกลับได้",
-        renameTitle: 'เปลี่ยนชื่อแอป',
-        renamePlaceholder: 'ชื่อใหม่',
+
         openSpell: 'เปิด',
         editDetailsSub: 'ชื่อ คำอธิบาย และรูปภาพ',
         notifCountScheduled: '{{count}} ตั้งเวลาไว้',
@@ -6387,11 +6402,9 @@ const translations = {
         privacyTitle: 'นโยบายความเป็นส่วนตัว',
         termsTitle: 'ข้อกำหนดการใช้บริการ',
         lastUpdated: 'อัปเดตล่าสุด: มกราคม 2026',
-        contentBlocked: 'ไม่อนุญาตให้ใช้เนื้อหานี้ กรุณาอธิบายแอปที่ถูกต้องและมีประโยชน์',
 
         // Empty state / How it works
-        emptyMagic: 'สร้างสรรค์แอปด้วยเวทมนตร์!',
-        emptyDesc: 'อธิบายแอปที่สมบูรณ์แบบสำหรับคุณ แล้ว AI จะสร้างสิ่งที่เหมาะกับคุณ 100%',
+
         howItWorks: 'วิธีการทำงาน:',
         step1Title: 'อธิบาย',
         step1Desc: 'บอกสิ่งที่คุณต้องการอย่างชัดเจน',
@@ -6416,7 +6429,7 @@ const translations = {
         manualEdit: 'การแก้ไขด้วยตนเอง',
         versionHistory: 'ประวัติ',
         selectElement: 'เลือก',
-        applyEdit: 'ใช้งาน',
+
         debug: 'ดีบัก',
         search: 'ค้นหา',
         searchSpells: 'ค้นหาคาถา...',
@@ -6433,13 +6446,8 @@ const translations = {
         noRequests: 'ยังไม่มีคำขอเครือข่าย',
         clear: 'ล้าง',
         consoleLogs: 'ล็อกคอนโซล',
-        shareWithAppacadabra: 'แชร์ด้วย Appacadabra',
-        fileLabel: '(ไฟล์)',
-        textLabel: '(ข้อความ)',
-        chooseApp: 'เลือกแอป:',
-        noAppsCreated: 'ยังไม่มีแอปที่ถูกสร้าง',
-        shareTabSpell: 'คาถา (.spell)',
-        shareTabFile: 'ไฟล์อื่น',
+
+
         shareImportSpell: 'นำเข้าคาถา',
         shareOrSendTo: 'หรือส่งไปยังคาถา',
         shareSendToWhich: 'ส่งไปยังคาถาไหน?',
@@ -6461,18 +6469,14 @@ const translations = {
         network_none: 'ไม่มีการเชื่อมต่อ',
         network_unknown: 'ไม่ทราบเครือข่าย',
 
-        manaBalance: 'มานา: %{amount}',
+
         // Account
         account: 'บัญชี',
-        linkAccount: 'เชื่อมต่อบัญชี Google',
-        linkAccountDesc: 'สำรองข้อมูลมานาของคุณไปยังคลาวด์',
-        linkAccountCTA: 'ปกป้องมานาของคุณ ⚡',
-        linkAccountCTADesc: 'เข้าสู่ระบบด้วย Google เพื่อบันทึกมานาไว้บนคลาวด์ เปลี่ยนอุปกรณ์โดยไม่สูญเสียเครดิต!',
-        spellsStayLocal: '🔒 แอปของคุณยังอยู่บนอุปกรณ์ — ปลอดภัยและเป็นส่วนตัว',
-        linkedAs: 'ลงชื่อเข้าใช้เป็น %{email}',
+
+
         signInGoogle: 'ลงชื่อเข้าใช้ด้วย Google',
         linkError: 'เชื่อมต่อไม่สำเร็จ ลองอีกครั้ง',
-        linkSuccess: 'เชื่อมต่อบัญชีสำเร็จ!',
+
         signOut: 'ลงชื่อออก',
         signOutTitle: 'จะทำอย่างไรกับเวทมนตร์?',
         keepLocal: 'เก็บไว้ในเครื่อง',
@@ -6482,8 +6486,8 @@ const translations = {
         manaCloudNote: 'มานา ⚡ %{amount} ของคุณจะยังคงอยู่ในบัญชี Google และจะกลับมาเมื่อคุณลงชื่อเข้าใช้อีกครั้ง',
         signOutSuccessKeep: 'ลงชื่อออกแล้ว เวทมนตร์ของคุณยังคงอยู่ที่นี่',
         signOutSuccessClear: 'ลงชื่อออกแล้ว ข้อมูลทั้งหมดในเครื่องถูกล้างแล้ว',
-        signOutConfirm: 'ลงชื่อออกจากบัญชีของคุณ?',
-        signOutConfirmDesc: 'เก็บเวทมนตร์ไว้ในอุปกรณ์ของคุณหรือล้างทั้งหมด มานาจะยังคงปลอดภัยในบัญชี Google ของคุณเสมอ',
+
+
         loginRequired: 'เข้าสู่ระบบเพื่อดำเนินการต่อ',
         loginRequiredDesc: 'มานาของคุณเชื่อมโยงกับบัญชีของคุณ — ปลอดภัยในทุกอุปกรณ์',
         accountConflict: 'บัญชีมีอยู่แล้ว ลงชื่อเข้าใช้แทนหรือไม่? (มานาปัจจุบันจะถูกแทนที่ด้วยมานาบนคลาวด์)',
@@ -6494,8 +6498,8 @@ const translations = {
         noLogin: 'ไม่ได้เข้าสู่ระบบ',
         getMana: 'รับมานา',
         buyMana: 'ซื้อมานา',
-        insufficientMana: 'มานาไม่พอ',
-        insufficientManaMessage: 'คุณต้องใช้มานา %{cost} สำหรับการดำเนินการนี้ ยอดคงเหลือของคุณคือ %{balance}',
+
+
         manaDepletedTitle: '⚡ มานาหมดแล้ว!',
         manaDepletedMessage: 'มานาของคุณหมดแล้ว โปรดเติมเงินเพื่อใช้งานฟีเจอร์ AI ต่อไป',
         manaShopTitle: 'ร้านค้ามานา',
@@ -6507,27 +6511,44 @@ const translations = {
         purchaseFailed: 'การซื้อล้มเหลว โปรดลองอีกครั้ง',
         watchAd: 'ดูโฆษณา (มานา)',
         freeMana: 'มานาฟรี',
-        confirmPurchase: 'ยืนยันการซื้อ',
-        purchaseConfirmMessage: 'ซื้อ %{amount} มานาหรือไม่?',
+
+
         currentBalance: 'ยอดคงเหลือปัจจุบัน',
-        watchingAd: 'กำลังดูโฆษณา...',
-        loading: 'กำลังโหลด',
-        adLoading: 'กำลังโหลดโฆษณา โปรดรอสักครู่...',
-        adNotReady: 'โฆษณายังไม่พร้อม',
-        adLoadingRetry: 'โปรดรอสักครู่ขณะโหลดโฆษณา...',
-        rewardEarned: 'ได้รับรางวัลแล้ว!',
+
+
         rewardAmazing: 'ยอดเยี่ยม!',
         rewardGreat: 'ดีมาก!',
         rewardNice: 'ดี!',
         rewardNone: 'โฆษณานี้ไม่ได้ให้รางวัล',
         rewardError: 'เกิดข้อผิดพลาดในการเพิ่มรางวัล โปรดลองอีกครั้ง',
-        tapToLoad: 'แตะเพื่อโหลด',
 
         // Scheduled Notifications
         scheduledNotifications: 'การแจ้งเตือนที่กำหนดเวลาไว้',
         noScheduledNotifications: 'ไม่มีการแจ้งเตือนที่กำหนดเวลาไว้',
         cancelNotification: 'ยกเลิกการแจ้งเตือน',
         cancelNotificationConfirm: 'ลบการแจ้งเตือนที่กำหนดเวลาไว้นี้หรือไม่?',
+        // Backup Sync
+        backupTitle: 'จะบันทึกการสำรองข้อมูลที่ไหน?',
+        backupSubtitle: 'คาถาถูกบันทึกอัตโนมัติในตำแหน่งนี้',
+        backupGoogleDrive: 'Google Drive',
+        backupGoogleDriveDesc: 'อัตโนมัติ ใช้ได้กับทุกอุปกรณ์',
+        backupGoogleDriveDefault: 'ค่าเริ่มต้น',
+        backupLocalFolder: 'โฟลเดอร์ในเครื่อง',
+        backupLocalFolderDesc: 'ขั้นสูง — คุณเลือกตำแหน่งบันทึก',
+        backupConfirm: 'ยืนยัน',
+        backupSkip: 'ข้ามการสำรองข้อมูล',
+        backupReconnectTitle: 'เชื่อมต่อการสำรองข้อมูลใหม่',
+        backupReconnectWarning: 'บัญชีของคุณใช้โฟลเดอร์ในเครื่อง เลือกที่จะค้นหาการสำรองข้อมูลบนอุปกรณ์นี้',
+        backupChooseFolder: 'เลือกโฟลเดอร์สำรองข้อมูล',
+        backupSwitchToDrive: 'เปลี่ยนเป็น Google Drive',
+        backupStartFresh: 'เริ่มต้นใหม่ตั้งแต่ต้น',
+        backupActive: 'การสำรองข้อมูลใช้งานอยู่',
+        backupActiveDesc: 'คาถาถูกบันทึกอัตโนมัติไปยัง Google Drive',
+        backupActiveLocalDesc: 'คาถาถูกบันทึกอัตโนมัติไปยังโฟลเดอร์ในเครื่อง',
+        backupRestoredCount: 'กู้คืน %{count} คาถาสำเร็จ!',
+        backupRestoredDesc: 'การสำรองข้อมูล Google Drive ถูกนำไปใช้อัตโนมัติ',
+        noBackupTitle: 'ไม่มีการสำรองข้อมูล',
+        noBackupDesc: 'คาถาของคุณไม่ได้รับการปกป้อง',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'ข้าม',

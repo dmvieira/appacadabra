@@ -12,6 +12,7 @@ import {
     Platform,
     KeyboardAvoidingView,
     RefreshControl,
+    AppState,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
@@ -31,7 +32,7 @@ import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript } from '../../lib/bridges/injectedJS';
-import { handleBridgeMessage } from '../../lib/bridges/messageHandlers';
+import { handleBridgeMessage, cleanupAllMedia } from '../../lib/bridges/messageHandlers';
 import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -89,6 +90,19 @@ export default function RunnerScreen() {
         // But since we pass the RefObject, the store holds the RefObject which always has .current
         useBridgeUIStore.getState().setWebViewRef(webViewRef as any);
     }, []); // Run once, the ref object is stable
+
+    // Cleanup all media when leaving screen or app goes to background
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'background' || nextState === 'inactive') {
+                cleanupAllMedia();
+            }
+        });
+        return () => {
+            subscription.remove();
+            cleanupAllMedia();
+        };
+    }, []);
 
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);

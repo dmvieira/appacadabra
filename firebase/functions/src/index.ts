@@ -446,7 +446,7 @@ function applyPatches(sourceCode: string, patches: Patch[]): string {
 }
 
 interface GenerateSpellRequest {
-    action: "create" | "edit" | "convert" | "webview_ai" | "webview_ai_image";
+    action: "create" | "edit" | "convert" | "webview_ai" | "webview_ai_image" | "webview_ai_similarity" | "webview_ai_video" | "webview_ai_tts";
     prompt?: string;
     currentCode?: string;
     instruction?: string;
@@ -456,11 +456,16 @@ interface GenerateSpellRequest {
     frameworkHint?: string;
     // WebView AI
     schema?: object;
-    imageBase64?: string;
-    audioBase64?: string;
-    model?: string;         // New: 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'
-    tools?: string[];       // New: ['googleSearch', 'googleMaps']
+    imagesBase64?: string[];   // Images (array)
+    videosBase64?: string[];   // Videos (array)
+    audiosBase64?: string[];   // Audios (array)
+    model?: string;         // 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'
+    tools?: string[];       // ['googleSearch', 'googleMaps']
     useSearch?: boolean;    // Legacy support
+    // Embeddings / Similarity
+    items?: string[];       // Array of texts (or image base64) to compare
+    // TTS
+    voiceName?: string;     // 'Aoede' | 'Charon' | 'Fenrir' | 'Kore' | 'Puck' | 'Orbit' | 'Zephyr'
 }
 
 export const generateSpell = onCall<GenerateSpellRequest>(
@@ -480,7 +485,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
         const { action, model: requestedModel, tools: requestedTools, useSearch } = request.data;
         const prompt = decompressContent(request.data.prompt || "");
         const sourceCode = decompressContent(request.data.sourceCode || "");
-        const { schema, imageBase64, audioBase64 } = request.data;
+        const { schema, imagesBase64, videosBase64, audiosBase64 } = request.data;
 
         if (!action) throw new HttpsError("invalid-argument", "Action required");
 
@@ -566,8 +571,21 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Build Parts
                         const parts: any[] = [prompt];
-                        if (imageBase64) parts.push({ inlineData: { mimeType: "image/jpeg", data: imageBase64 } });
-                        if (audioBase64) parts.push({ inlineData: { mimeType: "audio/wav", data: audioBase64 } });
+                        if (imagesBase64?.length) {
+                            for (const img of imagesBase64) {
+                                parts.push({ inlineData: { mimeType: "image/jpeg", data: img } });
+                            }
+                        }
+                        if (videosBase64?.length) {
+                            for (const vid of videosBase64) {
+                                parts.push({ inlineData: { mimeType: "video/mp4", data: vid } });
+                            }
+                        }
+                        if (audiosBase64?.length) {
+                            for (const aud of audiosBase64) {
+                                parts.push({ inlineData: { mimeType: "audio/wav", data: aud } });
+                            }
+                        }
 
                         // Model Config
                         const genConfig: any = {};
@@ -653,6 +671,141 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Fixed cost: 0.5 mana per image generation
                         creditsUsed = 0.5;
+                        break;
+                    }
+
+                    case 'webview_ai_video': {
+                        console.log(`[WEBVIEW_AI_VIDEO] Generating video for: ${prompt.substring(0, 80)}...`);
+
+                        const videoModel = genAI.getGenerativeModel({
+                            model: 'veo-3.0-fast-generate-001',
+                        });
+
+                        const videoResult = await videoModel.generateContent(prompt);
+                        const videoUsage = getUsage(videoResult);
+                        usage = {
+                            promptTokens: videoUsage.promptTokens,
+                            responseTokens: videoUsage.responseTokens,
+                            totalTokens: videoUsage.totalTokens,
+                            cachedTokens: 0
+                        };
+
+                        // Extract video from response parts
+                        const parts = videoResult.response.candidates?.[0]?.content?.parts || [];
+                        let videoBase64 = '';
+                        let durationSeconds = 5; // Default if not found/available in metadata
+
+                        for (const part of parts) {
+                            if ((part as any).inlineData) {
+                                videoBase64 = (part as any).inlineData.data;
+                                break;
+                            }
+                        }
+
+                        // Try to find duration in metadata if available
+                        const candidate = videoResult.response.candidates?.[0];
+                        if (candidate && (candidate as any).content?.metadata?.videoMetadata?.durationSeconds) {
+                            durationSeconds = (candidate as any).content?.metadata?.videoMetadata?.durationSeconds;
+                        }
+
+                        if (!videoBase64) {
+                            throw new Error('No video generated by model');
+                        }
+
+                        resultText = videoBase64;
+
+                        // Cost: 2 mana per second
+                        creditsUsed = durationSeconds * 2.0;
+                        break;
+                    }
+
+                    case "webview_ai_similarity": {
+                        // Similarity endpoint: accepts an array of items, returns pairwise similarity matrix
+                        const items: string[] = request.data.items || [];
+                        if (items.length < 2) throw new HttpsError("invalid-argument", "At least 2 items required for similarity");
+
+                        const embModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+
+                        // Compute embeddings for all items
+                        const embeddings = await Promise.all(
+                            items.map((item: string) => embModel.embedContent(item))
+                        );
+                        const vectors = embeddings.map((e: any) => e.embedding.values);
+
+                        // Cosine similarity helper
+                        function cosine(a: number[], b: number[]): number {
+                            let dot = 0, magA = 0, magB = 0;
+                            for (let i = 0; i < a.length; i++) {
+                                dot += a[i] * b[i];
+                                magA += a[i] * a[i];
+                                magB += b[i] * b[i];
+                            }
+                            return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+                        }
+
+                        // Build pairwise similarity matrix
+                        const matrix: number[][] = [];
+                        for (let i = 0; i < vectors.length; i++) {
+                            const row: number[] = [];
+                            for (let j = 0; j < vectors.length; j++) {
+                                if (i === j) {
+                                    row.push(1.0);
+                                } else if (j < i) {
+                                    row.push(matrix[j][i]); // symmetric
+                                } else {
+                                    row.push(Math.round(cosine(vectors[i], vectors[j]) * 10000) / 10000);
+                                }
+                            }
+                            matrix.push(row);
+                        }
+
+                        resultText = JSON.stringify({ matrix, vectors, count: items.length });
+                        creditsUsed = items.length * 0.01;
+                        usage = { promptTokens: 0, responseTokens: 0, totalTokens: 0, cachedTokens: 0 };
+                        break;
+                    }
+
+                    case 'webview_ai_tts': {
+                        if (!prompt) throw new HttpsError('invalid-argument', 'Text required for TTS');
+                        const voiceName = request.data.voiceName;
+
+                        const selectedVoice = voiceName || 'Aoede';
+
+                        console.log(`[WEBVIEW_AI_TTS] voice=${selectedVoice}, text="${prompt.substring(0, 60)}..."`);
+
+                        const ttsModel = genAI.getGenerativeModel({
+                            model: 'gemini-2.5-flash-preview-tts',
+                            generationConfig: {
+                                responseModalities: ['AUDIO'],
+                                speechConfig: {
+                                    voiceConfig: {
+                                        prebuiltVoiceConfig: { voiceName: selectedVoice }
+                                    }
+                                }
+                            } as any,
+                        });
+
+                        const ttsResult = await ttsModel.generateContent(prompt);
+
+                        const ttsParts = ttsResult.response.candidates?.[0]?.content?.parts || [];
+                        let audioBase64 = '';
+                        for (const part of ttsParts as any[]) {
+                            if (part.inlineData) {
+                                audioBase64 = part.inlineData.data;
+                                break;
+                            }
+                        }
+
+                        if (!audioBase64) throw new Error('TTS returned no audio');
+
+                        // Asymmetric pricing: input $0.50/M (200K tokens/mana), output $10/M (10K tokens/mana)
+                        const u = getUsage(ttsResult);
+                        usage = { promptTokens: u.promptTokens, responseTokens: u.responseTokens, totalTokens: u.totalTokens, cachedTokens: 0 };
+                        const inputCost  = u.promptTokens   / 200_000;
+                        const outputCost = u.responseTokens / 10_000;
+                        creditsUsed = inputCost + outputCost;
+
+                        resultText = audioBase64;
                         break;
                     }
                 }

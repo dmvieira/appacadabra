@@ -12,6 +12,7 @@ import {
     Platform,
     KeyboardAvoidingView,
     BackHandler,
+    AppState,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,7 +24,7 @@ import * as Location from 'expo-location';
 
 import { useAppStore } from '../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from '../lib/bridges/injectedJS';
-import { handleBridgeMessage } from '../lib/bridges/messageHandlers';
+import { handleBridgeMessage, cleanupAllMedia } from '../lib/bridges/messageHandlers';
 import * as db from '../lib/database/db';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { GeneratedApp, AppVersion } from '../lib/database/types';
@@ -362,8 +363,19 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             if (app && consoleLogs.length > 0) {
                 db.updateApp({ ...app, consoleLogs: consoleLogs.join('\n') });
             }
+            cleanupAllMedia();
         };
     }, [app, consoleLogs]);
+
+    // Stop all media when app goes to background
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'background' || nextState === 'inactive') {
+                cleanupAllMedia();
+            }
+        });
+        return () => subscription.remove();
+    }, []);
 
     // Apply AI edit
     const handleApplyEdit = async () => {

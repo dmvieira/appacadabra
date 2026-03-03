@@ -28,8 +28,80 @@ import * as Network from 'expo-network';
 // State for Audio Recording
 let currentRecording: Audio.Recording | null = null;
 let audioRecordingTimeout: NodeJS.Timeout | null = null;
+// State for AI TTS
+let currentAITTS: Audio.Sound | null = null;
+let currentVideoSound: Audio.Sound | null = null;
 let scannerTimeout: NodeJS.Timeout | null = null;
 let pedometerSubscription: any | null = null;
+
+/**
+ * Cleanup all active media: stop audio recording, TTS, and video playback.
+ * Call this when leaving the app or unmounting the WebView.
+ */
+export async function cleanupAllMedia(): Promise<void> {
+    console.log('[Bridge] cleanupAllMedia: stopping all media...');
+
+    // Stop audio recording
+    if (currentRecording) {
+        try {
+            await currentRecording.stopAndUnloadAsync();
+        } catch (e) {
+            console.warn('[Bridge] Error stopping audio recording:', e);
+        }
+        currentRecording = null;
+    }
+    if (audioRecordingTimeout) {
+        clearTimeout(audioRecordingTimeout);
+        audioRecordingTimeout = null;
+    }
+
+    // Stop TTS (device)
+    try {
+        Speech.stop();
+    } catch (e) {
+        console.warn('[Bridge] Error stopping TTS:', e);
+    }
+
+    // Stop AI TTS
+    if (currentAITTS) {
+        try {
+            await currentAITTS.stopAsync();
+            await currentAITTS.unloadAsync();
+        } catch (e) {
+            console.warn('[Bridge] Error stopping AI TTS playback:', e);
+        }
+        currentAITTS = null;
+    }
+
+    // Stop video playback
+    if (currentVideoSound) {
+        try {
+            await currentVideoSound.stopAsync();
+            await currentVideoSound.unloadAsync();
+        } catch (e) {
+            console.warn('[Bridge] Error stopping video playback:', e);
+        }
+        currentVideoSound = null;
+    }
+
+    // Pause all HTML5 audio/video in the WebView
+    const webViewRef = useBridgeUIStore.getState().webViewRef;
+    if (webViewRef?.current) {
+        try {
+            const pauseScript = `
+                (function() {
+                    var media = document.querySelectorAll('audio, video');
+                    for (var i = 0; i < media.length; i++) {
+                        media[i].pause();
+                    }
+                })();
+            `;
+            webViewRef.current.injectJavaScript(pauseScript);
+        } catch (e) {
+            console.warn('[Bridge] Error injecting pause script:', e);
+        }
+    }
+}
 
 // Throttling for high-frequency messages
 const messageThrottles: { [key: string]: number } = {};
@@ -242,8 +314,9 @@ export async function handleBridgeMessage(
                     prompt: data.prompt,
                     search: data.search,
                     schema: data.schema,
-                    image: data.image,
-                    audio: data.audio,
+                    images: data.images,
+                    videos: data.videos,
+                    audios: data.audios,
                 });
                 result = genResult.text;
 
@@ -277,6 +350,37 @@ export async function handleBridgeMessage(
                 }
             }
             break;
+
+        case 'AI_SIMILARITY': {
+            debugLog(`AI Similarity request: ${data.items?.length || 0} items`);
+            try {
+                const simResult = await ai.aiSimilarity(data.items || []);
+                result = simResult.text;
+
+                const creditsUsed = simResult.creditsUsed || 0;
+                console.log(`[Bridge] AI similarity. Credits used: ${creditsUsed}`);
+
+                if (ctx.appId && creditsUsed > 0) {
+                    try {
+                        await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
+                    } catch (e) {
+                        console.warn('Failed to update app mana cost:', e);
+                    }
+                }
+            } catch (e) {
+                success = false;
+                const errorMsg = e instanceof Error ? e.message : 'Error';
+                const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
+                    errorMsg.toLowerCase().includes('insufficient mana');
+                if (isManaError) {
+                    useManaStore.getState().openShop();
+                    result = t('manaDepletedMessage');
+                } else {
+                    result = errorMsg;
+                }
+            }
+            break;
+        }
 
         // ============= Calendar Handlers =============
         case 'CALENDAR_CREATE_EVENT':
@@ -1319,6 +1423,61 @@ export async function handleBridgeMessage(
             break;
         }
 
+        // ============= AI TTS Handler (Gemini TTS) =============
+        case 'AUDIO_SPEAK_AI': {
+            debugLog(`AI TTS request: "${data.text?.substring(0, 50)}..." voice=${data.voiceName || 'Aoede'}`);
+            try {
+                const ttsResult = await ai.aiGenerateTTS(data.text, data.voiceName);
+                const { audioBase64, creditsUsed } = ttsResult;
+
+                // Write audio to a temp file and play it
+                const fileUri = FileSystem.cacheDirectory + `tts_${Date.now()}.wav`;
+                await FileSystem.writeAsStringAsync(fileUri, audioBase64, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+
+                const { sound } = await Audio.Sound.createAsync(
+                    { uri: fileUri },
+                    { shouldPlay: true }
+                );
+                currentAITTS = sound;
+
+                sound.setOnPlaybackStatusUpdate(async (status) => {
+                    if (status.isLoaded && status.didJustFinish) {
+                        if (currentAITTS === sound) currentAITTS = null;
+                        await sound.unloadAsync();
+                        try { await FileSystem.deleteAsync(fileUri, { idempotent: true }); } catch (_) { }
+                    }
+                });
+
+                // Update mana cost
+                if (ctx.appId && creditsUsed > 0) {
+                    try {
+                        await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
+                        debugLog(`App ${ctx.appId} mana cost increased by ${creditsUsed}`);
+                    } catch (e) {
+                        console.warn('Failed to update app mana cost:', e);
+                    }
+                }
+
+                result = 'Speaking';
+            } catch (e) {
+                success = false;
+                const errorMsg = e instanceof Error ? e.message : 'Error';
+
+                const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
+                    errorMsg.toLowerCase().includes('insufficient mana');
+
+                if (isManaError) {
+                    useManaStore.getState().openShop();
+                    result = t('manaDepletedMessage');
+                } else {
+                    result = errorMsg;
+                }
+            }
+            break;
+        }
+
         // ============= AI Image Generation Handler =============
         case 'AI_GENERATE_IMAGE': {
             debugLog(`AI Image Gen request: ${data.prompt?.substring(0, 50)}...`);
@@ -1329,6 +1488,41 @@ export async function handleBridgeMessage(
                 // Log cost and update mana
                 const creditsUsed = imgResult.creditsUsed || 0;
                 console.log(`[Bridge] AI image generated. Credits used: ${creditsUsed}`);
+
+                if (ctx.appId && creditsUsed > 0) {
+                    try {
+                        await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
+                        debugLog(`App ${ctx.appId} mana cost increased by ${creditsUsed}`);
+                    } catch (e) {
+                        console.warn('Failed to update app mana cost:', e);
+                    }
+                }
+            } catch (e) {
+                success = false;
+                const errorMsg = e instanceof Error ? e.message : 'Error';
+
+                const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
+                    errorMsg.toLowerCase().includes('insufficient mana');
+
+                if (isManaError) {
+                    useManaStore.getState().openShop();
+                    result = t('manaDepletedMessage');
+                } else {
+                    result = errorMsg;
+                }
+            }
+            break;
+        }
+
+        case 'AI_GENERATE_VIDEO': {
+            debugLog(`AI Video Gen request: ${data.prompt?.substring(0, 50)}...`);
+            try {
+                const videoResult = await ai.aiGenerateVideo(data.prompt);
+                result = videoResult.videoBase64;
+
+                // Log cost and update mana
+                const creditsUsed = videoResult.creditsUsed || 0;
+                console.log(`[Bridge] AI video generated. Credits used: ${creditsUsed}`);
 
                 if (ctx.appId && creditsUsed > 0) {
                     try {
@@ -1579,6 +1773,122 @@ export async function handleBridgeMessage(
                 result = e instanceof Error ? e.message : 'Camera failed';
             } finally {
                 store.setNativeActivityActive(false);
+            }
+            break;
+        }
+
+        case 'CAMERA_RECORD_VIDEO': {
+            debugLog(`Recording video... maxDuration=${data.maxDuration || 60}`);
+            const videoStore = useBridgeUIStore.getState();
+            try {
+                videoStore.setNativeActivityActive(true);
+                const camPerm = await ImagePicker.requestCameraPermissionsAsync();
+                if (!camPerm.granted) throw new Error('Camera permission denied');
+
+                const audioPerm = await Audio.requestPermissionsAsync();
+                if (!audioPerm.granted) {
+                    console.warn('[Bridge] Audio permission denied, recording video without audio');
+                }
+
+                const maxDuration = Math.min(data.maxDuration || 60, 300); // Cap at 5 minutes
+                const quality = data.quality === 'low' ? 0 : 1; // 0 = low, 1 = high
+
+                const videoPicker = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                    videoMaxDuration: maxDuration,
+                    videoQuality: quality,
+                });
+
+                if (!videoPicker.canceled && videoPicker.assets[0]) {
+                    const videoUri = videoPicker.assets[0].uri;
+                    const videoBase64 = await FileSystem.readAsStringAsync(videoUri, {
+                        encoding: FileSystem.EncodingType.Base64,
+                    });
+                    result = videoBase64;
+                } else {
+                    success = false;
+                    result = 'Cancelled';
+                }
+            } catch (e) {
+                console.error('Video record error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Video recording failed';
+            } finally {
+                videoStore.setNativeActivityActive(false);
+            }
+            break;
+        }
+
+        case 'VIDEO_PLAY': {
+            debugLog('Playing video...');
+            try {
+                if (!data.base64) throw new Error('No video data provided');
+
+                const mimeType = data.mimeType || 'video/mp4';
+                const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
+                const videoFileUri = FileSystem.cacheDirectory + `video_play_${Date.now()}.${ext}`;
+
+                await FileSystem.writeAsStringAsync(videoFileUri, data.base64, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+
+                // Clean up previous playback if any
+                if (currentVideoSound) {
+                    try { await currentVideoSound.unloadAsync(); } catch (_) { }
+                    currentVideoSound = null;
+                }
+
+                const { sound: videoSound } = await Audio.Sound.createAsync(
+                    { uri: videoFileUri },
+                    { shouldPlay: true }
+                );
+                currentVideoSound = videoSound;
+
+                videoSound.setOnPlaybackStatusUpdate(async (status) => {
+                    if (status.isLoaded && status.didJustFinish) {
+                        await videoSound.unloadAsync();
+                        currentVideoSound = null;
+                        try { await FileSystem.deleteAsync(videoFileUri, { idempotent: true }); } catch (_) { }
+                    }
+                });
+
+                result = 'Playing';
+            } catch (e) {
+                console.error('Video play error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Video playback failed';
+            }
+            break;
+        }
+
+        case 'VIDEO_STOP': {
+            debugLog('Stopping video playback...');
+            try {
+                if (currentVideoSound) {
+                    await currentVideoSound.stopAsync();
+                    await currentVideoSound.unloadAsync();
+                    currentVideoSound = null;
+                }
+                result = 'Stopped';
+            } catch (e) {
+                console.error('Video stop error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'Video stop failed';
+            }
+            break;
+        }
+
+        case 'VIDEO_IS_PLAYING': {
+            debugLog('Checking video playback status...');
+            try {
+                if (currentVideoSound) {
+                    const status = await currentVideoSound.getStatusAsync();
+                    result = status.isLoaded && status.isPlaying ? 'true' : 'false';
+                } else {
+                    result = 'false';
+                }
+            } catch (e) {
+                result = 'false';
             }
             break;
         }

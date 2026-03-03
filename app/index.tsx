@@ -32,7 +32,7 @@ import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
-import { ChatDialog, EditDetailsDialog, ConfirmDialog } from '../components/Dialogs';
+import { ChatDialog, ConfirmDialog } from '../components/Dialogs';
 import { Onboarding } from '../components/Onboarding';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import SignOutModal from '../components/SignOutModal';
@@ -108,10 +108,8 @@ export default function HomeScreen() {
 
     // Dialog states
     const [showCreateDialog, setShowCreateDialog] = useState(false);
-    const [editTarget, setEditTarget] = useState<GeneratedApp | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<GeneratedApp | null>(null);
     const [showMenu, setShowMenu] = useState(false);
-    const [iconTarget, setIconTarget] = useState<GeneratedApp | null>(null);
     const [isPicking, setIsPicking] = useState(false);
     const [showLegal, setShowLegal] = useState(false);
     const [legalTab, setLegalTab] = useState<'privacy' | 'terms'>('privacy');
@@ -124,6 +122,7 @@ export default function HomeScreen() {
     const [setupTarget, setSetupTarget] = useState<GeneratedApp | null>(null);
     const [setupName, setSetupName] = useState('');
     const [setupDescription, setSetupDescription] = useState('');
+    const [setupMode, setSetupMode] = useState<'create' | 'edit'>('create');
     const [firstRunSetupTarget, setFirstRunSetupTarget] = useState<GeneratedApp | null>(null);
     const [notifCounts, setNotifCounts] = useState<Record<number, number>>({});
     const [coachStep, setCoachStep] = useState(0); // 0=off, 1=dots menu hint, 2=edit hint
@@ -150,6 +149,7 @@ export default function HomeScreen() {
                 setSetupTarget(created);
                 setSetupName(created.name);
                 setSetupDescription(created.shortDescription || '');
+                setSetupMode('create');
                 clearLastCreatedApp();
             }
         }
@@ -166,6 +166,7 @@ export default function HomeScreen() {
                         setSetupTarget(app);
                         setSetupName(app.name);
                         setSetupDescription(app.shortDescription || '');
+                        setSetupMode('create');
                     }
                 });
                 // Clear the param so it doesn't re-trigger
@@ -516,19 +517,6 @@ export default function HomeScreen() {
         }
     };
 
-    const handleEditConfirm = async (newName: string, newDescription: string) => {
-        if (editTarget) {
-            if (newName !== editTarget.name) {
-                await renameApp(editTarget.id, newName);
-            }
-            if (newDescription !== editTarget.shortDescription) {
-                await updateAppDescription(editTarget.id, newDescription);
-            }
-            setEditTarget(null);
-            autoBackupAfterChange();
-        }
-    };
-
     // --- Setup modal handlers ---
     const handleSetupSave = async () => {
         if (!setupTarget) return;
@@ -667,153 +655,6 @@ export default function HomeScreen() {
                 );
             } else {
                 Alert.alert(t('iconGenError'));
-            }
-        } finally {
-            setIsGeneratingIcon(false);
-        }
-    };
-
-    const handleSelectIconFromGallery = async () => {
-        if (!iconTarget || isPicking) return;
-
-        try {
-            setIsPicking(true);
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.8,
-            });
-
-            if (!result.canceled && result.assets[0]) {
-                await updateAppIcon(iconTarget.id, result.assets[0].uri);
-            }
-        } catch (e) {
-            console.error('Error selecting icon from gallery:', e);
-        } finally {
-            setIsPicking(false);
-        }
-        setIconTarget(null);
-    };
-
-    const handleSelectIconFromFile = async () => {
-        if (!iconTarget || isPicking) return;
-
-        try {
-            setIsPicking(true);
-            const result = await DocumentPicker.getDocumentAsync({
-                type: ['image/*'],
-                copyToCacheDirectory: true,
-            });
-
-            if (!result.canceled && result.assets && result.assets[0]) {
-                await updateAppIcon(iconTarget.id, result.assets[0].uri);
-            }
-        } catch (e) {
-            console.error('Error selecting icon from file:', e);
-        } finally {
-            setIsPicking(false);
-        }
-        setIconTarget(null);
-    };
-
-    const handleSearchIconOnGoogle = async () => {
-        if (!iconTarget) return;
-
-        // Open Google Images search for app icon
-        const searchQuery = encodeURIComponent(`${iconTarget.name} app icon`);
-        const googleImageUrl = `https://www.google.com/search?tbm=isch&q=${searchQuery}`;
-        await Linking.openURL(googleImageUrl);
-
-        // Close modal - user will download image, then select from gallery
-        setIconTarget(null);
-    };
-
-    const handleGenerateIconWithAI = async () => {
-        if (!iconTarget || isGeneratingIcon) return;
-
-        try {
-            setIsGeneratingIcon(true);
-
-            // Use manual shortDescription if available, otherwise fallback to version instruction
-            let creationPrompt = iconTarget.shortDescription || '';
-
-            if (!creationPrompt) {
-                const versions = await db.getVersionsForApp(iconTarget.id);
-                // Versions are sorted DESC, so the last one is v1 (original)
-                const firstVersion = versions.length > 0 ? versions[versions.length - 1] : null;
-                creationPrompt = firstVersion?.instruction || '';
-            }
-
-            const prompt = `App icon for "${iconTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} . REALLY simple, easy to understand, colorful, minimalist, rounded square, borderless icon suitable for a mobile app. No text. Recognizable symbol because the icon is small. Professional quality that describes the app.`;
-
-            const result = await firebase.generateSpellImageGen(prompt);
-            const base64Image = result.text;
-            const creditsUsed = result.creditsUsed || 0;
-
-            if (base64Image) {
-                // Save base64 to a temp file
-                const iconDir = `${FileSystem.documentDirectory}icons/`;
-                const dirInfo = await FileSystem.getInfoAsync(iconDir);
-                if (!dirInfo.exists) {
-                    await FileSystem.makeDirectoryAsync(iconDir, { intermediates: true });
-                }
-                const iconPath = `${iconDir}ai_icon_${iconTarget.id}_${Date.now()}.png`;
-                await FileSystem.writeAsStringAsync(iconPath, base64Image, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-
-                await updateAppIcon(iconTarget.id, iconPath);
-
-                // Update per-spell mana cost in real-time
-                if (creditsUsed > 0) {
-                    await incrementAppManaCost(iconTarget.id, creditsUsed);
-                    // Force mana balance refresh from server
-                    firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => { });
-                }
-
-                logIconGenerated('menu', creditsUsed);
-                setStatusMessage(t('iconGenerated'));
-
-                // Only close on success
-                setIconTarget(null);
-            }
-        } catch (e: any) {
-            console.error('Error generating icon with AI:', e);
-
-            // Extract error message safely
-            const errorMsg = e?.message || String(e);
-
-            // Check for various forms of credit/mana errors
-            const isManaError =
-                errorMsg.toLowerCase().includes('insufficient credits') ||
-                errorMsg.toLowerCase().includes('insufficient mana') ||
-                errorMsg.toLowerCase().includes('no credits') ||
-                errorMsg.toLowerCase().includes('no user data') ||
-                errorMsg.toLowerCase().includes('out of mana');
-
-            if (isManaError) {
-                // Close the icon picker modal so the shop can be seen clearly
-                setIconTarget(null);
-
-                Alert.alert(
-                    t('manaDepletedTitle') || 'Out of Mana',
-                    t('manaDepletedMessage') || 'You need more Mana to generate icons.',
-                    [
-                        {
-                            text: t('getMana') || 'Get Mana',
-                            onPress: () => {
-                                // Small delay to ensure modal close animation finishes
-                                setTimeout(() => {
-                                    useManaStore.getState().openShop();
-                                }, 300);
-                            }
-                        },
-                        { text: t('cancel'), style: 'cancel' }
-                    ]
-                );
-            } else {
-                Alert.alert(`${t('iconGenError')}`);
             }
         } finally {
             setIsGeneratingIcon(false);
@@ -1106,8 +947,12 @@ export default function HomeScreen() {
                                 onRun={() => handleRunApp(item)}
                                 onEdit={() => handleEditApp(item)}
                                 onDelete={() => setDeleteTarget(item)}
-                                onRename={() => setEditTarget(item)}
-                                onIconPress={() => setIconTarget(item)}
+                                onRename={() => {
+                                    setSetupTarget(item);
+                                    setSetupName(item.name);
+                                    setSetupDescription(item.shortDescription || '');
+                                    setSetupMode('edit');
+                                }}
                                 onShortcut={() => handleCreateShortcut(item)}
                                 onToggleBiometric={() => handleToggleBiometric(item)}
                                 onShare={() => handleShareApp(item)}
@@ -1305,69 +1150,6 @@ export default function HomeScreen() {
                 onSelectClear={handleSignOutClear}
             />
 
-            {/* Icon Picker Modal */}
-            <Modal visible={!!iconTarget} transparent animationType="slide" onRequestClose={() => setIconTarget(null)}>
-                <Pressable style={styles.sheetOverlay} onPress={() => setIconTarget(null)}>
-                    <Pressable style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
-                        <View style={styles.sheetHandle} />
-
-                        {/* Header */}
-                        <View style={styles.sheetHeader}>
-                            <View style={styles.sheetHeaderIcon}>
-                                <Text style={{ fontSize: 20 }}>🖼️</Text>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.sheetHeaderTitle}>{t('chooseIcon')}</Text>
-                                <Text style={styles.sheetHeaderSub}>{iconTarget?.name}</Text>
-                            </View>
-                            <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => setIconTarget(null)}>
-                                <Text style={styles.sheetCloseBtnText}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Items */}
-                        <View style={styles.sheetBody}>
-                            <TouchableOpacity style={styles.sheetItem} onPress={handleSelectIconFromGallery}>
-                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🖼️</Text></View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.sheetItemTitle}>{t('fromGallery')}</Text>
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.sheetItem} onPress={handleSelectIconFromFile}>
-                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📁</Text></View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.sheetItemTitle}>{t('fromFiles')}</Text>
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.sheetItem} onPress={handleSearchIconOnGoogle}>
-                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🔍</Text></View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.sheetItemTitle}>{t('searchGoogle')}</Text>
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.sheetItem}
-                                onPress={handleGenerateIconWithAI}
-                                disabled={isGeneratingIcon}
-                            >
-                                <View style={styles.sheetItemIcon}>
-                                    {isGeneratingIcon ? (
-                                        <ActivityIndicator size="small" color="#a78bfa" />
-                                    ) : (
-                                        <Text style={styles.sheetItemEmoji}>✨</Text>
-                                    )}
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.sheetItemTitle}>
-                                        {isGeneratingIcon ? t('generatingIcon') : `${t('generateWithAI')}  ⚡ ${(0.5).toLocaleString(getCurrentLanguage(), { minimumFractionDigits: 1 })}`}
-                                    </Text>
-                                </View>
-                            </TouchableOpacity>
-                        </View>
-                    </Pressable>
-                </Pressable>
-            </Modal>
-
             {/* Dialogs */}
             <ChatDialog
                 visible={showCreateDialog}
@@ -1375,14 +1157,6 @@ export default function HomeScreen() {
                 isGenerating={isGenerating}
                 onDismiss={() => !isGenerating && setShowCreateDialog(false)}
                 onSend={handleCreateApp}
-            />
-
-            <EditDetailsDialog
-                visible={!!editTarget}
-                currentName={editTarget?.name || ''}
-                currentDescription={editTarget?.shortDescription || ''}
-                onDismiss={() => setEditTarget(null)}
-                onConfirm={handleEditConfirm}
             />
 
             <ConfirmDialog
@@ -1409,8 +1183,12 @@ export default function HomeScreen() {
                             contentContainerStyle={styles.setupContainer}
                             keyboardShouldPersistTaps="handled"
                         >
-                            <Text style={styles.setupTitle}>{t('setupModalTitle')}</Text>
-                            <Text style={styles.setupSubtitle}>{t('setupModalSubtitle')}</Text>
+                            <Text style={styles.setupTitle}>
+                                {setupMode === 'edit' ? t('editAppDetails') : t('setupModalTitle')}
+                            </Text>
+                            {setupMode === 'create' && (
+                                <Text style={styles.setupSubtitle}>{t('setupModalSubtitle')}</Text>
+                            )}
 
                             {/* Icon preview + picker buttons */}
                             <View style={styles.setupIconRow}>
@@ -1476,18 +1254,24 @@ export default function HomeScreen() {
                                 numberOfLines={3}
                             />
 
-                            {/* Cost notice */}
-                            <View style={styles.setupCostNotice}>
-                                <Text style={styles.setupCostText}>
-                                    💡 {t('setupCostNotice', { cost: (setupTarget?.totalManaCost ?? 0).toLocaleString(getCurrentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}
-                                </Text>
-                            </View>
+                            {/* Cost notice — only in create mode */}
+                            {setupMode === 'create' && (
+                                <View style={styles.setupCostNotice}>
+                                    <Text style={styles.setupCostText}>
+                                        💡 {t('setupCostNotice', { cost: (setupTarget?.totalManaCost ?? 0).toLocaleString(getCurrentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}
+                                    </Text>
+                                </View>
+                            )}
 
                             <TouchableOpacity style={styles.setupSaveBtn} onPress={handleSetupSave}>
-                                <Text style={styles.setupSaveBtnText}>{t('setupModalSave')}</Text>
+                                <Text style={styles.setupSaveBtnText}>
+                                    {setupMode === 'edit' ? t('save') : t('setupModalSave')}
+                                </Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.setupSkipBtn} onPress={handleSetupSkip}>
-                                <Text style={styles.setupSkipBtnText}>{t('setupModalSkip')}</Text>
+                                <Text style={styles.setupSkipBtnText}>
+                                    {setupMode === 'edit' ? t('cancel') : t('setupModalSkip')}
+                                </Text>
                             </TouchableOpacity>
                         </ScrollView>
                     </SafeAreaView>

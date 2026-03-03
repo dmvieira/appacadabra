@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(grep:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(node:*)",
+      "Bash(echo \\(should be >0\\):*)"
     ]
   }
 }
