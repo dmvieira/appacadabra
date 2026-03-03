@@ -261,7 +261,7 @@ function calculateCostUsd(
     const cached = usage.cachedTokens ?? 0;
     const nonCached = usage.promptTokens - cached;
     const inputCost = (nonCached / 1_000_000) * pricing.inputPerMToken
-                    + (cached   / 1_000_000) * pricing.inputPerMToken * 0.25;
+        + (cached / 1_000_000) * pricing.inputPerMToken * 0.25;
 
     // Thinking tokens are billed at the same output price — include in calculation.
     const billableOutput = usage.responseTokens + (usage.thoughtsTokens ?? 0);
@@ -927,7 +927,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // Asymmetric pricing: input $0.50/M (200K tokens/mana), output $10/M (10K tokens/mana)
                         const u = getUsage(ttsResult);
                         usage = { promptTokens: u.promptTokens, responseTokens: u.responseTokens, thoughtsTokens: u.thoughtsTokens, totalTokens: u.totalTokens, cachedTokens: 0 };
-                        const inputCost  = u.promptTokens   / 200_000;
+                        const inputCost = u.promptTokens / 200_000;
                         const outputCost = u.responseTokens / 10_000;
                         creditsUsed = inputCost + outputCost;
 
@@ -943,9 +943,21 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
             const newCredits = Math.max(0, currentCredits - creditsUsed);
 
-            // Update stats
-            const currentStats = userData.rateLimit || { tokensThisMinute: 0 };
-            currentStats.tokensThisMinute += usage.totalTokens;
+            // Update rate limit stats with generated tokens
+            const now = Date.now();
+            const currentStats: RateLimitData = userData.rateLimit || {
+                callsThisMinute: 0,
+                tokensThisMinute: 0,
+                lastMinuteReset: now,
+            };
+            // Reset counters if a minute has passed since last reset
+            if (now - (currentStats.lastMinuteReset || 0) > 60000) {
+                currentStats.callsThisMinute = 0;
+                currentStats.tokensThisMinute = 0;
+                currentStats.lastMinuteReset = now;
+                delete currentStats.cooldownUntil;
+            }
+            currentStats.tokensThisMinute = (currentStats.tokensThisMinute || 0) + (usage.totalTokens || 0);
 
             transaction.update(userRef, {
                 credits: newCredits,
@@ -970,11 +982,11 @@ export const generateSpell = onCall<GenerateSpellRequest>(
             transaction.set(logRef, {
                 action,
                 modelId: logModelId,
-                promptTokens:   usage.promptTokens,
+                promptTokens: usage.promptTokens,
                 responseTokens: usage.responseTokens,
                 thoughtsTokens: usage.thoughtsTokens,
-                totalTokens:    usage.totalTokens,
-                cachedTokens:   usage.cachedTokens,
+                totalTokens: usage.totalTokens,
+                cachedTokens: usage.cachedTokens,
                 costUsd,
                 creditsUsed,
                 timestamp: FieldValue.serverTimestamp(),
@@ -1381,11 +1393,11 @@ export const processSpellJob = onDocumentCreated(
                     t.set(logRef, {
                         action,
                         modelId: 'gemini-3-flash-preview',
-                        promptTokens:   usage.promptTokens,
+                        promptTokens: usage.promptTokens,
                         responseTokens: usage.responseTokens,
                         thoughtsTokens: usage.thoughtsTokens,
-                        totalTokens:    usage.totalTokens,
-                        cachedTokens:   usage.cachedTokens,
+                        totalTokens: usage.totalTokens,
+                        cachedTokens: usage.cachedTokens,
                         costUsd,
                         creditsUsed,
                         timestamp: FieldValue.serverTimestamp(),

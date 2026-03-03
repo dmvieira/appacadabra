@@ -42,6 +42,7 @@ export default function BackupSyncModal({ visible, mode, onClose }: BackupSyncMo
                 }
                 setLocalFolderUri(uri);
                 setBackupMode('local_folder');
+                await performRestore();
                 await performBackup();
             }
             onClose();

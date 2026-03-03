@@ -342,9 +342,17 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
             return { success: false, count: 0, message: t('invalidBackupFile') };
         }
 
+        // Deduplication: skip apps whose name already exists locally
+        const existingApps = await db.getAllApps();
+        const existingNames = new Set(existingApps.map(a => a.name));
+
         let importedCount = 0;
 
         for (const app of validApps) {
+            if (existingNames.has(app.name)) {
+                console.log('[Backup] Skipping duplicate app:', app.name);
+                continue;
+            }
             const originalId = app.id;
 
             // Restore icon from base64 if present
