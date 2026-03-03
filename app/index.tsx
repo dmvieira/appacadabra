@@ -91,6 +91,8 @@ export default function HomeScreen() {
         updatingAppIds,
         pendingImportUrl,
         setPendingImportUrl,
+        lastFailedPrompt,
+        clearLastFailedPrompt,
     } = useAppStore();
 
     const [showSignOutModal, setShowSignOutModal] = useState(false);
@@ -108,6 +110,7 @@ export default function HomeScreen() {
 
     // Dialog states
     const [showCreateDialog, setShowCreateDialog] = useState(false);
+    const [createDialogInitialText, setCreateDialogInitialText] = useState<string | undefined>(undefined);
     const [deleteTarget, setDeleteTarget] = useState<GeneratedApp | null>(null);
     const [showMenu, setShowMenu] = useState(false);
     const [isPicking, setIsPicking] = useState(false);
@@ -154,6 +157,15 @@ export default function HomeScreen() {
             }
         }
     }, [lastCreatedAppId, apps]);
+
+    // Restore failed CREATE prompt — re-open dialog with user's original text
+    useEffect(() => {
+        if (lastFailedPrompt?.type === 'create') {
+            setCreateDialogInitialText(lastFailedPrompt.text);
+            setShowCreateDialog(true);
+            clearLastFailedPrompt();
+        }
+    }, [lastFailedPrompt]);
 
     // Notification tap: open setup modal for newly created spell
     useEffect(() => {
@@ -382,6 +394,7 @@ export default function HomeScreen() {
         const success = await createApp(description);
         if (success) {
             setShowCreateDialog(false);
+            setCreateDialogInitialText(undefined);
             // We do NOT open the app immediately.
             return true;
         }
@@ -1155,8 +1168,9 @@ export default function HomeScreen() {
                 visible={showCreateDialog}
                 title={t('createTitle')}
                 isGenerating={isGenerating}
-                onDismiss={() => !isGenerating && setShowCreateDialog(false)}
+                onDismiss={() => { if (!isGenerating) { setShowCreateDialog(false); setCreateDialogInitialText(undefined); } }}
                 onSend={handleCreateApp}
+                initialText={createDialogInitialText}
             />
 
             <ConfirmDialog

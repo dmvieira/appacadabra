@@ -53,6 +53,10 @@ interface AppState {
     dismissedUris: Record<string, number>;
     dismissContent: (uri: string) => void;
 
+    // Failed prompt recovery — preserve user's text when a job fails
+    lastFailedPrompt: { type: 'create' | 'edit'; text: string; appId?: number } | null;
+    clearLastFailedPrompt: () => void;
+
     initializeListeners: () => void;
 
     // Actions
@@ -104,6 +108,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     lastCompletedEditAppId: null,
     lastCreatedAppId: null,
     dismissedUris: {},
+    lastFailedPrompt: null,
+
+    clearLastFailedPrompt: () => set({ lastFailedPrompt: null }),
 
     dismissContent: (uri: string) => {
         const now = Date.now();
@@ -368,6 +375,18 @@ export const useAppStore = create<AppState>((set, get) => ({
             set(state => ({
                 updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId)
             }));
+        }
+
+        // Preserve the user's original prompt text for recovery
+        const promptText = job.payload?.instruction || job.payload?.prompt || '';
+        if (promptText) {
+            set({
+                lastFailedPrompt: {
+                    type: job.action,
+                    text: promptText,
+                    appId: job.payload?.appId,
+                }
+            });
         }
 
         // Check if error is mana-related

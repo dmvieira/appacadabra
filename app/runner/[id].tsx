@@ -260,6 +260,15 @@ export default function RunnerScreen() {
     const [selectedElement, setSelectedElement] = useState<{ html: string; tagName: string; preview: string } | null>(null);
     const [isEditing, setIsEditing] = useState(false);
 
+    // Restore failed EDIT prompt — pre-fill and open edit sheet on mount
+    useEffect(() => {
+        if (lastFailedPrompt?.type === 'edit' && lastFailedPrompt.appId === Number(id)) {
+            setEditPrompt(lastFailedPrompt.text);
+            clearLastFailedPrompt();
+            setShowEditSheet(true);
+        }
+    }, []); // only on mount
+
     // Speech to text for edit prompt
     const { isListening, transcript, startListening, stopListening } = useSpeechToText();
     const [editPromptBeforeSpeech, setEditPromptBeforeSpeech] = useState('');
@@ -447,7 +456,7 @@ export default function RunnerScreen() {
     const [showHistory, setShowHistory] = useState(false);
     const [versions, setVersions] = useState<AppVersion[]>([]);
 
-    const { updateAppCode, updateAppWithAI, sharedContent, clearSharedContent } = useAppStore();
+    const { updateAppCode, updateAppWithAI, sharedContent, clearSharedContent, lastFailedPrompt, clearLastFailedPrompt } = useAppStore();
 
     console.log('RunnerScreen: RENDER id:', id, 'isFocused:', isFocused, 'appId:', app?.id || '(loading)');
 

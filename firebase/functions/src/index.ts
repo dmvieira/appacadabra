@@ -20,6 +20,7 @@ import {
     validateContentRequest,
 } from "./prompts";
 import { validateGeneratedCode, generateFixPrompt } from "./codeValidator";
+import { validateWithExecution } from "./executionValidator";
 
 // Initialize Firebase Admin
 initializeApp();
@@ -1045,14 +1046,16 @@ export const processSpellJob = onDocumentCreated(
                     // Validation
                     console.log(`[Job ${jobId}] Validating code...`);
                     let validation = validateGeneratedCode(resultText);
+                    let execValidation = validateWithExecution(resultText);
+                    let allErrors = [...validation.errors, ...execValidation.errors];
 
-                    if (!validation.valid) {
-                        auditLog.initialValidationErrors = validation.errors;
+                    if (allErrors.length > 0) {
+                        auditLog.initialValidationErrors = allErrors;
                     }
 
-                    if (!validation.valid && validation.canRetry) {
-                        console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, validation.errors);
-                        const fixPrompt = generateFixPrompt(validation.errors, resultText);
+                    if (allErrors.length > 0 && allErrors.some(e => e.fixable)) {
+                        console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, allErrors);
+                        const fixPrompt = generateFixPrompt(allErrors, resultText);
 
                         // Audit fix
                         auditLog.fixPrompt = fixPrompt;
@@ -1061,13 +1064,15 @@ export const processSpellJob = onDocumentCreated(
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         validation = validateGeneratedCode(resultText);
+                        execValidation = validateWithExecution(resultText);
+                        allErrors = [...validation.errors, ...execValidation.errors];
 
-                        if (!validation.valid) {
-                            auditLog.finalValidationErrors = validation.errors;
+                        if (allErrors.length > 0) {
+                            auditLog.finalValidationErrors = allErrors;
                         }
                     }
 
-                    if (!validation.valid) throw new Error(`App generation failed: ${validation.errors[0]?.message || 'Unknown'}`);
+                    if (allErrors.length > 0) throw new Error(`App generation failed: ${allErrors[0]?.message || 'Unknown'}`);
                     usage = totalUsage;
 
                     // Extract App Name from Title
@@ -1124,14 +1129,16 @@ export const processSpellJob = onDocumentCreated(
 
                     // Validation
                     let editValidation = validateGeneratedCode(resultText);
+                    let editExecValidation = validateWithExecution(resultText);
+                    let editAllErrors = [...editValidation.errors, ...editExecValidation.errors];
 
-                    if (!editValidation.valid) {
-                        auditLog.initialValidationErrors = editValidation.errors;
+                    if (editAllErrors.length > 0) {
+                        auditLog.initialValidationErrors = editAllErrors;
                     }
 
-                    if (!editValidation.valid && editValidation.canRetry) {
-                        console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, editValidation.errors);
-                        const fixPrompt = generateFixPrompt(editValidation.errors, resultText);
+                    if (editAllErrors.length > 0 && editAllErrors.some(e => e.fixable)) {
+                        console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, editAllErrors);
+                        const fixPrompt = generateFixPrompt(editAllErrors, resultText);
 
                         // Audit fix
                         auditLog.fixPrompt = fixPrompt;
@@ -1140,12 +1147,14 @@ export const processSpellJob = onDocumentCreated(
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         editValidation = validateGeneratedCode(resultText);
+                        editExecValidation = validateWithExecution(resultText);
+                        editAllErrors = [...editValidation.errors, ...editExecValidation.errors];
 
-                        if (!editValidation.valid) {
-                            auditLog.finalValidationErrors = editValidation.errors;
+                        if (editAllErrors.length > 0) {
+                            auditLog.finalValidationErrors = editAllErrors;
                         }
                     }
-                    if (!editValidation.valid) throw new Error(`Edit failed: ${editValidation.errors[0]?.message}`);
+                    if (editAllErrors.length > 0) throw new Error(`Edit failed: ${editAllErrors[0]?.message}`);
 
                     usage = totalUsage;
                     // For edits, we don't strictly need appName, client knows it.

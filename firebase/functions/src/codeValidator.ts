@@ -3,6 +3,8 @@
  * Deterministic validation to catch common generation errors
  */
 
+import * as vm from 'vm';
+
 export interface ValidationError {
     type: 'html' | 'js' | 'css';
     message: string;
@@ -35,6 +37,23 @@ function validateHtmlStructure(html: string): ValidationError[] {
     // Naive regex counting causes false positives when tags appear in JS strings or content
     // We rely on the browser/webview to handle minor HTML malformations
 
+    // Truncation detection
+    if (html.includes('<html') && !html.includes('</html>')) {
+        errors.push({ type: 'html', message: 'Missing </html> closing tag — HTML may be truncated', fixable: true });
+    }
+    if (html.includes('<body') && !html.includes('</body>')) {
+        errors.push({ type: 'html', message: 'Missing </body> closing tag — HTML may be truncated', fixable: true });
+    }
+    const scriptOpenCount = (html.match(/<script\b/gi) || []).length;
+    const scriptCloseCount = (html.match(/<\/script>/gi) || []).length;
+    if (scriptOpenCount > scriptCloseCount) {
+        errors.push({
+            type: 'html',
+            message: `Unclosed <script> tag — HTML may be truncated (${scriptOpenCount} open, ${scriptCloseCount} closed)`,
+            fixable: true
+        });
+    }
+
     // Check for script tags
     if (!html.includes('<script')) {
         errors.push({
@@ -63,35 +82,18 @@ function validateHtmlStructure(html: string): ValidationError[] {
 function validateJavaScript(js: string): ValidationError[] {
     const errors: ValidationError[] = [];
 
-    // Count braces/brackets/parens
-    const openBraces = (js.match(/{/g) || []).length;
-    const closeBraces = (js.match(/}/g) || []).length;
-    if (openBraces !== closeBraces) {
-        errors.push({
-            type: 'js',
-            message: `Mismatched braces: ${openBraces} opening, ${closeBraces} closing`,
-            fixable: true
-        });
-    }
-
-    const openParens = (js.match(/\(/g) || []).length;
-    const closeParens = (js.match(/\)/g) || []).length;
-    if (openParens !== closeParens) {
-        errors.push({
-            type: 'js',
-            message: `Mismatched parentheses: ${openParens} opening, ${closeParens} closing`,
-            fixable: true
-        });
-    }
-
-    const openBrackets = (js.match(/\[/g) || []).length;
-    const closeBrackets = (js.match(/]/g) || []).length;
-    if (openBrackets !== closeBrackets) {
-        errors.push({
-            type: 'js',
-            message: `Mismatched brackets: ${openBrackets} opening, ${closeBrackets} closing`,
-            fixable: true
-        });
+    // Real syntax check — compile only, no execution
+    try {
+        new vm.Script(js);
+    } catch (e: any) {
+        if (e instanceof SyntaxError) {
+            errors.push({
+                type: 'js',
+                message: `JavaScript syntax error: ${e.message}`,
+                fixable: true
+            });
+            return errors;
+        }
     }
 
     // Check for common typos/mistakes

@@ -5,7 +5,8 @@
       "Bash(grep:*)",
       "Bash(sed:*)",
       "Bash(node:*)",
-      "Bash(echo \\(should be >0\\):*)"
+      "Bash(echo \\(should be >0\\):*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

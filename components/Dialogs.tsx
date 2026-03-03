@@ -23,9 +23,10 @@ interface ChatDialogProps {
     isGenerating: boolean;
     onDismiss: () => void;
     onSend: (text: string) => Promise<boolean | void> | void;
+    initialText?: string;
 }
 
-export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: ChatDialogProps) {
+export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend, initialText }: ChatDialogProps) {
     const [text, setText] = useState('');
     const [textBeforeSpeech, setTextBeforeSpeech] = useState('');
     const { isListening, transcript, startListening, stopListening } = useSpeechToText();
@@ -38,10 +39,12 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend }: 
         }
     }, [transcript, isListening, textBeforeSpeech]);
 
-    // Reset text when dialog closes
+    // Reset text when dialog closes; pre-fill with initialText when opening
     useEffect(() => {
         if (!visible) {
             setText('');
+        } else if (initialText) {
+            setText(initialText);
         }
     }, [visible]);
 
