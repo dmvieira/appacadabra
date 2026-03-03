@@ -439,16 +439,12 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 // Configure Google Sign-In
 GoogleSignin.configure({
-    // scopes: ['https://www.googleapis.com/auth/drive.readonly'], // what API you want to access on behalf of the user, default is email and profile
-    webClientId: '901177243529-0vod4amdjigg9bvve0h1ebaa609hpdba.apps.googleusercontent.com', // client ID of type WEB for your server (needed to verify user ID and offline access)
-    offlineAccess: true, // if you want to access Google API on behalf of the user FROM YOUR SERVER
-    hostedDomain: '', // specifies a hosted domain restriction
-    forceCodeForRefreshToken: true, // [Android] related to offlineAccess
-    accountName: '', // [Android] specifies an account name on the device that should be used
-    // iosClientId: '<FROM DEVELOPER CONSOLE>', // [iOS] if you want to specify the client ID of type iOS (otherwise, it is taken from GoogleService-Info.plist)
-    // googleServicePlistPath: '', // [iOS] if you renamed your GoogleService-Info file, new name here, e.g. GoogleService-Info-Staging
-    // openIdRealm: '', // [iOS] The OpenID2 realm of the home web server. This allows Google to include the user's OpenID Identifier in the OpenID Connect ID token.
-    // profileImageSize: 120, // [iOS] The desired height (and width) of the profile image. Defaults to 120px
+    scopes: ['https://www.googleapis.com/auth/drive.appdata'],
+    webClientId: '901177243529-0vod4amdjigg9bvve0h1ebaa609hpdba.apps.googleusercontent.com',
+    offlineAccess: true,
+    hostedDomain: '',
+    forceCodeForRefreshToken: true,
+    accountName: '',
 });
 
 // Import GoogleAuthProvider
@@ -522,6 +518,24 @@ export async function signOut() {
 
 export function getCurrentUser() {
     return getAuth().currentUser;
+}
+
+/** Check if the current Firebase user is linked with Google (vs anonymous-only) */
+export function isGoogleUser(): boolean {
+    const user = getAuth().currentUser;
+    if (!user) return false;
+    return user.providerData.some(p => p.providerId === 'google.com');
+}
+
+/** Get the Google OAuth access token for API calls (e.g. Drive) */
+export async function getGoogleAccessToken(): Promise<string | null> {
+    try {
+        const tokens = await GoogleSignin.getTokens();
+        return tokens.accessToken;
+    } catch (e) {
+        console.warn('[Firebase] Failed to get Google access token:', e);
+        return null;
+    }
 }
 
 // Re-export existing listeners

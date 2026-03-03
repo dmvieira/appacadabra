@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(sed:*)"
     ]
   }
 }

@@ -10,6 +10,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import { peekBackupMetadata } from '../lib/backup';
+import { markBackupDirty } from '../lib/backupSync';
 
 const AVATAR_COLORS = [
     '#7B2EFF', '#00B4D8', '#FF2EAB', '#00C853', '#FF6D00',
@@ -483,6 +484,7 @@ export default function ShareReceiver() {
         // Import in background
         importBackup(uri).finally(() => {
             console.log('ShareReceiver: [IMPORT] importBackup finished, resetting guards');
+            markBackupDirty();
             isHandlingAction = false;
             setTimeout(() => { appSelectionInProgress = false; }, 3000);
         });

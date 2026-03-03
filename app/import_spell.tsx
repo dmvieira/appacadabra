@@ -9,6 +9,7 @@ import * as FileSystem from 'expo-file-system';
 import * as ShareIntent from 'share-intent';
 import { peekBackupMetadata } from '../lib/backup';
 import { readBackupFile } from '../lib/backup';
+import { markBackupDirty } from '../lib/backupSync';
 
 export default function ImportSpellScreen() {
     const router = useRouter();
@@ -95,6 +96,7 @@ export default function ImportSpellScreen() {
         clearError();
         // importBackup handles state (isImporting, statusMessage)
         await importBackup(uri);
+        markBackupDirty();
 
         // Explicitly check for success via store state after async operation
         const state = useAppStore.getState();
@@ -133,8 +135,8 @@ export default function ImportSpellScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.card}>
-                <View style={[styles.avatarWrap, { marginBottom: spacing.md }]}> 
-                    <View style={[styles.cardAvatar, { backgroundColor: '#222' }]}> 
+                <View style={[styles.avatarWrap, { marginBottom: spacing.md }]}>
+                    <View style={[styles.cardAvatar, { backgroundColor: '#222' }]}>
                         {spellIcon ? (
                             <Image
                                 source={{ uri: spellIcon.startsWith('data:image') || spellIcon.length > 100 ? `data:image/png;base64,${spellIcon}` : spellIcon }}

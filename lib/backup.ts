@@ -35,6 +35,7 @@ export interface BackupApp {
     jobId?: string;
     shortDescription?: string;
     sortOrder?: number;
+    requiresBiometric?: boolean;
     // Individual mana charge events with original timestamps
     manaEvents?: { amount: number; timestamp: number }[];
     // Scheduled notifications (absolute fire timestamps)
@@ -138,6 +139,8 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             consoleLogs: includeStorage ? (app.consoleLogs || '') : undefined,
             totalManaCost: includeStorage ? (app.totalManaCost || 0) : undefined,
             shortDescription: app.shortDescription,
+            sortOrder: app.sortOrder || 0,
+            requiresBiometric: app.requiresBiometric || false,
             manaEvents: manaEvents.length > 0 ? manaEvents : undefined,
             notifications: notifications.length > 0 ? notifications : undefined,
             versions: versions.length > 0 ? versions.map(v => ({
@@ -394,7 +397,7 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                 consoleLogs: app.consoleLogs || '',
                 totalManaCost: app.totalManaCost || 0,
                 jobId: app.jobId || undefined,
-                requiresBiometric: false, // Imported apps start unlocked
+                requiresBiometric: app.requiresBiometric || false,
                 shortDescription: app.shortDescription || undefined,
                 sortOrder: app.sortOrder || 0,
             };

@@ -48,6 +48,9 @@ import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useManaStore } from '../lib/manaStore';
 import SpellSetup from '../components/SpellSetup';
 import { logIconGenerated } from '../lib/analytics';
+import { useBackupStore } from '../lib/backupStore';
+import BackupSyncModal from '../components/BackupSyncModal';
+import { autoBackupAfterChange, tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup } from '../lib/backupSync';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -125,10 +128,18 @@ export default function HomeScreen() {
     const [notifCounts, setNotifCounts] = useState<Record<number, number>>({});
     const [coachStep, setCoachStep] = useState(0); // 0=off, 1=dots menu hint, 2=edit hint
     const [contextMenuApp, setContextMenuApp] = useState<GeneratedApp | null>(null);
+    const [showSyncModal, setShowSyncModal] = useState(false);
+    const [syncModalMode, setSyncModalMode] = useState<'choose' | 'reconnect'>('choose');
+
+    // Backup store
+    const { backupMode, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup } = useBackupStore();
 
     // Initialize background listeners for async jobs
     useEffect(() => {
         initializeListeners();
+        hydrateBackup();
+        startPeriodicBackup();
+        return () => stopPeriodicBackup();
     }, []);
 
     // Show setup modal when a new spell is created
@@ -162,6 +173,45 @@ export default function HomeScreen() {
             }
         }
     }, [setupAppId, apps]);
+
+    // Backup: check if logged-in user needs backup setup
+    useEffect(() => {
+        if (!backupHydrated) return;
+        if (!isAnonymous && (backupMode === null || backupMode === undefined)) {
+            // User is logged in with Google but has no backup preference
+            // They'll see the warning banner. Don't auto-popup.
+        }
+    }, [backupHydrated, isAnonymous, backupMode]);
+
+    // Backup: restore on Google login
+    useEffect(() => {
+        if (!backupHydrated || isAnonymous) return;
+        if (backupMode === 'google_drive') {
+            // Auto-restore from drive on login
+            tryRestoreOnLogin().catch(e => console.warn('[BackupSync] Auto-restore failed:', e));
+        } else if (backupMode === 'local_folder') {
+            const { localFolderUri } = useBackupStore.getState();
+            if (localFolderUri) {
+                checkLocalBackupExists(localFolderUri).then(exists => {
+                    if (!exists) {
+                        setSyncModalMode('reconnect');
+                        setShowSyncModal(true);
+                    }
+                });
+            } else {
+                setSyncModalMode('reconnect');
+                setShowSyncModal(true);
+            }
+        }
+    }, [backupHydrated, isAnonymous]);
+
+    // Backup: auto-dismiss restore banner after 5s
+    useEffect(() => {
+        if (restoredCount > 0) {
+            const timer = setTimeout(() => clearRestoredCount(), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [restoredCount]);
 
     // Keep setup modal target in sync with apps (e.g. after icon change)
     useEffect(() => {
@@ -379,6 +429,7 @@ export default function HomeScreen() {
         await db.updateBiometricLock(app.id, newValue);
         await loadApps(); // Refresh UI
         setStatusMessage(newValue ? t('enableBiometric') : t('disableBiometric'));
+        markBackupDirty();
     };
 
     const handleRunApp = async (app: GeneratedApp) => {
@@ -461,6 +512,7 @@ export default function HomeScreen() {
         if (deleteTarget) {
             await deleteApp(deleteTarget.id);
             setDeleteTarget(null);
+            autoBackupAfterChange();
         }
     };
 
@@ -473,6 +525,7 @@ export default function HomeScreen() {
                 await updateAppDescription(editTarget.id, newDescription);
             }
             setEditTarget(null);
+            autoBackupAfterChange();
         }
     };
 
@@ -490,6 +543,7 @@ export default function HomeScreen() {
         setSetupTarget(null);
         // Show coach marks if this was the first spell
         maybeStartCoach(targetId);
+        markBackupDirty();
     };
 
     const handleSetupSkip = async () => {
@@ -548,6 +602,7 @@ export default function HomeScreen() {
             });
             if (!result.canceled && result.assets[0]) {
                 await updateAppIcon(setupTarget.id, result.assets[0].uri);
+                markBackupDirty();
             }
         } catch (e) {
             console.error('Error selecting setup icon from gallery:', e);
@@ -808,6 +863,7 @@ export default function HomeScreen() {
                 }
 
                 await importBackup(result.assets[0].uri);
+                markBackupDirty();
             } catch (error) {
                 console.error('Error picking backup file:', error);
             } finally {
@@ -973,6 +1029,48 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             )}
 
+            {/* Backup restore success banner */}
+            {restoredCount > 0 && (
+                <TouchableOpacity
+                    style={styles.restoreBanner}
+                    onPress={clearRestoredCount}
+                    activeOpacity={0.9}
+                >
+                    <Text style={styles.restoreBannerEmoji}>🔮</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.restoreBannerTitle}>{t('backupRestoredCount', { count: restoredCount })}</Text>
+                        <Text style={styles.restoreBannerText}>{t('backupRestoredDesc')}</Text>
+                    </View>
+                </TouchableOpacity>
+            )}
+
+            {/* No-backup warning banner */}
+            {!isAnonymous && backupHydrated && (backupMode === null || backupMode === 'none') && (
+                <TouchableOpacity
+                    style={styles.noBackupBanner}
+                    onPress={() => { setSyncModalMode('choose'); setShowSyncModal(true); }}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.noBackupEmoji}>⚠️</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.noBackupTitle}>{t('noBackupTitle')}</Text>
+                        <Text style={styles.noBackupText}>{t('noBackupDesc')}</Text>
+                    </View>
+                    <Text style={styles.noBackupAction}>›</Text>
+                </TouchableOpacity>
+            )}
+
+            {/* Active backup status banner */}
+            {(!isAnonymous && backupMode === 'google_drive' && restoredCount === 0) && (
+                <View style={styles.backupActiveBanner}>
+                    <Text style={styles.backupActiveBannerEmoji}>☁️</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.backupActiveBannerTitle}>{t('backupActive')}</Text>
+                        <Text style={styles.backupActiveBannerText}>{t('backupActiveDesc')}</Text>
+                    </View>
+                </View>
+            )}
+
             {filteredApps.length === 0 && !isGenerating ? (
                 <View style={{ flex: 1, paddingBottom: listBottomPadding }}>
                     <EmptyState />
@@ -1064,7 +1162,7 @@ export default function HomeScreen() {
                 return (
                     <Modal transparent animationType="fade" onRequestClose={() => setContextMenuApp(null)}>
                         <Pressable style={styles.ctxBackdrop} onPress={() => setContextMenuApp(null)}>
-                            <Pressable style={styles.ctxMenu} onPress={() => {}}>
+                            <Pressable style={styles.ctxMenu} onPress={() => { }}>
                                 <TouchableOpacity
                                     style={styles.ctxItem}
                                     onPress={() => {
@@ -1089,6 +1187,7 @@ export default function HomeScreen() {
                                         if (isFirst) return;
                                         reorderApp(contextMenuApp.id, 'up');
                                         setContextMenuApp(null);
+                                        markBackupDirty();
                                     }}
                                     disabled={isFirst}
                                 >
@@ -1108,6 +1207,7 @@ export default function HomeScreen() {
                                         if (isLast) return;
                                         reorderApp(contextMenuApp.id, 'down');
                                         setContextMenuApp(null);
+                                        markBackupDirty();
                                     }}
                                     disabled={isLast}
                                 >
@@ -1509,6 +1609,13 @@ export default function HomeScreen() {
                     onSkip={handleSpellSetupSkip}
                 />
             )}
+
+            {/* Backup Sync Modal */}
+            <BackupSyncModal
+                visible={showSyncModal}
+                mode={syncModalMode}
+                onClose={() => setShowSyncModal(false)}
+            />
         </SafeAreaView>
     );
 }
@@ -2118,5 +2225,85 @@ const styles = StyleSheet.create({
         fontSize: 18,
         color: colors.onSurfaceVariant,
         paddingHorizontal: spacing.sm,
+    },
+    // Backup banners
+    noBackupBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F59E0B15',
+        margin: spacing.md,
+        marginTop: 0,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: '#F59E0B40',
+    },
+    noBackupEmoji: {
+        fontSize: 22,
+        marginEnd: spacing.md,
+    },
+    noBackupTitle: {
+        fontSize: 14,
+        fontWeight: 'bold' as const,
+        color: '#fbbf24',
+    },
+    noBackupText: {
+        fontSize: 12,
+        color: colors.onSurfaceVariant,
+    },
+    noBackupAction: {
+        fontSize: 20,
+        color: '#fbbf24',
+        opacity: 0.5,
+        marginStart: spacing.sm,
+    },
+    restoreBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#10B98115',
+        margin: spacing.md,
+        marginTop: 0,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: '#10B98140',
+    },
+    restoreBannerEmoji: {
+        fontSize: 22,
+        marginEnd: spacing.md,
+    },
+    restoreBannerTitle: {
+        fontSize: 14,
+        fontWeight: 'bold' as const,
+        color: colors.success,
+    },
+    restoreBannerText: {
+        fontSize: 12,
+        color: colors.onSurfaceVariant,
+    },
+    backupActiveBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#10B98110',
+        margin: spacing.md,
+        marginTop: 0,
+        padding: spacing.sm + 2,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: '#10B98120',
+    },
+    backupActiveBannerEmoji: {
+        fontSize: 16,
+        marginEnd: spacing.sm,
+    },
+    backupActiveBannerTitle: {
+        fontSize: 13,
+        fontWeight: '600' as const,
+        color: colors.success,
+    },
+    backupActiveBannerText: {
+        fontSize: 11,
+        color: colors.onSurfaceVariant,
     },
 });

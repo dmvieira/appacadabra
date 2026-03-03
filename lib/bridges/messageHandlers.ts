@@ -18,6 +18,7 @@ import * as Print from 'expo-print';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { useBridgeUIStore } from '../bridgeUIStore';
+import { markBackupDirty } from '../backupSync';
 import { Vibration } from 'react-native';
 import { Accelerometer, Gyroscope, Magnetometer, Pedometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
@@ -526,6 +527,7 @@ export async function handleBridgeMessage(
 
                 const identifier = await Notifications.scheduleNotificationAsync(request);
                 result = identifier;
+                markBackupDirty();
             } catch (e) {
                 console.error('[Bridge] NOTIFY_SCHEDULE Error:', e);
                 const errorMessage = e instanceof Error ? e.message : String(e);
@@ -599,6 +601,7 @@ export async function handleBridgeMessage(
                 await db.setStorageItem(ctx.appId, data.key, data.value);
                 // Keep cache in sync so returning from background doesn't overwrite new data
                 updateStorageCache(ctx.appId, data.key, data.value);
+                markBackupDirty();
             }
             break;
 
@@ -608,6 +611,7 @@ export async function handleBridgeMessage(
                 await db.removeStorageItem(ctx.appId, data.key);
                 // Keep cache in sync so returning from background doesn't overwrite new data
                 removeFromStorageCache(ctx.appId, data.key);
+                markBackupDirty();
             }
             break;
 
@@ -629,6 +633,7 @@ export async function handleBridgeMessage(
             debugLog(`Storage clear`);
             if (ctx.appId) {
                 await db.clearStorageForApp(ctx.appId);
+                markBackupDirty();
             }
             break;
 
