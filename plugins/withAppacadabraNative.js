@@ -35,8 +35,46 @@ const withRunnerActivityManifest = (config) => {
             });
         }
 
+        // Opt UCropActivity out of Android 15+ forced edge-to-edge
+        const hasUCrop = mainApplication.activity?.some(
+            (activity) => activity.$['android:name'] === 'com.yalantis.ucrop.UCropActivity'
+        );
+
+        if (!hasUCrop) {
+            mainApplication.activity.push({
+                $: {
+                    'android:name': 'com.yalantis.ucrop.UCropActivity',
+                    'android:theme': '@style/UCropOptOut',
+                },
+            });
+        }
+
         return config;
     });
+};
+
+const withUCropTheme = (config) => {
+    return withDangerousMod(config, [
+        'android',
+        async (config) => {
+            const projectRoot = config.modRequest.projectRoot;
+            const valuesPath = path.join(projectRoot, 'android', 'app', 'src', 'main', 'res', 'values');
+
+            await fs.ensureDir(valuesPath);
+
+            const themeXml = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="UCropOptOut" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>
+`;
+            await fs.writeFile(path.join(valuesPath, 'ucrop_theme.xml'), themeXml, 'utf8');
+            console.log('✅ Written ucrop_theme.xml');
+
+            return config;
+        },
+    ]);
 };
 
 const withNativeFiles = (config) => {
@@ -128,6 +166,7 @@ const withMainApplicationPackageInjection = (config) => {
 const withAppacadabraNative = (config) => {
     return withPlugins(config, [
         withRunnerActivityManifest,
+        withUCropTheme,
         withNativeFiles,
         withMainApplicationPackageInjection
     ]);
