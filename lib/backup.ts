@@ -405,14 +405,26 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
             // 1. Android format: versions inside app object
             // 2. New format: versions at top level keyed by originalId
             const versions = app.versions || backup.versions?.[originalId] || [];
-            for (const version of versions) {
+            if (versions.length > 0) {
+                for (const version of versions) {
+                    await db.insertVersion({
+                        appId: newId,
+                        version: version.version,
+                        code: version.code,
+                        instruction: version.instruction || null,
+                        selectedContext: version.selectedContext || null,
+                        createdAt: version.createdAt,
+                    });
+                }
+            } else {
+                // Shared spell without history — create import snapshot so user has a restore point
                 await db.insertVersion({
                     appId: newId,
-                    version: version.version,
-                    code: version.code,
-                    instruction: version.instruction || null,
-                    selectedContext: version.selectedContext || null,
-                    createdAt: version.createdAt,
+                    version: newApp.currentVersion,
+                    code: app.code,
+                    instruction: '📥 ' + t('shareImportSpell'),
+                    selectedContext: null,
+                    createdAt: Date.now(),
                 });
             }
 
