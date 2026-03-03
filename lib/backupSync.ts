@@ -325,7 +325,14 @@ export async function tryRestoreOnLogin(): Promise<'restored' | 'no_backup' | 'l
     if (!backupMode || backupMode === 'none') return 'no_backup';
 
     if (backupMode === 'google_drive') {
-        const exists = await checkDriveBackupExists();
+        // First attempt
+        let exists = await checkDriveBackupExists();
+        if (!exists) {
+            // Token might not be ready yet — retry once after delay
+            console.log('[BackupSync] Drive backup not found, retrying in 2s...');
+            await new Promise(r => setTimeout(r, 2000));
+            exists = await checkDriveBackupExists();
+        }
         if (!exists) return 'no_backup';
         const result = await performRestore();
         return result.success ? 'restored' : 'error';

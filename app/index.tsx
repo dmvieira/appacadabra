@@ -132,6 +132,7 @@ export default function HomeScreen() {
     const [contextMenuApp, setContextMenuApp] = useState<GeneratedApp | null>(null);
     const [showSyncModal, setShowSyncModal] = useState(false);
     const [syncModalMode, setSyncModalMode] = useState<'choose' | 'reconnect'>('choose');
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Backup store
     const { backupMode, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup } = useBackupStore();
@@ -191,8 +192,9 @@ export default function HomeScreen() {
     useEffect(() => {
         if (!backupHydrated) return;
         if (!isAnonymous && (backupMode === null || backupMode === undefined)) {
-            // User is logged in with Google but has no backup preference
-            // They'll see the warning banner. Don't auto-popup.
+            // User is logged in with Google but has no backup preference — show sync modal
+            setSyncModalMode('choose');
+            setShowSyncModal(true);
         }
     }, [backupHydrated, isAnonymous, backupMode]);
 
@@ -200,13 +202,22 @@ export default function HomeScreen() {
     useEffect(() => {
         if (!backupHydrated || isAnonymous) return;
         if (backupMode === 'google_drive') {
-            // Auto-restore from drive on login
-            tryRestoreOnLogin().catch(e => console.warn('[BackupSync] Auto-restore failed:', e));
+            // Delay to ensure GoogleSignin tokens are ready after Firebase Auth init.
+            // zustand-persist restores isAnonymous=false from AsyncStorage before
+            // Firebase Auth actually initializes, so tokens aren't available yet.
+            const timer = setTimeout(() => {
+                tryRestoreOnLogin().catch(e => console.warn('[BackupSync] Auto-restore failed:', e));
+            }, 1500);
+            return () => clearTimeout(timer);
         } else if (backupMode === 'local_folder') {
             const { localFolderUri } = useBackupStore.getState();
             if (localFolderUri) {
                 checkLocalBackupExists(localFolderUri).then(exists => {
-                    if (!exists) {
+                    if (exists) {
+                        // Backup exists — restore it
+                        tryRestoreOnLogin().catch(e => console.warn('[BackupSync] Local restore failed:', e));
+                    } else {
+                        // Backup folder lost access — prompt reconnect
                         setSyncModalMode('reconnect');
                         setShowSyncModal(true);
                     }
@@ -915,12 +926,12 @@ export default function HomeScreen() {
             )}
 
             {/* Active backup status banner */}
-            {(!isAnonymous && backupMode === 'google_drive' && restoredCount === 0) && (
+            {(!isAnonymous && (backupMode === 'google_drive' || backupMode === 'local_folder') && restoredCount === 0) && (
                 <View style={styles.backupActiveBanner}>
-                    <Text style={styles.backupActiveBannerEmoji}>☁️</Text>
+                    <Text style={styles.backupActiveBannerEmoji}>{backupMode === 'google_drive' ? '☁️' : '📁'}</Text>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.backupActiveBannerTitle}>{t('backupActive')}</Text>
-                        <Text style={styles.backupActiveBannerText}>{t('backupActiveDesc')}</Text>
+                        <Text style={styles.backupActiveBannerText}>{t(backupMode === 'local_folder' ? 'backupActiveLocalDesc' : 'backupActiveDesc')}</Text>
                     </View>
                 </View>
             )}
@@ -1083,8 +1094,8 @@ export default function HomeScreen() {
             })()}
 
             {/* Menu Modal */}
-            <Modal visible={showMenu} transparent animationType="slide" onRequestClose={() => setShowMenu(false)}>
-                <Pressable style={styles.sheetOverlay} onPress={() => setShowMenu(false)}>
+            <Modal visible={showMenu} transparent animationType="slide" onRequestClose={() => { setShowMenu(false); setShowAdvanced(false); }}>
+                <Pressable style={styles.sheetOverlay} onPress={() => { setShowMenu(false); setShowAdvanced(false); }}>
                     <Pressable style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
                         <View style={styles.sheetHandle} />
 
@@ -1096,37 +1107,75 @@ export default function HomeScreen() {
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.sheetHeaderTitle}>{t('options')}</Text>
                             </View>
-                            <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => setShowMenu(false)}>
+                            <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => { setShowMenu(false); setShowAdvanced(false); }}>
                                 <Text style={styles.sheetCloseBtnText}>✕</Text>
                             </TouchableOpacity>
                         </View>
 
                         {/* Items */}
                         <View style={styles.sheetBody}>
-                            <TouchableOpacity style={styles.sheetItem} onPress={handleExport} accessibilityLabel={t('exportBackup')} accessibilityRole="menuitem">
-                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📤</Text></View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.sheetItemTitle}>{t('exportBackup')}</Text>
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.sheetItem} onPress={handleImport} accessibilityLabel={t('importBackup')} accessibilityRole="menuitem">
-                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📥</Text></View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.sheetItemTitle}>{t('importBackup')}</Text>
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowOnboarding(true); }} accessibilityLabel={t('replayOnboarding')} accessibilityRole="menuitem">
+                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowAdvanced(false); setShowOnboarding(true); }} accessibilityLabel={t('replayOnboarding')} accessibilityRole="menuitem">
                                 <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📖</Text></View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.sheetItemTitle}>{t('replayOnboarding')}</Text>
                                 </View>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowLegal(true); }} accessibilityLabel={t('legal')} accessibilityRole="menuitem">
+                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowAdvanced(false); setShowLegal(true); }} accessibilityLabel={t('legal')} accessibilityRole="menuitem">
                                 <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📜</Text></View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.sheetItemTitle}>{t('legal')}</Text>
                                 </View>
                             </TouchableOpacity>
+
+                            {/* Advanced Section (collapsible) */}
+                            <TouchableOpacity style={styles.sheetItem} onPress={() => setShowAdvanced(v => !v)} accessibilityLabel={t('advanced')} accessibilityRole="menuitem">
+                                <View style={[styles.sheetItemIcon, { backgroundColor: 'rgba(124,58,237,0.15)' }]}><Text style={styles.sheetItemEmoji}>⚙️</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('advanced')}</Text>
+                                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('advancedDesc')}</Text>
+                                </View>
+                                <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>{showAdvanced ? '▼' : '›'}</Text>
+                            </TouchableOpacity>
+
+                            {showAdvanced && (
+                                <View style={{ marginStart: 20, borderStartWidth: 1, borderStartColor: 'rgba(255,255,255,0.07)', paddingStart: 8 }}>
+                                    <TouchableOpacity style={styles.sheetItem} onPress={handleExport} accessibilityLabel={t('exportBackup')} accessibilityRole="menuitem">
+                                        <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📤</Text></View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('exportBackup')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.sheetItem} onPress={handleImport} accessibilityLabel={t('importBackup')} accessibilityRole="menuitem">
+                                        <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📥</Text></View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('importBackup')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                    {/* Import Project — hidden for now
+                                    <TouchableOpacity style={styles.sheetItem} onPress={handleImportProject} accessibilityLabel={t('importProject')} accessibilityRole="menuitem">
+                                        <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📜</Text></View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('importProject')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                    */}
+
+                                    {!isAnonymous && (
+                                        <TouchableOpacity style={styles.sheetItem} onPress={() => {
+                                            setShowMenu(false);
+                                            setShowAdvanced(false);
+                                            setSyncModalMode('choose');
+                                            setShowSyncModal(true);
+                                        }} accessibilityLabel={t('syncSettings')} accessibilityRole="menuitem">
+                                            <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🔄</Text></View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.sheetItemTitle}>{t('syncSettings')}</Text>
+                                                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('syncSettingsDesc')}</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            )}
 
                             {/* Sign Out - only when logged in */}
                             {!isAnonymous && (
@@ -1136,6 +1185,7 @@ export default function HomeScreen() {
                                         style={styles.sheetItem}
                                         onPress={() => {
                                             setShowMenu(false);
+                                            setShowAdvanced(false);
                                             setShowSignOutModal(true);
                                         }}
                                         accessibilityLabel={t('signOut')}

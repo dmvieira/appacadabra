@@ -8,6 +8,7 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleAICacheManager } from "@google/generative-ai/server";
 import * as zlib from 'zlib';
 import {
     SYSTEM_INSTRUCTIONS,
@@ -31,7 +32,7 @@ const API_KEY = process.env.GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Models configuration
-// Main models for Create/Edit/Convert
+// Main models for Create/Edit/Convert (kept as fallback if cache fails)
 const mainModel = genAI.getGenerativeModel({
     model: "gemini-3-flash-preview",
     // @ts-ignore
@@ -44,6 +45,42 @@ const mainModel = genAI.getGenerativeModel({
         }
     }
 });
+
+// Context Caching for SYSTEM_INSTRUCTIONS (~1,800 tokens)
+// Cache read: 25% of input price → significant savings at volume
+const cacheManager = new GoogleAICacheManager(API_KEY);
+let _sysCache: any = null;
+let _sysCacheExpiresAt = 0;
+const CACHE_TTL_S = 3600;           // 1 hour TTL
+const CACHE_RENEW_BEFORE_MS = 5 * 60 * 1000;  // renew 5 min before expiry
+
+async function getMainModelWithCache() {
+    const now = Date.now();
+    if (!_sysCache || now > _sysCacheExpiresAt - CACHE_RENEW_BEFORE_MS) {
+        console.log('[CACHE] Creating/renewing SYSTEM_INSTRUCTIONS cache...');
+        _sysCache = await cacheManager.create({
+            model: 'models/gemini-3-flash-preview',
+            systemInstruction: {
+                role: 'system',
+                parts: [{ text: SYSTEM_INSTRUCTIONS }],
+            },
+            // contents is technically required by the SDK types but the API accepts
+            // caches with only systemInstruction. Cast to avoid the TypeScript error.
+            contents: [],
+            ttlSeconds: CACHE_TTL_S,
+        } as any);
+        _sysCacheExpiresAt = now + CACHE_TTL_S * 1000;
+        console.log(`[CACHE] Cache created: ${_sysCache.name}`);
+    }
+    return genAI.getGenerativeModelFromCachedContent(_sysCache, {
+        // @ts-ignore
+        tools: [{ googleSearch: {} }],
+        generationConfig: {
+            // @ts-ignore
+            thinkingConfig: { includeThoughts: true, thinkingLevel: 'high' },
+        },
+    });
+}
 
 
 // ============= COMPRESSION UTILS =============
@@ -149,8 +186,9 @@ interface GenerateSpellResponse {
     usage: {
         promptTokens: number;
         responseTokens: number;
+        thoughtsTokens: number;
         totalTokens: number;
-        cachedTokens?: number;
+        cachedTokens: number;
     };
     creditsUsed: number;
     creditsRemaining: number;
@@ -172,6 +210,69 @@ const PRICING_TABLE: Record<string, PricingTier> = {
     'gemini-2.5-flash:none': { tokensPerMana: 32000 },
     'gemini-2.5-flash-lite:none': { tokensPerMana: 120000 },
 };
+
+// ============= USD COST CALCULATION =============
+const USD_PRICING: Record<string, {
+    inputPerMToken: number;
+    outputPerMToken: number;
+    audioInputPerMToken?: number;
+    searchPerQuery?: number;
+}> = {
+    'gemini-3-flash-preview': {
+        inputPerMToken: 0.50,
+        outputPerMToken: 3.00,
+        audioInputPerMToken: 1.00,
+        searchPerQuery: 0.014, // after 5,000 queries/month free
+    },
+    'gemini-2.5-flash': {
+        inputPerMToken: 0.30,
+        outputPerMToken: 2.50, // includes thinking tokens at same price
+        audioInputPerMToken: 1.00,
+        searchPerQuery: 0.035, // after 1,500/day free
+    },
+    'gemini-2.5-flash-lite': {
+        inputPerMToken: 0.10,
+        outputPerMToken: 0.40,
+        audioInputPerMToken: 0.30,
+    },
+    'gemini-2.5-flash-preview-tts': {
+        inputPerMToken: 0.50,
+        outputPerMToken: 10.00,
+    },
+    'gemini-embedding-001': {
+        inputPerMToken: 0.15,
+        outputPerMToken: 0,
+    },
+};
+
+const USD_IMAGE_PER_UNIT = 0.04;      // gemini-2.5-flash-image (Imagen 4 standard)
+const USD_VIDEO_PER_SECOND = 0.15;    // veo-3.0-fast-generate-001 (Veo 3 Fast)
+
+function calculateCostUsd(
+    modelId: string,
+    usage: { promptTokens: number; responseTokens: number; thoughtsTokens?: number; cachedTokens?: number },
+    extras?: { searchQueries?: number }
+): number {
+    const pricing = USD_PRICING[modelId];
+    if (!pricing) return 0;
+
+    // Cached tokens (via Context Caching API) are charged at 25% of input price.
+    // cachedContentTokenCount is a subset of promptTokenCount.
+    const cached = usage.cachedTokens ?? 0;
+    const nonCached = usage.promptTokens - cached;
+    const inputCost = (nonCached / 1_000_000) * pricing.inputPerMToken
+                    + (cached   / 1_000_000) * pricing.inputPerMToken * 0.25;
+
+    // Thinking tokens are billed at the same output price — include in calculation.
+    const billableOutput = usage.responseTokens + (usage.thoughtsTokens ?? 0);
+    const outputCost = (billableOutput / 1_000_000) * pricing.outputPerMToken;
+
+    const searchCost = extras?.searchQueries && pricing.searchPerQuery
+        ? extras.searchQueries * pricing.searchPerQuery
+        : 0;
+
+    return inputCost + outputCost + searchCost;
+}
 
 function getPricingKey(model: string, tools?: string[]): string {
     const safeModel = model || 'gemini-3-flash-preview'; // Default
@@ -228,15 +329,20 @@ function extractText(result: any): string {
 }
 
 // Helper to get usage metadata
-function getUsage(result: any): { promptTokens: number; responseTokens: number; totalTokens: number } {
+function getUsage(result: any): { promptTokens: number; responseTokens: number; thoughtsTokens: number; totalTokens: number } {
     const usage = result.response?.usageMetadata;
     const cachedTokens = usage?.cachedContentTokenCount || 0;
     if (cachedTokens > 0) {
         console.log(`[CACHE HIT] ${cachedTokens} tokens from cache (of ${usage?.promptTokenCount} prompt tokens)`);
     }
+    const thoughtsTokens = usage?.thoughtsTokenCount || 0;
+    if (thoughtsTokens > 0) {
+        console.log(`[THINKING] ${thoughtsTokens} thinking tokens`);
+    }
     return {
         promptTokens: usage?.promptTokenCount || 0,
         responseTokens: usage?.candidatesTokenCount || 0,
+        thoughtsTokens,
         totalTokens: usage?.totalTokenCount || 0,
     };
 }
@@ -516,8 +622,10 @@ export const generateSpell = onCall<GenerateSpellRequest>(
             if (limitError) throw new HttpsError("resource-exhausted", limitError);
 
             let resultText = "";
-            let usage = { promptTokens: 0, responseTokens: 0, cachedTokens: 0, totalTokens: 0 };
+            let usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, cachedTokens: 0, totalTokens: 0 };
             let creditsUsed = 0;
+            let logModelId = 'gemini-3-flash-preview';
+            let logExtras: Record<string, any> = {};
 
             try {
                 switch (action) {
@@ -530,19 +638,25 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // User confirmed: criação, edição e importação = 1 mana fixo
 
                         const framework = request.data.frameworkHint || "web project";
-                        const convertPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${CONVERT_PROJECT_PROMPT}\n\nFramework: ${framework}\n\nSOURCE:\n${sourceCode}`;
+                        const convertPrompt = `${CONVERT_PROJECT_PROMPT}\n\nFramework: ${framework}\n\nSOURCE:\n${sourceCode}`;
 
-                        // Use main model (consistent with Create/Edit)
-                        const result = await mainModel.generateContent(convertPrompt);
+                        // Use cached model (SYSTEM_INSTRUCTIONS injected as system instruction)
+                        let result: any;
+                        try {
+                            const cachedModel = await getMainModelWithCache();
+                            result = await cachedModel.generateContent(convertPrompt);
+                        } catch (cacheErr) {
+                            console.warn('[CACHE] Falling back to mainModel for convert:', cacheErr);
+                            result = await mainModel.generateContent(`${SYSTEM_INSTRUCTIONS}\n\n${convertPrompt}`);
+                        }
 
-                        // Validation logic ... (simplified for brevity here, assume usage update)
-                        // Note: To save space, using standard logic.
                         const u = getUsage(result);
                         usage = { ...u, cachedTokens: (result.response.usageMetadata?.cachedContentTokenCount || 0) };
                         resultText = fixCallbackPatterns(extractHtml(extractText(result)));
 
                         // Price as Fixed Cost
                         creditsUsed = FIXED_COST_CREATE_EDIT;
+                        logModelId = 'gemini-3-flash-preview';
                         break;
                     }
 
@@ -618,12 +732,15 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         usage = {
                             promptTokens: u.promptTokens,
                             responseTokens: u.responseTokens,
+                            thoughtsTokens: u.thoughtsTokens,
                             totalTokens: u.totalTokens,
                             cachedTokens: (result.response.usageMetadata?.cachedContentTokenCount || 0)
                         };
 
                         resultText = extractText(result);
                         creditsUsed = usage.totalTokens / tokensPerMana;
+                        logModelId = modelId;
+                        if (tools.includes('googleSearch')) logExtras.searchQueries = 1;
                         break;
                     }
 
@@ -650,6 +767,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         usage = {
                             promptTokens: imgUsage.promptTokens,
                             responseTokens: imgUsage.responseTokens,
+                            thoughtsTokens: imgUsage.thoughtsTokens,
                             totalTokens: imgUsage.totalTokens,
                             cachedTokens: 0
                         };
@@ -672,6 +790,8 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Fixed cost: 0.5 mana per image generation
                         creditsUsed = 0.5;
+                        logModelId = 'gemini-2.5-flash-image';
+                        logExtras.imageCount = 1;
                         break;
                     }
 
@@ -687,6 +807,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         usage = {
                             promptTokens: videoUsage.promptTokens,
                             responseTokens: videoUsage.responseTokens,
+                            thoughtsTokens: videoUsage.thoughtsTokens,
                             totalTokens: videoUsage.totalTokens,
                             cachedTokens: 0
                         };
@@ -717,6 +838,8 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Cost: 2 mana per second
                         creditsUsed = durationSeconds * 2.0;
+                        logModelId = 'veo-3.0-fast-generate-001';
+                        logExtras.durationSec = durationSeconds;
                         break;
                     }
 
@@ -762,7 +885,9 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         resultText = JSON.stringify({ matrix, vectors, count: items.length });
                         creditsUsed = items.length * 0.01;
-                        usage = { promptTokens: 0, responseTokens: 0, totalTokens: 0, cachedTokens: 0 };
+                        usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
+                        logModelId = 'gemini-embedding-001';
+                        logExtras.itemCount = items.length;
                         break;
                     }
 
@@ -801,12 +926,13 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Asymmetric pricing: input $0.50/M (200K tokens/mana), output $10/M (10K tokens/mana)
                         const u = getUsage(ttsResult);
-                        usage = { promptTokens: u.promptTokens, responseTokens: u.responseTokens, totalTokens: u.totalTokens, cachedTokens: 0 };
+                        usage = { promptTokens: u.promptTokens, responseTokens: u.responseTokens, thoughtsTokens: u.thoughtsTokens, totalTokens: u.totalTokens, cachedTokens: 0 };
                         const inputCost  = u.promptTokens   / 200_000;
                         const outputCost = u.responseTokens / 10_000;
                         creditsUsed = inputCost + outputCost;
 
                         resultText = audioBase64;
+                        logModelId = 'gemini-2.5-flash-preview-tts';
                         break;
                     }
                 }
@@ -828,9 +954,36 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                 lastActive: FieldValue.serverTimestamp()
             });
 
+            // Compute USD cost and write usage log
+            let costUsd: number;
+            if (action === 'webview_ai_image') {
+                costUsd = USD_IMAGE_PER_UNIT;
+            } else if (action === 'webview_ai_video') {
+                costUsd = (logExtras.durationSec ?? 0) * USD_VIDEO_PER_SECOND;
+            } else {
+                costUsd = calculateCostUsd(logModelId, usage, {
+                    searchQueries: logExtras.searchQueries,
+                });
+            }
+
+            const logRef = db.collection('users').doc(uid).collection('usageLogs').doc();
+            transaction.set(logRef, {
+                action,
+                modelId: logModelId,
+                promptTokens:   usage.promptTokens,
+                responseTokens: usage.responseTokens,
+                thoughtsTokens: usage.thoughtsTokens,
+                totalTokens:    usage.totalTokens,
+                cachedTokens:   usage.cachedTokens,
+                costUsd,
+                creditsUsed,
+                timestamp: FieldValue.serverTimestamp(),
+                ...logExtras,
+            });
+
             return {
                 text: compressContent(resultText),
-                usage: usage, // Now includes cachedTokens if I updated the interface... wait, I need to update response interface
+                usage,
                 creditsUsed,
                 creditsRemaining: newCredits
             };
@@ -1006,33 +1159,47 @@ export const processSpellJob = onDocumentCreated(
             }
 
             let resultText = "";
-            let usage = { promptTokens: 0, responseTokens: 0, totalTokens: 0 };
+            let usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
             let appName: string | undefined;
             let auditLog: any = {};
 
             switch (action) {
                 case "create": {
-                    let totalUsage = { promptTokens: 0, responseTokens: 0, totalTokens: 0, cachedTokens: 0 };
+                    let totalUsage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
                     const addUsage = (result: any) => {
                         const u = getUsage(result);
                         totalUsage.promptTokens += u.promptTokens;
                         totalUsage.responseTokens += u.responseTokens;
+                        totalUsage.thoughtsTokens += u.thoughtsTokens;
                         totalUsage.totalTokens += u.totalTokens;
                         totalUsage.cachedTokens += (result.response?.usageMetadata?.cachedContentTokenCount || 0);
                     };
 
+                    // Get cached model (SYSTEM_INSTRUCTIONS injected as system instruction)
+                    let createModel: any;
+                    try {
+                        createModel = await getMainModelWithCache();
+                    } catch (cacheErr) {
+                        console.warn(`[Job ${jobId}] [CACHE] Falling back to mainModel:`, cacheErr);
+                        createModel = null;
+                    }
+                    const callModel = async (p: string, fullPromptFallback: string) => {
+                        if (createModel) return createModel.generateContent(p, { timeout: 120000 });
+                        return mainModel.generateContent(fullPromptFallback, { timeout: 120000 });
+                    };
+
                     // Stage 1: Planning
                     console.log(`[Job ${jobId}] Stage 1: Planning...`);
-                    const plannerPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
-                    const planResult = await mainModel.generateContent(plannerPrompt, { timeout: 120000 });
+                    const plannerPrompt = `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
+                    const planResult = await callModel(plannerPrompt, `${SYSTEM_INSTRUCTIONS}\n\n${plannerPrompt}`);
                     addUsage(planResult);
                     const appPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Plan created:`, JSON.stringify(appPlan).substring(0, 200) + '...');
 
                     // Stage 2: Coding
                     console.log(`[Job ${jobId}] Stage 2: Coding...`);
-                    const codePrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
-                    const codeResult = await mainModel.generateContent(codePrompt, { timeout: 120000 });
+                    const codePrompt = `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
+                    const codeResult = await callModel(codePrompt, `${SYSTEM_INSTRUCTIONS}\n\n${codePrompt}`);
                     addUsage(codeResult);
 
                     resultText = fixCallbackPatterns(extractHtml(extractText(codeResult)));
@@ -1060,7 +1227,7 @@ export const processSpellJob = onDocumentCreated(
                         // Audit fix
                         auditLog.fixPrompt = fixPrompt;
 
-                        const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
+                        const fixResult = await callModel(fixPrompt, fixPrompt);
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         validation = validateGeneratedCode(resultText);
@@ -1083,11 +1250,12 @@ export const processSpellJob = onDocumentCreated(
                     break;
                 }
                 case "edit": {
-                    let totalUsage = { promptTokens: 0, responseTokens: 0, totalTokens: 0, cachedTokens: 0 };
+                    let totalUsage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
                     const addUsage = (result: any) => {
                         const u = getUsage(result);
                         totalUsage.promptTokens += u.promptTokens;
                         totalUsage.responseTokens += u.responseTokens;
+                        totalUsage.thoughtsTokens += u.thoughtsTokens;
                         totalUsage.totalTokens += u.totalTokens;
                         totalUsage.cachedTokens += (result.response?.usageMetadata?.cachedContentTokenCount || 0);
                     };
@@ -1103,18 +1271,31 @@ export const processSpellJob = onDocumentCreated(
                         ? `\nSelected code:\n"""\n${selectedContext}\n"""\n`
                         : "";
 
+                    // Get cached model (SYSTEM_INSTRUCTIONS injected as system instruction)
+                    let editModel: any;
+                    try {
+                        editModel = await getMainModelWithCache();
+                    } catch (cacheErr) {
+                        console.warn(`[Job ${jobId}] [CACHE] Falling back to mainModel:`, cacheErr);
+                        editModel = null;
+                    }
+                    const callEditModel = async (p: string, fullPromptFallback: string) => {
+                        if (editModel) return editModel.generateContent(p, { timeout: 120000 });
+                        return mainModel.generateContent(fullPromptFallback, { timeout: 120000 });
+                    };
+
                     // Stage 1: Plan
                     console.log(`[Job ${jobId}] Stage 1: Planning Edit...`);
-                    const planPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const planResult = await mainModel.generateContent(planPrompt, { timeout: 120000 });
+                    const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
+                    const planResult = await callEditModel(planPrompt, `${SYSTEM_INSTRUCTIONS}\n\n${planPrompt}`);
                     addUsage(planResult);
                     const editPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Edit Plan:`, JSON.stringify(editPlan, null, 2));
 
                     // Stage 2: Patch
                     console.log(`[Job ${jobId}] Stage 2: Patching...`);
-                    const patchPrompt = `${SYSTEM_INSTRUCTIONS}\n\n${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const patchResult = await mainModel.generateContent(patchPrompt, { timeout: 120000 });
+                    const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
+                    const patchResult = await callEditModel(patchPrompt, `${SYSTEM_INSTRUCTIONS}\n\n${patchPrompt}`);
                     addUsage(patchResult);
                     const patchResponse = extractJson(extractText(patchResult));
 
@@ -1143,7 +1324,7 @@ export const processSpellJob = onDocumentCreated(
                         // Audit fix
                         auditLog.fixPrompt = fixPrompt;
 
-                        const fixResult = await mainModel.generateContent(fixPrompt, { timeout: 120000 });
+                        const fixResult = await callEditModel(fixPrompt, fixPrompt);
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         editValidation = validateGeneratedCode(resultText);
@@ -1166,6 +1347,7 @@ export const processSpellJob = onDocumentCreated(
 
             // Deduct Credits
             const creditsUsed = FIXED_COST_CREATE_EDIT;
+            const costUsd = calculateCostUsd('gemini-3-flash-preview', usage);
 
             await db.runTransaction(async (t) => {
                 const ref = db.collection("users").doc(uid);
@@ -1186,11 +1368,28 @@ export const processSpellJob = onDocumentCreated(
                         result: {
                             text: compressContent(resultText),
                             usage,
+                            costUsd,
                             creditsUsed,
                             creditsRemaining: newCredits,
                             ...(appName ? { appName } : {}),
                         },
                         audit: auditLog // Save audit logs
+                    });
+
+                    // Write usage log
+                    const logRef = db.collection('users').doc(uid).collection('usageLogs').doc();
+                    t.set(logRef, {
+                        action,
+                        modelId: 'gemini-3-flash-preview',
+                        promptTokens:   usage.promptTokens,
+                        responseTokens: usage.responseTokens,
+                        thoughtsTokens: usage.thoughtsTokens,
+                        totalTokens:    usage.totalTokens,
+                        cachedTokens:   usage.cachedTokens,
+                        costUsd,
+                        creditsUsed,
+                        timestamp: FieldValue.serverTimestamp(),
+                        jobId,
                     });
                 }
             });

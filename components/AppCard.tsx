@@ -183,8 +183,8 @@ export function AppCard({
 
                             {/* Coach mark tooltip */}
                             {!!coachStep && (
-                                <View style={styles.coachBubble}>
-                                    <View style={styles.coachArrow} />
+                                <View style={[styles.coachBubble, coachStep === 3 && styles.coachBubbleCard]}>
+                                    <View style={[styles.coachArrow, coachStep === 3 && styles.coachArrowCard]} />
                                     <Text style={styles.coachStep}>
                                         {coachStep === 1 ? `1 ${t('coachOf')} 3`
                                             : coachStep === 2 ? `2 ${t('coachOf')} 3`
@@ -543,6 +543,15 @@ const styles = StyleSheet.create({
         backgroundColor: '#7C3AED',
         borderRadius: 2,
         transform: [{ rotate: '45deg' }],
+    },
+    // Step 3 (long-press hint): bubble shifts left so the arrow points at the card body
+    coachBubbleCard: {
+        right: undefined,
+        left: -172,
+    },
+    coachArrowCard: {
+        right: undefined,
+        left: 20,
     },
     coachStep: {
         color: 'rgba(255,255,255,0.5)',

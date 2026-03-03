@@ -73,6 +73,49 @@ function FloatingEmoji({ emoji, color }: { emoji: string; color: string }) {
     );
 }
 
+// ── Pulsing chip card ──
+function ChipCard({ emoji, label, selected, noneSelected, onPress }: {
+    emoji: string; label: string; selected: boolean; noneSelected: boolean; onPress: () => void;
+}) {
+    const scale = useRef(new Animated.Value(1)).current;
+    const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+
+    useEffect(() => {
+        if (noneSelected) {
+            pulseLoop.current = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(scale, { toValue: 1.05, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+                    Animated.timing(scale, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+                ])
+            );
+            pulseLoop.current.start();
+        } else {
+            pulseLoop.current?.stop();
+            Animated.timing(scale, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+        }
+        return () => { pulseLoop.current?.stop(); };
+    }, [noneSelected]);
+
+    return (
+        <Animated.View style={{ width: '47%', transform: [{ scale }] }}>
+            <TouchableOpacity
+                style={[s.chipCard, selected && s.chipCardSelected]}
+                onPress={onPress}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+            >
+                <Text style={s.chipCardEmoji}>{emoji}</Text>
+                <Text style={[s.chipCardLabel, selected && s.chipCardLabelSelected]}>{label}</Text>
+                {selected && (
+                    <View style={s.chipCardCheck}>
+                        <Text style={s.chipCardCheckMark}>✓</Text>
+                    </View>
+                )}
+            </TouchableOpacity>
+        </Animated.View>
+    );
+}
+
 // ── Featured power card ──
 function FeatCard({ icon, title, desc, delay }: { icon: string; title: string; desc: string; delay: number }) {
     const opacity = useRef(new Animated.Value(0)).current;
@@ -303,23 +346,14 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                             {/* Chips — 2×2 grid */}
                             <View style={s.chipsGrid}>
                                 {chips.map((chip, i) => (
-                                    <TouchableOpacity
+                                    <ChipCard
                                         key={i}
-                                        style={[s.chipCard, selectedChip === i && s.chipCardSelected]}
+                                        emoji={chip.emoji}
+                                        label={t(chip.labelKey)}
+                                        selected={selectedChip === i}
+                                        noneSelected={selectedChip === null}
                                         onPress={() => handleChipPress(i)}
-                                        activeOpacity={0.75}
-                                        accessibilityRole="button"
-                                    >
-                                        <Text style={s.chipCardEmoji}>{chip.emoji}</Text>
-                                        <Text style={[s.chipCardLabel, selectedChip === i && s.chipCardLabelSelected]}>
-                                            {t(chip.labelKey)}
-                                        </Text>
-                                        {selectedChip === i && (
-                                            <View style={s.chipCardCheck}>
-                                                <Text style={s.chipCardCheckMark}>✓</Text>
-                                            </View>
-                                        )}
-                                    </TouchableOpacity>
+                                    />
                                 ))}
                             </View>
 
@@ -535,7 +569,7 @@ const s = StyleSheet.create({
         marginBottom: 14,
     },
     chipCard: {
-        width: '47%',
+        width: '100%',
         backgroundColor: '#111827',
         borderWidth: 2,
         borderColor: '#2a2a3e',

@@ -135,12 +135,19 @@ async function initializeAppCheckWrapper() {
         // Activate App Check: debug provider in dev, production providers in release builds
         // @ts-ignore - Class is exported as type only in d.ts, but is a value at runtime
         const provider = new ReactNativeFirebaseAppCheckProvider();
+        // Using fixed debug tokens to avoid Play Integrity API rate limits (429) in dev/test builds.
+        // When publishing to Play Store, change providers to:
+        //   android: IS_PRODUCTION_BUILD ? 'playIntegrity' : 'debug'
+        //   apple: IS_PRODUCTION_BUILD ? 'appAttestWithDeviceCheckFallback' : 'debug'
+        // and register new production tokens in Firebase Console → App Check.
         provider.configure({
             android: {
-                provider: __DEV__ ? 'debug' : 'playIntegrity',
+                provider: 'debug',
+                debugToken: '11223344-5566-4778-8990-aabbccddeeff',
             },
             apple: {
-                provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
+                provider: 'debug',
+                debugToken: 'aabbccdd-eeff-4112-8334-556677889900',
             },
             web: {
                 provider: 'reCaptchaV3',
@@ -152,7 +159,7 @@ async function initializeAppCheckWrapper() {
             provider,
             isTokenAutoRefreshEnabled: true,
         });
-        console.log(`Firebase: App Check activated (${__DEV__ ? 'Debug' : 'Production'} provider)`);
+        console.log(`Firebase: App Check activated (debug provider with fixed tokens)`);
     } catch (e) {
         console.error('Firebase: App Check activation failed. Proceeding without App Check.', e);
         // We do NOT block app initialization. Functions will (hopefully) work if enforceAppCheck is false.
