@@ -294,27 +294,31 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                     {/* ── SCREEN 3: Try it ── */}
                     {currentScreen === 2 && (
                         <View style={s.screenContent}>
-                            <FloatingEmoji emoji="✨" color="#f59e0b" />
-
-                            <Text style={s.heading}>
+                            <Text style={[s.heading, { marginTop: 8, marginBottom: 6 }]}>
                                 {t('obTryTitle1')} <Text style={s.headingAccent}>{t('obTryTitle2')}</Text>{'\n'}
                                 {t('obTryTitle3')}
                             </Text>
-                            <Text style={s.subtext}>{t('obTrySubtext')}</Text>
+                            <Text style={[s.subtext, { marginBottom: 14 }]}>{t('obTrySubtext')}</Text>
 
-
-                            {/* Chips */}
-                            <View style={s.chipsRow}>
+                            {/* Chips — 2×2 grid */}
+                            <View style={s.chipsGrid}>
                                 {chips.map((chip, i) => (
                                     <TouchableOpacity
                                         key={i}
-                                        style={[s.chip, selectedChip === i && s.chipSelected]}
+                                        style={[s.chipCard, selectedChip === i && s.chipCardSelected]}
                                         onPress={() => handleChipPress(i)}
+                                        activeOpacity={0.75}
                                         accessibilityRole="button"
                                     >
-                                        <Text style={[s.chipText, selectedChip === i && s.chipTextSelected]}>
-                                            {chip.emoji} {t(chip.labelKey)}
+                                        <Text style={s.chipCardEmoji}>{chip.emoji}</Text>
+                                        <Text style={[s.chipCardLabel, selectedChip === i && s.chipCardLabelSelected]}>
+                                            {t(chip.labelKey)}
                                         </Text>
+                                        {selectedChip === i && (
+                                            <View style={s.chipCardCheck}>
+                                                <Text style={s.chipCardCheckMark}>✓</Text>
+                                            </View>
+                                        )}
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -328,7 +332,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                             </View>
 
                             {/* Dots */}
-                            <View style={s.dotsRow}>
+                            <View style={[s.dotsRow, { paddingVertical: 14 }]}>
                                 {[0, 1, 2].map(i => (
                                     <View key={i} style={[s.dot, i === 2 && s.dotActive]} />
                                 ))}
@@ -503,7 +507,7 @@ const s = StyleSheet.create({
         backgroundColor: colors.primary,
     },
 
-    // ── Try it (Screen 2) ──
+    // ── Try it (Screen 3) ──
     tryInputArea: {
         backgroundColor: colors.surface,
         borderWidth: 1.5,
@@ -524,32 +528,55 @@ const s = StyleSheet.create({
         color: colors.onSurface,
         minHeight: 24,
     },
-    chipsRow: {
+    chipsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
-        marginTop: 12,
-        justifyContent: 'center',
-        marginBottom: 20,
+        marginBottom: 14,
     },
-    chip: {
-        backgroundColor: colors.surfaceVariant,
-        borderWidth: 1,
+    chipCard: {
+        width: '47%',
+        backgroundColor: '#111827',
+        borderWidth: 2,
         borderColor: '#2a2a3e',
-        borderRadius: 100,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
+        borderRadius: 20,
+        paddingVertical: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        position: 'relative',
     },
-    chipSelected: {
+    chipCardSelected: {
         borderColor: colors.primary,
         backgroundColor: colors.primaryContainer,
     },
-    chipText: {
-        fontSize: 14,
-        color: colors.onSurfaceVariant,
+    chipCardEmoji: {
+        fontSize: 36,
     },
-    chipTextSelected: {
+    chipCardLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.onSurfaceVariant,
+        textAlign: 'center',
+    },
+    chipCardLabelSelected: {
         color: '#a855f7',
+    },
+    chipCardCheck: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    chipCardCheckMark: {
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: '800',
     },
 
     // ── Powers grid (Screen 3) ──

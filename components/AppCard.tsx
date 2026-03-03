@@ -63,7 +63,7 @@ interface AppCardProps {
     isPlaceholder?: boolean;
     isLocked?: boolean;
     notificationCount?: number;
-    /** 0 = no coach mark, 1 = spotlight ⋯ menu, 2 = spotlight ✏️ edit */
+    /** 0 = no coach mark, 1 = spotlight ⋯ menu, 2 = spotlight ✏️ edit, 3 = long press hint */
     coachStep?: number;
     onCoachDismiss?: () => void;
     onLongPress?: () => void;
@@ -101,7 +101,7 @@ export function AppCard({
     const hasNotifs = (notificationCount ?? 0) > 0;
 
     return (
-        <View style={styles.card}>
+        <View style={[styles.card, !!coachStep && styles.cardCoaching]}>
             <View style={{ flex: 1 }}>
                 {/* ── Card main row ───────────────────────────────────────── */}
                 <TouchableOpacity
@@ -187,23 +187,24 @@ export function AppCard({
                                 <View style={styles.coachBubble}>
                                     <View style={styles.coachArrow} />
                                     <Text style={styles.coachStep}>
-                                        {coachStep === 1 ? '1 ' + t('coachOf') + ' 2' : '2 ' + t('coachOf') + ' 2'}
+                                        {coachStep === 1 ? `1 ${t('coachOf')} 3`
+                                            : coachStep === 2 ? `2 ${t('coachOf')} 3`
+                                            : `3 ${t('coachOf')} 3`}
                                     </Text>
                                     <Text style={styles.coachText}>
-                                        {coachStep === 1
-                                            ? t('coachMenuHint')
-                                            : t('coachEditHint')
-                                        }
+                                        {coachStep === 1 ? t('coachMenuHint')
+                                            : coachStep === 2 ? t('coachEditHint')
+                                            : t('coachLongPressHint')}
                                     </Text>
                                     <TouchableOpacity
                                         style={styles.coachDismissBtn}
                                         onPress={onCoachDismiss}
                                         activeOpacity={0.7}
                                         accessibilityRole="button"
-                                        accessibilityLabel={coachStep === 1 ? t('coachNext') : t('coachGotIt')}
+                                        accessibilityLabel={coachStep < 3 ? t('coachNext') : t('coachGotIt')}
                                     >
                                         <Text style={styles.coachDismissText}>
-                                            {coachStep === 1 ? t('coachNext') : t('coachGotIt')}
+                                            {coachStep < 3 ? t('coachNext') : t('coachGotIt')}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
@@ -419,6 +420,10 @@ const styles = StyleSheet.create({
         borderColor: '#1F2937',
         marginBottom: 12,
         overflow: 'visible',
+    },
+    cardCoaching: {
+        zIndex: 10,
+        elevation: 10,
     },
     cardMain: {
         flexDirection: 'row',

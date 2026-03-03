@@ -831,7 +831,10 @@ export default function RunnerScreen() {
             <Stack.Screen
                 options={{
                     title: app?.name || 'App',
-                    headerShown: false, // We use our own header or none
+                    headerShown: !isEditMode,
+                    headerStyle: { backgroundColor: colors.surface },
+                    headerTintColor: colors.onSurface,
+                    headerTitleStyle: { fontSize: 16 },
                 }}
             />
 

@@ -115,6 +115,7 @@ const translations = {
         coachOf: 'of',
         coachMenuHint: '🔔 See scheduled notifications\n✏️ Edit name, description and image',
         coachEditHint: '🧠 Edit what the spell does\nIts intelligence and behavior',
+        coachLongPressHint: '📤 Long press a card to share it\nOr reorder spells in your list',
         coachNext: 'Next →',
         coachGotIt: 'Got it!',
 
@@ -164,6 +165,7 @@ const translations = {
         setupHomeTitle: 'Add to home screen',
         setupHomeDesc: 'Access directly without opening Appacadabra',
         setupEnter: 'Enter spell →',
+        setupSkip: 'Later',
 
         // Content filter
         contentBlocked: 'Content not allowed. Please describe a legitimate and useful spell.',
@@ -603,6 +605,7 @@ const translations = {
         coachOf: 'de',
         coachMenuHint: '🔔 Veja notificações agendadas\n✏️ Edite nome, descrição e imagem',
         coachEditHint: '🧠 Edita o que o feitiço faz\nSua inteligência e comportamento',
+        coachLongPressHint: '📤 Pressione e segure um card para compartilhar\nOu reordene os feitiços na lista',
         coachNext: 'Próximo →',
         coachGotIt: 'Entendi!',
 
@@ -652,6 +655,7 @@ const translations = {
         setupHomeTitle: 'Adicionar à tela inicial',
         setupHomeDesc: 'Acesse direto sem abrir o Appacadabra',
         setupEnter: 'Entrar no feitiço →',
+        setupSkip: 'Agora não',
 
         // Account
         account: 'Conta',
@@ -1073,6 +1077,7 @@ const translations = {
         coachOf: 'de',
         coachMenuHint: '🔔 Ver notificaciones programadas\n✏️ Editar nombre, descripción e imagen',
         coachEditHint: '🧠 Edita lo que hace el hechizo\nSu inteligencia y comportamiento',
+        coachLongPressHint: '📤 Mantén pulsada una tarjeta para compartirla\nO reordena los hechizos en tu lista',
         coachNext: 'Siguiente →',
         coachGotIt: '¡Entendido!',
         importing: 'Invocando...',
@@ -1137,6 +1142,7 @@ const translations = {
         setupHomeTitle: 'Añadir a la pantalla de inicio',
         setupHomeDesc: 'Accede directamente sin abrir Appacadabra',
         setupEnter: 'Entrar al hechizo →',
+        setupSkip: 'Ahora no',
 
         // Conversion
         zipEmpty: 'ZIP vacío o sin archivos soportados',
@@ -1520,6 +1526,7 @@ const translations = {
         coachOf: 'de',
         coachMenuHint: '🔔 Voir les notifications programmées\n✏️ Modifier nom, description et image',
         coachEditHint: '🧠 Modifie ce que fait le sort\nSon intelligence et son comportement',
+        coachLongPressHint: '📤 Appuie longuement sur une carte pour la partager\nOu réordonne les sorts dans ta liste',
         coachNext: 'Suivant →',
         coachGotIt: 'Compris !',
         importing: 'Invocation...',
@@ -1584,6 +1591,7 @@ const translations = {
         setupHomeTitle: 'Ajouter à l\'écran d\'accueil',
         setupHomeDesc: 'Accédez directement sans ouvrir Appacadabra',
         setupEnter: 'Entrer dans le sort →',
+        setupSkip: 'Plus tard',
 
         // Conversion
         zipEmpty: 'ZIP vide ou non supporté',
@@ -1968,6 +1976,7 @@ const translations = {
         coachOf: 'von',
         coachMenuHint: '🔔 Geplante Benachrichtigungen ansehen\n✏️ Name, Beschreibung und Bild bearbeiten',
         coachEditHint: '🧠 Bearbeite was der Zauber tut\nSeine Intelligenz und Verhalten',
+        coachLongPressHint: '📤 Lang drücken um eine Karte zu teilen\nOder Zauber in der Liste sortieren',
         coachNext: 'Weiter →',
         coachGotIt: 'Verstanden!',
         importing: 'Beschwöre...',
@@ -2041,6 +2050,7 @@ const translations = {
         setupHomeTitle: 'Zum Startbildschirm hinzufügen',
         setupHomeDesc: 'Direkt zugreifen ohne Appacadabra zu öffnen',
         setupEnter: 'Zauber betreten →',
+        setupSkip: 'Später',
 
         manaBalance: 'Mana: %{amount}',
         // Account
@@ -2346,6 +2356,7 @@ const translations = {
         coachOf: 'di',
         coachMenuHint: '🔔 Vedi notifiche programmate\n✏️ Modifica nome, descrizione e immagine',
         coachEditHint: '🧠 Modifica cosa fa l\'incantesimo\nLa sua intelligenza e comportamento',
+        coachLongPressHint: '📤 Tieni premuta una card per condividerla\nO riordina gli incantesimi nella lista',
         coachNext: 'Avanti →',
         coachGotIt: 'Capito!',
         importing: 'Evocando...',
@@ -2419,6 +2430,7 @@ const translations = {
         setupHomeTitle: 'Aggiungi alla schermata iniziale',
         setupHomeDesc: 'Accedi direttamente senza aprire Appacadabra',
         setupEnter: 'Entra nell\'incantesimo →',
+        setupSkip: 'Più tardi',
 
         manaBalance: 'Mana: %{amount}',
         // Account
@@ -2721,6 +2733,7 @@ const translations = {
         coachOf: '/',
         coachMenuHint: '🔔 予定通知を確認\n✏️ 名前・説明・画像を編集',
         coachEditHint: '🧠 呪文の動作を編集\nその知能と振る舞い',
+        coachLongPressHint: '📤 カードを長押しして共有\nまたはリストで呪文を並べ替え',
         coachNext: '次へ →',
         coachGotIt: 'わかった！',
         importing: 'インポート中...',
@@ -2799,6 +2812,7 @@ const translations = {
         setupHomeTitle: 'ホーム画面に追加',
         setupHomeDesc: 'Appacadabraを開かずに直接アクセス',
         setupEnter: 'スペルに入る →',
+        setupSkip: '後で',
 
         manaBalance: 'マナ: %{amount}',
         // Account
@@ -3080,6 +3094,7 @@ const translations = {
         coachOf: '/',
         coachMenuHint: '🔔 查看已安排的通知\n✏️ 编辑名称、描述和图片',
         coachEditHint: '🧠 编辑咒语的功能\n它的智能和行为',
+        coachLongPressHint: '📤 长按卡片以分享\n或在列表中重新排列咒语',
         coachNext: '下一步 →',
         coachGotIt: '知道了！',
         importing: '导入中...',
@@ -3158,6 +3173,7 @@ const translations = {
         setupHomeTitle: '添加到主屏幕',
         setupHomeDesc: '无需打开Appacadabra即可直接访问',
         setupEnter: '进入咒语 →',
+        setupSkip: '稍后',
 
         manaBalance: '魔力: %{amount}',
         // Account
@@ -3442,6 +3458,7 @@ const translations = {
         coachOf: '/',
         coachMenuHint: '🔔 예약된 알림 보기\n✏️ 이름, 설명 및 이미지 편집',
         coachEditHint: '🧠 주문의 기능 편집\n지능과 행동 수정',
+        coachLongPressHint: '📤 카드를 길게 눌러 공유하기\n또는 목록에서 주문 순서 변경',
         coachNext: '다음 →',
         coachGotIt: '알겠어요!',
         importing: '가져오는 중...',
@@ -3520,6 +3537,7 @@ const translations = {
         setupHomeTitle: '홈 화면에 추가',
         setupHomeDesc: 'Appacadabra를 열지 않고 바로 접근',
         setupEnter: '주문 입장 →',
+        setupSkip: '나중에',
 
         manaBalance: '마나: %{amount}',
         // Account
@@ -3792,6 +3810,7 @@ const translations = {
         coachOf: 'من',
         coachMenuHint: '🔔 عرض الإشعارات المجدولة\n✏️ تعديل الاسم والوصف والصورة',
         coachEditHint: '🧠 تعديل وظيفة التعويذة\nذكاءها وسلوكها',
+        coachLongPressHint: '📤 اضغط مطولاً على البطاقة للمشاركة\nأو إعادة ترتيب التعويذات في قائمتك',
         coachNext: 'التالي →',
         coachGotIt: 'فهمت!',
         importing: 'جاري الاستيراد...',
@@ -3870,6 +3889,7 @@ const translations = {
         setupHomeTitle: 'إضافة إلى الشاشة الرئيسية',
         setupHomeDesc: 'الوصول مباشرة بدون فتح Appacadabra',
         setupEnter: 'دخول التعويذة ←',
+        setupSkip: 'لاحقاً',
 
         // Network
         network_wifi: 'واي فاي',
@@ -4148,6 +4168,7 @@ const translations = {
         coachOf: 'का',
         coachMenuHint: '🔔 निर्धारित सूचनाएं देखें\n✏️ नाम, विवरण और छवि संपादित करें',
         coachEditHint: '🧠 जादू क्या करता है संपादित करें\nउसकी बुद्धिमत्ता और व्यवहार',
+        coachLongPressHint: '📤 शेयर करने के लिए कार्ड को देर तक दबाएं\nया सूची में जादुओं को पुनर्व्यवस्थित करें',
         coachNext: 'अगला →',
         coachGotIt: 'समझ गया!',
         importing: 'आयात हो रहा है...',
@@ -4226,6 +4247,7 @@ const translations = {
         setupHomeTitle: 'होम स्क्रीन में जोड़ें',
         setupHomeDesc: 'Appacadabra खोले बिना सीधे एक्सेस करें',
         setupEnter: 'मंत्र में प्रवेश →',
+        setupSkip: 'बाद में',
 
         // Network
         network_wifi: 'वाई-फाई',
@@ -4504,6 +4526,7 @@ const translations = {
         coachOf: 'из',
         coachMenuHint: '🔔 Просмотр запланированных уведомлений\n✏️ Изменить имя, описание и изображение',
         coachEditHint: '🧠 Редактировать функции заклинания\nЕго интеллект и поведение',
+        coachLongPressHint: '📤 Удерживай карточку для отправки\nИли меняй порядок заклинаний в списке',
         coachNext: 'Далее →',
         coachGotIt: 'Понятно!',
         importing: 'Импорт...',
@@ -4582,6 +4605,7 @@ const translations = {
         setupHomeTitle: 'Добавить на главный экран',
         setupHomeDesc: 'Запускайте напрямую без открытия Appacadabra',
         setupEnter: 'Войти в заклинание →',
+        setupSkip: 'Позже',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -4860,6 +4884,7 @@ const translations = {
         coachOf: '/',
         coachMenuHint: '🔔 Planlanmış bildirimleri gör\n✏️ Ad, açıklama ve görsel düzenle',
         coachEditHint: '🧠 Büyünün ne yaptığını düzenle\nZekası ve davranışı',
+        coachLongPressHint: '📤 Paylaşmak için karta uzun bas\nVeya listede büyüleri sırala',
         coachNext: 'İleri →',
         coachGotIt: 'Anladım!',
         importing: 'İçe aktarılıyor...',
@@ -4938,6 +4963,7 @@ const translations = {
         setupHomeTitle: 'Ana ekrana ekle',
         setupHomeDesc: 'Appacadabra\'yı açmadan doğrudan erişin',
         setupEnter: 'Büyüye gir →',
+        setupSkip: 'Sonra',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -5219,6 +5245,7 @@ const translations = {
         coachOf: 'van',
         coachMenuHint: '🔔 Geplande meldingen bekijken\n✏️ Naam, beschrijving en afbeelding bewerken',
         coachEditHint: '🧠 Bewerk wat de spreuk doet\nZijn intelligentie en gedrag',
+        coachLongPressHint: '📤 Lang indrukken om een kaart te delen\nOf spreuken in de lijst herordenen',
         coachNext: 'Volgende →',
         coachGotIt: 'Begrepen!',
         importing: 'Importeren...',
@@ -5297,6 +5324,7 @@ const translations = {
         setupHomeTitle: 'Toevoegen aan startscherm',
         setupHomeDesc: 'Direct openen zonder Appacadabra te starten',
         setupEnter: 'Spreuk openen →',
+        setupSkip: 'Later',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -5578,6 +5606,7 @@ const translations = {
         coachOf: 'z',
         coachMenuHint: '🔔 Zobacz zaplanowane powiadomienia\n✏️ Edytuj nazwę, opis i obraz',
         coachEditHint: '🧠 Edytuj co robi zaklęcie\nJego inteligencję i zachowanie',
+        coachLongPressHint: '📤 Przytrzymaj kartę aby udostępnić\nLub zmień kolejność zaklęć na liście',
         coachNext: 'Dalej →',
         coachGotIt: 'Rozumiem!',
         importing: 'Importowanie...',
@@ -5656,6 +5685,7 @@ const translations = {
         setupHomeTitle: 'Dodaj do ekranu głównego',
         setupHomeDesc: 'Otwieraj bezpośrednio bez uruchamiania Appacadabra',
         setupEnter: 'Wejdź w zaklęcie →',
+        setupSkip: 'Później',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -5937,6 +5967,7 @@ const translations = {
         coachOf: '/',
         coachMenuHint: '🔔 Xem thông báo đã lên lịch\n✏️ Chỉnh sửa tên, mô tả và hình ảnh',
         coachEditHint: '🧠 Chỉnh sửa chức năng phép thuật\nTrí tuệ và hành vi của nó',
+        coachLongPressHint: '📤 Nhấn giữ thẻ để chia sẻ\nHoặc sắp xếp lại phép thuật trong danh sách',
         coachNext: 'Tiếp →',
         coachGotIt: 'Hiểu rồi!',
         importing: 'Đang nhập...',
@@ -6015,6 +6046,7 @@ const translations = {
         setupHomeTitle: 'Thêm vào màn hình chính',
         setupHomeDesc: 'Truy cập trực tiếp mà không cần mở Appacadabra',
         setupEnter: 'Vào phép thuật →',
+        setupSkip: 'Để sau',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -6296,6 +6328,7 @@ const translations = {
         coachOf: 'จาก',
         coachMenuHint: '🔔 ดูการแจ้งเตือนที่ตั้งไว้\n✏️ แก้ไขชื่อ คำอธิบาย และรูปภาพ',
         coachEditHint: '🧠 แก้ไขสิ่งที่คาถาทำ\nความฉลาดและพฤติกรรมของมัน',
+        coachLongPressHint: '📤 กดค้างที่การ์ดเพื่อแชร์\nหรือเรียงลำดับคาถาในรายการ',
         coachNext: 'ถัดไป →',
         coachGotIt: 'เข้าใจแล้ว!',
         importing: 'กำลังนำเข้า...',
@@ -6374,6 +6407,7 @@ const translations = {
         setupHomeTitle: 'เพิ่มไปยังหน้าจอหลัก',
         setupHomeDesc: 'เข้าถึงโดยตรงโดยไม่ต้องเปิด Appacadabra',
         setupEnter: 'เข้าสู่คาถา →',
+        setupSkip: 'ภายหลัง',
 
         // Network
         network_wifi: 'Wi-Fi',

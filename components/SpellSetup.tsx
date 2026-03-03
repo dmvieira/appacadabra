@@ -17,6 +17,7 @@ import { GeneratedApp } from '../lib/database/types';
 interface SpellSetupProps {
     app: GeneratedApp;
     onComplete: (options: { biometric: boolean; homeScreen: boolean }) => void;
+    onSkip: () => void;
 }
 
 function getInitials(name: string): string {
@@ -25,7 +26,7 @@ function getInitials(name: string): string {
     return name.slice(0, 2).toUpperCase();
 }
 
-export default function SpellSetup({ app, onComplete }: SpellSetupProps) {
+export default function SpellSetup({ app, onComplete, onSkip }: SpellSetupProps) {
     const insets = useSafeAreaInsets();
     const [biometric, setBiometric] = useState(false);
     const [homeScreen, setHomeScreen] = useState(false);
@@ -132,6 +133,9 @@ export default function SpellSetup({ app, onComplete }: SpellSetupProps) {
                             activeOpacity={0.8}
                         >
                             <Text style={styles.primaryButtonText}>{t('setupEnter')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={onSkip} style={styles.skipLink}>
+                            <Text style={styles.skipText}>{t('setupSkip')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -286,5 +290,14 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '800',
+    },
+    skipLink: {
+        alignItems: 'center',
+        paddingVertical: 12,
+    },
+    skipText: {
+        color: '#6B7280',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });

@@ -516,14 +516,24 @@ export default function HomeScreen() {
     const handleCoachDismiss = async () => {
         if (coachStep === 1) {
             setCoachStep(2);
+        } else if (coachStep === 2) {
+            setCoachStep(3);
         } else {
             setCoachStep(0);
             try {
                 await AsyncStorage.setItem('appacadabra_coach_done', '1');
             } catch (e) {
-                // ignore 
+                // ignore
             }
         }
+    };
+
+    const handleSpellSetupSkip = async () => {
+        if (!firstRunSetupTarget) return;
+        const app = firstRunSetupTarget;
+        setFirstRunSetupTarget(null);
+        await AsyncStorage.setItem(`spell_setup_done_${app.id}`, '1');
+        maybeStartCoach(app.id);
     };
 
     const handleSetupIconFromGallery = async () => {
@@ -1496,6 +1506,7 @@ export default function HomeScreen() {
                 <SpellSetup
                     app={firstRunSetupTarget}
                     onComplete={handleFirstRunSetupComplete}
+                    onSkip={handleSpellSetupSkip}
                 />
             )}
         </SafeAreaView>
