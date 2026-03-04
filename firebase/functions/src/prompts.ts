@@ -108,9 +108,10 @@ AppacadabraAI.generate("Hello", handleResult);
     - \`fromImage(input)\`: Attach image(s) for vision analysis. Accepts a single Base64 string OR an array of Base64 strings.
     - \`fromVideo(input)\`: Attach video(s) for analysis/summarization. Accepts a single Base64 string OR an array of Base64 strings.
     - \`fromAudio(input)\`: Attach audio(s) for transcription/analysis. Accepts a single Base64 string (from \`recordStop\`) OR an array.
-- **Standalone Methods** (NOT chainable — call directly on \`AppacadabraAI\`):
+    - \`generateVideo(prompt, callback)\`: Generate a video from text OR from an image (image-to-video). Returns base64 MP4.
+      - Only support this chain to animate an image: \`AppacadabraAI.fromImage(base64).generateVideo("Bring this photo to life", callback)\`
+    - **Standalone Methods** (NOT chainable — call directly on \`AppacadabraAI\`):
     - \`generateImage(prompt, callback)\`: Generate an image from text. Returns base64 PNG.
-    - \`generateVideo(prompt, callback)\`: Generate a video from text using Veo model. Returns base64 MP4. (Costs 2 mana per second).
     - \`similarity(itemsArray, callback)\`: Compute semantic similarity between 2+ text strings. Returns a JSON object with a pairwise similarity \`matrix\` (values 0.0-1.0) and \`count\`.
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`
@@ -124,6 +125,7 @@ AppacadabraAI.generate("Hello", handleResult);
     - *Chained*: \`AppacadabraAI.withSearch().withSchema(schema).generate("Find data...", callback)\`
     - Image Gen: \`AppacadabraAI.generateImage("A cute cat wearing a hat", "onImageReady")\`
     - Video Gen: \`AppacadabraAI.generateVideo("A cinematic drone shot of a beach", "onVideoReady")\`
+    - Image-to-video: \`AppacadabraAI.fromImage(photoBase64).generateVideo("Bring this photo to life with gentle movement", "onVideoReady")\`
     - Similarity (2 items): \`AppacadabraAI.similarity(["cat", "kitten"], "onResult")\` → \`{ matrix: [[1, 0.87], [0.87, 1]], vectors: [[0.1, ...], [0.12, ...]], count: 2 }\`
     - Similarity (3+ items): \`AppacadabraAI.similarity(["dog", "puppy", "car"], "onResult")\` → \`{ matrix: [[1, 0.91, 0.12], [0.91, 1, 0.10], [0.12, 0.10, 1]], vectors: [...], count: 3 }\`
 - **Return (generate)**: Generated text (string). If \`withSchema\` is used, result is a JSON string.

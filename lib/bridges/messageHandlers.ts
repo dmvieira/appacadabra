@@ -1517,7 +1517,7 @@ export async function handleBridgeMessage(
         case 'AI_GENERATE_VIDEO': {
             debugLog(`AI Video Gen request: ${data.prompt?.substring(0, 50)}...`);
             try {
-                const videoResult = await ai.aiGenerateVideo(data.prompt);
+                const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined);
                 result = videoResult.videoBase64;
 
                 // Log cost and update mana

@@ -358,6 +358,11 @@ export async function generateSpellSimilarity(
         appVersion: APP_VERSION,
     });
 
+    // Decompress result (server always compresses resultText)
+    if (result.data && result.data.text) {
+        result.data.text = decompressContent(result.data.text);
+    }
+
     return result.data;
 }
 
@@ -403,7 +408,8 @@ export async function generateSpellTTS(
 
 // Video Generation via Veo
 export async function generateSpellVideoGen(
-    prompt: string
+    prompt: string,
+    imagesBase64?: string[]
 ): Promise<GenerationResult> {
     await ensureAuthenticated();
 
@@ -412,6 +418,7 @@ export async function generateSpellVideoGen(
         action: 'webview_ai_video',
         prompt: compressContent(prompt),
         appVersion: APP_VERSION,
+        ...(imagesBase64?.length ? { imagesBase64 } : {}),
     });
 
     if (result.data && result.data.text) {

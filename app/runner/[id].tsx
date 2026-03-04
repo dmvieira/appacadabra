@@ -278,6 +278,7 @@ export default function RunnerScreen() {
 
     // Advanced mode toggle
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [navCollapsed, setNavCollapsed] = useState(false);
 
     // Editor onboarding
     const [showEditorOnboarding, setShowEditorOnboarding] = useState(false);
@@ -987,6 +988,13 @@ export default function RunnerScreen() {
             {/* Edit Mode Bottom Nav */}
             {isEditMode && (
                 <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+                    {/* Collapse toggle */}
+                    <TouchableOpacity style={styles.navCollapseBtn} onPress={() => setNavCollapsed(v => !v)}>
+                        <Text style={styles.navCollapseBtnText}>{navCollapsed ? '▴ Editor' : '▾'}</Text>
+                    </TouchableOpacity>
+
+                    {!navCollapsed && (
+                    <>
                     {/* Simple tabs - always visible */}
                     <View style={styles.navSimple}>
                         <TouchableOpacity
@@ -1075,6 +1083,8 @@ export default function RunnerScreen() {
                                 <Text style={styles.navLabelAdv}>{t('editorReplayTutorial')}</Text>
                             </TouchableOpacity>
                         </View>
+                    )}
+                    </>
                     )}
                 </View>
             )}
@@ -1442,7 +1452,17 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background,
         borderTopWidth: 1,
         borderTopColor: colors.surfaceVariant,
-        paddingTop: 10,
+        paddingTop: 4,
+    },
+    navCollapseBtn: {
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+    navCollapseBtnText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 13,
+        fontWeight: '700',
+        letterSpacing: 0.5,
     },
     navSimple: {
         flexDirection: 'row',

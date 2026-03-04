@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
-import { createBackup, processBackupData, BackupData } from './backup';
+import { createBackup, processBackupData, BackupData, readBackupFile } from './backup';
 import { getGoogleAccessToken, isGoogleUser } from './firebase';
 import { useBackupStore } from './backupStore';
 import { useAppStore } from './store';
@@ -227,30 +227,25 @@ async function readFromLocalFolder(folderUri: string): Promise<BackupData | null
         const SAF = FileSystem.StorageAccessFramework;
         const files = await SAF.readDirectoryAsync(folderUri);
 
-        // Prefer exact filename match; fall back to regex (catches legacy .spell.json variants)
-        const exactFile = files.find(f => f.endsWith(BACKUP_FILENAME));
-        const backupFile = exactFile ?? files.find(f => BACKUP_FILE_REGEX.test(decodeURIComponent(f)));
+        const backupFile = files.find(f => BACKUP_FILE_REGEX.test(decodeURIComponent(f)));
         if (!backupFile) {
             console.log('[BackupSync] No backup file found in local folder (checked URI regex)');
             return null;
         }
         console.log('[BackupSync] Reading local backup file:', backupFile);
 
-        const text = await FileSystem.readAsStringAsync(backupFile, {
-            encoding: FileSystem.EncodingType.UTF8,
-        });
+        const text = await readBackupFile(backupFile);
 
-        if (!text || text.trim().length === 0) {
-            console.error('[BackupSync] Local backup file is empty!');
-            return null;
-        }
+        const trimmed = text.trim();
+        console.log('[BackupSync] Local file read success, length:', text.length, 'Trimmed length:', trimmed.length);
+        console.log('[BackupSync] Content prefix (100 chars):', trimmed.substring(0, 100));
+        console.log('[BackupSync] Content suffix (100 chars):', trimmed.substring(trimmed.length - 100));
 
-        console.log('[BackupSync] Local file read success, length:', text.length, 'Prefix:', text.substring(0, 50));
         try {
-            return JSON.parse(text) as BackupData;
+            return JSON.parse(trimmed) as BackupData;
         } catch (e) {
-            console.error('[BackupSync] Corrupt backup file, deleting:', backupFile, (e as any).message);
-            SAF.deleteAsync(backupFile).catch(() => {});
+            console.error('[BackupSync] JSON Parse Error:', (e as any).message);
+            // Don't auto-delete yet, we need to debug why it's failing
             return null;
         }
     } catch (e) {

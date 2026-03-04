@@ -44,7 +44,7 @@ export default function SpellSetup({ app, onComplete, onSkip }: SpellSetupProps)
     const initials = getInitials(app.name);
 
     return (
-        <Modal visible={true} animationType="none" transparent statusBarTranslucent>
+        <Modal visible={true} animationType="none" transparent statusBarTranslucent onRequestClose={onSkip}>
             <Animated.View style={[
                 styles.container,
                 {

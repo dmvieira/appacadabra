@@ -153,6 +153,11 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       return this;
     };
     
+    AIBuilder.prototype.generateVideo = function(prompt, callbackName) {
+      console.log('[AppacadabraAI.generateVideo] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
+      sendMessage('AI_GENERATE_VIDEO', { prompt: prompt, images: this.options.images }, callbackName);
+    };
+
     AIBuilder.prototype.generate = function(prompt, callbackName) {
       // Validate media limits before sending
       var err = validateMedia(this.options.images, 'images')

@@ -9,6 +9,8 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAICacheManager } from "@google/generative-ai/server";
+// @ts-ignore - installed at deploy time via package.json
+import { GoogleGenAI, VideoGenerationReferenceType } from "@google/genai";
 import * as zlib from 'zlib';
 import {
     SYSTEM_INSTRUCTIONS,
@@ -30,6 +32,9 @@ const db = getFirestore();
 // Initialize Gemini AI (API key from environment)
 const API_KEY = process.env.GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
+// @ts-ignore - lazy to avoid "API key must be set" error during deploy analysis
+let _ai: GoogleGenAI | null = null;
+function getAI(): GoogleGenAI { return _ai ?? (_ai = new GoogleGenAI({ apiKey: API_KEY })); }
 
 // Models configuration
 // Main models for Create/Edit/Convert (kept as fallback if cache fails)
@@ -93,6 +98,27 @@ function compressContent(text: string): string {
         console.error('Compression failed', e);
         return text;
     }
+}
+
+function pcmToWav(pcmData: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16): Buffer {
+    const byteRate = sampleRate * channels * bitsPerSample / 8;
+    const blockAlign = channels * bitsPerSample / 8;
+    const dataSize = pcmData.length;
+    const header = Buffer.alloc(44);
+    header.write('RIFF', 0);
+    header.writeUInt32LE(36 + dataSize, 4);
+    header.write('WAVE', 8);
+    header.write('fmt ', 12);
+    header.writeUInt32LE(16, 16);
+    header.writeUInt16LE(1, 20);        // AudioFormat: PCM
+    header.writeUInt16LE(channels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(bitsPerSample, 34);
+    header.write('data', 36);
+    header.writeUInt32LE(dataSize, 40);
+    return Buffer.concat([header, pcmData]);
 }
 
 function decompressContent(input: string): string {
@@ -246,7 +272,7 @@ const USD_PRICING: Record<string, {
 };
 
 const USD_IMAGE_PER_UNIT = 0.04;      // gemini-2.5-flash-image (Imagen 4 standard)
-const USD_VIDEO_PER_SECOND = 0.15;    // veo-3.0-fast-generate-001 (Veo 3 Fast)
+const USD_VIDEO_PER_SECOND = 0.15;    // veo-3.1-fast-generate-preview (Veo 3.1 Fast)
 
 function calculateCostUsd(
     modelId: string,
@@ -798,47 +824,47 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                     case 'webview_ai_video': {
                         console.log(`[WEBVIEW_AI_VIDEO] Generating video for: ${prompt.substring(0, 80)}...`);
 
-                        const videoModel = genAI.getGenerativeModel({
-                            model: 'veo-3.0-fast-generate-001',
+                        // First image = starting frame; additional images = reference images (up to 2 more)
+                        const firstImage = imagesBase64?.[0]
+                            ? { imageBytes: imagesBase64[0], mimeType: "image/jpeg" }
+                            : undefined;
+                        const referenceImages = imagesBase64?.slice(1, 3).map(img => ({
+                            image: { imageBytes: img, mimeType: "image/jpeg" },
+                            referenceType: VideoGenerationReferenceType.ASSET,
+                        }));
+
+                        let operation = await getAI().models.generateVideos({
+                            model: 'veo-3.1-fast-generate-preview',
+                            prompt: prompt,
+                            ...(firstImage ? { image: firstImage } : {}),
+                            config: {
+                                aspectRatio: "16:9",
+                                durationSeconds: 5,
+                                numberOfVideos: 1,
+                                ...(referenceImages?.length ? { referenceImages } : {}),
+                            },
                         });
 
-                        const videoResult = await videoModel.generateContent(prompt);
-                        const videoUsage = getUsage(videoResult);
-                        usage = {
-                            promptTokens: videoUsage.promptTokens,
-                            responseTokens: videoUsage.responseTokens,
-                            thoughtsTokens: videoUsage.thoughtsTokens,
-                            totalTokens: videoUsage.totalTokens,
-                            cachedTokens: 0
-                        };
-
-                        // Extract video from response parts
-                        const parts = videoResult.response.candidates?.[0]?.content?.parts || [];
-                        let videoBase64 = '';
-                        let durationSeconds = 5; // Default if not found/available in metadata
-
-                        for (const part of parts) {
-                            if ((part as any).inlineData) {
-                                videoBase64 = (part as any).inlineData.data;
-                                break;
-                            }
+                        while (!operation.done) {
+                            console.log(`[WEBVIEW_AI_VIDEO] Waiting for video...`);
+                            await new Promise(resolve => setTimeout(resolve, 8000));
+                            operation = await getAI().operations.getVideosOperation({ operation });
                         }
 
-                        // Try to find duration in metadata if available
-                        const candidate = videoResult.response.candidates?.[0];
-                        if (candidate && (candidate as any).content?.metadata?.videoMetadata?.durationSeconds) {
-                            durationSeconds = (candidate as any).content?.metadata?.videoMetadata?.durationSeconds;
-                        }
+                        const videoFile = operation.response?.generatedVideos?.[0]?.video;
+                        if (!videoFile?.uri) throw new Error('No video generated by model');
 
-                        if (!videoBase64) {
-                            throw new Error('No video generated by model');
-                        }
+                        const videoResponse = await fetch(`${videoFile.uri}?alt=media`, {
+                            headers: { 'x-goog-api-key': API_KEY }
+                        });
+                        if (!videoResponse.ok) throw new Error(`Video download failed: ${videoResponse.status}`);
 
-                        resultText = videoBase64;
+                        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+                        resultText = videoBuffer.toString('base64');
 
-                        // Cost: 2 mana per second
+                        const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 5;
                         creditsUsed = durationSeconds * 2.0;
-                        logModelId = 'veo-3.0-fast-generate-001';
+                        logModelId = 'veo-3.1-fast-generate-preview';
                         logExtras.durationSec = durationSeconds;
                         break;
                     }
@@ -931,7 +957,9 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const outputCost = u.responseTokens / 10_000;
                         creditsUsed = inputCost + outputCost;
 
-                        resultText = audioBase64;
+                        // Gemini TTS returns raw PCM (24kHz, 16-bit, mono) — wrap in WAV container
+                        const pcmBuffer = Buffer.from(audioBase64, 'base64');
+                        resultText = pcmToWav(pcmBuffer).toString('base64');
                         logModelId = 'gemini-2.5-flash-preview-tts';
                         break;
                     }

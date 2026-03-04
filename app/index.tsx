@@ -135,7 +135,7 @@ export default function HomeScreen() {
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Backup store
-    const { backupMode, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup, isRestoring } = useBackupStore();
+    const { backupMode, localFolderUri, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup, isRestoring, lastBackupAt } = useBackupStore();
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -200,20 +200,23 @@ export default function HomeScreen() {
 
     // Backup: restore on Google login
     useEffect(() => {
+        let active = true;
         if (!backupHydrated || isAnonymous) return;
+
         if (backupMode === 'google_drive') {
             // Delay to ensure GoogleSignin tokens are ready after Firebase Auth init.
             // zustand-persist restores isAnonymous=false from AsyncStorage before
             // Firebase Auth actually initializes, so tokens aren't available yet.
             const timer = setTimeout(() => {
+                if (!active) return;
                 tryRestoreOnLogin().catch(e => console.warn('[BackupSync] Auto-restore failed:', e));
             }, 1500);
-            return () => clearTimeout(timer);
+            return () => { active = false; clearTimeout(timer); };
         } else if (backupMode === 'local_folder') {
-            const { localFolderUri } = useBackupStore.getState();
             console.log('[Index] Local backup check, URI:', localFolderUri);
             if (localFolderUri) {
                 checkLocalBackupExists(localFolderUri).then(exists => {
+                    if (!active) return;
                     console.log('[Index] Local backup exists:', exists);
                     if (exists) {
                         tryRestoreOnLogin().catch(e => console.warn('[BackupSync] Local restore failed:', e));
@@ -227,7 +230,12 @@ export default function HomeScreen() {
                 setShowSyncModal(true);
             }
         }
-    }, [backupHydrated, isAnonymous]);
+        return () => { active = false; };
+    // localFolderUri omitido intencionalmente: incluí-lo causava o modal de reconnect
+    // aparecer duas vezes ao trocar local→Drive (setLocalFolderUri(null) disparava o
+    // efeito antes de backupMode atualizar para 'google_drive').
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [backupHydrated, isAnonymous, backupMode]);
 
     // Backup: auto-dismiss restore banner after 5s
     useEffect(() => {
@@ -941,7 +949,14 @@ export default function HomeScreen() {
                         <Text style={styles.backupActiveBannerEmoji}>{backupMode === 'google_drive' ? '☁️' : '📁'}</Text>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.backupActiveBannerTitle}>{t('backupActive')}</Text>
-                            <Text style={styles.backupActiveBannerText}>{t(backupMode === 'local_folder' ? 'backupActiveLocalDesc' : 'backupActiveDesc')}</Text>
+                            <Text style={styles.backupActiveBannerText}>
+                                {t(backupMode === 'local_folder' ? 'backupActiveLocalDesc' : 'backupActiveDesc')}
+                                {lastBackupAt && (
+                                    <> {'\n'}<Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                                        {t('lastBackupAtLabel', { date: new Date(lastBackupAt).toLocaleString(getCurrentLanguage(), { dateStyle: 'medium', timeStyle: 'medium' }) })}
+                                    </Text></>
+                                )}
+                            </Text>
                         </View>
                     </View>
                 )}

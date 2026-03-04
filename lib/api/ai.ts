@@ -188,11 +188,11 @@ export async function aiGenerateTTS(text: string, voiceName?: string): Promise<{
 }
 
 // Used by WebView Bridge - Generate Video
-export async function aiGenerateVideo(prompt: string): Promise<{ videoBase64: string, usage: any, creditsUsed: number }> {
-    console.log('[AI] aiGenerateVideo (via Firebase)', prompt?.substring(0, 80));
+export async function aiGenerateVideo(prompt: string, imagesBase64?: string[]): Promise<{ videoBase64: string, usage: any, creditsUsed: number }> {
+    console.log('[AI] aiGenerateVideo (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
     return withTimeoutAndRetry(async () => {
-        const result = await firebase.generateSpellVideoGen(prompt);
+        const result = await firebase.generateSpellVideoGen(prompt, imagesBase64);
 
         const creditsUsed = result.creditsUsed || 0;
         // reuse image analytics log for now or skip if not available

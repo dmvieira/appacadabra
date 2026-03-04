@@ -19,6 +19,7 @@
         "node": "22"
     },
     "dependencies": {
+        "@google/genai": "^1.0.0",
         "@google/generative-ai": "^0.24.0",
         "@react-native-firebase/app": "^23.8.3",
         "@react-native-firebase/app-check": "^23.8.3",
