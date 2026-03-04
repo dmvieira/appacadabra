@@ -135,7 +135,7 @@ export default function HomeScreen() {
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Backup store
-    const { backupMode, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup } = useBackupStore();
+    const { backupMode, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup, isRestoring } = useBackupStore();
 
     // Initialize background listeners for async jobs
     useEffect(() => {
@@ -211,13 +211,13 @@ export default function HomeScreen() {
             return () => clearTimeout(timer);
         } else if (backupMode === 'local_folder') {
             const { localFolderUri } = useBackupStore.getState();
+            console.log('[Index] Local backup check, URI:', localFolderUri);
             if (localFolderUri) {
                 checkLocalBackupExists(localFolderUri).then(exists => {
+                    console.log('[Index] Local backup exists:', exists);
                     if (exists) {
-                        // Backup exists — restore it
                         tryRestoreOnLogin().catch(e => console.warn('[BackupSync] Local restore failed:', e));
                     } else {
-                        // Backup folder lost access — prompt reconnect
                         setSyncModalMode('reconnect');
                         setShowSyncModal(true);
                     }
@@ -825,24 +825,6 @@ export default function HomeScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            {/* Status Banner (Post-logout) */}
-            {signOutBanner && (
-                <TouchableOpacity
-                    style={styles.statusBanner}
-                    onPress={() => setSignOutBanner(null)}
-                    activeOpacity={0.9}
-                >
-                    <View style={styles.statusBannerIcon}>
-                        <Text style={{ fontSize: 16 }}>ℹ️</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.statusBannerText}>
-                            {signOutBanner === 'keep' ? t('signOutSuccessKeep') : t('signOutSuccessClear')}
-                        </Text>
-                    </View>
-                    <Text style={styles.statusBannerClose}>✕</Text>
-                </TouchableOpacity>
-            )}
 
             {/* Header with menu */}
             <View style={styles.header}>
@@ -879,62 +861,91 @@ export default function HomeScreen() {
                 </View>
             )}
 
-            {balance <= 0 && (
-                <TouchableOpacity
-                    style={styles.manaWarningBanner}
-                    onPress={openShop}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.manaWarningEmoji}>⚡</Text>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.manaWarningTitle}>{t('manaDepletedTitle')}</Text>
-                        <Text style={styles.manaWarningText}>{t('manaDepletedMessage')}</Text>
-                    </View>
-                    <Text style={styles.manaWarningAction}>›</Text>
-                </TouchableOpacity>
-            )}
+            <View style={{ marginTop: spacing.xs }}>
+                {/* Status Banner (Post-logout) */}
+                {signOutBanner && (
+                    <TouchableOpacity
+                        style={styles.statusBanner}
+                        onPress={() => setSignOutBanner(null)}
+                        activeOpacity={0.9}
+                    >
+                        <Text style={styles.statusBannerEmoji}>ℹ️</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.statusBannerTitle}>{t('signOutSuccessTitle')}</Text>
+                            <Text style={styles.statusBannerText}>
+                                {signOutBanner === 'keep' ? t('signOutSuccessKeep') : t('signOutSuccessClear')}
+                            </Text>
+                        </View>
+                        <Text style={styles.statusBannerClose}>✕</Text>
+                    </TouchableOpacity>
+                )}
 
-            {/* Backup restore success banner */}
-            {restoredCount > 0 && (
-                <TouchableOpacity
-                    style={styles.restoreBanner}
-                    onPress={clearRestoredCount}
-                    activeOpacity={0.9}
-                >
-                    <Text style={styles.restoreBannerEmoji}>🔮</Text>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.restoreBannerTitle}>{t('backupRestoredCount', { count: restoredCount })}</Text>
-                        <Text style={styles.restoreBannerText}>{t('backupRestoredDesc')}</Text>
-                    </View>
-                </TouchableOpacity>
-            )}
+                {balance <= 0 && (
+                    <TouchableOpacity
+                        style={styles.manaWarningBanner}
+                        onPress={openShop}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.manaWarningEmoji}>⚡</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.manaWarningTitle}>{t('manaDepletedTitle')}</Text>
+                            <Text style={styles.manaWarningText}>{t('manaDepletedMessage')}</Text>
+                        </View>
+                        <Text style={styles.manaWarningAction}>›</Text>
+                    </TouchableOpacity>
+                )}
 
-            {/* No-backup warning banner */}
-            {!isAnonymous && backupHydrated && (backupMode === null || backupMode === 'none') && (
-                <TouchableOpacity
-                    style={styles.noBackupBanner}
-                    onPress={() => { setSyncModalMode('choose'); setShowSyncModal(true); }}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.noBackupEmoji}>⚠️</Text>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.noBackupTitle}>{t('noBackupTitle')}</Text>
-                        <Text style={styles.noBackupText}>{t('noBackupDesc')}</Text>
-                    </View>
-                    <Text style={styles.noBackupAction}>›</Text>
-                </TouchableOpacity>
-            )}
+                {/* Backup restore success banner */}
+                {(restoredCount > 0 || isRestoring) && (
+                    <TouchableOpacity
+                        style={[styles.restoreBanner, isRestoring && { opacity: 0.8 }]}
+                        onPress={isRestoring ? undefined : clearRestoredCount}
+                        activeOpacity={isRestoring ? 1 : 0.9}
+                        disabled={isRestoring}
+                    >
+                        {isRestoring ? (
+                            <ActivityIndicator size="small" color={colors.success} style={{ marginRight: spacing.md }} />
+                        ) : (
+                            <Text style={styles.restoreBannerEmoji}>🔮</Text>
+                        )}
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.restoreBannerTitle}>
+                                {isRestoring ? t('restoringSpells') : t('backupRestoredCount', { count: restoredCount })}
+                            </Text>
+                            <Text style={styles.restoreBannerText}>
+                                {isRestoring ? t('pleaseWait') : t('backupRestoredDesc')}
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
 
-            {/* Active backup status banner */}
-            {(!isAnonymous && (backupMode === 'google_drive' || backupMode === 'local_folder') && restoredCount === 0) && (
-                <View style={styles.backupActiveBanner}>
-                    <Text style={styles.backupActiveBannerEmoji}>{backupMode === 'google_drive' ? '☁️' : '📁'}</Text>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.backupActiveBannerTitle}>{t('backupActive')}</Text>
-                        <Text style={styles.backupActiveBannerText}>{t(backupMode === 'local_folder' ? 'backupActiveLocalDesc' : 'backupActiveDesc')}</Text>
+                {/* No-backup warning banner */}
+                {!isAnonymous && backupHydrated && (backupMode === null || backupMode === 'none') && (
+                    <TouchableOpacity
+                        style={styles.noBackupBanner}
+                        onPress={() => { setSyncModalMode('choose'); setShowSyncModal(true); }}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.noBackupEmoji}>⚠️</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.noBackupTitle}>{t('noBackupTitle')}</Text>
+                            <Text style={styles.noBackupText}>{t('noBackupDesc')}</Text>
+                        </View>
+                        <Text style={styles.noBackupAction}>›</Text>
+                    </TouchableOpacity>
+                )}
+
+                {/* Active backup status banner */}
+                {(!isAnonymous && (backupMode === 'google_drive' || backupMode === 'local_folder') && restoredCount === 0) && (
+                    <View style={styles.backupActiveBanner}>
+                        <Text style={styles.backupActiveBannerEmoji}>{backupMode === 'google_drive' ? '☁️' : '📁'}</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.backupActiveBannerTitle}>{t('backupActive')}</Text>
+                            <Text style={styles.backupActiveBannerText}>{t(backupMode === 'local_folder' ? 'backupActiveLocalDesc' : 'backupActiveDesc')}</Text>
+                        </View>
                     </View>
-                </View>
-            )}
+                )}
+            </View>
 
             {filteredApps.length === 0 && !isGenerating ? (
                 <View style={{ flex: 1, paddingBottom: listBottomPadding }}>
@@ -1901,6 +1912,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: colors.error + '15', // Subtle error background
         margin: spacing.md,
+        marginTop: 0,
         padding: spacing.md,
         borderRadius: borderRadius.lg,
         borderWidth: 1,
@@ -2050,24 +2062,26 @@ const styles = StyleSheet.create({
     statusBanner: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surface,
+        backgroundColor: colors.primary + '15',
+        margin: spacing.md,
+        marginTop: 0,
         padding: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.05)',
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.primary + '40',
     },
-    statusBannerIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: spacing.md,
+    statusBannerEmoji: {
+        fontSize: 22,
+        marginEnd: spacing.md,
+    },
+    statusBannerTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: colors.primary,
     },
     statusBannerText: {
-        fontSize: 13,
-        color: colors.onSurface,
-        fontWeight: '500',
+        fontSize: 12,
+        color: colors.onSurfaceVariant,
     },
     statusBannerClose: {
         fontSize: 18,

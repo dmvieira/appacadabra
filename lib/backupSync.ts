@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { createBackup, processBackupData, BackupData } from './backup';
-import { getGoogleAccessToken } from './firebase';
+import { getGoogleAccessToken, isGoogleUser } from './firebase';
 import { useBackupStore } from './backupStore';
 import { useAppStore } from './store';
 
@@ -57,9 +57,9 @@ export function stopPeriodicBackup() {
 
 // ─── Google Drive backend ───────────────────────────────────────────
 
-/** List files in the app's hidden appDataFolder */
-async function listDriveFiles(accessToken: string): Promise<{ id: string; name: string }[]> {
-    const url = `${DRIVE_API}/files?spaces=appDataFolder&fields=files(id,name)&q=name='${BACKUP_FILENAME}'`;
+/** List files in the app's hidden appDataFolder, sorted by modifiedTime DESC */
+async function listDriveFiles(accessToken: string): Promise<{ id: string; name: string; modifiedTime: string }[]> {
+    const url = `${DRIVE_API}/files?spaces=appDataFolder&fields=files(id,name,modifiedTime)&q=name='${BACKUP_FILENAME}'&orderBy=modifiedTime desc`;
     const res = await fetch(url, {
         headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -71,21 +71,42 @@ async function listDriveFiles(accessToken: string): Promise<{ id: string; name: 
     return data.files || [];
 }
 
-/** Upload (create or update) backup to Google Drive appDataFolder */
+/** Delete a file from Google Drive by ID */
+async function deleteDriveFile(accessToken: string, fileId: string): Promise<void> {
+    const res = await fetch(`${DRIVE_API}/files/${fileId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok && res.status !== 404) {
+        console.warn('[BackupSync] Drive delete failed:', res.status, fileId);
+    }
+}
+
+/** Upload (create or update) backup to Google Drive appDataFolder.
+ *  Cleans up duplicate files, keeping only the most recently modified one. */
 async function uploadToDrive(accessToken: string, backupJson: string): Promise<boolean> {
     try {
+        // Files are sorted modifiedTime DESC — [0] is the most recent (canonical)
         const existing = await listDriveFiles(accessToken);
-        const metadata = { name: BACKUP_FILENAME, ...(existing.length === 0 ? { parents: ['appDataFolder'] } : {}) };
+
+        // Delete all duplicates (keep [0], delete the rest)
+        if (existing.length > 1) {
+            console.log(`[BackupSync] Cleaning up ${existing.length - 1} duplicate Drive file(s)`);
+            await Promise.all(existing.slice(1).map(f => deleteDriveFile(accessToken, f.id)));
+        }
 
         let url: string;
         let method: string;
+        let metadata: object;
 
         if (existing.length > 0) {
             url = `${DRIVE_UPLOAD_API}/files/${existing[0].id}?uploadType=multipart`;
             method = 'PATCH';
+            metadata = { name: BACKUP_FILENAME };
         } else {
             url = `${DRIVE_UPLOAD_API}/files?uploadType=multipart`;
             method = 'POST';
+            metadata = { name: BACKUP_FILENAME, parents: ['appDataFolder'] };
         }
 
         const boundary = '===appacadabra_boundary===';
@@ -149,6 +170,7 @@ async function downloadFromDrive(accessToken: string): Promise<BackupData | null
 
 /** Check if a backup exists on Google Drive */
 export async function checkDriveBackupExists(): Promise<boolean> {
+    if (!isGoogleUser()) return false;
     const token = await getGoogleAccessToken();
     if (!token) return false;
     const files = await listDriveFiles(token);
@@ -157,20 +179,34 @@ export async function checkDriveBackupExists(): Promise<boolean> {
 
 // ─── Local folder backend (Android SAF) ─────────────────────────────
 
-/** Write backup to a SAF directory */
+// Matches appacadabra_backup.spell, .spell.json (Android appends mime ext), and suffixed variants
+const BACKUP_FILE_REGEX = /appacadabra_backup(\s\(\d+\))?\.spell(\.json)?$/i;
+
+/** Write backup to a SAF directory, cleaning up duplicate/suffixed files first */
 async function writeToLocalFolder(folderUri: string, backupJson: string): Promise<boolean> {
     if (Platform.OS !== 'android') return false;
     try {
         const SAF = FileSystem.StorageAccessFramework;
         const files = await SAF.readDirectoryAsync(folderUri);
-        const existingFile = files.find(f => f.endsWith(BACKUP_FILENAME));
+        const backupFiles = files.filter(f => BACKUP_FILE_REGEX.test(f));
+
+        // Delete all duplicates/suffixed variants, keeping only the exact-name file
+        if (backupFiles.length > 1) {
+            const exact = backupFiles.find(f => f.endsWith(BACKUP_FILENAME));
+            const toDelete = exact ? backupFiles.filter(f => f !== exact) : backupFiles.slice(1);
+            console.log(`[BackupSync] Cleaning up ${toDelete.length} duplicate local backup file(s)`);
+            await Promise.all(toDelete.map(f => SAF.deleteAsync(f).catch(() => { })));
+        }
+
+        const remainingFiles = await SAF.readDirectoryAsync(folderUri);
+        const existingFile = remainingFiles.find(f => f.endsWith(BACKUP_FILENAME));
 
         if (existingFile) {
             await FileSystem.writeAsStringAsync(existingFile, backupJson, {
                 encoding: FileSystem.EncodingType.UTF8,
             });
         } else {
-            const fileUri = await SAF.createFileAsync(folderUri, BACKUP_FILENAME, 'application/json');
+            const fileUri = await SAF.createFileAsync(folderUri, BACKUP_FILENAME, 'application/octet-stream');
             await FileSystem.writeAsStringAsync(fileUri, backupJson, {
                 encoding: FileSystem.EncodingType.UTF8,
             });
@@ -190,17 +226,33 @@ async function readFromLocalFolder(folderUri: string): Promise<BackupData | null
     try {
         const SAF = FileSystem.StorageAccessFramework;
         const files = await SAF.readDirectoryAsync(folderUri);
-        const backupFile = files.find(f => f.endsWith(BACKUP_FILENAME));
 
+        // Prefer exact filename match; fall back to regex (catches legacy .spell.json variants)
+        const exactFile = files.find(f => f.endsWith(BACKUP_FILENAME));
+        const backupFile = exactFile ?? files.find(f => BACKUP_FILE_REGEX.test(decodeURIComponent(f)));
         if (!backupFile) {
-            console.log('[BackupSync] No backup file found in local folder');
+            console.log('[BackupSync] No backup file found in local folder (checked URI regex)');
             return null;
         }
+        console.log('[BackupSync] Reading local backup file:', backupFile);
 
         const text = await FileSystem.readAsStringAsync(backupFile, {
             encoding: FileSystem.EncodingType.UTF8,
         });
-        return JSON.parse(text) as BackupData;
+
+        if (!text || text.trim().length === 0) {
+            console.error('[BackupSync] Local backup file is empty!');
+            return null;
+        }
+
+        console.log('[BackupSync] Local file read success, length:', text.length, 'Prefix:', text.substring(0, 50));
+        try {
+            return JSON.parse(text) as BackupData;
+        } catch (e) {
+            console.error('[BackupSync] Corrupt backup file, deleting:', backupFile, (e as any).message);
+            SAF.deleteAsync(backupFile).catch(() => {});
+            return null;
+        }
     } catch (e) {
         console.error('[BackupSync] Local folder read error:', e);
         return null;
@@ -211,10 +263,14 @@ async function readFromLocalFolder(folderUri: string): Promise<BackupData | null
 export async function checkLocalBackupExists(folderUri: string): Promise<boolean> {
     if (Platform.OS !== 'android') return false;
     try {
+        console.log('[BackupSync] checkLocalBackupExists: reading dir', folderUri);
         const SAF = FileSystem.StorageAccessFramework;
         const files = await SAF.readDirectoryAsync(folderUri);
-        return files.some(f => f.endsWith(BACKUP_FILENAME));
-    } catch {
+        const exists = files.some(f => BACKUP_FILE_REGEX.test(decodeURIComponent(f)));
+        console.log('[BackupSync] checkLocalBackupExists result:', exists, 'files count:', files.length);
+        return exists;
+    } catch (e) {
+        console.warn('[BackupSync] checkLocalBackupExists failed:', e);
         return false;
     }
 }
@@ -256,6 +312,10 @@ export async function performBackup(): Promise<boolean> {
         let success = false;
 
         if (backupMode === 'google_drive') {
+            if (!isGoogleUser()) {
+                console.log('[BackupSync] Skipping Drive backup: user is not logged in with Google');
+                return false;
+            }
             const token = await getGoogleAccessToken();
             if (!token) {
                 console.warn('[BackupSync] No access token for Drive backup');
@@ -281,7 +341,7 @@ export async function performBackup(): Promise<boolean> {
 
 /** Attempt to restore from the configured backup source */
 export async function performRestore(): Promise<{ success: boolean; count: number }> {
-    const { backupMode, localFolderUri, markRestoreDone } = useBackupStore.getState();
+    const { backupMode, localFolderUri, markRestoreDone, setIsRestoring } = useBackupStore.getState();
 
     if (_writeLock) {
         console.warn('[BackupSync] Write locked, cannot restore now');
@@ -289,10 +349,16 @@ export async function performRestore(): Promise<{ success: boolean; count: numbe
     }
 
     _writeLock = true;
+    setIsRestoring(true);
+    console.log('[BackupSync] performRestore: starting (mode:', backupMode, ')');
     try {
         let backupData: BackupData | null = null;
 
         if (backupMode === 'google_drive') {
+            if (!isGoogleUser()) {
+                console.log('[BackupSync] Skipping Drive restore: user is not logged in with Google');
+                return { success: false, count: 0 };
+            }
             const token = await getGoogleAccessToken();
             if (!token) return { success: false, count: 0 };
             backupData = await downloadFromDrive(token);
@@ -315,6 +381,7 @@ export async function performRestore(): Promise<{ success: boolean; count: numbe
         return { success: false, count: 0 };
     } finally {
         _writeLock = false;
+        setIsRestoring(false);
     }
 }
 
@@ -339,10 +406,17 @@ export async function tryRestoreOnLogin(): Promise<'restored' | 'no_backup' | 'l
     }
 
     if (backupMode === 'local_folder') {
-        if (!localFolderUri) return 'local_missing';
+        if (!localFolderUri) {
+            console.log('[BackupSync] tryRestoreOnLogin: local_folder but no URI');
+            return 'local_missing';
+        }
         const exists = await checkLocalBackupExists(localFolderUri);
-        if (!exists) return 'local_missing';
+        if (!exists) {
+            console.log('[BackupSync] tryRestoreOnLogin: local backup file not found at', localFolderUri);
+            return 'local_missing';
+        }
         const result = await performRestore();
+        console.log('[BackupSync] tryRestoreOnLogin: local restore result:', result);
         return result.success ? 'restored' : 'error';
     }
 

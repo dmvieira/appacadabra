@@ -82,8 +82,7 @@ export default function BackupSyncModal({ visible, mode, onClose }: BackupSyncMo
         try {
             setBackupMode('google_drive');
             setLocalFolderUri(null);
-            await performRestore();
-            await performBackup();
+            await performBackup();  // upload current (local) state to Drive
             onClose();
         } catch (e) {
             console.error('[BackupSyncModal] Switch to drive error:', e);

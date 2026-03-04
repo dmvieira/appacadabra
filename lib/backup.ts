@@ -57,8 +57,8 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
     const backupApps: BackupApp[] = [];
 
     for (const app of apps) {
-        // Only fetch versions for full backup; skip for share (lightweight)
-        const versions = includeStorage ? await db.getVersionsForApp(app.id) : [];
+        // Only fetch last 5 versions to keep backup size manageable and avoid OOM
+        const versions = includeStorage ? (await db.getVersionsForApp(app.id)).slice(0, 5) : [];
 
         // Only get storage if includeStorage is true
         let localStorage: Record<string, string> = {};
@@ -345,12 +345,19 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
         // Deduplication: skip apps whose name already exists locally
         const existingApps = await db.getAllApps();
         const existingNames = new Set(existingApps.map(a => a.name));
+        console.log('[Backup] Existing apps count:', existingApps.length, 'Existing names:', Array.from(existingNames));
 
         let importedCount = 0;
+        let skippedCount = 0;
 
         for (const app of validApps) {
             if (existingNames.has(app.name)) {
-                console.log('[Backup] Skipping duplicate app:', app.name);
+                console.log('[Backup] App already exists, updating sortOrder only:', app.name);
+                const existing = existingApps.find(a => a.name === app.name);
+                if (existing && app.sortOrder !== undefined) {
+                    await db.updateApp({ ...existing, sortOrder: app.sortOrder });
+                }
+                skippedCount++;
                 continue;
             }
             const originalId = app.id;
@@ -525,6 +532,7 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
             importedCount++;
         }
 
+        console.log('[Backup] Process finished. Imported:', importedCount, 'Skipped:', skippedCount);
         return {
             success: true,
             count: importedCount,

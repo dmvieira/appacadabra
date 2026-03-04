@@ -18,11 +18,14 @@ interface BackupState {
     restoredCount: number;
     /** Whether the store has been hydrated from AsyncStorage */
     hydrated: boolean;
+    /** Whether a restore operation is currently in progress */
+    isRestoring: boolean;
 
     // Actions
     hydrate: () => Promise<void>;
     setBackupMode: (mode: BackupMode) => void;
     setLocalFolderUri: (uri: string | null) => void;
+    setIsRestoring: (isRestoring: boolean) => void;
     markBackupDone: () => void;
     markRestoreDone: (count: number) => void;
     clearRestoredCount: () => void;
@@ -48,6 +51,7 @@ export const useBackupStore = create<BackupState>((set, get) => ({
     lastRestoreAt: null,
     restoredCount: 0,
     hydrated: false,
+    isRestoring: false,
 
     hydrate: async () => {
         try {
@@ -78,6 +82,10 @@ export const useBackupStore = create<BackupState>((set, get) => ({
     setLocalFolderUri: (uri: string | null) => {
         set({ localFolderUri: uri });
         persist({ ...get(), localFolderUri: uri });
+    },
+
+    setIsRestoring: (isRestoring: boolean) => {
+        set({ isRestoring });
     },
 
     markBackupDone: () => {

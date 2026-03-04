@@ -4,8 +4,28 @@
             "collectionGroup": "usageLogs",
             "queryScope": "COLLECTION_GROUP",
             "fields": [
-                { "fieldPath": "action", "order": "ASCENDING" },
-                { "fieldPath": "timestamp", "order": "DESCENDING" }
+                {
+                    "fieldPath": "action",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "timestamp",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "jobs",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                {
+                    "fieldPath": "userId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
             ]
         }
     ],

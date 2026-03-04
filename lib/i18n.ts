@@ -273,6 +273,7 @@ const translations = {
         clearAll: 'Clear everything',
         clearAllDesc: 'Remove spells and local data. Useful when passing the phone forward.',
         manaCloudNote: 'Your Mana ⚡ %{amount} stays in the Google account and returns when you log in again.',
+        signOutSuccessTitle: 'Logged Out',
         signOutSuccessKeep: 'You signed out. Your spells are still here.',
         signOutSuccessClear: 'You signed out. All local data was cleared.',
 
@@ -356,6 +357,8 @@ const translations = {
         backupRestoredDesc: 'Backup from Google Drive applied automatically.',
         noBackupTitle: 'No backup',
         noBackupDesc: 'Your spells are not protected',
+        restoringSpells: 'Restoring Spells...',
+        pleaseWait: 'Please wait, this may take a moment',
 
         // Speech
         micPermissionDenied: 'Microphone permission denied',
@@ -673,6 +676,7 @@ const translations = {
         clearAll: 'Limpar tudo',
         clearAllDesc: 'Remove feitiços e dados locais. Útil para passar o celular adiante.',
         manaCloudNote: 'Sua Mana ⚡ %{amount} fica na conta Google e volta quando você logar de novo.',
+        signOutSuccessTitle: 'Você saiu',
         signOutSuccessKeep: 'Você saiu. Seus feitiços continuam aqui.',
         signOutSuccessClear: 'Você saiu. Todos os dados locais foram limpos.',
 
@@ -851,6 +855,8 @@ const translations = {
         backupRestoredDesc: 'Backup do Google Drive aplicado automaticamente.',
         noBackupTitle: 'Sem backup',
         noBackupDesc: 'Seus feitiços não estão protegidos',
+        restoringSpells: 'Restaurando Feitiços...',
+        pleaseWait: 'Aguarde, isso pode levar um momento',
 
         // Speech
         micPermissionDenied: 'Permissão de microfone negada',
@@ -1216,6 +1222,7 @@ const translations = {
         clearAll: 'Borrar todo',
         clearAllDesc: 'Elimina hechizos y datos locales. Útil para pasar el móvil a otra persona.',
         manaCloudNote: 'Tu Maná ⚡ %{amount} se queda en la cuenta de Google y vuelve cuando vuelvas a entrar.',
+        signOutSuccessTitle: 'Sesión cerrada',
         signOutSuccessKeep: 'Has salido. Tus hechizos siguen aquí.',
         signOutSuccessClear: 'Has salido. Todos los datos locales han sido borrados.',
 
@@ -1286,6 +1293,8 @@ const translations = {
         backupRestoredDesc: 'Copia de seguridad de Google Drive aplicada automáticamente.',
         noBackupTitle: 'Sin copia de seguridad',
         noBackupDesc: 'Tus hechizos no están protegidos',
+        restoringSpells: 'Restaurando Hechizos...',
+        pleaseWait: 'Espere, esto puede tardar un momento',
 
         // Backup
         exportBackupDialog: 'Exportar Respaldo',
@@ -1671,6 +1680,7 @@ const translations = {
         clearAll: 'Tout effacer',
         clearAllDesc: 'Supprime les sorts et les données locales. Utile pour donner le téléphone.',
         manaCloudNote: 'Votre Mana ⚡ %{amount} reste sur le compte Google et revient lors de votre prochaine connexion.',
+        signOutSuccessTitle: 'Déconnexion',
         signOutSuccessKeep: 'Vous êtes déconnecté. Vos sorts sont toujours là.',
         signOutSuccessClear: 'Vous êtes déconnecté. Toutes les données locales ont été effacées.',
 
@@ -1741,6 +1751,8 @@ const translations = {
         backupRestoredDesc: 'Sauvegarde Google Drive appliquée automatiquement.',
         noBackupTitle: 'Pas de sauvegarde',
         noBackupDesc: 'Vos sorts ne sont pas protégés',
+        restoringSpells: 'Restauration des Sorts...',
+        pleaseWait: 'Veuillez patienter, cela peut prendre un moment',
 
         // Backup
         exportBackupDialog: 'Exporter Sauvegarde',
@@ -2089,6 +2101,7 @@ const translations = {
         clearAll: 'Alles löschen',
         clearAllDesc: 'Löscht Zaubersprüche und lokale Daten. Nützlich für die Weitergabe des Handys.',
         manaCloudNote: 'Dein Mana ⚡ %{amount} bleibt im Google-Konto und kehrt bei erneuter Anmeldung zurück.',
+        signOutSuccessTitle: 'Abgemeldet',
         signOutSuccessKeep: 'Du hast dich abgemeldet. Deine Zauber sind noch da.',
         signOutSuccessClear: 'Du hast dich abgemeldet. Alle lokalen Daten wurden gelöscht.',
 
@@ -2159,6 +2172,8 @@ const translations = {
         backupRestoredDesc: 'Backup von Google Drive automatisch angewendet.',
         noBackupTitle: 'Kein Backup',
         noBackupDesc: 'Ihre Zauber sind nicht geschützt',
+        restoringSpells: 'Zauber werden wiederhergestellt...',
+        pleaseWait: 'Bitte warten, dies kann einen Moment dauern',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Überspringen',
@@ -2476,6 +2491,7 @@ const translations = {
         clearAll: 'Cancella tutto',
         clearAllDesc: 'Rimuove incantesimi e dati locali. Utile se cedi il telefono a qualcun altro.',
         manaCloudNote: 'Il tuo Mana ⚡ %{amount} rimane nel tuo account Google e torna quando accedi di nuovo.',
+        signOutSuccessTitle: 'Disconnesso',
         signOutSuccessKeep: 'Sei uscito. I tuoi incantesimi sono ancora qui.',
         signOutSuccessClear: 'Sei uscito. Tutti i dati locali sono stati cancellati.',
 
@@ -2546,6 +2562,8 @@ const translations = {
         backupRestoredDesc: 'Backup da Google Drive applicato automaticamente.',
         noBackupTitle: 'Nessun backup',
         noBackupDesc: 'I tuoi incantesimi non sono protetti',
+        restoringSpells: 'Ripristino Incantesimi...',
+        pleaseWait: 'Attendere, potrebbe volerci un momento',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Salta',
@@ -2865,6 +2883,7 @@ const translations = {
         clearAll: 'すべて削除',
         clearAllDesc: '呪文とローカルデータを削除します。スマホを譲渡する場合に便利です。',
         manaCloudNote: 'マナ ⚡ %{amount} はGoogleアカウントに保持され、再ログイン時に戻ります。',
+        signOutSuccessTitle: 'ログアウトしました',
         signOutSuccessKeep: 'サインアウトしました。呪文はまだここにあります。',
         signOutSuccessClear: 'サインアウトしました。すべてのローカルデータが削除されました。',
 
@@ -2935,6 +2954,8 @@ const translations = {
         backupRestoredDesc: 'Google Driveのバックアップが自動的に適用されました。',
         noBackupTitle: 'バックアップなし',
         noBackupDesc: '呪文は保護されていません',
+        restoringSpells: '呪文を復元中...',
+        pleaseWait: '少々お待ちください。これには時間がかかる場合があります',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'スキップ',
@@ -3233,6 +3254,7 @@ const translations = {
         clearAll: '清除一切',
         clearAllDesc: '删除呪文和本地数据。在转让手机时很有用。',
         manaCloudNote: '您的法力 ⚡ %{amount} 将保留在 Google 帐户中，并在您再次登录时返回。',
+        signOutSuccessTitle: '已登出',
         signOutSuccessKeep: '您已退出登录。您的呪文仍在这里。',
         signOutSuccessClear: '您已退出登录。所有本地数据已清除。',
 
@@ -3300,6 +3322,8 @@ const translations = {
         backupRestoredDesc: '已自动应用 Google Drive 的备份。',
         noBackupTitle: '无备份',
         noBackupDesc: '您的法术未受到保护',
+        restoringSpells: '正在恢复法术...',
+        pleaseWait: '请稍候，这可能需要一点时间',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: '跳过',
@@ -3604,6 +3628,7 @@ const translations = {
         clearAll: '모두 삭제',
         clearAllDesc: '스펠과 로컬 데이터를 삭제합니다. 휴대폰을 양도할 때 유용합니다.',
         manaCloudNote: '귀하의 마나 ⚡ %{amount}는 Google 계정에 유지되며 다시 로그인할 때 돌아옵니다.',
+        signOutSuccessTitle: '로그아웃됨',
         signOutSuccessKeep: '로그아웃되었습니다. 스펠은 여전히 여기에 있습니다.',
         signOutSuccessClear: '로그아웃되었습니다. 모든 로컬 데이터가 삭제되었습니다.',
 
@@ -3665,6 +3690,8 @@ const translations = {
         backupRestoredDesc: 'Google Drive의 백업이 자동으로 적용되었습니다.',
         noBackupTitle: '백업 없음',
         noBackupDesc: '마법이 보호되지 않습니다',
+        restoringSpells: '마법 복구 중...',
+        pleaseWait: '잠시만 기다려 주세요. 시간이 걸릴 수 있습니다',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: '건너뛰기',
@@ -3969,6 +3996,7 @@ const translations = {
         clearAll: 'مسح كل شيء',
         clearAllDesc: 'إزالة التعاويذ والبيانات المحلية. مفيد عند نقل الهاتف لشخص آخر.',
         manaCloudNote: 'ستبقى المانا ⚡ %{amount} الخاصة بك في حساب Google وستعود عند تسجيل الدخول مرة أخرى.',
+        signOutSuccessTitle: 'تم تسجيل الخروج',
         signOutSuccessKeep: 'لقد سجلت الخروج. تعاويذك لا تزال هنا.',
         signOutSuccessClear: 'لقد سجلت الخروج. تم مسح جميع البيانات المحلية.',
 
@@ -4030,6 +4058,8 @@ const translations = {
         backupRestoredDesc: 'تم تطبيق نسخة Google Drive الاحتياطية تلقائياً.',
         noBackupTitle: 'لا توجد نسخة احتياطية',
         noBackupDesc: 'تعاويذك غير محمية',
+        restoringSpells: 'جاري استعادة التعاويذ...',
+        pleaseWait: 'يرجى الانتظار، قد يستغرق هذا لحظة',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'تخطي',
@@ -4334,6 +4364,7 @@ const translations = {
         clearAll: 'सब कुछ मिटा दें',
         clearAllDesc: 'मंत्र और स्थानीय डेटा हटाएँ। फ़ोन आगे किसी को देते समय उपयोगी।',
         manaCloudNote: 'आपका माना ⚡ %{amount} Google खाते में रहता है और दोबारा लॉग इन करने पर वापस आ जाता है।',
+        signOutSuccessTitle: 'लॉग आउट किया गया',
         signOutSuccessKeep: 'आपने साइन आउट कर दिया है। आपके मंत्र अभी भी यहीं हैं।',
         signOutSuccessClear: 'आपने साइन आउट कर दिया है। सारा स्थानीय डेटा मिटा दिया गया है।',
 
@@ -4395,6 +4426,8 @@ const translations = {
         backupRestoredDesc: 'Google Drive का बैकअप स्वचालित रूप से लागू किया गया।',
         noBackupTitle: 'कोई बैकअप नहीं',
         noBackupDesc: 'आपके जादू सुरक्षित नहीं हैं',
+        restoringSpells: 'जादू बहाल किया जा रहा है...',
+        pleaseWait: 'कृपया प्रतीक्षा करें, इसमें कुछ समय लग सकता है',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'छोड़ें',
@@ -4699,6 +4732,7 @@ const translations = {
         clearAll: 'Очистить всё',
         clearAllDesc: 'Удаляет заклинания и локальные данные. Полезно при передаче телефона другому человеку.',
         manaCloudNote: 'Ваша Мана ⚡ %{amount} остается в аккаунте Google и вернется при повторном входе.',
+        signOutSuccessTitle: 'Вышли из системы',
         signOutSuccessKeep: 'Вы вышли из системы. Ваши заклинания все еще здесь.',
         signOutSuccessClear: 'Вы вышли из системы. Все локальные данные были удалены.',
 
@@ -4760,6 +4794,8 @@ const translations = {
         backupRestoredDesc: 'Резервная копия Google Drive применена автоматически.',
         noBackupTitle: 'Нет резервной копии',
         noBackupDesc: 'Ваши заклинания не защищены',
+        restoringSpells: 'Восстановление заклинаний...',
+        pleaseWait: 'Пожалуйста, подождите, это может занять некоторое время',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Пропустить',
@@ -5064,6 +5100,7 @@ const translations = {
         clearAll: 'Her şeyi temizle',
         clearAllDesc: 'Büyüleri ve yerel verileri kaldırır. Telefonu başkasına verirken yararlıdır.',
         manaCloudNote: 'Mana ⚡ %{amount} miktarınız Google hesabınızda kalır ve tekrar giriş yaptığınızda geri gelir.',
+        signOutSuccessTitle: 'Oturum kapatıldı',
         signOutSuccessKeep: 'Oturum kapatıldı. Büyüleriniz hala burada.',
         signOutSuccessClear: 'Oturum kapatıldı. Tüm yerel veriler temizlendi.',
 
@@ -5128,6 +5165,8 @@ const translations = {
         backupRestoredDesc: 'Google Drive yedeklemesi otomatik olarak uygulandı.',
         noBackupTitle: 'Yedek yok',
         noBackupDesc: 'Büyüleriniz korunmuyor',
+        restoringSpells: 'Büyüler Geri Yükleniyor...',
+        pleaseWait: 'Lütfen bekleyin, bu biraz zaman alabilir',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Atla',
@@ -5432,6 +5471,7 @@ const translations = {
         clearAll: 'Alles wissen',
         clearAllDesc: 'Verwijder spreuken en lokale gegevens. Handig bij het overdragen van de telefoon.',
         manaCloudNote: 'Je Mana ⚡ %{amount} blijft in je Google-account en keert terug als je weer inlogt.',
+        signOutSuccessTitle: 'Afgemeld',
         signOutSuccessKeep: 'Je bent uitgelogd. Je spreuken zijn er nog.',
         signOutSuccessClear: 'Je bent uitgelogd. Alle lokale gegevens zijn gewist.',
 
@@ -5496,6 +5536,8 @@ const translations = {
         backupRestoredDesc: 'Back-up van Google Drive automatisch toegepast.',
         noBackupTitle: 'Geen back-up',
         noBackupDesc: 'Je spreuken zijn niet beschermd',
+        restoringSpells: 'Spreuken herstellen...',
+        pleaseWait: 'Even geduld, dit kan even duren',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Overslaan',
@@ -5800,6 +5842,7 @@ const translations = {
         clearAll: 'Wyczyść wszystko',
         clearAllDesc: 'Usuwa zaklęcia i dane lokalne. Przydatne przy przekazywaniu telefonu.',
         manaCloudNote: 'Twoja Mana ⚡ %{amount} pozostaje na koncie Google i wróci, gdy zalogujesz się ponownie.',
+        signOutSuccessTitle: 'Wylogowano',
         signOutSuccessKeep: 'Wylogowano. Twoje zaklęcia nadal tu są.',
         signOutSuccessClear: 'Wylogowano. Wszystkie dane lokalne zostały wyczyszczone.',
 
@@ -5864,6 +5907,8 @@ const translations = {
         backupRestoredDesc: 'Kopia zapasowa Google Drive zastosowana automatycznie.',
         noBackupTitle: 'Brak kopii zapasowej',
         noBackupDesc: 'Twoje zaklęcia nie są chronione',
+        restoringSpells: 'Przywracanie zaklęć...',
+        pleaseWait: 'Proszę czekać, to może chwilę potrwa',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Pomiń',
@@ -6168,6 +6213,7 @@ const translations = {
         clearAll: 'Xóa tất cả',
         clearAllDesc: 'Xóa các câu chú và dữ liệu cục bộ. Hữu ích khi chuyển nhượng điện thoại.',
         manaCloudNote: 'Mana ⚡ %{amount} của bạn sẽ ở lại trong tài khoản Google và quay lại khi bạn đăng nhập lại.',
+        signOutSuccessTitle: 'Đã đăng xuất',
         signOutSuccessKeep: 'Bạn đã đăng xuất. Các câu chú của bạn vẫn còn ở đây.',
         signOutSuccessClear: 'Bạn đã đăng xuất. Tất cả dữ liệu cục bộ đã được xóa.',
 
@@ -6232,6 +6278,8 @@ const translations = {
         backupRestoredDesc: 'Bản sao lưu Google Drive được áp dụng tự động.',
         noBackupTitle: 'Không có bản sao lưu',
         noBackupDesc: 'Bùa phép của bạn không được bảo vệ',
+        restoringSpells: 'Đang khôi phục phép thuật...',
+        pleaseWait: 'Vui lòng đợi, quá trình này có thể mất một chút thời gian',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Bỏ qua',
@@ -6536,6 +6584,7 @@ const translations = {
         clearAll: 'ล้างทั้งหมด',
         clearAllDesc: 'ลบเวทมนตร์และข้อมูลในเครื่อง มีประโยชน์เมื่อต้องส่งต่อโทรศัพท์ให้ผู้อื่น',
         manaCloudNote: 'มานา ⚡ %{amount} ของคุณจะยังคงอยู่ในบัญชี Google และจะกลับมาเมื่อคุณลงชื่อเข้าใช้อีกครั้ง',
+        signOutSuccessTitle: 'ออกจากระบบแล้ว',
         signOutSuccessKeep: 'ลงชื่อออกแล้ว เวทมนตร์ของคุณยังคงอยู่ที่นี่',
         signOutSuccessClear: 'ลงชื่อออกแล้ว ข้อมูลทั้งหมดในเครื่องถูกล้างแล้ว',
 
@@ -6600,6 +6649,8 @@ const translations = {
         backupRestoredDesc: 'การสำรองข้อมูล Google Drive ถูกนำไปใช้อัตโนมัติ',
         noBackupTitle: 'ไม่มีการสำรองข้อมูล',
         noBackupDesc: 'คาถาของคุณไม่ได้รับการปกป้อง',
+        restoringSpells: 'กำลังกู้คืนคาถา...',
+        pleaseWait: 'โปรดรอสักครู่ อาจใช้เวลาสักครู่',
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'ข้าม',
