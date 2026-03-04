@@ -111,6 +111,7 @@ export default function RunnerScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [isAtTop, setIsAtTop] = useState(true);
     const [webViewError, setWebViewError] = useState(false);
+    const [pendingVersionApp, setPendingVersionApp] = useState<GeneratedApp | null>(null);
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
@@ -209,6 +210,13 @@ export default function RunnerScreen() {
         }
     };
 
+    const applyPendingUpdate = useCallback(() => {
+        if (pendingVersionApp) {
+            setApp(pendingVersionApp);
+            setPendingVersionApp(null);
+        }
+    }, [pendingVersionApp]);
+
     const onRefresh = useCallback(async () => {
         if (!app) return;
         setRefreshing(true);
@@ -233,12 +241,17 @@ export default function RunnerScreen() {
         if (!app || !id) return;
         const updatedApp = storeApps.find(a => a.id === Number(id));
 
-        // If we found a newer version in the store, update local state
         if (updatedApp && updatedApp.currentVersion > app.currentVersion) {
-            console.log('RunnerScreen: Detected newer version from store, updating...', updatedApp.currentVersion);
-            setApp(updatedApp);
+            console.log('RunnerScreen: New version detected:', updatedApp.currentVersion, 'focused:', isFocused);
+            if (isFocused) {
+                // User is viewing the runner → show banner, don't reload
+                setPendingVersionApp(updatedApp);
+            } else {
+                // In background → apply silently
+                setApp(updatedApp);
+            }
         }
-    }, [storeApps, app, id]);
+    }, [storeApps, app, id, isFocused]);
 
     // Edit mode states
     const isEditMode = edit === 'true';
@@ -880,6 +893,16 @@ export default function RunnerScreen() {
                 </>
             )}
 
+            {pendingVersionApp && (
+                <TouchableOpacity
+                    style={styles.updateBanner}
+                    onPress={applyPendingUpdate}
+                    activeOpacity={0.85}
+                >
+                    <Text style={styles.updateBannerText}>✨ {t('newVersionAvailable')}</Text>
+                </TouchableOpacity>
+            )}
+
             {/* WebView wrapped in ScrollView for Pull-to-Refresh */}
             <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
                 <ScrollView
@@ -1412,6 +1435,17 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.background,
+    },
+    updateBanner: {
+        backgroundColor: colors.primary,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+    },
+    updateBannerText: {
+        color: '#fff',
+        fontSize: 13,
+        fontWeight: '600',
     },
     loadingContainer: {
         flex: 1,

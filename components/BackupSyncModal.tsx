@@ -30,10 +30,12 @@ export default function BackupSyncModal({ visible, mode, onClose }: BackupSyncMo
         try {
             if (selected === 'google_drive') {
                 setBackupMode('google_drive');
-                // Try to restore from Drive first
-                await performRestore();
-                // Then do initial backup
-                await performBackup();
+                setLocalFolderUri(null);
+                onClose(); // Close immediately; restore/backup run in background
+                performRestore()
+                    .then(() => performBackup())
+                    .catch(e => console.error('[BackupSyncModal] Background sync error:', e));
+                return;
             } else {
                 const uri = await pickLocalFolder();
                 if (!uri) {

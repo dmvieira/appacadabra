@@ -9,7 +9,15 @@
       "Bash(npx tsc:*)",
       "WebFetch(domain:ai.google.dev)",
       "Bash(cat:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "WebSearch",
+      "WebFetch(domain:discuss.ai.google.dev)",
+      "mcp__plugin_firebase_firebase__developerknowledge_search_documents",
+      "mcp__plugin_firebase_firebase__firebase_get_environment",
+      "mcp__plugin_firebase_firebase__firebase_update_environment",
+      "mcp__plugin_firebase_firebase__firestore_list_collections",
+      "mcp__plugin_firebase_firebase__firestore_list_documents",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

@@ -417,7 +417,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     loadApps: async () => {
         try {
-            set({ isLoading: true, error: null });
+            // Só mostra loading na primeira carga (apps vazio); refreshes de fundo são silenciosos
+            if (get().apps.length === 0) {
+                set({ isLoading: true, error: null });
+            } else {
+                set({ error: null });
+            }
             await db.clearOldDismissedUris(DISMISSED_URI_TTL_MS);
             const [apps, dismissedUris] = await Promise.all([
                 db.getAllApps(),
