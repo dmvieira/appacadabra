@@ -12,9 +12,9 @@ import { logManaEarned, logShopOpened } from '../lib/analytics';
 const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
 
 
-// Conversion rate: 1 mana = $0.09 USD
-// Formula: mana = revenueUSD / 0.09
-const MANA_COST_USD = 0.09;
+// Conversion rate: 1 mana = $0.17 USD (based on mana_10 gross price)
+// Formula: mana = revenueUSD / 0.17
+const MANA_COST_USD = 0.17;
 
 // Maximum mana reward cap (to prevent exploits)
 const MAX_MANA_REWARD = 5;
@@ -29,12 +29,6 @@ interface IAPProduct {
     manaAmount: number;
 }
 
-// Fallback products if Play Store fetch fails
-const FALLBACK_PRODUCTS: IAPProduct[] = [
-    { productId: 'mana_10', title: t('manaPackage1') + ' ⚡', description: '', price: '4.90', localizedPrice: 'R$ 4,90', currency: 'BRL', manaAmount: 10 },
-    { productId: 'mana_50', title: t('manaPackage2') + ' ⚡', description: '', price: '19.90', localizedPrice: 'R$ 19,90', currency: 'BRL', manaAmount: 50 },
-    { productId: 'mana_120', title: t('manaPackage3') + ' ⚡', description: '', price: '44.90', localizedPrice: 'R$ 44,90', currency: 'BRL', manaAmount: 120 },
-];
 
 
 export function ManaShop() {
@@ -43,7 +37,8 @@ export function ManaShop() {
     const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
 
     // IAP State
-    const [products, setProducts] = useState<IAPProduct[]>(FALLBACK_PRODUCTS);
+    const [products, setProducts] = useState<IAPProduct[]>([]);
+    const [isLoadingProducts, setIsLoadingProducts] = useState(false);
     const [isPurchasing, setIsPurchasing] = useState(false);
     // const [iapInitialized, setIapInitialized] = useState(false);
 
@@ -107,33 +102,38 @@ export function ManaShop() {
     };
 
     const loadProducts = async () => {
-        const fetchedProducts = await iap.fetchProducts();
-        if (fetchedProducts && fetchedProducts.length > 0) {
-            // Map IAP products to our internal format
-            const mappedProducts: IAPProduct[] = fetchedProducts.map((p: any) => {
-                // Determine mana amount based on product ID
-                // Handle both id and productId as property names may vary by platform/version
-                const id = p.productId || p.id;
-                let manaAmount = 0;
+        setIsLoadingProducts(true);
+        try {
+            const fetchedProducts = await iap.fetchProducts();
+            if (fetchedProducts && fetchedProducts.length > 0) {
+                // Map IAP products to our internal format
+                const mappedProducts: IAPProduct[] = fetchedProducts.map((p: any) => {
+                    // Determine mana amount based on product ID
+                    // Handle both id and productId as property names may vary by platform/version
+                    const id = p.productId || p.id;
+                    let manaAmount = 0;
 
-                if (id) {
-                    if (id.includes('10')) manaAmount = 10;
-                    else if (id.includes('50')) manaAmount = 50;
-                    else if (id.includes('120')) manaAmount = 120;
-                }
+                    if (id) {
+                        if (id.includes('10')) manaAmount = 10;
+                        else if (id.includes('50')) manaAmount = 50;
+                        else if (id.includes('120')) manaAmount = 120;
+                    }
 
-                return {
-                    productId: id || '',
-                    title: p.title || '', // Use title from store
-                    description: p.description || '',
-                    price: p.price || '',
-                    localizedPrice: p.localizedPrice || p.displayPrice || '',
-                    currency: p.currency || '',
-                    manaAmount: manaAmount
-                };
-            }).sort((a, b) => a.manaAmount - b.manaAmount);
+                    return {
+                        productId: id || '',
+                        title: p.title || '', // Use title from store
+                        description: p.description || '',
+                        price: p.price || '',
+                        localizedPrice: p.localizedPrice || p.displayPrice || '',
+                        currency: p.currency || '',
+                        manaAmount: manaAmount
+                    };
+                }).sort((a, b) => a.manaAmount - b.manaAmount);
 
-            setProducts(mappedProducts);
+                setProducts(mappedProducts);
+            }
+        } finally {
+            setIsLoadingProducts(false);
         }
     };
 
@@ -434,39 +434,45 @@ export function ManaShop() {
 
                                 {/* Buy Mana Section */}
                                 <Text style={styles.sectionLabel}>{t('buyMana')}</Text>
-                                {products.map((product, index) => (
-                                    <TouchableOpacity
-                                        key={product.productId}
-                                        style={[
-                                            styles.packageCard,
-                                            index === 1 && styles.popularCard,
-                                            (isAnonymous || isPurchasing) && styles.disabledCard
-                                        ]}
-                                        onPress={isAnonymous ? handleLoginRequired : () => handlePurchase(product.productId)}
-                                        disabled={!isAnonymous && isPurchasing}
-                                        accessibilityLabel={product.manaAmount + ' Mana — ' + product.localizedPrice}
-                                        accessibilityRole="button"
-                                    >
-                                        <View>
-                                            <Text style={styles.packageTitle}>{product.manaAmount} Mana ⚡</Text>
-                                            <Text style={styles.packageSub}>{product.localizedPrice}</Text>
-                                        </View>
-                                        {index === 1 && (
-                                            <View style={styles.badge}>
-                                                <Text style={styles.badgeText}>POPULAR</Text>
+                                {isLoadingProducts ? (
+                                    <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: spacing.md }} />
+                                ) : products.length === 0 ? (
+                                    <Text style={styles.packageSub}>{t('productsUnavailable')}</Text>
+                                ) : (
+                                    products.map((product, index) => (
+                                        <TouchableOpacity
+                                            key={product.productId}
+                                            style={[
+                                                styles.packageCard,
+                                                index === 1 && styles.popularCard,
+                                                (isAnonymous || isPurchasing) && styles.disabledCard
+                                            ]}
+                                            onPress={isAnonymous ? handleLoginRequired : () => handlePurchase(product.productId)}
+                                            disabled={!isAnonymous && isPurchasing}
+                                            accessibilityLabel={product.manaAmount + ' Mana — ' + product.localizedPrice}
+                                            accessibilityRole="button"
+                                        >
+                                            <View>
+                                                <Text style={styles.packageTitle}>{product.manaAmount} Mana ⚡</Text>
+                                                <Text style={styles.packageSub}>{product.localizedPrice}</Text>
                                             </View>
-                                        )}
-                                        {isAnonymous ? (
-                                            <View style={styles.lockBtn}>
-                                                <Text style={styles.lockBtnText}>🔒 Login</Text>
-                                            </View>
-                                        ) : isPurchasing ? (
-                                            <ActivityIndicator size="small" color={colors.primary} />
-                                        ) : (
-                                            <Text style={styles.buyBtn}>{product.localizedPrice}</Text>
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
+                                            {index === 1 && (
+                                                <View style={styles.badge}>
+                                                    <Text style={styles.badgeText}>POPULAR</Text>
+                                                </View>
+                                            )}
+                                            {isAnonymous ? (
+                                                <View style={styles.lockBtn}>
+                                                    <Text style={styles.lockBtnText}>🔒 Login</Text>
+                                                </View>
+                                            ) : isPurchasing ? (
+                                                <ActivityIndicator size="small" color={colors.primary} />
+                                            ) : (
+                                                <Text style={styles.buyBtn}>{product.localizedPrice}</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    ))
+                                )}
                             </>
                         )}
                     </ScrollView>

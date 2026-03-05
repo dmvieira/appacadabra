@@ -300,6 +300,7 @@ const translations = {
         purchaseSuccess: 'Purchase successful! +%{amount} Mana',
         purchaseCancelled: 'Purchase cancelled',
         purchaseFailed: 'Purchase failed. Please try again.',
+        productsUnavailable: 'Prices unavailable. Please try again.',
         watchAd: 'Watch Ad (Mana)',
         freeMana: 'Free Mana',
 
@@ -802,6 +803,7 @@ const translations = {
         purchaseSuccess: 'Compra com sucesso! +%{amount} Mana',
         purchaseCancelled: 'Compra cancelada',
         purchaseFailed: 'Falha na compra. Tente novamente.',
+        productsUnavailable: 'Preços indisponíveis. Tente novamente.',
         watchAd: 'Ver Anúncio (Mana)',
         freeMana: 'Mana Grátis',
 
@@ -1252,6 +1254,7 @@ const translations = {
         purchaseSuccess: '¡Compra exitosa! +%{amount} Mana',
         purchaseCancelled: 'Compra cancelada',
         purchaseFailed: 'Compra fallida. Inténtalo de nuevo.',
+        productsUnavailable: 'Precios no disponibles. Inténtalo de nuevo.',
         watchAd: 'Ver Anuncio (Mana)',
         freeMana: 'Mana Gratis',
 
@@ -1712,6 +1715,7 @@ const translations = {
         purchaseSuccess: 'Achat réussi ! +%{amount} Mana',
         purchaseCancelled: 'Achat annulé',
         purchaseFailed: 'Échec de l\'achat. Veuillez réessayer.',
+        productsUnavailable: 'Prix indisponibles. Veuillez réessayer.',
         watchAd: 'Regarder Pub (Mana)',
         freeMana: 'Mana Gratuit',
 
@@ -2135,6 +2139,7 @@ const translations = {
         purchaseSuccess: 'Kauf erfolgreich! +%{amount} Mana',
         purchaseCancelled: 'Kauf abgebrochen',
         purchaseFailed: 'Kauf fehlgeschlagen. Bitte versuchen Sie es erneut.',
+        productsUnavailable: 'Preise nicht verfügbar. Bitte versuchen Sie es erneut.',
         watchAd: 'Werbung ansehen (Mana)',
         freeMana: 'Gratis Mana',
 
@@ -2527,6 +2532,7 @@ const translations = {
         purchaseSuccess: 'Acquisto riuscito! +%{amount} Mana',
         purchaseCancelled: 'Acquisto annullato',
         purchaseFailed: 'Acquisto fallito. Riprova.',
+        productsUnavailable: 'Prezzi non disponibili. Riprova.',
         watchAd: 'Guarda Pubblicità (Mana)',
         freeMana: 'Mana Gratis',
 
@@ -2921,6 +2927,7 @@ const translations = {
         purchaseSuccess: '購入成功！ +%{amount} マナ',
         purchaseCancelled: '購入キャンセル',
         purchaseFailed: '購入に失敗しました。もう一度お試しください。',
+        productsUnavailable: '価格を取得できません。もう一度お試しください。',
         watchAd: '広告を見る (マナ)',
         freeMana: '無料マナ',
 
@@ -3291,6 +3298,7 @@ const translations = {
         purchaseSuccess: '购买成功！ +%{amount} 魔力',
         purchaseCancelled: '购买取消',
         purchaseFailed: '购买失败。请重试。',
+        productsUnavailable: '价格暂时无法获取。请重试。',
         watchAd: '观看广告 (魔力)',
         freeMana: '免费魔力',
 
@@ -3667,6 +3675,7 @@ const translations = {
         purchaseSuccess: '구매 성공! +%{amount} 마나',
         purchaseCancelled: '구매 취소됨',
         purchaseFailed: '구매 실패. 다시 시도해 주세요.',
+        productsUnavailable: '가격을 불러올 수 없습니다. 다시 시도해 주세요.',
         watchAd: '광고 보기 (마나)',
         freeMana: '무료 마나',
 
@@ -4037,6 +4046,7 @@ const translations = {
         purchaseSuccess: 'تم الشراء بنجاح! +%{amount} مانا',
         purchaseCancelled: 'تم إلغاء الشراء',
         purchaseFailed: 'فشلت عملية الشراء. حاول مرة أخرى.',
+        productsUnavailable: 'الأسعار غير متاحة. حاول مرة أخرى.',
         watchAd: 'مشاهدة إعلان (مانا)',
         freeMana: 'مانا مجانية',
 
@@ -4407,6 +4417,7 @@ const translations = {
         purchaseSuccess: 'खरीद सफल! +%{amount} माना',
         purchaseCancelled: 'खरीद रद्द',
         purchaseFailed: 'खरीद विफल रही। कृपया पुनः प्रयास करें।',
+        productsUnavailable: 'मूल्य अनुपलब्ध हैं। कृपया पुनः प्रयास करें।',
         watchAd: 'विज्ञापन देखें (माना)',
         freeMana: 'मुफ्त माना',
 
@@ -4777,6 +4788,7 @@ const translations = {
         purchaseSuccess: 'Покупка успешна! +%{amount} маны',
         purchaseCancelled: 'Покупка отменена',
         purchaseFailed: 'Покупка не удалась. Пожалуйста, попробуйте еще раз.',
+        productsUnavailable: 'Цены недоступны. Пожалуйста, попробуйте еще раз.',
         watchAd: 'Смотреть рекламу (Мана)',
         freeMana: 'Бесплатная мана',
 
@@ -5150,6 +5162,7 @@ const translations = {
         purchaseSuccess: 'Satın alma başarılı! +%{amount} Mana',
         purchaseCancelled: 'Satın alma iptal edildi',
         purchaseFailed: 'Satın alma başarısız. Lütfen tekrar deneyin.',
+        productsUnavailable: 'Fiyatlar mevcut değil. Lütfen tekrar deneyin.',
         watchAd: 'Reklam İzle (Mana)',
         freeMana: 'Ücretsiz Mana',
 
@@ -5523,6 +5536,7 @@ const translations = {
         purchaseSuccess: 'Aankoop geslaagd! +%{amount} Mana',
         purchaseCancelled: 'Aankoop geannuleerd',
         purchaseFailed: 'Aankoop mislukt. Probeer het opnieuw.',
+        productsUnavailable: 'Prijzen niet beschikbaar. Probeer het opnieuw.',
         watchAd: 'Bekijk advertentie (Mana)',
         freeMana: 'Gratis Mana',
 
@@ -5896,6 +5910,7 @@ const translations = {
         purchaseSuccess: 'Zakup udany! +%{amount} Many',
         purchaseCancelled: 'Zakup anulowany',
         purchaseFailed: 'Zakup nie powiódł się. Spróbuj ponownie.',
+        productsUnavailable: 'Ceny niedostępne. Spróbuj ponownie.',
         watchAd: 'Obejrzyj reklamę (Mana)',
         freeMana: 'Darmowa Mana',
 
@@ -6269,6 +6284,7 @@ const translations = {
         purchaseSuccess: 'Mua thành công! +%{amount} Mana',
         purchaseCancelled: 'Đã hủy mua hàng',
         purchaseFailed: 'Giao dịch thất bại. Vui lòng thử lại.',
+        productsUnavailable: 'Giá không khả dụng. Vui lòng thử lại.',
         watchAd: 'Xem quảng cáo (Mana)',
         freeMana: 'Mana Miễn Phí',
 
@@ -6642,6 +6658,7 @@ const translations = {
         purchaseSuccess: 'ซื้อสำเร็จ! +%{amount} มานา',
         purchaseCancelled: 'ยกเลิกการซื้อแล้ว',
         purchaseFailed: 'การซื้อล้มเหลว โปรดลองอีกครั้ง',
+        productsUnavailable: 'ราคาไม่พร้อมใช้งาน โปรดลองอีกครั้ง',
         watchAd: 'ดูโฆษณา (มานา)',
         freeMana: 'มานาฟรี',
 

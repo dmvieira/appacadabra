@@ -220,22 +220,9 @@ interface GenerateSpellResponse {
     creditsRemaining: number;
 }
 
-// Pricing Constants (Tokens per 1 Mana)
+// Pricing Constants
 const FIXED_COST_CREATE_EDIT = 1.0;
-
-interface PricingTier {
-    tokensPerMana: number;
-}
-
-// Pricing Table
-const PRICING_TABLE: Record<string, PricingTier> = {
-    'gemini-3-flash-preview:search': { tokensPerMana: 12000 },
-    'gemini-3-flash-preview:none': { tokensPerMana: 24000 },
-    'gemini-2.5-flash:full_tools': { tokensPerMana: 12000 }, // Search + Maps
-    'gemini-2.5-flash:partial_tools': { tokensPerMana: 20000 }, // Search OR Maps
-    'gemini-2.5-flash:none': { tokensPerMana: 32000 },
-    'gemini-2.5-flash-lite:none': { tokensPerMana: 120000 },
-};
+const MANA_VALUE_USD = 0.060; // 1 mana ≡ $0.060 AI compute (based on mana_50 pricing)
 
 // ============= USD COST CALCULATION =============
 const USD_PRICING: Record<string, {
@@ -243,23 +230,27 @@ const USD_PRICING: Record<string, {
     outputPerMToken: number;
     audioInputPerMToken?: number;
     searchPerQuery?: number;
+    mapsPerQuery?: number;
 }> = {
     'gemini-3-flash-preview': {
         inputPerMToken: 0.50,
         outputPerMToken: 3.00,
         audioInputPerMToken: 1.00,
         searchPerQuery: 0.014, // after 5,000 queries/month free
+        mapsPerQuery: 0.025,
     },
     'gemini-2.5-flash': {
         inputPerMToken: 0.30,
         outputPerMToken: 2.50, // includes thinking tokens at same price
         audioInputPerMToken: 1.00,
         searchPerQuery: 0.035, // after 1,500/day free
+        mapsPerQuery: 0.025,
     },
     'gemini-2.5-flash-lite': {
         inputPerMToken: 0.10,
         outputPerMToken: 0.40,
         audioInputPerMToken: 0.30,
+        mapsPerQuery: 0.025,
     },
     'gemini-2.5-flash-preview-tts': {
         inputPerMToken: 0.50,
@@ -278,7 +269,7 @@ const USD_VIDEO_PER_SECOND_STD = 0.40;    // veo-3.1-generate-preview (Veo 3.1 S
 function calculateCostUsd(
     modelId: string,
     usage: { promptTokens: number; responseTokens: number; thoughtsTokens?: number; cachedTokens?: number },
-    extras?: { searchQueries?: number }
+    extras?: { searchQueries?: number; mapsQueries?: number }
 ): number {
     const pricing = USD_PRICING[modelId];
     if (!pricing) return 0;
@@ -298,35 +289,13 @@ function calculateCostUsd(
         ? extras.searchQueries * pricing.searchPerQuery
         : 0;
 
-    return inputCost + outputCost + searchCost;
+    const mapsCost = extras?.mapsQueries && pricing.mapsPerQuery
+        ? extras.mapsQueries * pricing.mapsPerQuery
+        : 0;
+
+    return inputCost + outputCost + searchCost + mapsCost;
 }
 
-function getPricingKey(model: string, tools?: string[]): string {
-    const safeModel = model || 'gemini-3-flash-preview'; // Default
-    const hasSearch = tools?.includes('googleSearch');
-    const hasMaps = tools?.includes('googleMaps');
-    const toolCount = (hasSearch ? 1 : 0) + (hasMaps ? 1 : 0);
-
-    if (safeModel.includes('gemini-3-flash-preview')) {
-        return hasSearch ? 'gemini-3-flash-preview:search' : 'gemini-3-flash-preview:none';
-    }
-    if (safeModel.includes('gemini-2.5-flash-lite')) {
-        return 'gemini-2.5-flash-lite:none';
-    }
-    if (safeModel.includes('gemini-2.5-flash')) {
-        if (toolCount >= 2) return 'gemini-2.5-flash:full_tools';
-        if (toolCount === 1) return 'gemini-2.5-flash:partial_tools';
-        return 'gemini-2.5-flash:none';
-    }
-
-    // Fallback
-    return 'gemini-3-flash-preview:none';
-}
-
-function resolveModelName(modelId: string): string {
-    // User confirmed model names are correct, no mapping needed
-    return modelId;
-}
 
 // Helper to get text from response, filtering out thinking tokens and logging them
 function extractText(result: any): string {
@@ -695,14 +664,8 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         if (useSearch && !tools.includes('googleSearch')) tools.push('googleSearch');
 
                         const modelId = requestedModel || 'gemini-3-flash-preview';
-                        const resolvedModelName = resolveModelName(modelId);
 
-                        // Get pricing key
-                        const pricingKey = getPricingKey(modelId, tools);
-                        const pricing = PRICING_TABLE[pricingKey] || PRICING_TABLE['gemini-3-flash-preview:none'];
-                        const tokensPerMana = pricing.tokensPerMana;
-
-                        console.log(`[WEBVIEW_AI] Model: ${modelId} -> ${resolvedModelName}, Tools: ${tools}, Pricing: ${pricingKey} (1/${tokensPerMana})`);
+                        console.log(`[WEBVIEW_AI] Model: ${modelId}, Tools: ${tools}`);
 
                         // Build tools config
                         const toolConfig: any[] = [];
@@ -742,13 +705,13 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         }
 
                         const generativeModel = genAI.getGenerativeModel({
-                            model: resolvedModelName,
+                            model: modelId,
                             generationConfig: {
                                 ...genConfig,
                                 // @ts-ignore
-                                thinkingConfig: (resolvedModelName.includes('gemini-3'))
+                                thinkingConfig: (modelId.includes('gemini-3'))
                                     ? { includeThoughts: true, thinkingLevel: "high" }
-                                    : { includeThoughts: true, thinkingBudget: (resolvedModelName.includes('2.5-flash-lite') ? 24576 : (resolvedModelName.includes('2.5-pro') ? 32768 : 24576)) }
+                                    : { includeThoughts: true, thinkingBudget: (modelId.includes('2.5-flash-lite') ? 24576 : (modelId.includes('2.5-pro') ? 32768 : 24576)) }
                             },
                             // @ts-ignore
                             tools: toolConfig.length > 0 ? toolConfig : undefined
@@ -765,9 +728,30 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         };
 
                         resultText = extractText(result);
-                        creditsUsed = usage.totalTokens / tokensPerMana;
+
+                        // Count actual tool calls from grounding metadata
+                        const groundingMeta = (result.response.candidates?.[0] as any)?.groundingMetadata;
+                        const actualSearchQueries = groundingMeta?.webSearchQueries?.length ?? 0;
+                        const groundingChunks = groundingMeta?.groundingChunks ?? [];
+                        const actualMapsQueries = groundingChunks.some(
+                            (c: any) => c?.retrievedContext?.uri?.includes('maps.googleapis') ||
+                                        c?.web?.uri?.includes('maps.google')
+                        ) ? 1 : 0;
+
+                        // Resolve model ID for pricing lookup (strip to base model key)
+                        const pricingModelId = modelId.includes('gemini-2.5-flash-lite') ? 'gemini-2.5-flash-lite'
+                            : modelId.includes('gemini-2.5-flash') ? 'gemini-2.5-flash'
+                            : 'gemini-3-flash-preview';
+
+                        const costUsd = calculateCostUsd(pricingModelId, usage, {
+                            searchQueries: actualSearchQueries,
+                            mapsQueries: actualMapsQueries,
+                        });
+                        creditsUsed = costUsd / MANA_VALUE_USD;
+
                         logModelId = modelId;
-                        if (tools.includes('googleSearch')) logExtras.searchQueries = 1;
+                        logExtras.searchQueries = actualSearchQueries;
+                        if (actualMapsQueries > 0) logExtras.mapsQueries = actualMapsQueries;
                         break;
                     }
 
@@ -968,12 +952,10 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         if (!audioBase64) throw new Error('TTS returned no audio');
 
-                        // Asymmetric pricing: input $0.50/M (200K tokens/mana), output $10/M (10K tokens/mana)
                         const u = getUsage(ttsResult);
                         usage = { promptTokens: u.promptTokens, responseTokens: u.responseTokens, thoughtsTokens: u.thoughtsTokens, totalTokens: u.totalTokens, cachedTokens: 0 };
-                        const inputCost = u.promptTokens / 200_000;
-                        const outputCost = u.responseTokens / 10_000;
-                        creditsUsed = inputCost + outputCost;
+                        const ttsCostUsd = calculateCostUsd('gemini-2.5-flash-preview-tts', usage);
+                        creditsUsed = ttsCostUsd / MANA_VALUE_USD;
 
                         // Gemini TTS returns raw PCM (24kHz, 16-bit, mono) — wrap in WAV container
                         const pcmBuffer = Buffer.from(audioBase64, 'base64');
