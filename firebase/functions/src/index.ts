@@ -1117,6 +1117,46 @@ export const getCredits = onCall(
     }
 );
 
+export const suggestSpells = onCall<{ query: string; language: string }>(
+    { region: "southamerica-east1", enforceAppCheck: false },
+    async (request) => {
+        if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
+        const { query, language } = request.data;
+        if (!query?.trim()) throw new HttpsError("invalid-argument", "Query required");
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash-lite",
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "array" as any,
+                    items: {
+                        type: "object" as any,
+                        properties: {
+                            title: { type: "string" as any },
+                            description: { type: "string" as any },
+                        },
+                        required: ["title", "description"],
+                    },
+                },
+            } as any,
+        });
+
+        const prompt = `You are helping users of Appacadabra, an app that creates mini AI-powered tools called "spells".
+The user searched for "${query.trim()}" but found no results.
+Suggest exactly 2 spell ideas related to "${query.trim()}".
+Respond in language: ${language}.
+For each suggestion:
+- title: short name (3–5 words)
+- description: one sentence written as a prompt for the AI to create it, starting with an action verb.`;
+
+        const result = await model.generateContent(prompt);
+        const suggestions = JSON.parse(result.response.text());
+        return { suggestions };
+    }
+);
+
 // ============= ASYNC JOB PROCESSOR =============
 
 interface Job {

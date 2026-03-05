@@ -438,6 +438,17 @@ export async function getCredits(): Promise<number> {
     return result.data.credits;
 }
 
+export async function suggestSpells(query: string): Promise<Array<{ title: string; description: string }>> {
+    await ensureAuthenticated();
+    const { getCurrentLanguage } = require('./i18n');
+    const language = getCurrentLanguage();
+    const fn = httpsCallable<{ query: string; language: string }, { suggestions: Array<{ title: string; description: string }> }>(
+        getFunctionsInstance(), 'suggestSpells'
+    );
+    const result = await fn({ query, language });
+    return result.data.suggestions;
+}
+
 export async function addCredits(amount: number, source: string): Promise<AddCreditsResult> {
     await ensureAuthenticated();
 

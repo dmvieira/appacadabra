@@ -32,6 +32,7 @@ import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
+import { EmptySearchState } from '../components/EmptySearchState';
 import { ChatDialog, ConfirmDialog } from '../components/Dialogs';
 import { Onboarding } from '../components/Onboarding';
 import { colors, spacing, borderRadius } from '../lib/theme';
@@ -133,6 +134,8 @@ export default function HomeScreen() {
     const [showSyncModal, setShowSyncModal] = useState(false);
     const [syncModalMode, setSyncModalMode] = useState<'choose' | 'reconnect'>('choose');
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [suggestions, setSuggestions] = useState<Array<{ title: string; description: string }>>([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
     // Backup store
     const { backupMode, localFolderUri, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup, isRestoring, lastBackupAt } = useBackupStore();
@@ -395,6 +398,33 @@ export default function HomeScreen() {
             setSearchQuery('');
         }
     }, [showSearch]);
+
+    // Fetch AI suggestions when search has no matches
+    useEffect(() => {
+        const trimmed = searchQuery.trim();
+        if (!trimmed || apps.length === 0) {
+            setSuggestions([]);
+            return;
+        }
+        const hasMatch = apps.some(a =>
+            a.name.toLowerCase().includes(trimmed.toLowerCase()) ||
+            (a.shortDescription || '').toLowerCase().includes(trimmed.toLowerCase())
+        );
+        if (hasMatch) { setSuggestions([]); return; }
+
+        setIsLoadingSuggestions(true);
+        const timer = setTimeout(async () => {
+            try {
+                const result = await firebase.suggestSpells(trimmed);
+                setSuggestions(result);
+            } catch {
+                setSuggestions([]);
+            } finally {
+                setIsLoadingSuggestions(false);
+            }
+        }, 600);
+        return () => { clearTimeout(timer); setIsLoadingSuggestions(false); };
+    }, [searchQuery, apps]);
 
     const handleCreateApp = async (description: string) => {
         // Double check mana before submitting (though button should be intercepted)
@@ -964,7 +994,19 @@ export default function HomeScreen() {
 
             {filteredApps.length === 0 && !isGenerating ? (
                 <View style={{ flex: 1, paddingBottom: listBottomPadding }}>
-                    <EmptyState />
+                    {searchQuery.trim() && apps.length > 0 ? (
+                        <EmptySearchState
+                            query={searchQuery}
+                            suggestions={suggestions}
+                            isLoading={isLoadingSuggestions}
+                            onSuggestionPress={(s) => {
+                                setCreateDialogInitialText(s.description);
+                                setShowCreateDialog(true);
+                            }}
+                        />
+                    ) : (
+                        <EmptyState />
+                    )}
                 </View>
             ) : (
                 <FlatList
