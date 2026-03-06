@@ -718,13 +718,13 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const groundingChunks = (groundingMeta as any)?.groundingChunks ?? [];
                         const actualMapsQueries = groundingChunks.some(
                             (c: any) => c?.retrievedContext?.uri?.includes('maps.googleapis') ||
-                                        c?.web?.uri?.includes('maps.google')
+                                c?.web?.uri?.includes('maps.google')
                         ) ? 1 : 0;
 
                         // Resolve model ID for pricing lookup (strip to base model key)
                         const pricingModelId = modelId.includes('gemini-2.5-flash-lite') ? 'gemini-2.5-flash-lite'
                             : modelId.includes('gemini-2.5-flash') ? 'gemini-2.5-flash'
-                            : 'gemini-3-flash-preview';
+                                : 'gemini-3-flash-preview';
 
                         const costUsd = calculateCostUsd(pricingModelId, usage, {
                             searchQueries: actualSearchQueries,
@@ -809,7 +809,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                                     image: { imageBytes: img, mimeType: detectMimeType(img) },
                                     referenceType: VideoGenerationReferenceType.ASSET,
                                 })),
-                              ]
+                            ]
                             : undefined;
 
                         let operation = await withRetry(() => getAI().models.generateVideos({
@@ -1100,7 +1100,11 @@ export const getCredits = onCall(
 );
 
 export const suggestSpells = onCall<{ query: string; language: string }>(
-    { region: "southamerica-east1", enforceAppCheck: false },
+    {
+        region: "southamerica-east1",
+        enforceAppCheck: false,
+        secrets: ["GEMINI_API_KEY"],
+    },
     async (request) => {
         if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
         const { query, language } = request.data;
@@ -1510,13 +1514,13 @@ export const processSpellJob = onDocumentCreated(
                     const groundingChunks = (groundingMeta as any)?.groundingChunks ?? [];
                     const actualMapsQueries = groundingChunks.some(
                         (c: any) => c?.retrievedContext?.uri?.includes('maps.googleapis') ||
-                                    c?.web?.uri?.includes('maps.google')
+                            c?.web?.uri?.includes('maps.google')
                     ) ? 1 : 0;
 
                     // Resolve model ID for pricing lookup
                     const pricingModelId = modelId.includes('gemini-2.5-flash-lite') ? 'gemini-2.5-flash-lite'
                         : modelId.includes('gemini-2.5-flash') ? 'gemini-2.5-flash'
-                        : 'gemini-3-flash-preview';
+                            : 'gemini-3-flash-preview';
 
                     const waiCostUsd = calculateCostUsd(pricingModelId, usage, {
                         searchQueries: actualSearchQueries,
@@ -1595,7 +1599,7 @@ export const processSpellJob = onDocumentCreated(
                                 image: { imageBytes: img, mimeType: detectMimeType(img) },
                                 referenceType: VideoGenerationReferenceType.ASSET,
                             })),
-                          ]
+                        ]
                         : undefined;
 
                     let operation = await getAI().models.generateVideos({
