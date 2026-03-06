@@ -149,6 +149,13 @@ export default function HomeScreen() {
         return () => stopPeriodicBackup();
     }, []);
 
+    // Dismiss active card for reordering when search query changes
+    useEffect(() => {
+        if (searchQuery && activeCardId !== null) {
+            setActiveCardId(null);
+        }
+    }, [searchQuery]);
+
     // Show setup modal when a new spell is created
     useEffect(() => {
         if (lastCreatedAppId) {
@@ -1017,7 +1024,6 @@ export default function HomeScreen() {
                     contentContainerStyle={[styles.list, { paddingBottom: listBottomPadding }]}
                     onScroll={onScroll}
                     scrollEventThrottle={16}
-                    onScrollBeginDrag={() => setActiveCardId(null)}
                     refreshControl={
                         <RefreshControl
                             refreshing={refreshing}
@@ -1067,7 +1073,7 @@ export default function HomeScreen() {
                                 onMoveUp={() => { reorderApp(item.id, 'up'); markBackupDirty(); }}
                                 onMoveDown={() => { reorderApp(item.id, 'down'); markBackupDirty(); }}
                                 onDismissActive={() => setActiveCardId(null)}
-                                onLongPress={!isPlaceholder && !isLocked ? () => {
+                                onLongPress={!isPlaceholder && !isLocked && !searchQuery ? () => {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                     setActiveCardId(item.id);
                                 } : undefined}

@@ -64,41 +64,6 @@ Em BRL (× R$5,85):        R$0,90/mana mínimo
 
 ## 4. Por que migrar de PRICING_TABLE flat para billing dinâmico
 
-### Problema com o modelo flat (tokensPerMana)
-
-O modelo antigo tinha uma tabela de `tokensPerMana` por combinação de modelo+tools:
-
-```
-'gemini-3-flash-preview:search'  → 12.000 tokens/mana
-'gemini-2.5-flash:full_tools'   → 12.000 tokens/mana
-'gemini-2.5-flash:none'         → 32.000 tokens/mana
-...
-```
-
-**Falhas:**
-1. **Input = Output (incorreto):** trata todos os tokens igual, mas input custa 6–20× menos que output.
-2. **Search always billed:** cobrava search como custo fixo se a tool estava disponível, mesmo o modelo não chamando.
-3. **Não aproveita cached tokens:** já existia desconto de 25% no `calculateCostUsd`, mas o flat não usava.
-4. **Difícil manter:** cada novo modelo ou tool exigia nova entrada na tabela + recálculo manual.
-
-### Solução: `calculateCostUsd` + `MANA_VALUE_USD`
-
-```typescript
-// ANTES (billing flat):
-creditsUsed = usage.totalTokens / tokensPerMana;
-if (tools.includes('googleSearch')) logExtras.searchQueries = 1; // sempre
-
-// DEPOIS (billing dinâmico):
-const actualSearchQueries = groundingMeta?.webSearchQueries?.length ?? 0;
-const actualMapsQueries = groundingChunks.some(hasMapUri) ? 1 : 0;
-
-const costUsd = calculateCostUsd(pricingModelId, usage, {
-    searchQueries: actualSearchQueries,
-    mapsQueries: actualMapsQueries,
-});
-creditsUsed = costUsd / MANA_VALUE_USD;
-```
-
 **Vantagens:**
 - Input/output cobrados assimetricamente (igual ao custo real da API)
 - Cached tokens a 25% do input (desconto real repassado ao usuário)

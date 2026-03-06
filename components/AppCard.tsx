@@ -242,7 +242,10 @@ export function AppCard({
                             <View style={styles.cardActions}>
                                 <TouchableOpacity
                                     style={[styles.btnIcon, coachStep === 2 && styles.btnIconHighlight]}
-                                    onPress={() => onEdit()}
+                                    onPress={() => {
+                                        if (isActive) { onDismissActive?.(); return; }
+                                        onEdit();
+                                    }}
                                     hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                                     accessibilityLabel={t('editWithAI')}
                                     accessibilityRole="button"
@@ -251,7 +254,10 @@ export function AppCard({
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.btnIcon, coachStep === 1 && styles.btnIconHighlight]}
-                                    onPress={() => setShowSheet(true)}
+                                    onPress={() => {
+                                        if (isActive) { onDismissActive?.(); return; }
+                                        setShowSheet(true);
+                                    }}
                                     hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                                     accessibilityLabel={t('options')}
                                     accessibilityRole="button"
@@ -292,21 +298,28 @@ export function AppCard({
 
                     {/* ── Card footer ──────────────────────────────────────── */}
                     {!isInteractionDisabled && (
-                        <View style={styles.cardFooter}>
+                        <TouchableOpacity
+                            style={styles.cardFooter}
+                            activeOpacity={1}
+                            onPress={() => { if (isActive) onDismissActive?.(); }}
+                        >
                             <View style={styles.usage}>
                                 <View style={[styles.usageDot, { backgroundColor: manaColor }]} />
                                 <Text style={styles.usageText}>⚡ {manaStr} {periodLabel}</Text>
                             </View>
                             <TouchableOpacity
                                 style={styles.btnOpen}
-                                onPress={onRun}
+                                onPress={() => {
+                                    if (isActive) { onDismissActive?.(); return; }
+                                    onRun();
+                                }}
                                 activeOpacity={0.8}
                                 accessibilityLabel={`${t('openSpell')} ${app.name}`}
                                 accessibilityRole="button"
                             >
                                 <Text style={styles.btnOpenText}>{t('openSpell')} ✨</Text>
                             </TouchableOpacity>
-                        </View>
+                        </TouchableOpacity>
                     )}
 
                     {/* ── Active hint ──────────────────────────────────────── */}
