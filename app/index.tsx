@@ -1569,7 +1569,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     list: {
-        paddingHorizontal: 52,
+        paddingHorizontal: spacing.md,
         paddingVertical: spacing.md,
     },
     sectionTitle: {
