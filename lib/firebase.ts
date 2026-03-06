@@ -265,7 +265,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
                 }, async (error) => {
                     console.error('[DEBUG] Job listener error:', error);
 
-                    if (error.code !== 'unavailable') {
+                    if ((error as any).code !== 'unavailable') {
                         reject(error);
                         return;
                     }

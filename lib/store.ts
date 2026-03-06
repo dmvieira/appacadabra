@@ -54,7 +54,7 @@ interface AppState {
     dismissContent: (uri: string) => void;
 
     // Failed prompt recovery — preserve user's text when a job fails
-    lastFailedPrompt: { type: 'create' | 'edit'; text: string; appId?: number } | null;
+    lastFailedPrompt: { type: Job['action']; text: string; appId?: number } | null;
     clearLastFailedPrompt: () => void;
 
     initializeListeners: () => void;
@@ -73,9 +73,10 @@ interface AppState {
     updateAppDescription: (id: number, description: string) => Promise<void>;
     updateAppIcon: (id: number, iconPath: string) => Promise<void>;
     updateAppCode: (id: number, code: string, instruction?: string) => Promise<void>;
+    clearAppStorage: (id: number) => Promise<void>;
     incrementAppManaCost: (id: number, amount: number) => Promise<void>;
     exportBackup: () => Promise<void>;
-    importBackup: (uri?: string) => Promise<void>;
+    importBackup: (uri?: string, triggerSetup?: boolean) => Promise<void>;
     importOnboardingSpell: (chipIndex: number) => Promise<number | null>;
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
@@ -686,6 +687,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
+    clearAppStorage: async (id: number) => {
+        try {
+            await db.clearStorageForApp(id);
+            set({ statusMessage: t('clearDataSuccess') });
+        } catch (error) {
+            console.error('Failed to clear app storage:', error);
+            set({ error: t('errorClearingStorage') });
+        }
+    },
+
     exportBackup: async () => {
         try {
             set({ statusMessage: t('exporting') });
@@ -701,7 +712,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
-    importBackup: async (uri?: string) => {
+    importBackup: async (uri?: string, triggerSetup?: boolean) => {
         try {
             if (get().isImporting) {
                 console.log('Store: Import already in progress, skipping.');
@@ -715,6 +726,11 @@ export const useAppStore = create<AppState>((set, get) => ({
                 // Reload apps after import
                 const apps = await db.getAllApps();
                 set({ apps });
+
+                // Trigger setup modal for the first imported app if it exists and requested
+                if (triggerSetup && result.importedIds && result.importedIds.length > 0) {
+                    set({ lastCreatedAppId: result.importedIds[0] });
+                }
             }
         } catch (error) {
             console.error('Failed to import backup:', error);
@@ -865,7 +881,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (apps.length < 2) return;
 
         // If no custom order yet (all sortOrder=0), assign sequential order
-        const allZero = apps.every(a => (a.sortOrder ?? 0) === 0);
+        const allZero = apps.some(a => (a.sortOrder ?? 0) === 0);
         if (allZero) {
             const updates = apps.map((a, i) => ({ id: a.id, sortOrder: i + 1 }));
             try {

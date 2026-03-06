@@ -291,7 +291,7 @@ export async function peekBackupMetadata(uri: string): Promise<{ name: string; s
     }
 }
 
-export async function importBackup(existingUri?: string): Promise<{ success: boolean; count: number; message: string }> {
+export async function importBackup(existingUri?: string): Promise<{ success: boolean; count: number; message: string; importedIds?: number[] }> {
     try {
         let fileUri = existingUri;
 
@@ -323,7 +323,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
 /**
  * Process raw backup data and insert into DB
  */
-export async function processBackupData(backup: BackupData): Promise<{ success: boolean; count: number; message: string }> {
+export async function processBackupData(backup: BackupData): Promise<{ success: boolean; count: number; message: string; importedIds?: number[] }> {
     try {
         console.log('Parsed backup apps count:', backup?.apps?.length);
 
@@ -349,6 +349,7 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
 
         let importedCount = 0;
         let skippedCount = 0;
+        const importedIds: number[] = [];
 
         for (const app of validApps) {
             if (existingNames.has(app.name)) {
@@ -530,13 +531,15 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
             }
 
             importedCount++;
+            importedIds.push(newId);
         }
 
         console.log('[Backup] Process finished. Imported:', importedCount, 'Skipped:', skippedCount);
         return {
             success: true,
             count: importedCount,
-            message: `${importedCount} ${t('appsImportedSuccess')}`
+            message: `${importedCount} ${t('appsImportedSuccess')}`,
+            importedIds
         };
     } catch (error) {
         console.error('Process backup error:', error);

@@ -482,7 +482,7 @@ export default function ShareReceiver() {
         storeClearSharedContent();
 
         // Import in background
-        importBackup(uri).finally(() => {
+        importBackup(uri, true).finally(() => {
             console.log('ShareReceiver: [IMPORT] importBackup finished, resetting guards');
             markBackupDirty();
             isHandlingAction = false;

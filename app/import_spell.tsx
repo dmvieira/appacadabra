@@ -95,7 +95,7 @@ export default function ImportSpellScreen() {
 
         clearError();
         // importBackup handles state (isImporting, statusMessage)
-        await importBackup(uri);
+        await importBackup(uri, true);
         markBackupDirty();
 
         // Explicitly check for success via store state after async operation

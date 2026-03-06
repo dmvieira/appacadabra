@@ -94,6 +94,7 @@ export default function HomeScreen() {
         setPendingImportUrl,
         lastFailedPrompt,
         clearLastFailedPrompt,
+        clearAppStorage,
     } = useAppStore();
 
     const [showSignOutModal, setShowSignOutModal] = useState(false);
@@ -234,10 +235,10 @@ export default function HomeScreen() {
             }
         }
         return () => { active = false; };
-    // localFolderUri omitido intencionalmente: incluí-lo causava o modal de reconnect
-    // aparecer duas vezes ao trocar local→Drive (setLocalFolderUri(null) disparava o
-    // efeito antes de backupMode atualizar para 'google_drive').
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // localFolderUri omitido intencionalmente: incluí-lo causava o modal de reconnect
+        // aparecer duas vezes ao trocar local→Drive (setLocalFolderUri(null) disparava o
+        // efeito antes de backupMode atualizar para 'google_drive').
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [backupHydrated, isAnonymous, backupMode]);
 
     // Backup: auto-dismiss restore banner after 5s
@@ -1123,7 +1124,6 @@ export default function HomeScreen() {
                                     onPress={() => {
                                         if (isFirst) return;
                                         reorderApp(contextMenuApp.id, 'up');
-                                        setContextMenuApp(null);
                                         markBackupDirty();
                                     }}
                                     disabled={isFirst}
@@ -1143,7 +1143,6 @@ export default function HomeScreen() {
                                     onPress={() => {
                                         if (isLast) return;
                                         reorderApp(contextMenuApp.id, 'down');
-                                        setContextMenuApp(null);
                                         markBackupDirty();
                                     }}
                                     disabled={isLast}
@@ -1153,6 +1152,38 @@ export default function HomeScreen() {
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={[styles.ctxItemTitle, isLast && styles.ctxTextDisabled]}>{t('moveDown')}</Text>
+                                    </View>
+                                </TouchableOpacity>
+
+                                <View style={styles.ctxSeparator} />
+
+                                <TouchableOpacity
+                                    style={styles.ctxItem}
+                                    onPress={() => {
+                                        setContextMenuApp(null);
+                                        Alert.alert(
+                                            t('clearDataConfirmTitle'),
+                                            t('clearDataConfirmMessage'),
+                                            [
+                                                { text: t('cancel'), style: 'cancel' },
+                                                {
+                                                    text: t('clearDataConfirm'),
+                                                    style: 'destructive',
+                                                    onPress: () => {
+                                                        clearAppStorage(contextMenuApp.id);
+                                                        markBackupDirty();
+                                                    }
+                                                }
+                                            ]
+                                        );
+                                    }}
+                                >
+                                    <View style={[styles.ctxIconWrap, { backgroundColor: 'rgba(248,113,113,0.15)' }]}>
+                                        <Text style={styles.ctxIconText}>🧹</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.ctxItemTitle, { color: '#f87171' }]}>{t('clearDataTitle')}</Text>
+                                        <Text style={styles.ctxItemSub}>{t('clearDataDesc')}</Text>
                                     </View>
                                 </TouchableOpacity>
                             </Pressable>
