@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -9,6 +9,7 @@ import {
     Pressable,
     ActivityIndicator,
     Platform,
+    Animated,
 } from 'react-native';
 import { GeneratedApp } from '../lib/database/types';
 import { colors } from '../lib/theme';
@@ -67,6 +68,12 @@ interface AppCardProps {
     onCoachDismiss?: () => void;
     onLongPress?: () => void;
     onClearData?: () => void;
+    isActive?: boolean;
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
+    onDismissActive?: () => void;
 }
 
 export function AppCard({
@@ -74,8 +81,19 @@ export function AppCard({
     onShare, onShortcut, onToggleBiometric, onViewSchedules,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
     onLongPress, onClearData,
+    isActive, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onDismissActive,
 }: AppCardProps) {
     const [showSheet, setShowSheet] = useState(false);
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        Animated.spring(scaleAnim, {
+            toValue: isActive ? 1.025 : 1,
+            useNativeDriver: true,
+            damping: 12,
+            stiffness: 180,
+        }).start();
+    }, [isActive]);
 
     const locale = getCurrentLanguage() || 'en';
     const d = new Date(app.lastUpdated);
@@ -101,7 +119,48 @@ export function AppCard({
     const hasNotifs = (notificationCount ?? 0) > 0;
 
     return (
-        <View style={[styles.card, !!coachStep && styles.cardCoaching]}>
+        <Animated.View style={[styles.card, isActive && styles.cardActive, !!coachStep && styles.cardCoaching, { transform: [{ scale: scaleAnim }] }]}>
+            {/* ── Share float button (above card) ─────────────────────── */}
+            <View
+                style={[styles.shareFloatWrap, { top: isActive ? -44 : -32, opacity: isActive ? 1 : 0 }]}
+                pointerEvents={isActive ? 'auto' : 'none'}
+            >
+                <TouchableOpacity
+                    style={styles.shareFloatBtn}
+                    onPress={() => { onDismissActive?.(); onShare?.(); }}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.shareFloatText}>📤 {t('shareSpell')}</Text>
+                </TouchableOpacity>
+                <View style={styles.shareFloatStem} />
+            </View>
+
+            {/* ── Arrow up (left side) ─────────────────────────────────── */}
+            <View
+                style={[styles.arrowLeft, {
+                    opacity: isActive && canMoveUp ? 1 : 0,
+                    transform: [{ translateX: isActive && canMoveUp ? 0 : -10 }],
+                }]}
+                pointerEvents={isActive && canMoveUp ? 'auto' : 'none'}
+            >
+                <TouchableOpacity style={styles.arrowCircleUp} onPress={onMoveUp} activeOpacity={0.8}>
+                    <Text style={styles.arrowText}>↑</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* ── Arrow down (right side) ──────────────────────────────── */}
+            <View
+                style={[styles.arrowRight, {
+                    opacity: isActive && canMoveDown ? 1 : 0,
+                    transform: [{ translateX: isActive && canMoveDown ? 0 : 10 }],
+                }]}
+                pointerEvents={isActive && canMoveDown ? 'auto' : 'none'}
+            >
+                <TouchableOpacity style={styles.arrowCircleDown} onPress={onMoveDown} activeOpacity={0.8}>
+                    <Text style={styles.arrowText}>↓</Text>
+                </TouchableOpacity>
+            </View>
+
             <View style={{ flex: 1 }}>
                 {/* ── Card main row ───────────────────────────────────────── */}
                 <TouchableOpacity
@@ -109,6 +168,7 @@ export function AppCard({
                     activeOpacity={0.9}
                     onLongPress={!isInteractionDisabled ? onLongPress : undefined}
                     onPress={() => {
+                        if (isActive) { onDismissActive?.(); return; }
                         if (!isInteractionDisabled) onRun();
                     }}
                     delayLongPress={400}
@@ -232,6 +292,13 @@ export function AppCard({
                     </View>
                 )
                 }
+
+                {/* ── Active hint ──────────────────────────────────────── */}
+                {isActive && (
+                    <View style={styles.activeHint}>
+                        <Text style={styles.activeHintText}>↑↓ {t('moveHint')} · {t('tapToClose')}</Text>
+                    </View>
+                )}
 
                 {/* ── Action Sheet (Bottom Sheet) ────────────────────────── */}
                 <Modal
@@ -406,7 +473,7 @@ export function AppCard({
                     </Pressable>
                 </Modal>
             </View>
-        </View>
+        </Animated.View>
     );
 }
 
@@ -425,6 +492,53 @@ const styles = StyleSheet.create({
         zIndex: 10,
         elevation: 10,
     },
+    cardActive: {
+        borderColor: 'rgba(168,85,247,0.4)',
+        shadowColor: '#a855f7',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    shareFloatWrap: {
+        position: 'absolute', alignSelf: 'center', alignItems: 'center',
+        left: 0, right: 0, zIndex: 20,
+    },
+    shareFloatBtn: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#1e1030', borderWidth: 1, borderColor: 'rgba(168,85,247,0.33)',
+        borderRadius: 20, paddingVertical: 7, paddingHorizontal: 16,
+        shadowColor: '#a855f7', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.27, shadowRadius: 12, elevation: 8,
+        alignSelf: 'center',
+    },
+    shareFloatText: { color: '#c084fc', fontSize: 13, fontWeight: '700' },
+    shareFloatStem: {
+        width: 2, height: 8, backgroundColor: 'rgba(168,85,247,0.27)',
+        alignSelf: 'center', borderRadius: 1,
+    },
+    arrowLeft: { position: 'absolute', left: -44, top: '50%', marginTop: -19, zIndex: 20 },
+    arrowRight: { position: 'absolute', right: -44, top: '50%', marginTop: -19, zIndex: 20 },
+    arrowCircleUp: {
+        width: 38, height: 38, borderRadius: 19, backgroundColor: '#7c3aed',
+        justifyContent: 'center', alignItems: 'center',
+        shadowColor: '#a855f7', shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
+    },
+    arrowCircleDown: {
+        width: 38, height: 38, borderRadius: 19, backgroundColor: '#4f46e5',
+        justifyContent: 'center', alignItems: 'center',
+        shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
+    },
+    arrowText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+    activeHint: {
+        paddingHorizontal: 16, paddingBottom: 10,
+        alignItems: 'center',
+        borderTopWidth: 1, borderTopColor: 'rgba(168,85,247,0.13)',
+        marginTop: 4, paddingTop: 8,
+    },
+    activeHintText: { color: 'rgba(168,85,247,0.53)', fontSize: 11 },
     cardMain: {
         flexDirection: 'row',
         alignItems: 'center',
