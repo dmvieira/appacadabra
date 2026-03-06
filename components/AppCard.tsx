@@ -66,13 +66,14 @@ interface AppCardProps {
     coachStep?: number;
     onCoachDismiss?: () => void;
     onLongPress?: () => void;
+    onClearData?: () => void;
 }
 
 export function AppCard({
     app, onRun, onEdit, onDelete, onRename,
     onShare, onShortcut, onToggleBiometric, onViewSchedules,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
-    onLongPress,
+    onLongPress, onClearData,
 }: AppCardProps) {
     const [showSheet, setShowSheet] = useState(false);
 
@@ -188,12 +189,12 @@ export function AppCard({
                                     <Text style={styles.coachStep}>
                                         {coachStep === 1 ? `1 ${t('coachOf')} 3`
                                             : coachStep === 2 ? `2 ${t('coachOf')} 3`
-                                            : `3 ${t('coachOf')} 3`}
+                                                : `3 ${t('coachOf')} 3`}
                                     </Text>
                                     <Text style={styles.coachText}>
                                         {coachStep === 1 ? t('coachMenuHint')
                                             : coachStep === 2 ? t('coachEditHint')
-                                            : t('coachLongPressHint')}
+                                                : t('coachLongPressHint')}
                                     </Text>
                                     <TouchableOpacity
                                         style={styles.coachDismissBtn}
@@ -364,6 +365,24 @@ export function AppCard({
                                         </View>
                                         <View style={{ flex: 1 }}>
                                             <Text style={styles.sheetItemTitle}>{t('shareSpell')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Clear Data */}
+                                {onClearData && (
+                                    <TouchableOpacity
+                                        style={styles.sheetItem}
+                                        onPress={() => { setShowSheet(false); onClearData(); }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('clearDataTitle')}
+                                    >
+                                        <View style={styles.sheetItemIconWrap}>
+                                            <Text style={styles.sheetItemIconEmoji}>🧹</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('clearDataTitle')}</Text>
+                                            <Text style={styles.sheetItemSub}>{t('clearDataDesc')}</Text>
                                         </View>
                                     </TouchableOpacity>
                                 )}

@@ -1059,6 +1059,23 @@ export default function HomeScreen() {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                     setContextMenuApp(item);
                                 } : undefined}
+                                onClearData={() => {
+                                    Alert.alert(
+                                        t('clearDataConfirmTitle'),
+                                        t('clearDataConfirmMessage'),
+                                        [
+                                            { text: t('cancel'), style: 'cancel' },
+                                            {
+                                                text: t('clearDataConfirm'),
+                                                style: 'destructive',
+                                                onPress: () => {
+                                                    clearAppStorage(item.id);
+                                                    markBackupDirty();
+                                                }
+                                            }
+                                        ]
+                                    );
+                                }}
                             />
                         );
                     }}
@@ -1152,38 +1169,6 @@ export default function HomeScreen() {
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={[styles.ctxItemTitle, isLast && styles.ctxTextDisabled]}>{t('moveDown')}</Text>
-                                    </View>
-                                </TouchableOpacity>
-
-                                <View style={styles.ctxSeparator} />
-
-                                <TouchableOpacity
-                                    style={styles.ctxItem}
-                                    onPress={() => {
-                                        setContextMenuApp(null);
-                                        Alert.alert(
-                                            t('clearDataConfirmTitle'),
-                                            t('clearDataConfirmMessage'),
-                                            [
-                                                { text: t('cancel'), style: 'cancel' },
-                                                {
-                                                    text: t('clearDataConfirm'),
-                                                    style: 'destructive',
-                                                    onPress: () => {
-                                                        clearAppStorage(contextMenuApp.id);
-                                                        markBackupDirty();
-                                                    }
-                                                }
-                                            ]
-                                        );
-                                    }}
-                                >
-                                    <View style={[styles.ctxIconWrap, { backgroundColor: 'rgba(248,113,113,0.15)' }]}>
-                                        <Text style={styles.ctxIconText}>🧹</Text>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[styles.ctxItemTitle, { color: '#f87171' }]}>{t('clearDataTitle')}</Text>
-                                        <Text style={styles.ctxItemSub}>{t('clearDataDesc')}</Text>
                                     </View>
                                 </TouchableOpacity>
                             </Pressable>
