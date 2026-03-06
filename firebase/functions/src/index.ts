@@ -7,10 +7,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GoogleAICacheManager } from "@google/generative-ai/server";
-// @ts-ignore - installed at deploy time via package.json
-import { GoogleGenAI, VideoGenerationReferenceType } from "@google/genai";
+import { GoogleGenAI, VideoGenerationReferenceType, Type, ThinkingLevel } from "@google/genai";
 import * as zlib from 'zlib';
 import {
     SYSTEM_INSTRUCTIONS,
@@ -31,60 +28,37 @@ const db = getFirestore();
 
 // Initialize Gemini AI (API key from environment)
 const API_KEY = process.env.GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
-// @ts-ignore - lazy to avoid "API key must be set" error during deploy analysis
 let _ai: GoogleGenAI | null = null;
 function getAI(): GoogleGenAI { return _ai ?? (_ai = new GoogleGenAI({ apiKey: API_KEY })); }
 
-// Models configuration
-// Main models for Create/Edit/Convert (kept as fallback if cache fails)
-const mainModel = genAI.getGenerativeModel({
-    model: "gemini-3-flash-preview",
-    // @ts-ignore
+// Main model config (reused for all create/edit/convert calls)
+const MAIN_MODEL_CONFIG = {
     tools: [{ googleSearch: {} }],
-    generationConfig: {
-        // @ts-ignore
-        thinkingConfig: {
-            includeThoughts: true,
-            thinkingLevel: "high"
-        }
-    }
-});
+    thinkingConfig: { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH },
+};
 
 // Context Caching for SYSTEM_INSTRUCTIONS (~1,800 tokens)
 // Cache read: 25% of input price → significant savings at volume
-const cacheManager = new GoogleAICacheManager(API_KEY);
 let _sysCache: any = null;
 let _sysCacheExpiresAt = 0;
 const CACHE_TTL_S = 3600;           // 1 hour TTL
 const CACHE_RENEW_BEFORE_MS = 5 * 60 * 1000;  // renew 5 min before expiry
 
-async function getMainModelWithCache() {
+async function getOrCreateSysCache(): Promise<string> {
     const now = Date.now();
     if (!_sysCache || now > _sysCacheExpiresAt - CACHE_RENEW_BEFORE_MS) {
         console.log('[CACHE] Creating/renewing SYSTEM_INSTRUCTIONS cache...');
-        _sysCache = await cacheManager.create({
+        _sysCache = await getAI().caches.create({
             model: 'models/gemini-3-flash-preview',
-            systemInstruction: {
-                role: 'system',
-                parts: [{ text: SYSTEM_INSTRUCTIONS }],
+            config: {
+                systemInstruction: SYSTEM_INSTRUCTIONS,
+                ttl: `${CACHE_TTL_S}s`,
             },
-            // contents is technically required by the SDK types but the API accepts
-            // caches with only systemInstruction. Cast to avoid the TypeScript error.
-            contents: [],
-            ttlSeconds: CACHE_TTL_S,
-        } as any);
+        });
         _sysCacheExpiresAt = now + CACHE_TTL_S * 1000;
         console.log(`[CACHE] Cache created: ${_sysCache.name}`);
     }
-    return genAI.getGenerativeModelFromCachedContent(_sysCache, {
-        // @ts-ignore
-        tools: [{ googleSearch: {} }],
-        generationConfig: {
-            // @ts-ignore
-            thinkingConfig: { includeThoughts: true, thinkingLevel: 'high' },
-        },
-    });
+    return _sysCache.name!;
 }
 
 
@@ -299,9 +273,9 @@ function calculateCostUsd(
 
 // Helper to get text from response, filtering out thinking tokens and logging them
 function extractText(result: any): string {
-    const candidate = result.response?.candidates?.[0];
+    const candidate = result.candidates?.[0];
     if (!candidate?.content?.parts) {
-        return result.response?.text() || "";
+        return result.text ?? "";
     }
 
     let resultText = "";
@@ -316,9 +290,7 @@ function extractText(result: any): string {
     }
 
     if (thoughts) {
-        console.log("--- GEMINI REASONING ---");
-        console.log(thoughts);
-        console.log("--- END REASONING ---");
+        console.log("--- GEMINI REASONING ---\n" + thoughts + "\n--- END ---");
     }
 
     return resultText;
@@ -326,10 +298,10 @@ function extractText(result: any): string {
 
 // Helper to get usage metadata
 function getUsage(result: any): { promptTokens: number; responseTokens: number; thoughtsTokens: number; totalTokens: number } {
-    const usage = result.response?.usageMetadata;
+    const usage = result.usageMetadata;
     const cachedTokens = usage?.cachedContentTokenCount || 0;
     if (cachedTokens > 0) {
-        console.log(`[CACHE HIT] ${cachedTokens} tokens from cache (of ${usage?.promptTokenCount} prompt tokens)`);
+        console.log(`[CACHE HIT] ${cachedTokens} tokens from cache`);
     }
     const thoughtsTokens = usage?.thoughtsTokenCount || 0;
     if (thoughtsTokens > 0) {
@@ -383,46 +355,26 @@ function extractJson(response: string): any {
 
 // Helper to infer JSON Schema from a data example (robustness)
 function inferSchema(data: any): any {
-    if (data === null || data === undefined) return { type: "string", nullable: true };
+    if (data === null || data === undefined) return { type: Type.STRING, nullable: true };
+    const t = typeof data;
 
-    const type = typeof data;
-
-    if (type === "string") return { type: "string" };
-    if (type === "number") return { type: "number" };
-    if (type === "boolean") return { type: "boolean" };
+    if (t === "string") return { type: Type.STRING };
+    if (t === "number") return { type: Type.NUMBER };
+    if (t === "boolean") return { type: Type.BOOLEAN };
 
     if (Array.isArray(data)) {
-        // Assume first item is representative, or default to string
-        const itemSchema = data.length > 0 ? inferSchema(data[0]) : { type: "string" };
-        return {
-            type: "array",
-            items: itemSchema
-        };
+        return { type: Type.ARRAY, items: data.length > 0 ? inferSchema(data[0]) : { type: Type.STRING } };
     }
 
-    if (type === "object") {
+    if (t === "object") {
+        if (data.type && (data.properties || data.items || data.type === 'string')) return data;
         const properties: any = {};
         const required: string[] = [];
-
-        // If it already looks like a schema (has "type" or "properties"), return as is
-        // preventing double conversion if user actually sent a partial schema
-        if (data.type && (data.properties || data.items || data.type === 'string')) {
-            return data;
-        }
-
-        Object.keys(data).forEach(key => {
-            properties[key] = inferSchema(data[key]);
-            required.push(key);
-        });
-
-        return {
-            type: "object",
-            properties,
-            required
-        };
+        Object.keys(data).forEach(key => { properties[key] = inferSchema(data[key]); required.push(key); });
+        return { type: Type.OBJECT, properties, required };
     }
 
-    return { type: "string" }; // Fallback
+    return { type: Type.STRING };
 }
 
 // ============= CALLBACK PATTERN FIXER =============
@@ -571,6 +523,33 @@ interface GenerateSpellRequest {
     voiceName?: string;     // 'Aoede' | 'Charon' | 'Fenrir' | 'Kore' | 'Puck' | 'Orbit' | 'Zephyr'
 }
 
+/** Retries transient Gemini/network errors with exponential backoff. */
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+    let lastError: any;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (e: any) {
+            lastError = e;
+            const msg: string = e?.message || '';
+            const isRetryable =
+                msg.includes('DEADLINE_EXCEEDED') ||
+                msg.includes('UNAVAILABLE') ||
+                e?.cause?.code === 'UND_ERR_HEADERS_TIMEOUT' ||
+                msg.includes('UND_ERR_HEADERS_TIMEOUT');
+
+            if (isRetryable && attempt < maxRetries) {
+                const delay = Math.pow(2, attempt) * 1000; // 1s, 2s
+                console.warn(`[withRetry] attempt ${attempt + 1} failed (${msg.substring(0, 80)}), retrying in ${delay}ms`);
+                await new Promise(r => setTimeout(r, delay));
+            } else {
+                throw e;
+            }
+        }
+    }
+    throw lastError;
+}
+
 export const generateSpell = onCall<GenerateSpellRequest>(
     {
         region: "southamerica-east1",
@@ -636,18 +615,27 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const framework = request.data.frameworkHint || "web project";
                         const convertPrompt = `${CONVERT_PROJECT_PROMPT}\n\nFramework: ${framework}\n\nSOURCE:\n${sourceCode}`;
 
-                        // Use cached model (SYSTEM_INSTRUCTIONS injected as system instruction)
                         let result: any;
-                        try {
-                            const cachedModel = await getMainModelWithCache();
-                            result = await cachedModel.generateContent(convertPrompt);
-                        } catch (cacheErr) {
-                            console.warn('[CACHE] Falling back to mainModel for convert:', cacheErr);
-                            result = await mainModel.generateContent(`${SYSTEM_INSTRUCTIONS}\n\n${convertPrompt}`);
+                        let sysCacheName: string | null = null;
+                        try { sysCacheName = await getOrCreateSysCache(); }
+                        catch (cacheErr) { console.warn('[CACHE] Falling back for convert:', cacheErr); }
+
+                        if (sysCacheName) {
+                            result = await withRetry(() => getAI().models.generateContent({
+                                model: 'models/gemini-3-flash-preview',
+                                contents: convertPrompt,
+                                config: { ...MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
+                            }));
+                        } else {
+                            result = await withRetry(() => getAI().models.generateContent({
+                                model: 'models/gemini-3-flash-preview',
+                                contents: `${SYSTEM_INSTRUCTIONS}\n\n${convertPrompt}`,
+                                config: MAIN_MODEL_CONFIG,
+                            }));
                         }
 
                         const u = getUsage(result);
-                        usage = { ...u, cachedTokens: (result.response.usageMetadata?.cachedContentTokenCount || 0) };
+                        usage = { ...u, cachedTokens: result.usageMetadata?.cachedContentTokenCount || 0 };
                         resultText = fixCallbackPatterns(extractHtml(extractText(result)));
 
                         // Price as Fixed Cost
@@ -670,8 +658,6 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         // Build tools config
                         const toolConfig: any[] = [];
                         if (tools.includes('googleSearch')) toolConfig.push({ googleSearch: {} });
-                        // Maps tool check - verify if available in SDK, assuming yes if user asked
-                        // @ts-ignore
                         if (tools.includes('googleMaps')) toolConfig.push({ googleMaps: {} });
 
                         // Build Parts
@@ -696,7 +682,6 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const genConfig: any = {};
                         if (schema) {
                             genConfig.responseMimeType = "application/json";
-                            // basic check if valid schema or object
                             if (!(schema as any).type) {
                                 genConfig.responseSchema = inferSchema(schema);
                             } else {
@@ -704,35 +689,33 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             }
                         }
 
-                        const generativeModel = genAI.getGenerativeModel({
+                        const result = await withRetry(() => getAI().models.generateContent({
                             model: modelId,
-                            generationConfig: {
+                            contents: parts,
+                            config: {
                                 ...genConfig,
-                                // @ts-ignore
-                                thinkingConfig: (modelId.includes('gemini-3'))
-                                    ? { includeThoughts: true, thinkingLevel: "high" }
-                                    : { includeThoughts: true, thinkingBudget: (modelId.includes('2.5-flash-lite') ? 24576 : (modelId.includes('2.5-pro') ? 32768 : 24576)) }
+                                thinkingConfig: modelId.includes('gemini-3')
+                                    ? { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH }
+                                    : { includeThoughts: true, thinkingBudget: modelId.includes('2.5-flash-lite') ? 24576 : 32768 },
+                                tools: toolConfig.length > 0 ? toolConfig : undefined,
                             },
-                            // @ts-ignore
-                            tools: toolConfig.length > 0 ? toolConfig : undefined
-                        });
+                        }));
 
-                        const result = await generativeModel.generateContent(parts);
                         const u = getUsage(result);
                         usage = {
                             promptTokens: u.promptTokens,
                             responseTokens: u.responseTokens,
                             thoughtsTokens: u.thoughtsTokens,
                             totalTokens: u.totalTokens,
-                            cachedTokens: (result.response.usageMetadata?.cachedContentTokenCount || 0)
+                            cachedTokens: result.usageMetadata?.cachedContentTokenCount || 0,
                         };
 
                         resultText = extractText(result);
 
                         // Count actual tool calls from grounding metadata
-                        const groundingMeta = (result.response.candidates?.[0] as any)?.groundingMetadata;
-                        const actualSearchQueries = groundingMeta?.webSearchQueries?.length ?? 0;
-                        const groundingChunks = groundingMeta?.groundingChunks ?? [];
+                        const groundingMeta = result.candidates?.[0]?.groundingMetadata;
+                        const actualSearchQueries = (groundingMeta as any)?.webSearchQueries?.length ?? 0;
+                        const groundingChunks = (groundingMeta as any)?.groundingChunks ?? [];
                         const actualMapsQueries = groundingChunks.some(
                             (c: any) => c?.retrievedContext?.uri?.includes('maps.googleapis') ||
                                         c?.web?.uri?.includes('maps.google')
@@ -760,13 +743,13 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         console.log(`[WEBVIEW_AI_IMAGE] Generating image for: ${prompt.substring(0, 80)}...`);
 
-                        const imgResult = await getAI().models.generateContent({
+                        const imgResult = await withRetry(() => getAI().models.generateContent({
                             model: 'gemini-2.5-flash-image',
                             contents: [{ role: 'user', parts: [{ text: prompt }] }],
                             config: {
                                 responseModalities: ['TEXT', 'IMAGE'],
                             },
-                        });
+                        }));
 
                         usage = {
                             promptTokens: imgResult.usageMetadata?.promptTokenCount || 0,
@@ -829,7 +812,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                               ]
                             : undefined;
 
-                        let operation = await getAI().models.generateVideos({
+                        let operation = await withRetry(() => getAI().models.generateVideos({
                             model: hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview',
                             prompt: prompt,
                             ...(startingFrame ? { image: startingFrame } : {}),
@@ -842,7 +825,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                                         : {}),
                                 ...(referenceImages ? { referenceImages } : {}),
                             },
-                        });
+                        }));
 
                         while (!operation.done) {
                             console.log(`[WEBVIEW_AI_VIDEO] Waiting for video...`);
@@ -852,11 +835,12 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         const videoFile = operation.response?.generatedVideos?.[0]?.video;
                         if (!videoFile?.uri) throw new Error('No video generated by model');
+                        const videoUri = videoFile.uri;
 
-                        console.log(`[WEBVIEW_AI_VIDEO] Downloading from: ${videoFile.uri}`);
-                        const videoResponse = await fetch(videoFile.uri, {
+                        console.log(`[WEBVIEW_AI_VIDEO] Downloading from: ${videoUri}`);
+                        const videoResponse = await withRetry(() => fetch(videoUri, {
                             headers: { 'x-goog-api-key': API_KEY }
-                        });
+                        }));
                         if (!videoResponse.ok) throw new Error(`Video download failed: ${videoResponse.status}`);
 
                         const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
@@ -876,13 +860,14 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const items: string[] = request.data.items || [];
                         if (items.length < 2) throw new HttpsError("invalid-argument", "At least 2 items required for similarity");
 
-                        const embModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-
                         // Compute embeddings for all items
                         const embeddings = await Promise.all(
-                            items.map((item: string) => embModel.embedContent(item))
+                            items.map((item: string) => withRetry(() => getAI().models.embedContent({
+                                model: "gemini-embedding-001",
+                                contents: item,
+                            })))
                         );
-                        const vectors = embeddings.map((e: any) => e.embedding.values);
+                        const vectors = embeddings.map(e => e.embeddings![0].values!);
 
                         // Cosine similarity helper
                         function cosine(a: number[], b: number[]): number {
@@ -927,21 +912,18 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         console.log(`[WEBVIEW_AI_TTS] voice=${selectedVoice}, text="${prompt.substring(0, 60)}..."`);
 
-                        const ttsModel = genAI.getGenerativeModel({
+                        const ttsResult = await withRetry(() => getAI().models.generateContent({
                             model: 'gemini-2.5-flash-preview-tts',
-                            generationConfig: {
+                            contents: prompt,
+                            config: {
                                 responseModalities: ['AUDIO'],
                                 speechConfig: {
-                                    voiceConfig: {
-                                        prebuiltVoiceConfig: { voiceName: selectedVoice }
-                                    }
-                                }
-                            } as any,
-                        });
+                                    voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
+                                },
+                            },
+                        }));
 
-                        const ttsResult = await ttsModel.generateContent(prompt);
-
-                        const ttsParts = ttsResult.response.candidates?.[0]?.content?.parts || [];
+                        const ttsParts = ttsResult.candidates?.[0]?.content?.parts || [];
                         let audioBase64 = '';
                         for (const part of ttsParts as any[]) {
                             if (part.inlineData) {
@@ -1124,25 +1106,6 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
         const { query, language } = request.data;
         if (!query?.trim()) throw new HttpsError("invalid-argument", "Query required");
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash-lite",
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: "array" as any,
-                    items: {
-                        type: "object" as any,
-                        properties: {
-                            title: { type: "string" as any },
-                            description: { type: "string" as any },
-                        },
-                        required: ["title", "description"],
-                    },
-                },
-            } as any,
-        });
-
         const prompt = `You are helping users of Appacadabra, an app that creates mini AI-powered tools called "spells".
 The user searched for "${query.trim()}" but found no results.
 Suggest exactly 2 spell ideas related to "${query.trim()}".
@@ -1151,8 +1114,25 @@ For each suggestion:
 - title: short name (3–5 words)
 - description: one sentence written as a prompt for the AI to create it, starting with an action verb.`;
 
-        const result = await model.generateContent(prompt);
-        const suggestions = JSON.parse(result.response.text());
+        const result = await getAI().models.generateContent({
+            model: "gemini-2.5-flash-lite",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                        },
+                        required: ["title", "description"],
+                    },
+                },
+            },
+        });
+        const suggestions = JSON.parse(result.text!);
         return { suggestions };
     }
 );
@@ -1162,7 +1142,7 @@ For each suggestion:
 interface Job {
     id: string;
     userId: string;
-    action: 'create' | 'edit';
+    action: 'create' | 'edit' | 'webview_ai' | 'webview_ai_tts' | 'webview_ai_image' | 'webview_ai_similarity' | 'webview_ai_video';
     status: 'queued' | 'processing' | 'completed' | 'failed';
     createdAt: any;
     updatedAt: any;
@@ -1172,6 +1152,16 @@ interface Job {
         instruction?: string;
         selectedContext?: string;
         previousEdits?: PreviousEdit[];
+        // webview_ai fields
+        schema?: object;
+        imagesBase64?: string[];
+        videosBase64?: string[];
+        audiosBase64?: string[];
+        useSearch?: boolean;
+        tools?: string[];
+        model?: string;
+        voiceName?: string;
+        items?: string[];
     };
     result?: {
         text: string; // GZIP:base64
@@ -1226,6 +1216,16 @@ export const processSpellJob = onDocumentCreated(
             previousEdits = [first, ...last10NoFirst];
         }
 
+        const schema = payload.schema;
+        const imagesBase64 = payload.imagesBase64;
+        const videosBase64 = payload.videosBase64;
+        const audiosBase64 = payload.audiosBase64;
+        const useSearch = payload.useSearch;
+        const requestedTools = payload.tools;
+        const requestedModel = payload.model;
+        const voiceName = payload.voiceName;
+        const items: string[] = payload.items || [];
+
         const userRef = db.collection("users").doc(uid);
 
         try {
@@ -1242,6 +1242,9 @@ export const processSpellJob = onDocumentCreated(
             let usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
             let appName: string | undefined;
             let auditLog: any = {};
+            let creditsUsed = FIXED_COST_CREATE_EDIT;
+            let logModelId = 'gemini-3-flash-preview';
+            let logExtras: Record<string, any> = {};
 
             switch (action) {
                 case "create": {
@@ -1252,20 +1255,26 @@ export const processSpellJob = onDocumentCreated(
                         totalUsage.responseTokens += u.responseTokens;
                         totalUsage.thoughtsTokens += u.thoughtsTokens;
                         totalUsage.totalTokens += u.totalTokens;
-                        totalUsage.cachedTokens += (result.response?.usageMetadata?.cachedContentTokenCount || 0);
+                        totalUsage.cachedTokens += result.usageMetadata?.cachedContentTokenCount || 0;
                     };
 
-                    // Get cached model (SYSTEM_INSTRUCTIONS injected as system instruction)
-                    let createModel: any;
-                    try {
-                        createModel = await getMainModelWithCache();
-                    } catch (cacheErr) {
-                        console.warn(`[Job ${jobId}] [CACHE] Falling back to mainModel:`, cacheErr);
-                        createModel = null;
-                    }
+                    let sysCacheName: string | null = null;
+                    try { sysCacheName = await getOrCreateSysCache(); }
+                    catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back:`, cacheErr); }
+
                     const callModel = async (p: string, fullPromptFallback: string) => {
-                        if (createModel) return createModel.generateContent(p, { timeout: 120000 });
-                        return mainModel.generateContent(fullPromptFallback, { timeout: 120000 });
+                        if (sysCacheName) {
+                            return getAI().models.generateContent({
+                                model: 'models/gemini-3-flash-preview',
+                                contents: p,
+                                config: { ...MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
+                            });
+                        }
+                        return getAI().models.generateContent({
+                            model: 'models/gemini-3-flash-preview',
+                            contents: fullPromptFallback,
+                            config: MAIN_MODEL_CONFIG,
+                        });
                     };
 
                     // Stage 1: Planning
@@ -1337,7 +1346,7 @@ export const processSpellJob = onDocumentCreated(
                         totalUsage.responseTokens += u.responseTokens;
                         totalUsage.thoughtsTokens += u.thoughtsTokens;
                         totalUsage.totalTokens += u.totalTokens;
-                        totalUsage.cachedTokens += (result.response?.usageMetadata?.cachedContentTokenCount || 0);
+                        totalUsage.cachedTokens += result.usageMetadata?.cachedContentTokenCount || 0;
                     };
 
                     const normalizedCode = currentCode.replace(/\r\n/g, "\n");
@@ -1351,17 +1360,23 @@ export const processSpellJob = onDocumentCreated(
                         ? `\nSelected code:\n"""\n${selectedContext}\n"""\n`
                         : "";
 
-                    // Get cached model (SYSTEM_INSTRUCTIONS injected as system instruction)
-                    let editModel: any;
-                    try {
-                        editModel = await getMainModelWithCache();
-                    } catch (cacheErr) {
-                        console.warn(`[Job ${jobId}] [CACHE] Falling back to mainModel:`, cacheErr);
-                        editModel = null;
-                    }
+                    let editCacheName: string | null = null;
+                    try { editCacheName = await getOrCreateSysCache(); }
+                    catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back:`, cacheErr); }
+
                     const callEditModel = async (p: string, fullPromptFallback: string) => {
-                        if (editModel) return editModel.generateContent(p, { timeout: 120000 });
-                        return mainModel.generateContent(fullPromptFallback, { timeout: 120000 });
+                        if (editCacheName) {
+                            return getAI().models.generateContent({
+                                model: 'models/gemini-3-flash-preview',
+                                contents: p,
+                                config: { ...MAIN_MODEL_CONFIG, cachedContent: editCacheName },
+                            });
+                        }
+                        return getAI().models.generateContent({
+                            model: 'models/gemini-3-flash-preview',
+                            contents: fullPromptFallback,
+                            config: MAIN_MODEL_CONFIG,
+                        });
                     };
 
                     // Stage 1: Plan
@@ -1421,13 +1436,308 @@ export const processSpellJob = onDocumentCreated(
                     // For edits, we don't strictly need appName, client knows it.
                     break;
                 }
+                case "webview_ai": {
+                    if (!prompt) throw new Error("Prompt required");
+
+                    // normalize tools
+                    let tools = requestedTools || [];
+                    if (useSearch && !tools.includes('googleSearch')) tools.push('googleSearch');
+
+                    const modelId = requestedModel || 'gemini-3-flash-preview';
+
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI] Model: ${modelId}, Tools: ${tools}`);
+
+                    // Build tools config
+                    const toolConfig: any[] = [];
+                    if (tools.includes('googleSearch')) toolConfig.push({ googleSearch: {} });
+                    if (tools.includes('googleMaps')) toolConfig.push({ googleMaps: {} });
+
+                    // Build Parts
+                    const parts: any[] = [prompt];
+                    if (imagesBase64?.length) {
+                        for (const img of imagesBase64) {
+                            parts.push({ inlineData: { mimeType: "image/jpeg", data: img } });
+                        }
+                    }
+                    if (videosBase64?.length) {
+                        for (const vid of videosBase64) {
+                            parts.push({ inlineData: { mimeType: "video/mp4", data: vid } });
+                        }
+                    }
+                    if (audiosBase64?.length) {
+                        for (const aud of audiosBase64) {
+                            parts.push({ inlineData: { mimeType: "audio/wav", data: aud } });
+                        }
+                    }
+
+                    // Model Config
+                    const genConfig: any = {};
+                    if (schema) {
+                        genConfig.responseMimeType = "application/json";
+                        if (!(schema as any).type) {
+                            genConfig.responseSchema = inferSchema(schema);
+                        } else {
+                            genConfig.responseSchema = schema;
+                        }
+                    }
+
+                    const result = await getAI().models.generateContent({
+                        model: modelId,
+                        contents: parts,
+                        config: {
+                            ...genConfig,
+                            thinkingConfig: modelId.includes('gemini-3')
+                                ? { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH }
+                                : { includeThoughts: true, thinkingBudget: modelId.includes('2.5-flash-lite') ? 24576 : 32768 },
+                            tools: toolConfig.length > 0 ? toolConfig : undefined,
+                        },
+                    });
+
+                    const u = getUsage(result);
+                    usage = {
+                        promptTokens: u.promptTokens,
+                        responseTokens: u.responseTokens,
+                        thoughtsTokens: u.thoughtsTokens,
+                        totalTokens: u.totalTokens,
+                        cachedTokens: result.usageMetadata?.cachedContentTokenCount || 0,
+                    };
+
+                    resultText = extractText(result);
+
+                    // Count actual tool calls from grounding metadata
+                    const groundingMeta = result.candidates?.[0]?.groundingMetadata;
+                    const actualSearchQueries = (groundingMeta as any)?.webSearchQueries?.length ?? 0;
+                    const groundingChunks = (groundingMeta as any)?.groundingChunks ?? [];
+                    const actualMapsQueries = groundingChunks.some(
+                        (c: any) => c?.retrievedContext?.uri?.includes('maps.googleapis') ||
+                                    c?.web?.uri?.includes('maps.google')
+                    ) ? 1 : 0;
+
+                    // Resolve model ID for pricing lookup
+                    const pricingModelId = modelId.includes('gemini-2.5-flash-lite') ? 'gemini-2.5-flash-lite'
+                        : modelId.includes('gemini-2.5-flash') ? 'gemini-2.5-flash'
+                        : 'gemini-3-flash-preview';
+
+                    const waiCostUsd = calculateCostUsd(pricingModelId, usage, {
+                        searchQueries: actualSearchQueries,
+                        mapsQueries: actualMapsQueries,
+                    });
+                    creditsUsed = waiCostUsd / MANA_VALUE_USD;
+
+                    logModelId = modelId;
+                    logExtras.searchQueries = actualSearchQueries;
+                    if (actualMapsQueries > 0) logExtras.mapsQueries = actualMapsQueries;
+                    break;
+                }
+
+                case "webview_ai_image": {
+                    if (!prompt) throw new Error("Prompt required for image generation");
+
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_IMAGE] Generating image for: ${prompt.substring(0, 80)}...`);
+
+                    const imgResult = await getAI().models.generateContent({
+                        model: 'gemini-2.5-flash-image',
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        config: {
+                            responseModalities: ['TEXT', 'IMAGE'],
+                        },
+                    });
+
+                    usage = {
+                        promptTokens: imgResult.usageMetadata?.promptTokenCount || 0,
+                        responseTokens: imgResult.usageMetadata?.candidatesTokenCount || 0,
+                        thoughtsTokens: 0,
+                        totalTokens: imgResult.usageMetadata?.totalTokenCount || 0,
+                        cachedTokens: 0
+                    };
+
+                    // Extract image from response parts
+                    const imgParts = imgResult.candidates?.[0]?.content?.parts || [];
+                    let imageBase64 = '';
+                    for (const part of imgParts) {
+                        if ((part as any).inlineData) {
+                            imageBase64 = (part as any).inlineData.data;
+                            break;
+                        }
+                    }
+
+                    if (!imageBase64) throw new Error('No image generated by model');
+
+                    resultText = imageBase64;
+                    creditsUsed = 0.5;
+                    logModelId = 'gemini-2.5-flash-image';
+                    logExtras.imageCount = 1;
+                    break;
+                }
+
+                case 'webview_ai_video': {
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Generating video for: ${prompt.substring(0, 80)}...`);
+
+                    const detectMimeType = (base64: string): string => {
+                        if (base64.startsWith('/9j/')) return 'image/jpeg';
+                        if (base64.startsWith('iVBOR')) return 'image/png';
+                        return 'image/jpeg';
+                    };
+
+                    const firstImageB64 = imagesBase64?.[0];
+                    const extraImageB64s = imagesBase64?.slice(1, 3) ?? [];
+                    const hasImages = !!firstImageB64;
+                    const hasReferenceImages = extraImageB64s.length > 0;
+
+                    const startingFrame = (hasImages && !hasReferenceImages)
+                        ? { imageBytes: firstImageB64!, mimeType: detectMimeType(firstImageB64!) }
+                        : undefined;
+
+                    const referenceImages = hasReferenceImages
+                        ? [
+                            { image: { imageBytes: firstImageB64!, mimeType: detectMimeType(firstImageB64!) }, referenceType: VideoGenerationReferenceType.ASSET },
+                            ...extraImageB64s.map(img => ({
+                                image: { imageBytes: img, mimeType: detectMimeType(img) },
+                                referenceType: VideoGenerationReferenceType.ASSET,
+                            })),
+                          ]
+                        : undefined;
+
+                    let operation = await getAI().models.generateVideos({
+                        model: hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview',
+                        prompt: prompt,
+                        ...(startingFrame ? { image: startingFrame } : {}),
+                        config: {
+                            numberOfVideos: 1,
+                            ...(!hasImages
+                                ? { resolution: "720p" }
+                                : hasReferenceImages
+                                    ? { aspectRatio: "16:9" }
+                                    : {}),
+                            ...(referenceImages ? { referenceImages } : {}),
+                        },
+                    });
+
+                    while (!operation.done) {
+                        console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Waiting for video...`);
+                        await new Promise(resolve => setTimeout(resolve, 8000));
+                        operation = await getAI().operations.getVideosOperation({ operation });
+                    }
+
+                    const videoFile = operation.response?.generatedVideos?.[0]?.video;
+                    if (!videoFile?.uri) throw new Error('No video generated by model');
+
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Downloading from: ${videoFile.uri}`);
+                    const videoResponse = await fetch(videoFile.uri, {
+                        headers: { 'x-goog-api-key': API_KEY }
+                    });
+                    if (!videoResponse.ok) throw new Error(`Video download failed: ${videoResponse.status}`);
+
+                    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+                    resultText = videoBuffer.toString('base64');
+
+                    const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 5;
+                    creditsUsed = durationSeconds * (hasImages ? 5.0 : 2.0);
+                    logModelId = hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview';
+                    logExtras.durationSec = durationSeconds;
+                    break;
+                }
+
+                case "webview_ai_similarity": {
+                    if (items.length < 2) throw new Error("At least 2 items required for similarity");
+
+                    const embeddings = await Promise.all(
+                        items.map((item: string) => getAI().models.embedContent({
+                            model: "gemini-embedding-001",
+                            contents: item,
+                        }))
+                    );
+                    const vectors = embeddings.map(e => e.embeddings![0].values!);
+
+                    function cosine(a: number[], b: number[]): number {
+                        let dot = 0, magA = 0, magB = 0;
+                        for (let i = 0; i < a.length; i++) {
+                            dot += a[i] * b[i];
+                            magA += a[i] * a[i];
+                            magB += b[i] * b[i];
+                        }
+                        return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+                    }
+
+                    const matrix: number[][] = [];
+                    for (let i = 0; i < vectors.length; i++) {
+                        const row: number[] = [];
+                        for (let j = 0; j < vectors.length; j++) {
+                            if (i === j) {
+                                row.push(1.0);
+                            } else if (j < i) {
+                                row.push(matrix[j][i]);
+                            } else {
+                                row.push(Math.round(cosine(vectors[i], vectors[j]) * 10000) / 10000);
+                            }
+                        }
+                        matrix.push(row);
+                    }
+
+                    resultText = JSON.stringify({ matrix, vectors, count: items.length });
+                    creditsUsed = items.length * 0.01;
+                    usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
+                    logModelId = 'gemini-embedding-001';
+                    logExtras.itemCount = items.length;
+                    break;
+                }
+
+                case 'webview_ai_tts': {
+                    if (!prompt) throw new Error('Text required for TTS');
+
+                    const selectedVoice = voiceName || 'Aoede';
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_TTS] voice=${selectedVoice}, text="${prompt.substring(0, 60)}..."`);
+
+                    const ttsResult = await getAI().models.generateContent({
+                        model: 'gemini-2.5-flash-preview-tts',
+                        contents: prompt,
+                        config: {
+                            responseModalities: ['AUDIO'],
+                            speechConfig: {
+                                voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
+                            },
+                        },
+                    });
+
+                    const ttsParts = ttsResult.candidates?.[0]?.content?.parts || [];
+                    let audioBase64 = '';
+                    for (const part of ttsParts as any[]) {
+                        if (part.inlineData) {
+                            audioBase64 = part.inlineData.data;
+                            break;
+                        }
+                    }
+
+                    if (!audioBase64) throw new Error('TTS returned no audio');
+
+                    const u = getUsage(ttsResult);
+                    usage = { promptTokens: u.promptTokens, responseTokens: u.responseTokens, thoughtsTokens: u.thoughtsTokens, totalTokens: u.totalTokens, cachedTokens: 0 };
+                    const ttsCostUsd = calculateCostUsd('gemini-2.5-flash-preview-tts', usage);
+                    creditsUsed = ttsCostUsd / MANA_VALUE_USD;
+
+                    const pcmBuffer = Buffer.from(audioBase64, 'base64');
+                    resultText = pcmToWav(pcmBuffer).toString('base64');
+                    logModelId = 'gemini-2.5-flash-preview-tts';
+                    break;
+                }
+
                 default:
                     throw new Error(`Invalid Async Action: ${action}`);
             }
 
             // Deduct Credits
-            const creditsUsed = FIXED_COST_CREATE_EDIT;
-            const costUsd = calculateCostUsd('gemini-3-flash-preview', usage);
+            // creditsUsed is set inside the switch per action type
+            let costUsd: number;
+            if (action === 'webview_ai_image') {
+                costUsd = USD_IMAGE_PER_UNIT;
+            } else if (action === 'webview_ai_video') {
+                costUsd = (logExtras.durationSec ?? 0) * (logModelId === 'veo-3.1-generate-preview' ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
+            } else {
+                costUsd = calculateCostUsd(logModelId, usage, {
+                    searchQueries: logExtras.searchQueries,
+                    mapsQueries: logExtras.mapsQueries,
+                });
+            }
 
             await db.runTransaction(async (t) => {
                 const ref = db.collection("users").doc(uid);
@@ -1460,7 +1770,7 @@ export const processSpellJob = onDocumentCreated(
                     const logRef = db.collection('users').doc(uid).collection('usageLogs').doc();
                     t.set(logRef, {
                         action,
-                        modelId: 'gemini-3-flash-preview',
+                        modelId: logModelId,
                         promptTokens: usage.promptTokens,
                         responseTokens: usage.responseTokens,
                         thoughtsTokens: usage.thoughtsTokens,
@@ -1470,6 +1780,7 @@ export const processSpellJob = onDocumentCreated(
                         creditsUsed,
                         timestamp: FieldValue.serverTimestamp(),
                         jobId,
+                        ...logExtras,
                     });
                 }
             });

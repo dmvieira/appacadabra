@@ -1,6 +1,6 @@
 import { getAuth, signInAnonymously, onAuthStateChanged as onAuthStateChangedModular, getIdToken, reload as reloadUser } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
-import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, query, where, orderBy, limit } from '@react-native-firebase/firestore';
+import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, query, where, orderBy, limit, getDoc } from '@react-native-firebase/firestore';
 import { getApp } from '@react-native-firebase/app';
 // @ts-ignore - Index.d.ts exports class as type, but it is a value in runtime. Import from root to ensure module registration.
 import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
@@ -76,7 +76,7 @@ export interface AddCreditsResult {
 export interface Job {
     id: string;
     userId: string;
-    action: 'create' | 'edit';
+    action: 'create' | 'edit' | 'webview_ai' | 'webview_ai_tts' | 'webview_ai_image' | 'webview_ai_similarity' | 'webview_ai_video';
     status: 'queued' | 'processing' | 'completed' | 'failed';
     createdAt: any;
     payload?: any; // Added payload so we can retrieve appId from it
@@ -208,7 +208,7 @@ function sanitizePayload(payload: any): any {
 }
 
 // Helper to submit a job and wait for it
-async function submitJobAndWait(action: 'create' | 'edit', payload: any): Promise<GenerationResult> {
+async function submitJobAndWait(action: Job['action'], payload: any): Promise<GenerationResult> {
     console.error(`[DEBUG] submitJobAndWait called. Action: ${action}`);
     try {
         const userId = await ensureAuthenticated();
@@ -233,38 +233,78 @@ async function submitJobAndWait(action: 'create' | 'edit', payload: any): Promis
 
         // Poll/Listen for completion
         return new Promise<GenerationResult>((resolve, reject) => {
-            console.error(`[DEBUG] Setting up onSnapshot for ${jobDoc.id}`);
-            const unsubscribe = onSnapshot(jobDoc, (snapshot) => {
-                console.error(`[DEBUG] Snapshot update for ${jobDoc.id}. Exists? ${snapshot.exists()}`);
-                const data = snapshot.data() as Job | undefined;
-                if (!data) {
-                    console.error(`[DEBUG] No data in snapshot.`);
-                    return;
-                }
+            let retryCount = 0;
+            const BACKOFF_CAP_MS = 30_000;
+            const TOTAL_TIMEOUT_MS = 15 * 60 * 1000;
+            const startedAt = Date.now();
 
-                console.error(`[DEBUG] Job Status: ${data.status}`);
+            const listen = () => {
+                console.error(`[DEBUG] Setting up onSnapshot for ${jobDoc.id} (retry ${retryCount})`);
+                onSnapshot(jobDoc, (snapshot) => {
+                    console.error(`[DEBUG] Snapshot update for ${jobDoc.id}. Exists? ${snapshot.exists()}`);
+                    const data = snapshot.data() as Job | undefined;
+                    if (!data) {
+                        console.error(`[DEBUG] No data in snapshot.`);
+                        return;
+                    }
+                    console.error(`[DEBUG] Job Status: ${data.status}`);
 
-                if (data.status === 'completed' && data.result) {
-                    console.error(`[DEBUG] Job completed!`);
-                    unsubscribe();
+                    if (data.status === 'completed' && data.result) {
+                        console.error(`[DEBUG] Job completed!`);
+                        const finalText = decompressContent(data.result.text);
+                        resolve({
+                            text: finalText,
+                            usage: data.result.usage || { promptTokens: 0, responseTokens: 0, totalTokens: 0 },
+                            creditsUsed: data.result.creditsUsed || 0,
+                            creditsRemaining: data.result.creditsRemaining || 0
+                        });
+                    } else if (data.status === 'failed') {
+                        console.error(`[DEBUG] Job failed: ${data.error}`);
+                        reject(new Error(data.error || 'Job failed unknown error'));
+                    }
+                }, async (error) => {
+                    console.error('[DEBUG] Job listener error:', error);
 
-                    // Process result
-                    const finalText = decompressContent(data.result.text);
-                    resolve({
-                        text: finalText,
-                        usage: data.result.usage || { promptTokens: 0, responseTokens: 0, totalTokens: 0 },
-                        creditsUsed: data.result.creditsUsed || 0,
-                        creditsRemaining: data.result.creditsRemaining || 0
-                    });
-                } else if (data.status === 'failed') {
-                    console.error(`[DEBUG] Job failed: ${data.error}`);
-                    unsubscribe();
-                    reject(new Error(data.error || 'Job failed unknown error'));
-                }
-            }, (error) => {
-                console.error('[DEBUG] Job listener error:', error);
-                reject(error);
-            });
+                    if (error.code !== 'unavailable') {
+                        reject(error);
+                        return;
+                    }
+
+                    const elapsed = Date.now() - startedAt;
+                    if (elapsed >= TOTAL_TIMEOUT_MS) {
+                        console.error('[DEBUG] Timeout atingido. Tentando getDoc de resgate...');
+                        try {
+                            const snap = await getDoc(jobDoc);
+                            const d = snap.data() as Job | undefined;
+                            if (d?.status === 'completed' && d.result) {
+                                console.error('[DEBUG] Resgate: job já estava completo, recuperando resultado');
+                                const finalText = decompressContent(d.result.text);
+                                resolve({
+                                    text: finalText,
+                                    usage: d.result.usage || { promptTokens: 0, responseTokens: 0, totalTokens: 0 },
+                                    creditsUsed: d.result.creditsUsed || 0,
+                                    creditsRemaining: d.result.creditsRemaining || 0
+                                });
+                                return;
+                            } else if (d?.status === 'failed') {
+                                reject(new Error(d?.error || 'Job failed'));
+                                return;
+                            }
+                        } catch (fetchErr) {
+                            console.error('[DEBUG] getDoc de resgate também falhou:', fetchErr);
+                        }
+                        reject(error);
+                        return;
+                    }
+
+                    retryCount++;
+                    const delay = Math.min(Math.pow(2, retryCount) * 1000, BACKOFF_CAP_MS);
+                    console.error(`[DEBUG] UNAVAILABLE — retry em ${delay}ms (total elapsed: ${Math.round(elapsed / 1000)}s)`);
+                    setTimeout(listen, delay);
+                });
+            };
+
+            listen();
         });
     } catch (e) {
         console.error('[DEBUG] submitJobAndWait CRITICAL ERROR:', e);
@@ -329,60 +369,30 @@ export async function generateSpellWebviewAI(
         useSearch?: boolean;
     }
 ): Promise<GenerationResult> {
-    await ensureAuthenticated();
-
-    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
-    const result = await generateSpell({
-        action: 'webview_ai',
+    return submitJobAndWait('webview_ai', {
         prompt: compressContent(prompt),
-        appVersion: APP_VERSION,
-        ...options,
+        schema: options?.schema,
+        imagesBase64: options?.imagesBase64,
+        videosBase64: options?.videosBase64,
+        audiosBase64: options?.audiosBase64,
+        useSearch: options?.useSearch,
     });
-
-    if (result.data && result.data.text) {
-        result.data.text = decompressContent(result.data.text);
-    }
-    return result.data;
 }
 
 // Similarity (embedding-based)
 export async function generateSpellSimilarity(
     items: string[]
 ): Promise<GenerationResult> {
-    await ensureAuthenticated();
-
-    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
-    const result = await generateSpell({
-        action: 'webview_ai_similarity',
-        items,
-        appVersion: APP_VERSION,
-    });
-
-    // Decompress result (server always compresses resultText)
-    if (result.data && result.data.text) {
-        result.data.text = decompressContent(result.data.text);
-    }
-
-    return result.data;
+    return submitJobAndWait('webview_ai_similarity', { items });
 }
 
 // Image Generation via Gemini
 export async function generateSpellImageGen(
     prompt: string
 ): Promise<GenerationResult> {
-    await ensureAuthenticated();
-
-    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
-    const result = await generateSpell({
-        action: 'webview_ai_image',
+    return submitJobAndWait('webview_ai_image', {
         prompt: compressContent(prompt),
-        appVersion: APP_VERSION,
     });
-
-    if (result.data && result.data.text) {
-        result.data.text = decompressContent(result.data.text);
-    }
-    return result.data;
 }
 
 // TTS Generation via Gemini TTS
@@ -390,20 +400,10 @@ export async function generateSpellTTS(
     text: string,
     voiceName?: string
 ): Promise<GenerationResult> {
-    await ensureAuthenticated();
-
-    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
-    const result = await generateSpell({
-        action: 'webview_ai_tts',
+    return submitJobAndWait('webview_ai_tts', {
         prompt: compressContent(text),
         voiceName: voiceName || 'Aoede',
-        appVersion: APP_VERSION,
     });
-
-    if (result.data && result.data.text) {
-        result.data.text = decompressContent(result.data.text);
-    }
-    return result.data;
 }
 
 // Video Generation via Veo
@@ -411,21 +411,10 @@ export async function generateSpellVideoGen(
     prompt: string,
     imagesBase64?: string[]
 ): Promise<GenerationResult> {
-    await ensureAuthenticated();
-
-    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
-    const result = await generateSpell({
-        action: 'webview_ai_video',
+    return submitJobAndWait('webview_ai_video', {
         prompt: compressContent(prompt),
-        appVersion: APP_VERSION,
-        ...(imagesBase64?.length ? { imagesBase64 } : {}),
+        imagesBase64,
     });
-
-    if (result.data && result.data.text) {
-        result.data.text = decompressContent(result.data.text);
-    }
-
-    return result.data;
 }
 
 // Credits
@@ -493,7 +482,7 @@ export function onCreditsChanged(callback: (credits: number) => void, explicitUs
 }
 
 // Submit a job without waiting (Fire & Forget)
-export async function submitJob(action: 'create' | 'edit', payload: any): Promise<string> {
+export async function submitJob(action: Job['action'], payload: any): Promise<string> {
     console.log(`[Firebase] submitJob called. Action: ${action}`);
     try {
         const userId = await ensureAuthenticated();

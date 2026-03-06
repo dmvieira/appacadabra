@@ -123,8 +123,6 @@ const translations = {
         // Import
         importing: 'Summoning...',
         processing: 'Processing Spell...',
-        importDemoBtn: 'Import Demo Universe 🪐',
-        importingDemo: 'Summoning Universe...',
 
         // Legal tabs
         legalTitle: 'Legal',
@@ -629,8 +627,6 @@ const translations = {
         // Import
         importing: 'Invocando...',
         processing: 'Processando Feitiço...',
-        importDemoBtn: 'Importar Universo Demo 🪐',
-        importingDemo: 'Invocando Universo...',
 
         // Legal tabs (content is in English only)
         legalTitle: 'Legal',
@@ -1117,8 +1113,6 @@ const translations = {
         coachGotIt: '¡Entendido!',
         importing: 'Invocando...',
         processing: 'Procesando Hechizo...',
-        importDemoBtn: 'Importar Universo Demo 🪐',
-        importingDemo: 'Invocando Universo...',
         // Legal - uses EN fallback
 
         // Empty state / How it works
@@ -1581,8 +1575,6 @@ const translations = {
         coachGotIt: 'Compris !',
         importing: 'Invocation...',
         processing: 'Traitement du parchemin...',
-        importDemoBtn: 'Importer Univers Démo 🪐',
-        importingDemo: 'Invocation de l\'Univers...',
         // Legal - uses EN fallback
 
         // Empty state / How it works
@@ -2047,8 +2039,6 @@ const translations = {
         coachGotIt: 'Verstanden!',
         importing: 'Beschwöre...',
         processing: 'Verarbeite Schriftrolle...',
-        importDemoBtn: 'Demo-Universum importieren 🪐',
-        importingDemo: 'Universum beschwören...',
         // Legal - uses EN fallback
 
         // Empty state / How it works
@@ -2443,8 +2433,6 @@ const translations = {
         coachGotIt: 'Capito!',
         importing: 'Evocando...',
         processing: 'Elaborazione pergamena...',
-        importDemoBtn: 'Importa Universo Demo 🪐',
-        importingDemo: 'Evocando Universo...',
         // Legal - uses EN fallback
 
         // Empty state / How it works
@@ -2836,8 +2824,6 @@ const translations = {
         coachGotIt: 'わかった！',
         importing: 'インポート中...',
         processing: 'ファイルを処理中...',
-        importDemoBtn: 'デモ宇宙をインポート 🪐',
-        importingDemo: '宇宙を召喚中...',
         legalTitle: '法的情報',
         privacyTab: 'プライバシー',
         termsTab: '利用規約',
@@ -3213,8 +3199,6 @@ const translations = {
         coachGotIt: '知道了！',
         importing: '导入中...',
         processing: '处理文件中...',
-        importDemoBtn: '导入演示宇宙 🪐',
-        importingDemo: '召唤宇宙...',
         legalTitle: '法律信息',
         privacyTab: '隐私',
         termsTab: '条款',
@@ -3593,8 +3577,6 @@ const translations = {
         coachGotIt: '알겠어요!',
         importing: '가져오는 중...',
         processing: '파일 처리 중...',
-        importDemoBtn: '데모 유니버스 가져오기 🪐',
-        importingDemo: '유니버스 소환 중...',
         legalTitle: '법적 정보',
         privacyTab: '개인정보',
         termsTab: '이용약관',
@@ -3961,8 +3943,6 @@ const translations = {
         coachGotIt: 'فهمت!',
         importing: 'جاري الاستيراد...',
         processing: 'جاري معالجة الملفات...',
-        importDemoBtn: 'استيراد عالم تجريبي 🪐',
-        importingDemo: 'استدعاء الكون...',
         legalTitle: 'قانوني',
         privacyTab: 'الخصوصية',
         termsTab: 'الشروط',
@@ -4335,8 +4315,6 @@ const translations = {
         coachGotIt: 'समझ गया!',
         importing: 'आयात हो रहा है...',
         processing: 'फाइलें प्रोसेस हो रही हैं...',
-        importDemoBtn: 'डेमो यूनिवर्स आयात करें 🪐',
-        importingDemo: 'ब्रह्मांड को बुला रहा है...',
         legalTitle: 'कानूनी',
         privacyTab: 'गोपनीयता',
         termsTab: 'शर्तें',
@@ -4709,8 +4687,6 @@ const translations = {
         coachGotIt: 'Понятно!',
         importing: 'Импорт...',
         processing: 'Обработка файлов...',
-        importDemoBtn: 'Импорт демо-вселенной 🪐',
-        importingDemo: 'Призыв вселенной...',
         legalTitle: 'Правовая информация',
         privacyTab: 'Конфиденциальность',
         termsTab: 'Условия',
@@ -5083,8 +5059,6 @@ const translations = {
         coachGotIt: 'Anladım!',
         importing: 'İçe aktarılıyor...',
         processing: 'Dosyalar işleniyor...',
-        importDemoBtn: 'Demo Evrenini İçe Aktar 🪐',
-        importingDemo: 'Evren Çağrılıyor...',
         legalTitle: 'Yasal',
         privacyTab: 'Gizlilik',
         termsTab: 'Şartlar',
@@ -5460,8 +5434,6 @@ const translations = {
         coachGotIt: 'Begrepen!',
         importing: 'Importeren...',
         processing: 'Bestanden verwerken...',
-        importDemoBtn: 'Demo Universum Importeren 🪐',
-        importingDemo: 'Universum Oproepen...',
         legalTitle: 'Juridisch',
         privacyTab: 'Privacy',
         termsTab: 'Voorwaarden',
@@ -5837,8 +5809,6 @@ const translations = {
         coachGotIt: 'Rozumiem!',
         importing: 'Importowanie...',
         processing: 'Przetwarzanie plików...',
-        importDemoBtn: 'Importuj Wersję Demo 🪐',
-        importingDemo: 'Przywoływanie Wszechświata...',
         legalTitle: 'Prawne',
         privacyTab: 'Prywatność',
         termsTab: 'Warunki',
@@ -6214,8 +6184,6 @@ const translations = {
         coachGotIt: 'Hiểu rồi!',
         importing: 'Đang nhập...',
         processing: 'Đang xử lý tệp...',
-        importDemoBtn: 'Nhập Vũ Trụ Thử Nghiệm 🪐',
-        importingDemo: 'Đang triệu hồi vũ trụ...',
         legalTitle: 'Pháp Lý',
         privacyTab: 'Quyền Riêng Tư',
         termsTab: 'Điều Khoản',
@@ -6591,8 +6559,6 @@ const translations = {
         coachGotIt: 'เข้าใจแล้ว!',
         importing: 'กำลังนำเข้า...',
         processing: 'กำลังประมวลผลไฟล์...',
-        importDemoBtn: 'นำเข้าจักรวาลสาธิต 🪐',
-        importingDemo: 'กำลังเรียกจักรวาล...',
         legalTitle: 'กฎหมาย',
         privacyTab: 'ความเป็นส่วนตัว',
         termsTab: 'ข้อกำหนด',

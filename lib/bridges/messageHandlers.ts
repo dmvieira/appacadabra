@@ -1462,17 +1462,25 @@ export async function handleBridgeMessage(
 
                 result = 'Speaking';
             } catch (e) {
-                success = false;
                 const errorMsg = e instanceof Error ? e.message : 'Error';
 
                 const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
                     errorMsg.toLowerCase().includes('insufficient mana');
 
                 if (isManaError) {
+                    success = false;
                     useManaStore.getState().openShop();
                     result = t('manaDepletedMessage');
                 } else {
-                    result = errorMsg;
+                    // Fallback para TTS nativo do dispositivo
+                    console.warn('[AUDIO_SPEAK_AI] AI TTS failed, falling back to Speech.speak:', errorMsg);
+                    try {
+                        Speech.speak(data.text, { language: data.language || undefined });
+                        result = 'Speaking';
+                    } catch (fallbackErr) {
+                        success = false;
+                        result = errorMsg;
+                    }
                 }
             }
             break;

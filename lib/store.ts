@@ -76,7 +76,6 @@ interface AppState {
     incrementAppManaCost: (id: number, amount: number) => Promise<void>;
     exportBackup: () => Promise<void>;
     importBackup: (uri?: string) => Promise<void>;
-    importDemoSpell: () => Promise<void>;
     importOnboardingSpell: (chipIndex: number) => Promise<number | null>;
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
@@ -152,7 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     jobTime = job.createdAt.seconds * 1000;
                 }
 
-                const isOld = (Date.now() - jobTime) > 10 * 60 * 1000; // 10 minutes
+                const isOld = (Date.now() - jobTime) > 20 * 60 * 1000; // 20 minutes
 
                 if (job.status === 'completed' && !wasCompleted) {
                     // Only process result if it's a fresh completion or a recent job recovery
@@ -719,25 +718,6 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
         } catch (error) {
             console.error('Failed to import backup:', error);
-            set({ statusMessage: t('errorImportingBackup'), isImporting: false });
-        }
-    },
-
-    importDemoSpell: async () => {
-        try {
-            if (get().isImporting) return;
-            set({ isImporting: true, statusMessage: t('importingDemo') });
-
-            const result = await backup.importDemoSpell();
-
-            set({ statusMessage: result.message, isImporting: false });
-
-            if (result.success) {
-                const apps = await db.getAllApps();
-                set({ apps });
-            }
-        } catch (error) {
-            console.error('Failed to import demo spell:', error);
             set({ statusMessage: t('errorImportingBackup'), isImporting: false });
         }
     },

@@ -548,20 +548,3 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
     }
 }
 
-/**
- * Import the built-in demo spell
- */
-export async function importDemoSpell(): Promise<{ success: boolean; count: number; message: string }> {
-    try {
-        // Require the JSON file directly (metro bundler handles this)
-        const demoData = require('../assets/demo_universe.json');
-        return await processBackupData(demoData as BackupData);
-    } catch (error) {
-        console.error('Demo import error:', error);
-        return {
-            success: false,
-            count: 0,
-            message: t('importError') + ' (Demo)'
-        };
-    }
-}

@@ -1,12 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
-import { useAppStore } from '../lib/store';
 
 export function EmptyState() {
     return (
-        <View style={styles.container}>
+        <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.container}
+            showsVerticalScrollIndicator={false}
+        >
             <View style={styles.howItWorks}>
                 <Text style={styles.howTitle}>{t('howItWorks')}</Text>
 
@@ -14,34 +17,8 @@ export function EmptyState() {
                 <Step number="2" title={t('step2Title')} description={t('step2Desc')} />
                 <Step number="3" title={t('step3Title')} description={t('step3Desc')} />
                 <Step number="4" title={t('step4Title')} description={t('step4Desc')} />
-
-                <DemoImportButton />
             </View>
-        </View>
-    );
-}
-
-function DemoImportButton() {
-    const importDemoSpell = useAppStore(state => state.importDemoSpell);
-    const isImporting = useAppStore(state => state.isImporting);
-
-    return (
-        <TouchableOpacity
-            style={styles.demoButton}
-            onPress={importDemoSpell}
-            disabled={isImporting}
-            accessibilityLabel={t('importDemoBtn')}
-            accessibilityRole="button"
-        >
-            {isImporting ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ActivityIndicator size="small" color={colors.primary} style={{ marginEnd: 8 }} />
-                    <Text style={styles.demoButtonText}>{t('importingDemo')}</Text>
-                </View>
-            ) : (
-                <Text style={styles.demoButtonText}>{t('importDemoBtn')}</Text>
-            )}
-        </TouchableOpacity>
+        </ScrollView>
     );
 }
 
@@ -60,8 +37,11 @@ function Step({ number, title, description }: { number: string; title: string; d
 }
 
 const styles = StyleSheet.create({
-    container: {
+    scroll: {
         flex: 1,
+    },
+    container: {
+        flexGrow: 1,
         justifyContent: 'center',
         alignItems: 'center',
         padding: spacing.xl,
@@ -109,19 +89,5 @@ const styles = StyleSheet.create({
         color: colors.onSurfaceVariant,
         fontSize: 14,
         marginTop: 2,
-    },
-    demoButton: {
-        marginTop: spacing.xl,
-        alignSelf: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: spacing.lg,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    demoButtonText: {
-        color: colors.primary,
-        fontWeight: 'bold',
-        fontSize: 16,
-        textAlign: 'center',
     },
 });

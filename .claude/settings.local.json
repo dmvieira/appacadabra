@@ -19,7 +19,8 @@
       "mcp__plugin_firebase_firebase__firestore_list_documents",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:developers.googleblog.com)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(wc:*)"
     ]
   }
 }
