@@ -37,6 +37,11 @@ const MAIN_MODEL_CONFIG = {
     thinkingConfig: { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH },
 };
 
+// Config for cached calls — tools must not be repeated here (they live in the cache)
+const CACHED_MAIN_MODEL_CONFIG = {
+    thinkingConfig: { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH },
+};
+
 // Context Caching for SYSTEM_INSTRUCTIONS (~1,800 tokens)
 // Cache read: 25% of input price → significant savings at volume
 let _sysCache: any = null;
@@ -52,6 +57,7 @@ async function getOrCreateSysCache(): Promise<string> {
             model: 'models/gemini-3-flash-preview',
             config: {
                 systemInstruction: SYSTEM_INSTRUCTIONS,
+                tools: [{ googleSearch: {} }],
                 ttl: `${CACHE_TTL_S}s`,
             },
         });
@@ -118,6 +124,7 @@ const RATE_LIMITS = {
     CALLS_PER_MINUTE: 30, // Increased
     TOKENS_PER_MINUTE: 500000, // Increased
     COOLDOWN_MS: 60000,
+    SUGGEST_SPELLS_DAILY: 10,
 };
 
 interface RateLimitData {
@@ -125,6 +132,9 @@ interface RateLimitData {
     tokensThisMinute: number;
     lastMinuteReset: number;
     cooldownUntil?: number;
+    // Daily limits
+    dailySuggestSpells?: number;
+    lastDailyReset?: number;
 }
 
 // Check and update rate limits (returns error message if rate limited)
@@ -173,6 +183,37 @@ async function checkRateLimit(
     transaction.update(userRef, { rateLimit });
 
     return null; // No rate limit hit
+}
+
+// Check and update daily rate limits for suggestSpells
+async function checkDailyRateLimit(
+    userRef: DocumentReference,
+    transaction: Transaction,
+    userData: DocumentData
+): Promise<string | null> {
+    const now = Date.now();
+    const rateLimit: RateLimitData = userData.rateLimit || {
+        callsThisMinute: 0,
+        tokensThisMinute: 0,
+        lastMinuteReset: now,
+    };
+
+    // 24-hour reset (simple logic based on lastDailyReset)
+    const dayMs = 24 * 60 * 60 * 1000;
+    if (!rateLimit.lastDailyReset || now - rateLimit.lastDailyReset > dayMs) {
+        rateLimit.dailySuggestSpells = 0;
+        rateLimit.lastDailyReset = now;
+    }
+
+    if ((rateLimit.dailySuggestSpells || 0) >= RATE_LIMITS.SUGGEST_SPELLS_DAILY) {
+        return `You've reached your daily limit of ${RATE_LIMITS.SUGGEST_SPELLS_DAILY} suggestions. Try again tomorrow!`;
+    }
+
+    // Increment
+    rateLimit.dailySuggestSpells = (rateLimit.dailySuggestSpells || 0) + 1;
+    transaction.update(userRef, { rateLimit });
+
+    return null;
 }
 
 
@@ -624,7 +665,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                             result = await withRetry(() => getAI().models.generateContent({
                                 model: 'models/gemini-3-flash-preview',
                                 contents: convertPrompt,
-                                config: { ...MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
+                                config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
                             }));
                         } else {
                             result = await withRetry(() => getAI().models.generateContent({
@@ -1110,7 +1151,17 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
         const { query, language } = request.data;
         if (!query?.trim()) throw new HttpsError("invalid-argument", "Query required");
 
-        const prompt = `You are helping users of Appacadabra, an app that creates mini AI-powered tools called "spells".
+        const uid = request.auth.uid;
+        const userRef = db.collection("users").doc(uid);
+
+        return await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists) throw new HttpsError("failed-precondition", "No user data");
+
+            const limitError = await checkDailyRateLimit(userRef, transaction, userDoc.data()!);
+            if (limitError) throw new HttpsError("resource-exhausted", limitError);
+
+            const prompt = `You are helping users of Appacadabra, an app that creates mini AI-powered tools called "spells".
 The user searched for "${query.trim()}" but found no results.
 Suggest exactly 2 spell ideas related to "${query.trim()}".
 Respond in language: ${language}.
@@ -1118,26 +1169,28 @@ For each suggestion:
 - title: short name (3–5 words)
 - description: one sentence written as a prompt for the AI to create it, starting with an action verb.`;
 
-        const result = await getAI().models.generateContent({
-            model: "gemini-2.5-flash-lite",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            title: { type: Type.STRING },
-                            description: { type: Type.STRING },
+            const result = await getAI().models.generateContent({
+                model: "gemini-2.5-flash-lite",
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                title: { type: Type.STRING },
+                                description: { type: Type.STRING },
+                            },
+                            required: ["title", "description"],
                         },
-                        required: ["title", "description"],
                     },
                 },
-            },
+            });
+
+            const suggestions = JSON.parse(result.text!);
+            return { suggestions };
         });
-        const suggestions = JSON.parse(result.text!);
-        return { suggestions };
     }
 );
 
@@ -1271,7 +1324,7 @@ export const processSpellJob = onDocumentCreated(
                             return getAI().models.generateContent({
                                 model: 'models/gemini-3-flash-preview',
                                 contents: p,
-                                config: { ...MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
+                                config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
                             });
                         }
                         return getAI().models.generateContent({
@@ -1373,7 +1426,7 @@ export const processSpellJob = onDocumentCreated(
                             return getAI().models.generateContent({
                                 model: 'models/gemini-3-flash-preview',
                                 contents: p,
-                                config: { ...MAIN_MODEL_CONFIG, cachedContent: editCacheName },
+                                config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: editCacheName },
                             });
                         }
                         return getAI().models.generateContent({

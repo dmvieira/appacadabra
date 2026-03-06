@@ -237,10 +237,12 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
             const BACKOFF_CAP_MS = 30_000;
             const TOTAL_TIMEOUT_MS = 15 * 60 * 1000;
             const startedAt = Date.now();
+            let unsubscribe: (() => void) | null = null;
 
             const listen = () => {
+                if (unsubscribe) unsubscribe();
                 console.error(`[DEBUG] Setting up onSnapshot for ${jobDoc.id} (retry ${retryCount})`);
-                onSnapshot(jobDoc, (snapshot) => {
+                unsubscribe = onSnapshot(jobDoc, (snapshot) => {
                     console.error(`[DEBUG] Snapshot update for ${jobDoc.id}. Exists? ${snapshot.exists()}`);
                     const data = snapshot.data() as Job | undefined;
                     if (!data) {
@@ -251,6 +253,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
 
                     if (data.status === 'completed' && data.result) {
                         console.error(`[DEBUG] Job completed!`);
+                        unsubscribe?.();
                         const finalText = decompressContent(data.result.text);
                         resolve({
                             text: finalText,
@@ -260,6 +263,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
                         });
                     } else if (data.status === 'failed') {
                         console.error(`[DEBUG] Job failed: ${data.error}`);
+                        unsubscribe?.();
                         reject(new Error(data.error || 'Job failed unknown error'));
                     }
                 }, async (error) => {

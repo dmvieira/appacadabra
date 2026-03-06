@@ -1001,6 +1001,7 @@ export default function HomeScreen() {
                             suggestions={suggestions}
                             isLoading={isLoadingSuggestions}
                             onSuggestionPress={(s) => {
+                                setSearchQuery(''); // Clear search to return to listing
                                 setCreateDialogInitialText(s.description);
                                 setShowCreateDialog(true);
                             }}

@@ -167,7 +167,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                         get()._processFailedJob(job);
                     }
                 } else if (job.status === 'processing' && isOld) {
-                    // Stuck job: processing for > 10 minutes = likely Cloud Function timeout
+                    // Stuck job: only handle create/edit — webview_ai is managed by the bridge
+                    if (job.action !== 'create' && job.action !== 'edit') return;
                     const wasAlreadyHandled = previousJob?.status === 'failed';
                     if (!wasAlreadyHandled) {
                         console.warn('[Store] Stuck job detected (processing > 10min):', job.id);
@@ -364,6 +365,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Internal helper to process job failures (especially mana-related)
     _processFailedJob: (job: Job) => {
+        // webview_ai jobs are managed by the bridge, not the listing UI
+        if (job.action.startsWith('webview_ai')) {
+            console.log('[Store] Ignoring webview AI job failure (handled by bridge):', job.id);
+            return;
+        }
+
         console.log('[Store] Processing failed job:', job.id, 'Error:', job.error);
 
         // Cleanup placeholders/locks
@@ -378,7 +385,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
 
         // Preserve the user's original prompt text for recovery
-        const promptText = job.payload?.instruction || job.payload?.prompt || '';
+        const rawPrompt = job.payload?.instruction || job.payload?.prompt || '';
+        const promptText = rawPrompt ? firebase.decompressContent(rawPrompt) : '';
         if (promptText) {
             set({
                 lastFailedPrompt: {

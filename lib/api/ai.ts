@@ -122,84 +122,74 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
     const cleanVideos = videos?.map(v => v.replace(/^data:video\/[^;]+;base64,/, ''));
     const cleanAudios = audios?.map(a => a.replace(/^data:audio\/[^;]+;base64,/, ''));
 
-    return withTimeoutAndRetry(async () => {
-        const result = await firebase.generateSpellWebviewAI(prompt, {
-            schema,
-            imagesBase64: cleanImages,
-            videosBase64: cleanVideos,
-            audiosBase64: cleanAudios,
-            useSearch: search
-        });
-
-        const creditsUsed = result.creditsUsed || 0;
-        logAiGenerate(creditsUsed, !!(cleanImages?.length), !!(cleanAudios?.length));
-        return {
-            text: result.text,
-            usage: result.usage,
-            creditsUsed,
-        };
+    const result = await firebase.generateSpellWebviewAI(prompt, {
+        schema,
+        imagesBase64: cleanImages,
+        videosBase64: cleanVideos,
+        audiosBase64: cleanAudios,
+        useSearch: search
     });
+
+    const creditsUsed = result.creditsUsed || 0;
+    logAiGenerate(creditsUsed, !!(cleanImages?.length), !!(cleanAudios?.length));
+    return {
+        text: result.text,
+        usage: result.usage,
+        creditsUsed,
+    };
 }
 
 // Used by WebView Bridge - Similarity
 export async function aiSimilarity(items: string[]): Promise<{ text: string, creditsUsed: number }> {
     console.log('[AI] aiSimilarity (via Firebase)', items.length, 'items');
 
-    return withTimeoutAndRetry(async () => {
-        const result = await firebase.generateSpellSimilarity(items);
-        return {
-            text: result.text,
-            creditsUsed: result.creditsUsed || 0,
-        };
-    });
+    const result = await firebase.generateSpellSimilarity(items);
+    return {
+        text: result.text,
+        creditsUsed: result.creditsUsed || 0,
+    };
 }
 
 // Used by WebView Bridge - Generate Image
 export async function aiGenerateImage(prompt: string): Promise<{ imageBase64: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerateImage (via Firebase)', prompt?.substring(0, 80));
 
-    return withTimeoutAndRetry(async () => {
-        const result = await firebase.generateSpellImageGen(prompt);
+    const result = await firebase.generateSpellImageGen(prompt);
 
-        const creditsUsed = result.creditsUsed || 0;
-        logAiGenerateImage(creditsUsed);
-        return {
-            imageBase64: result.text, // Server returns base64 image data in text field
-            usage: result.usage,
-            creditsUsed,
-        };
-    });
+    const creditsUsed = result.creditsUsed || 0;
+    logAiGenerateImage(creditsUsed);
+    return {
+        imageBase64: result.text, // Server returns base64 image data in text field
+        usage: result.usage,
+        creditsUsed,
+    };
 }
 
 // Used by WebView Bridge - Generate TTS Audio
 export async function aiGenerateTTS(text: string, voiceName?: string): Promise<{ audioBase64: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerateTTS (via Firebase)', text?.substring(0, 80), 'voice:', voiceName);
 
-    return withTimeoutAndRetry(async () => {
-        const result = await firebase.generateSpellTTS(text, voiceName);
+    const result = await firebase.generateSpellTTS(text, voiceName);
 
-        const creditsUsed = result.creditsUsed || 0;
-        return {
-            audioBase64: result.text, // Server returns base64 audio data in text field
-            usage: result.usage,
-            creditsUsed,
-        };
-    });
+    const creditsUsed = result.creditsUsed || 0;
+    return {
+        audioBase64: result.text, // Server returns base64 audio data in text field
+        usage: result.usage,
+        creditsUsed,
+    };
 }
 
 // Used by WebView Bridge - Generate Video
 export async function aiGenerateVideo(prompt: string, imagesBase64?: string[]): Promise<{ videoBase64: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerateVideo (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
-    return withTimeoutAndRetry(async () => {
-        const result = await firebase.generateSpellVideoGen(prompt, imagesBase64);
+    const result = await firebase.generateSpellVideoGen(prompt, imagesBase64);
 
-        const creditsUsed = result.creditsUsed || 0;
-        // reuse image analytics log for now or skip if not available
-        return {
-            videoBase64: result.text, // Server returns base64 video data in text field
-            usage: result.usage,
-            creditsUsed,
-        };
-    });
+    const creditsUsed = result.creditsUsed || 0;
+    // reuse image analytics log for now or skip if not available
+    return {
+        videoBase64: result.text, // Server returns base64 video data in text field
+        usage: result.usage,
+        creditsUsed,
+    };
 }
