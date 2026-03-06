@@ -61,24 +61,44 @@ const APPACADABRA_MOCKS = `
 </script>
 `;
 
-export function validateWithExecution(html: string): ValidationResult {
-    const errors: ValidationError[] = [];
-    const jsErrors: string[] = [];
+function injectAtStart(html: string, injection: string): string {
+    // 1. Prefer injecting right after <head>
+    const withHead = html.replace(/(<head[^>]*>)/i, `$1${injection}`);
+    if (withHead !== html) return withHead;
+    // 2. Fallback: before the first <script> tag
+    const withScript = html.replace(/(<script[\s>])/i, `${injection}$1`);
+    if (withScript !== html) return withScript;
+    // 3. Last resort: prepend to entire document
+    return injection + html;
+}
 
+export function validateWithExecution(html: string): ValidationResult {
     try {
-        // Inject CDN stubs into <head> (before user scripts) and mocks into <body>
-        const htmlWithStubs = html.replace(/(<head[^>]*>)/i, `$1${CDN_LIBRARY_STUBS}`);
-        const htmlWithMocks = htmlWithStubs.replace(/(<body[^>]*>)/i, `$1${APPACADABRA_MOCKS}`);
+        const errors: ValidationError[] = [];
+        const jsErrors: string[] = [];
+
+        // Inject CDN stubs and mocks robustly (works even without <head>/<body>)
+        const htmlWithStubs = injectAtStart(html, CDN_LIBRARY_STUBS);
+        const htmlWithMocks = injectAtStart(htmlWithStubs, APPACADABRA_MOCKS);
 
         const dom = new JSDOM(htmlWithMocks, {
             runScripts: 'dangerously',
             pretendToBeVisual: true,
             url: 'https://app.appacadabra.local/',
+            beforeParse(win) {
+                (win as any).onerror = (msg: string | Event) => {
+                    const message = typeof msg === 'string' ? msg : (msg as ErrorEvent).message ?? String(msg);
+                    if (!isJsdomFalsePositive(message)) {
+                        jsErrors.push(message);
+                    }
+                    return true; // suppress — don't re-throw
+                };
+            },
         });
 
-        // Capture script errors during synchronous initialization
+        // Also capture any errors fired after beforeParse
         dom.window.addEventListener('error', (e: ErrorEvent) => {
-            if (!isJsdomFalsePositive(e.message)) {
+            if (!isJsdomFalsePositive(e.message) && !jsErrors.includes(e.message)) {
                 jsErrors.push(e.message);
             }
         });
@@ -109,18 +129,18 @@ export function validateWithExecution(html: string): ValidationResult {
         }
 
         dom.window.close();
-    } catch (e: any) {
-        // jsdom crash — HTML muito quebrado
-        errors.push({
-            type: 'html',
-            message: `Failed to parse/render HTML: ${e.message}`,
-            fixable: true
-        });
-    }
 
-    return {
-        valid: errors.length === 0,
-        errors,
-        canRetry: errors.some(e => e.fixable),
-    };
+        return {
+            valid: errors.length === 0,
+            errors,
+            canRetry: errors.some(e => e.fixable),
+        };
+    } catch (e: any) {
+        // Known HTML parse crash → return as fixable error
+        return {
+            valid: false,
+            errors: [{ type: 'html', message: `Failed to parse/render HTML: ${e.message}`, fixable: true }],
+            canRetry: true,
+        };
+    }
 }
