@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { t } from '../lib/i18n';
 import {
     View,
     Text,
@@ -12,24 +11,26 @@ import {
     Platform,
     KeyboardAvoidingView,
     BackHandler,
-    AppState,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// ... other imports ...
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import * as Calendar from 'expo-calendar';
+import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
-
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import * as Contacts from 'expo-contacts';
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as AuthSession from 'expo-auth-session';
+import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from '../lib/bridges/injectedJS';
-import { handleBridgeMessage, cleanupAllMedia } from '../lib/bridges/messageHandlers';
+import * as gemini from '../lib/api/gemini';
 import * as db from '../lib/database/db';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { GeneratedApp, AppVersion } from '../lib/database/types';
 import * as ShareIntent from 'share-intent';
-import { getWebViewTranslations } from '../lib/i18n';
 
 interface AppRunnerProps {
     appId: number;
@@ -38,7 +39,6 @@ interface AppRunnerProps {
 }
 
 export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunnerProps) {
-    const insets = useSafeAreaInsets();
     const webViewRef = useRef<WebView>(null);
     const { minimizeApp, updateAppCode, updateAppWithAI, closeApp } = useAppStore();
 
@@ -87,9 +87,6 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     const [isSelectingElement, setIsSelectingElement] = useState(false);
     const editSheetTimeout = useRef<NodeJS.Timeout | null>(null);
 
-    // Advanced mode toggle
-    const [showAdvanced, setShowAdvanced] = useState(false);
-
     // Manual editor
     const [showManualEditor, setShowManualEditor] = useState(false);
     const [manualCode, setManualCode] = useState('');
@@ -100,60 +97,33 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
     // Saved localStorage items
     const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
-    const [storageLoaded, setStorageLoaded] = useState(false);
-    // Use ref to ensure storage is available synchronously
-    const savedStorageRef = useRef<{ key: string; value: string }[]>([]);
 
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);
     const [networkLogs, setNetworkLogs] = useState<{ url: string; method: string; status?: number; time: number }[]>([]);
-    const [webViewKey, setWebViewKey] = useState(0); // Key to force WebView recreation
 
     // Load app data
     useEffect(() => {
         async function loadApp() {
-            console.log('AppRunner: Loading app and storage for id:', appId);
-            // Reset state to force reload
-            setIsLoading(true);
-            setStorageLoaded(false);
-            setApp(null);
-
             const appData = await db.getAppById(appId);
             if (appData) {
                 setApp(appData);
                 // Load stored localStorage data
                 const storage = await db.getStorageForApp(appData.id);
-                const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
-                console.log('AppRunner: Loaded', storageItems.length, 'storage items');
-                // Update both ref and state
-                savedStorageRef.current = storageItems;
-                setSavedStorage(storageItems);
-                setStorageLoaded(true);
-            } else {
-                setStorageLoaded(true); // Mark as loaded even if no app found
+                setSavedStorage(storage.map(s => ({ key: s.key, value: s.value })));
             }
             setIsLoading(false);
         }
         loadApp();
     }, [appId]);
 
-    // Force reload WebView when app code changes (e.g. from version restore)
-    useEffect(() => {
-        if (app?.code) {
-            setWebViewKey(prev => prev + 1);
-        }
-    }, [app?.code]);
-
     // Inject saved localStorage when WebView loads
     const handleLoadEnd = useCallback(() => {
-        if (webViewRef.current) {
-            // Always inject from ref (more reliable than state)
-            const storageToRestore = savedStorageRef.current;
-            console.log('AppRunner: handleLoadEnd injecting', storageToRestore.length, 'storage items');
-            const script = createStorageRestoreScript(storageToRestore);
+        if (webViewRef.current && savedStorage.length > 0) {
+            const script = createStorageRestoreScript(savedStorage);
             webViewRef.current.injectJavaScript(script);
         }
-    }, []);
+    }, [savedStorage]);
 
     // Load version history
     const loadVersions = useCallback(async () => {
@@ -247,52 +217,12 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         }
     };
 
-    // Message chunking buffer
-    const messageBuffers = useRef<Record<string, string[]>>({});
-
     // Handle messages from WebView
     const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
-        let callbackName: string | undefined;
         try {
             const messageStr = event.nativeEvent.data;
             const message = JSON.parse(messageStr);
-            const { type, data, appId: msgAppId } = message;
-            callbackName = message.callbackName;
-
-            // Handle Chunked Messages
-            if (type === 'BRIDGE_CHUNK') {
-                const { id, index, total, chunk } = data;
-                if (!messageBuffers.current[id]) {
-                    messageBuffers.current[id] = new Array(total).fill('');
-                }
-                messageBuffers.current[id][index] = chunk;
-
-                // Check completion
-                let isComplete = true;
-                for (let i = 0; i < total; i++) {
-                    if (!messageBuffers.current[id][i]) {
-                        isComplete = false;
-                        break;
-                    }
-                }
-
-                if (isComplete) {
-                    const fullMessageStr = messageBuffers.current[id].join('');
-                    console.log(`[AppRunner] Reassembled message ${id}, length: ${fullMessageStr.length}`);
-                    delete messageBuffers.current[id];
-
-                    // Recursive call with the full message
-                    const fullEvent = {
-                        ...event,
-                        nativeEvent: {
-                            ...event.nativeEvent,
-                            data: fullMessageStr
-                        }
-                    };
-                    handleMessage(fullEvent);
-                }
-                return;
-            }
+            const { type, data, callbackName } = message;
 
             // Log non-frequent messages
             if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG') {
@@ -302,58 +232,392 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             let success = true;
             let result = '';
 
-            // Delegate to centralized message handler
-            const bridgeResult = await handleBridgeMessage(type, data, {
-                webViewRef: webViewRef as React.RefObject<WebView>,
-                appId: appId || null // Use prop appId which is reliable
-            });
-
-            if (bridgeResult.handled) {
-                success = bridgeResult.success;
-                result = bridgeResult.result;
-            } else {
-                // Handle local messages not in shared bridge
-                switch (type) {
-                    case 'CONSOLE_LOG':
-                        setConsoleLogs(prev => [...prev.slice(-99), `[${data.type}] ${data.message}`]);
-                        return; // No callback needed usually, or verified later
-                    case 'NETWORK_LOG':
-                        setNetworkLogs(prev => [...prev.slice(-49), {
-                            url: data.url,
-                            method: data.method,
-                            status: data.status,
-                            time: Date.now(),
-                        }]);
-                        return;
-                    case 'ELEMENT_SELECTED':
-                        console.log('Element selected:', data.tagName);
-                        // Disable mode
-                        if (webViewRef.current) webViewRef.current.injectJavaScript('if(window.toggleSelectionMode) window.toggleSelectionMode(false); true;');
-                        setIsSelectingElement(false);
-                        setSelectionContext(data.html || '');
-                        setShowEditSheet(true);
-                        return;
-                    default:
-                        console.log('Unknown message type:', type);
+            switch (type) {
+                // ============= AI Handlers =============
+                case 'AI_GENERATE':
+                    try {
+                        result = await gemini.aiGenerate({
+                            prompt: data.prompt,
+                            search: data.search,
+                            schema: data.schema,
+                            image: data.image,
+                            audio: data.audio,
+                        });
+                    } catch (e) {
                         success = false;
-                        result = `Unknown message type: ${type}`;
-                }
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Calendar Handlers =============
+                case 'CALENDAR_CREATE_EVENT':
+                case 'CALENDAR_CREATE_EVENT_REMINDER':
+                    try {
+                        // Cross-platform: Use Google Calendar URL
+                        const startMs = data.startTimeMs;
+                        const endMs = data.endTimeMs;
+                        const eventTitle = encodeURIComponent(data.title || 'Novo Evento');
+                        const eventDesc = encodeURIComponent(data.description || '');
+
+                        // Format dates for Google Calendar URL (YYYYMMDDTHHmmssZ format)
+                        const startDate = new Date(startMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                        const endDate = new Date(endMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+                        const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&details=${eventDesc}&dates=${startDate}/${endDate}`;
+                        await Linking.openURL(googleCalUrl);
+                        result = 'Calendar opened';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'CALENDAR_HAS_PERMISSION':
+                    const calPerm = await Calendar.getCalendarPermissionsAsync();
+                    result = (calPerm.status === 'granted').toString();
+                    break;
+
+                case 'CALENDAR_REQUEST_PERMISSION':
+                    await Calendar.requestCalendarPermissionsAsync();
+                    break;
+
+                // ============= Notification Handlers =============
+                case 'NOTIFY_SHOW_NOW':
+                    try {
+                        // Request permission if not granted
+                        const showNowPerm = await Notifications.getPermissionsAsync();
+                        if (showNowPerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
+                        await Notifications.scheduleNotificationAsync({
+                            content: { title: data.title, body: data.message },
+                            trigger: null,
+                        });
+                        result = 'Notification sent';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'NOTIFY_SCHEDULE':
+                    try {
+                        // Request permission if not granted
+                        const schedulePerm = await Notifications.getPermissionsAsync();
+                        if (schedulePerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
+                        await Notifications.scheduleNotificationAsync({
+                            content: { title: data.title, body: data.message },
+                            trigger: {
+                                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                                seconds: data.delayMinutes * 60,
+                            },
+                        });
+                        result = 'Notification scheduled';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'NOTIFY_SCHEDULE_AT':
+                    try {
+                        // Request permission if not granted
+                        const scheduleAtPerm = await Notifications.getPermissionsAsync();
+                        if (scheduleAtPerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                success = false;
+                                result = 'Notification permission denied';
+                                break;
+                            }
+                        }
+
+                        await Notifications.scheduleNotificationAsync({
+                            content: { title: data.title, body: data.message },
+                            trigger: {
+                                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                                date: new Date(data.timeMs),
+                            },
+                        });
+                        result = 'Notification scheduled';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'NOTIFY_HAS_PERMISSION':
+                    const notifPerm = await Notifications.getPermissionsAsync();
+                    result = (notifPerm.status === 'granted').toString();
+                    break;
+
+                case 'NOTIFY_REQUEST_PERMISSION':
+                    await Notifications.requestPermissionsAsync();
+                    break;
+
+                // ============= Storage Handlers =============
+                case 'STORAGE_SET':
+                    if (app) await db.setStorageItem(app.id, data.key, data.value);
+                    break;
+                case 'STORAGE_REMOVE':
+                    if (app) await db.removeStorageItem(app.id, data.key);
+                    break;
+                case 'STORAGE_CLEAR':
+                    if (app) await db.clearStorageForApp(app.id);
+                    break;
+
+                // ============= Console Log =============
+                case 'CONSOLE_LOG':
+                    setConsoleLogs(prev => [...prev.slice(-99), `[${data.type}] ${data.message}`]);
+                    break;
+
+                case 'NETWORK_LOG':
+                    setNetworkLogs(prev => [...prev.slice(-49), {
+                        url: data.url,
+                        method: data.method,
+                        status: data.status,
+                        time: Date.now(),
+                    }]);
+                    break;
+
+                case 'ELEMENT_SELECTED':
+                    console.log('Element selected:', data.tagName);
+                    // Disable mode
+                    if (webViewRef.current) webViewRef.current.injectJavaScript('if(window.toggleSelectionMode) window.toggleSelectionMode(false); true;');
+                    setIsSelectingElement(false);
+                    setSelectionContext(data.html || '');
+                    setShowEditSheet(true);
+                    break;
+
+                // ============= Share Handlers =============
+                case 'SHARE_CONTENT':
+                    try {
+                        if (await Sharing.isAvailableAsync()) {
+                            const content = data.text || data.url || '';
+                            const tempPath = FileSystem.cacheDirectory + 'share_temp.txt';
+                            await FileSystem.writeAsStringAsync(tempPath, content);
+                            await Sharing.shareAsync(tempPath, { mimeType: 'text/plain' });
+                            result = 'Shared';
+                        } else {
+                            if (data.url) await Linking.openURL(`mailto:?body=${encodeURIComponent(data.text || '')} ${data.url}`);
+                            result = 'Shared via fallback';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'SHARE_FILE':
+                    try {
+                        if (await Sharing.isAvailableAsync()) {
+                            const tempPath = FileSystem.cacheDirectory + (data.filename || 'shared_file');
+                            await FileSystem.writeAsStringAsync(tempPath, data.base64, { encoding: FileSystem.EncodingType.Base64 });
+                            await Sharing.shareAsync(tempPath, { mimeType: data.mimeType || 'application/octet-stream' });
+                            result = 'File shared';
+                        } else {
+                            success = false;
+                            result = 'Sharing not available';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Contacts Handlers =============
+                case 'CONTACTS_GET_ALL':
+                    try {
+                        const contactsPerm = await Contacts.requestPermissionsAsync();
+                        if (contactsPerm.status === 'granted') {
+                            const { data: contacts } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails] });
+                            result = JSON.stringify(contacts.slice(0, 100));
+                        } else {
+                            success = false;
+                            result = 'Contacts permission denied';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'CONTACTS_SEARCH':
+                    try {
+                        const searchPerm = await Contacts.requestPermissionsAsync();
+                        if (searchPerm.status === 'granted') {
+                            const { data: allContacts } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails] });
+                            const query = (data.query || '').toLowerCase();
+                            const filtered = allContacts.filter(c => c.name?.toLowerCase().includes(query) || c.phoneNumbers?.some(p => p.number?.includes(query)) || c.emails?.some(e => e.email?.toLowerCase().includes(query)));
+                            result = JSON.stringify(filtered.slice(0, 50));
+                        } else {
+                            success = false;
+                            result = 'Contacts permission denied';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'CONTACTS_ADD':
+                    try {
+                        const addPerm = await Contacts.requestPermissionsAsync();
+                        if (addPerm.status === 'granted') {
+                            const contact = data.contact || {};
+                            const newContact: Contacts.Contact = {
+                                contactType: Contacts.ContactTypes.Person,
+                                name: contact.name || '',
+                                firstName: contact.firstName || contact.name?.split(' ')[0] || '',
+                                lastName: contact.lastName || contact.name?.split(' ').slice(1).join(' ') || '',
+                                phoneNumbers: contact.phone ? [{ number: contact.phone, label: 'mobile' }] : [],
+                                emails: contact.email ? [{ email: contact.email, label: 'work' }] : [],
+                            };
+                            const contactId = await Contacts.addContactAsync(newContact);
+                            result = contactId;
+                        } else {
+                            success = false;
+                            result = 'Contacts permission denied';
+                        }
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Biometrics Handlers =============
+                case 'BIOMETRICS_IS_AVAILABLE':
+                    try {
+                        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+                        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+                        result = JSON.stringify({ available: hasHardware && isEnrolled, types });
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'BIOMETRICS_AUTHENTICATE':
+                    try {
+                        const authResult = await LocalAuthentication.authenticateAsync({
+                            promptMessage: data.reason || 'Autenticar',
+                            fallbackLabel: 'Usar senha',
+                            disableDeviceFallback: false,
+                        });
+                        result = JSON.stringify(authResult);
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Auth Handlers =============
+                case 'AUTH_OPEN_URL':
+                    try {
+                        const redirectUri = data.redirectUrl || AuthSession.makeRedirectUri();
+                        const authUrl = data.authUrl.includes('redirect_uri=') ? data.authUrl : `${data.authUrl}${data.authUrl.includes('?') ? '&' : '?'}redirect_uri=${encodeURIComponent(redirectUri)}`;
+                        await Linking.openURL(authUrl);
+                        result = JSON.stringify({ type: 'opened', redirectUri });
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                // ============= Sensors Handlers =============
+                case 'SENSORS_START_ACCELEROMETER':
+                    try {
+                        Accelerometer.setUpdateInterval(data.intervalMs || 100);
+                        Accelerometer.addListener(sensorData => {
+                            if (webViewRef.current && data.callbackName) {
+                                webViewRef.current.injectJavaScript(createCallbackScript(data.callbackName, true, JSON.stringify(sensorData)));
+                            }
+                        });
+                        result = 'Accelerometer started';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'SENSORS_START_GYROSCOPE':
+                    try {
+                        Gyroscope.setUpdateInterval(data.intervalMs || 100);
+                        Gyroscope.addListener(sensorData => {
+                            if (webViewRef.current && data.callbackName) {
+                                webViewRef.current.injectJavaScript(createCallbackScript(data.callbackName, true, JSON.stringify(sensorData)));
+                            }
+                        });
+                        result = 'Gyroscope started';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'SENSORS_START_MAGNETOMETER':
+                    try {
+                        Magnetometer.setUpdateInterval(data.intervalMs || 100);
+                        Magnetometer.addListener(sensorData => {
+                            if (webViewRef.current && data.callbackName) {
+                                const { x, y } = sensorData;
+                                let heading = Math.atan2(y, x) * (180 / Math.PI);
+                                if (heading < 0) heading += 360;
+                                const dataWithHeading = { ...sensorData, heading };
+                                webViewRef.current.injectJavaScript(createCallbackScript(data.callbackName, true, JSON.stringify(dataWithHeading)));
+                            }
+                        });
+                        result = 'Magnetometer started';
+                    } catch (e) {
+                        success = false;
+                        result = e instanceof Error ? e.message : 'Error';
+                    }
+                    break;
+
+                case 'SENSORS_STOP_ACCELEROMETER':
+                    Accelerometer.removeAllListeners();
+                    result = 'Accelerometer stopped';
+                    break;
+
+                case 'SENSORS_STOP_GYROSCOPE':
+                    Gyroscope.removeAllListeners();
+                    result = 'Gyroscope stopped';
+                    break;
+
+                case 'SENSORS_STOP_MAGNETOMETER':
+                    Magnetometer.removeAllListeners();
+                    result = 'Magnetometer stopped';
+                    break;
+
+                case 'SENSORS_STOP_ALL':
+                    Accelerometer.removeAllListeners();
+                    Gyroscope.removeAllListeners();
+                    Magnetometer.removeAllListeners();
+                    result = 'All sensors stopped';
+                    break;
             }
 
-
-            // Only fire callback if it wasn't deferred (e.g. for streams/listeners)
-            if (callbackName && webViewRef.current && !bridgeResult.deferredCallback) {
+            if (callbackName && webViewRef.current) {
                 const script = createCallbackScript(callbackName, success, result);
                 webViewRef.current.injectJavaScript(script);
             }
         } catch (e) {
             console.error('Error handling WebView message:', e);
-            // IMPORTANT: Always send callback on error to prevent JS from hanging
-            if (callbackName && webViewRef.current) {
-                const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-                const script = createCallbackScript(callbackName, false, errorMsg);
-                webViewRef.current.injectJavaScript(script);
-            }
         }
     }, [app, appId]);
 
@@ -363,30 +627,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             if (app && consoleLogs.length > 0) {
                 db.updateApp({ ...app, consoleLogs: consoleLogs.join('\n') });
             }
-            cleanupAllMedia();
         };
     }, [app, consoleLogs]);
-
-    // Stop all media when app goes to background
-    useEffect(() => {
-        const subscription = AppState.addEventListener('change', (nextState) => {
-            if (nextState === 'background' || nextState === 'inactive') {
-                cleanupAllMedia();
-            }
-        });
-        return () => subscription.remove();
-    }, []);
 
     // Apply AI edit
     const handleApplyEdit = async () => {
         if (!app || !editPrompt.trim()) return;
         setIsEditing(true);
         try {
-            const success = await updateAppWithAI(app, editPrompt, selectionContext);
-            if (success) {
-                // Reload app from database to get updated version
-                const updatedApp = await db.getAppById(app.id);
-                if (updatedApp) setApp(updatedApp);
+            const updatedApp = await updateAppWithAI(app, editPrompt, selectionContext);
+            if (updatedApp) {
+                setApp(updatedApp);
                 setShowEditSheet(false);
                 setEditPrompt('');
             }
@@ -458,9 +709,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         setShowHistory(false);
     };
 
-    if (!app || !storageLoaded) {
-        // If app failed to load, still loading, or storage not ready
-        if (isLoading || !storageLoaded) {
+    if (!app) {
+        // If app failed to load or just started
+        if (isLoading) {
             return (
                 <View style={[styles.container, styles.loadingContainer]}>
                     <ActivityIndicator size="large" color={colors.primary} />
@@ -481,42 +732,30 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     </html>
     `;
 
-    console.log('AppRunner: Creating combinedScript with', savedStorageRef.current.length, 'storage items');
-    const storageScript = createStorageRestoreScript(savedStorageRef.current);
-    const combinedScript = `${getInjectedJavaScript(app.id, getWebViewTranslations(), mode === 'edit')} ${storageScript}`;
-
+    const storageScript = createStorageRestoreScript(savedStorage);
+    const combinedScript = `${getInjectedJavaScript(app.id)} ${storageScript}`;
 
     return (
         <SafeAreaView
             style={[styles.container, !isVisible && styles.hidden]}
-            edges={['top', 'bottom']}
+            edges={['top']}
             pointerEvents={isVisible ? 'auto' : 'none'}
         >
             {/* Header - Only in Edit Mode */}
             {mode === 'edit' && (
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => minimizeApp()} style={styles.backBtn}>
-                        <Text style={styles.backText}>← {t('yourApps')}</Text>
+                        <Text style={styles.backText}>← Voltar</Text>
                     </TouchableOpacity>
                     <Text style={styles.title} numberOfLines={1}>{app.name}</Text>
                     <Text style={styles.version}>v{app.currentVersion}</Text>
                 </View>
             )}
 
-            {/* Edit Mode Warning Banner */}
-            {mode === 'edit' && (
-                <View style={[styles.header, { backgroundColor: colors.surfaceVariant, paddingVertical: spacing.xs, minHeight: 0 }]}>
-                    <Text style={{ color: colors.onSurfaceVariant, fontSize: 12, textAlign: 'center', width: '100%' }}>
-                        ⚠️ {t('editModeNoSave')}
-                    </Text>
-                </View>
-            )}
-
             {/* WebView */}
             <WebView
-                key={webViewKey} // Force recreation on code change
                 ref={webViewRef}
-                source={{ html: htmlContent, baseUrl: `https://app-${app.id}.appacadabra.local/` }}
+                source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }}
                 style={styles.webview}
                 originWhitelist={['*']}
                 javaScriptEnabled
@@ -528,46 +767,19 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 allowUniversalAccessFromFileURLs
                 mixedContentMode="always"
                 geolocationEnabled
-                pullToRefreshEnabled={false} // Always disable pull to refresh in runner/editor to avoid scroll conflicts
-                overScrollMode="never" // Disable Android stretch/bounce effect
-                bounces={false} // Disable iOS bounce effect
                 injectedJavaScriptBeforeContentLoaded={combinedScript}
-                onLoadEnd={handleLoadEnd}
                 onMessage={handleMessage}
                 onNavigationStateChange={(navState) => {
                     canGoBackRef.current = navState.canGoBack;
                 }}
                 onError={(e) => console.error('WebView error:', e.nativeEvent)}
-                renderError={(errorDomain, errorCode, errorDesc) => (
-                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: spacing.xl }}>
-                        <Text style={{ fontSize: 48, marginBottom: spacing.md }}>⚠️</Text>
-                        <Text style={{ color: colors.onSurface, fontSize: 18, fontWeight: '600', textAlign: 'center' }}>
-                            {errorDesc}
-                        </Text>
-                    </View>
-                )}
                 onShouldStartLoadWithRequest={(request) => {
                     const { url } = request;
-                    // Allow data/about/blob schemes
-                    if (url.startsWith('data:') || url.startsWith('about:') || url.startsWith('blob:')) {
-                        return true;
-                    }
-                    if (url.startsWith('http://') || url.startsWith('https://')) {
-                        // Block navigation to our fake baseUrl domain — it only exists for origin isolation
-                        if (url.includes('.appacadabra.local')) {
-                            console.log('Blocking navigation to fake baseUrl domain:', url);
-                            return false;
-                        }
-                        if (url.includes('localhost')) {
-                            return true;
-                        }
-                        // External URLs - open in system browser
+                    if (url.startsWith('http') && !url.includes('localhost')) {
                         Linking.openURL(url);
                         return false;
                     }
-                    // Block garbage URLs
-                    console.log('Blocking unknown URL scheme:', url);
-                    return false;
+                    return true;
                 }}
                 // @ts-ignore
                 androidOnGeolocationPermissionsShowPrompt={async (origin, callback) => {
@@ -582,98 +794,48 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             />
 
             {/* Toolbar */}
-            {
-                mode === 'edit' && (
-                    <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-                        {/* Simple tabs */}
-                        <View style={styles.navSimple}>
-                            <TouchableOpacity
-                                style={[styles.navItem, isSelectingElement && styles.navItemActive]}
-                                onPress={handleEditPress}
-                            >
-                                <Text style={styles.navIcon}>{isSelectingElement ? '❌' : '👆'}</Text>
-                                <Text style={[styles.navLabel, isSelectingElement && styles.navLabelActive]}>
-                                    {isSelectingElement ? t('cancel') : t('selectElement')}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.navItem}
-                                onPress={() => {
-                                    setSelectionContext('');
-                                    setEditPrompt('');
-                                    setShowEditSheet(true);
-                                }}
-                            >
-                                <Text style={styles.navIcon}>✏️</Text>
-                                <Text style={styles.navLabel}>{t('edit')}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.navItem}
-                                onPress={() => { loadVersions(); setShowHistory(true); }}
-                            >
-                                <Text style={styles.navIcon}>📜</Text>
-                                <Text style={styles.navLabel}>{t('history')}</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Advanced toggle */}
-                        <View style={styles.advancedToggle}>
-                            <TouchableOpacity
-                                style={[styles.advBtn, showAdvanced && styles.advBtnOpen]}
-                                onPress={() => setShowAdvanced(!showAdvanced)}
-                            >
-                                <Text style={[styles.advArrow, showAdvanced && styles.advArrowOpen]}>
-                                    {showAdvanced ? '▾' : '▸'}
-                                </Text>
-                                <Text style={[styles.advLabel, showAdvanced && styles.advLabelOpen]}>
-                                    {showAdvanced ? t('editorCloseAdvanced') : t('editorAdvancedMode')}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Advanced tabs */}
-                        {showAdvanced && (
-                            <View style={styles.navAdvanced}>
-                                <TouchableOpacity
-                                    style={styles.navItemAdv}
-                                    onPress={() => { setManualCode(app.code); setShowManualEditor(true); }}
-                                >
-                                    <Text style={styles.advLockIcon}>🔒</Text>
-                                    <Text style={styles.navIcon}>💻</Text>
-                                    <Text style={styles.navLabelAdv}>{t('code')}</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={styles.navItemAdv}
-                                    onPress={() => setShowDebugPanel(true)}
-                                >
-                                    <Text style={styles.advLockIcon}>🔒</Text>
-                                    <Text style={styles.navIcon}>🐛</Text>
-                                    <Text style={styles.navLabelAdv}>{t('debug')}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                    </View>
-                )
-            }
+            {mode === 'edit' && (
+                <View style={styles.toolbar}>
+                    <TouchableOpacity
+                        style={[styles.toolbarBtn, isSelectingElement && { backgroundColor: colors.primaryContainer }]}
+                        onPress={handleEditPress}
+                    >
+                        <Text style={styles.toolbarIcon}>{isSelectingElement ? '❌' : '✏️'}</Text>
+                        <Text style={styles.toolbarText}>{isSelectingElement ? 'Cancelar' : 'Editar'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => { setManualCode(app.code); setShowManualEditor(true); }}>
+                        <Text style={styles.toolbarIcon}>💻</Text>
+                        <Text style={styles.toolbarText}>Código</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => { loadVersions(); setShowHistory(true); }}>
+                        <Text style={styles.toolbarIcon}>📜</Text>
+                        <Text style={styles.toolbarText}>Histórico</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.toolbarBtn} onPress={() => setShowDebugPanel(true)}>
+                        <Text style={styles.toolbarIcon}>🐛</Text>
+                        <Text style={styles.toolbarText}>Debug</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* Edit Sheet */}
             <Modal visible={showEditSheet} transparent animationType="slide">
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheetOverlay}>
-                    <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-                        <Text style={styles.sheetTitle}>{t('editWithAI')}</Text>
+                    <View style={styles.sheet}>
+                        <Text style={styles.sheetTitle}>Editar com IA</Text>
                         {isEditing ? (
                             <View style={styles.editingContainer}>
                                 <ActivityIndicator size="large" color={colors.primary} />
-                                <Text style={styles.editingText}>{t('applyingChanges')}</Text>
+                                <Text style={styles.editingText}>Aplicando mudanças...</Text>
                             </View>
                         ) : (
                             <>
                                 {selectionContext ? (
                                     <View style={styles.contextContainer}>
-                                        <Text style={styles.contextLabel}>{t('focusSelection')}</Text>
+                                        <Text style={styles.contextLabel}>Focando na seleção:</Text>
                                         <Text style={styles.contextValue} numberOfLines={2}>"{selectionContext}"</Text>
                                         <TouchableOpacity onPress={() => setSelectionContext('')} style={styles.contextClearBtn}>
-                                            <Text style={styles.contextClearText}>{t('removeSelection')}</Text>
+                                            <Text style={styles.contextClearText}>Remover seleção</Text>
                                         </TouchableOpacity>
                                     </View>
                                 ) : null}
@@ -681,17 +843,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                                     style={styles.editInput}
                                     value={editPrompt}
                                     onChangeText={setEditPrompt}
-                                    placeholder={t('describeChanges')}
+                                    placeholder="Descreva as mudanças desejadas..."
                                     placeholderTextColor={colors.onSurfaceVariant}
                                     multiline
                                     numberOfLines={4}
                                 />
                                 <View style={styles.sheetButtons}>
                                     <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEditSheet(false)}>
-                                        <Text style={styles.cancelText}>{t('cancel')}</Text>
+                                        <Text style={styles.cancelText}>Cancelar</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={styles.applyBtn} onPress={handleApplyEdit}>
-                                        <Text style={styles.applyText}>{t('apply')}</Text>
+                                        <Text style={styles.applyText}>Aplicar</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>
@@ -703,9 +865,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showManualEditor} animationType="slide">
                 <SafeAreaView style={styles.editorContainer}>
                     <View style={styles.editorHeader}>
-                        <TouchableOpacity onPress={() => setShowManualEditor(false)}><Text style={styles.cancelText}>{t('cancel')}</Text></TouchableOpacity>
-                        <Text style={styles.editorTitle}>{t('codeEditorTitle')}</Text>
-                        <TouchableOpacity onPress={handleSaveManual}><Text style={styles.saveText}>{t('save')}</Text></TouchableOpacity>
+                        <TouchableOpacity onPress={() => setShowManualEditor(false)}><Text style={styles.cancelText}>Cancelar</Text></TouchableOpacity>
+                        <Text style={styles.editorTitle}>Editor de Código</Text>
+                        <TouchableOpacity onPress={handleSaveManual}><Text style={styles.saveText}>Salvar</Text></TouchableOpacity>
                     </View>
                     <TextInput style={styles.codeEditor} value={manualCode} onChangeText={setManualCode} multiline autoCapitalize="none" autoCorrect={false} spellCheck={false} />
                 </SafeAreaView>
@@ -714,17 +876,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showHistory} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '70%' }]}>
-                        <Text style={styles.sheetTitle}>{t('versionHistory')}</Text>
+                        <Text style={styles.sheetTitle}>Histórico de Versões</Text>
                         <ScrollView style={styles.versionList}>
                             {versions.map((version) => (
                                 <TouchableOpacity key={version.id} style={[styles.versionItem, version.version === app.currentVersion && styles.versionItemActive]} onPress={() => handleRestoreVersion(version)} disabled={version.version === app.currentVersion}>
                                     <Text style={styles.versionNumber}>v{version.version}</Text>
-                                    <Text style={styles.versionDate}>{new Date(version.createdAt).toLocaleDateString()}</Text>
+                                    <Text style={styles.versionDate}>{new Date(version.createdAt).toLocaleDateString('pt-BR')}</Text>
                                     {version.instruction && <Text style={styles.versionInstruction} numberOfLines={1}>{version.instruction}</Text>}
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
-                        <TouchableOpacity style={styles.closeBtn} onPress={() => setShowHistory(false)}><Text style={styles.closeText}>{t('close')}</Text></TouchableOpacity>
+                        <TouchableOpacity style={styles.closeBtn} onPress={() => setShowHistory(false)}><Text style={styles.closeText}>Fechar</Text></TouchableOpacity>
                     </View>
                 </View>
             </Modal>
@@ -732,16 +894,16 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showDebugPanel} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '80%' }]}>
-                        <Text style={styles.sheetTitle}>🐛 {t('debug')}</Text>
-                        <Text style={styles.debugSectionTitle}>{t('consoleLogs')} ({consoleLogs.length})</Text>
+                        <Text style={styles.sheetTitle}>🐛 Debug</Text>
+                        <Text style={styles.debugSectionTitle}>Console Logs ({consoleLogs.length})</Text>
                         <ScrollView style={styles.debugLogsContainer}>
-                            {consoleLogs.length === 0 ? <Text style={styles.debugEmpty}>{t('noLogs')}</Text> : consoleLogs.map((log, idx) => (
+                            {consoleLogs.length === 0 ? <Text style={styles.debugEmpty}>Nenhum log ainda</Text> : consoleLogs.map((log, idx) => (
                                 <Text key={idx} style={[styles.debugLogItem, log.startsWith('[error]') && styles.debugLogError, log.startsWith('[warn]') && styles.debugLogWarn]}>{log}</Text>
                             ))}
                         </ScrollView>
-                        <Text style={styles.debugSectionTitle}>{t('network')} ({networkLogs.length})</Text>
+                        <Text style={styles.debugSectionTitle}>Network ({networkLogs.length})</Text>
                         <ScrollView style={styles.debugLogsContainer}>
-                            {networkLogs.length === 0 ? <Text style={styles.debugEmpty}>{t('noRequests')}</Text> : networkLogs.map((req, idx) => (
+                            {networkLogs.length === 0 ? <Text style={styles.debugEmpty}>Nenhuma requisição ainda</Text> : networkLogs.map((req, idx) => (
                                 <View key={idx} style={styles.networkLogItem}>
                                     <Text style={styles.networkMethod}>{req.method}</Text>
                                     <Text style={styles.networkUrl} numberOfLines={1}>{req.url}</Text>
@@ -750,14 +912,14 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                             ))}
                         </ScrollView>
                         <View style={styles.debugButtons}>
-                            <TouchableOpacity style={styles.debugClearBtn} onPress={() => { setConsoleLogs([]); setNetworkLogs([]); }}><Text style={styles.debugClearText}>{t('clear')}</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowDebugPanel(false)}><Text style={styles.closeText}>{t('close')}</Text></TouchableOpacity>
+                            <TouchableOpacity style={styles.debugClearBtn} onPress={() => { setConsoleLogs([]); setNetworkLogs([]); }}><Text style={styles.debugClearText}>Limpar</Text></TouchableOpacity>
+                            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowDebugPanel(false)}><Text style={styles.closeText}>Fechar</Text></TouchableOpacity>
                         </View>
                     </View>
                 </View>
             </Modal>
 
-        </SafeAreaView >
+        </SafeAreaView>
     );
 }
 
@@ -766,30 +928,15 @@ const styles = StyleSheet.create({
     hidden: { position: 'absolute', opacity: 0, zIndex: -1, width: 0, height: 0, overflow: 'hidden' },
     loadingContainer: { justifyContent: 'center', alignItems: 'center' },
     header: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceVariant },
-    backBtn: { marginEnd: spacing.md },
-    backText: { color: colors.onPrimary, fontSize: 16 },
+    backBtn: { marginRight: spacing.md },
+    backText: { color: colors.primary, fontSize: 16 },
     title: { flex: 1, color: colors.onSurface, fontSize: 18, fontWeight: '600' },
     version: { color: colors.onSurfaceVariant, fontSize: 14 },
     webview: { flex: 1, backgroundColor: '#FFFFFF' },
-    // Bottom nav
-    bottomNav: { backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.surfaceVariant, paddingTop: 10 },
-    navSimple: { flexDirection: 'row', justifyContent: 'space-around' },
-    navItem: { alignItems: 'center', gap: 4, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md },
-    navItemActive: { backgroundColor: colors.primary + '22' },
-    navIcon: { fontSize: 24 },
-    navLabel: { fontSize: 11, fontWeight: '700', color: colors.onSurfaceVariant },
-    navLabelActive: { color: colors.primary },
-    advancedToggle: { alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
-    advBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.surfaceVariant, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 99 },
-    advBtnOpen: { borderColor: '#D97706' },
-    advArrow: { color: colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' },
-    advArrowOpen: { color: '#D97706' },
-    advLabel: { color: colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' },
-    advLabelOpen: { color: '#D97706' },
-    navAdvanced: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: 8 },
-    navItemAdv: { alignItems: 'center', gap: 4, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, position: 'relative' as const },
-    navLabelAdv: { fontSize: 11, fontWeight: '700', color: colors.onSurfaceVariant, opacity: 0.7 },
-    advLockIcon: { position: 'absolute' as const, top: 4, right: 8, fontSize: 10 },
+    toolbar: { flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.surfaceVariant, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, justifyContent: 'space-around' },
+    toolbarBtn: { alignItems: 'center', padding: spacing.sm },
+    toolbarIcon: { fontSize: 24 },
+    toolbarText: { color: colors.onSurface, fontSize: 12, marginTop: 4 },
     sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
     sheet: { backgroundColor: colors.surface, borderTopLeftRadius: borderRadius.xl, borderTopRightRadius: borderRadius.xl, padding: spacing.lg },
     sheetTitle: { fontSize: 20, fontWeight: 'bold', color: colors.onSurface, marginBottom: spacing.md },
