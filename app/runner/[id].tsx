@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -115,6 +115,55 @@ export default function RunnerScreen() {
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
+
+    // Edit mode states
+    const isEditMode = edit === 'true';
+    const isShareMode = share === 'true';
+
+    // Saved localStorage items
+    const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
+    const [storageLoaded, setStorageLoaded] = useState(false);
+    // Use ref to ensure storage is available synchronously for script creation
+    const savedStorageRef = useRef<{ key: string; value: string }[]>([]);
+
+    const htmlContent = useMemo(() => {
+        if (!app) return '';
+        return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; }
+      </style>
+    </head>
+    <body>
+      ${app.code}
+    </body>
+    </html>
+  `;
+    }, [app?.id, app?.code]);
+
+    const combinedScript = useMemo(() => {
+        if (!app) return '';
+        console.log('RunnerScreen: Creating combinedScript with', savedStorageRef.current.length, 'storage items');
+        const storageScript = createStorageRestoreScript(savedStorageRef.current);
+        const scrollScript = getScrollDetectionScript();
+        return `
+            ${getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode)}
+            ${storageScript}
+            ${scrollScript}
+        `;
+    }, [app?.id, isEditMode, storageLoaded]);
+
+    const source = useMemo(() => {
+        if (!app) return { html: '' };
+        return {
+            html: htmlContent,
+            baseUrl: `https://app-${app.id}.appacadabra.local/`
+        };
+    }, [htmlContent, app?.id]);
 
     // Initial load
     // Initial load - App + Storage + Biometrics
@@ -253,9 +302,7 @@ export default function RunnerScreen() {
         }
     }, [storeApps, app, id, isFocused]);
 
-    // Edit mode states
-    const isEditMode = edit === 'true';
-    const isShareMode = share === 'true'; // Keep for other logic, but injection uses payload presence
+
 
     // Listen for edit completion signal to navigate back
     const lastCompletedEditAppId = useAppStore(state => state.lastCompletedEditAppId);
@@ -520,11 +567,7 @@ export default function RunnerScreen() {
         });
     }, []);
 
-    // Saved localStorage items
-    const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
-    const [storageLoaded, setStorageLoaded] = useState(false);
-    // Use ref to ensure storage is available synchronously for script creation
-    const savedStorageRef = useRef<{ key: string; value: string }[]>([]);
+
 
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);
@@ -835,31 +878,7 @@ export default function RunnerScreen() {
 
 
 
-    const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-      <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; padding: 0; }
-      </style>
-    </head>
-    <body>
-      ${app.code}
-    </body>
-    </html>
-  `;
 
-    // Combine scripts - use ref for storage to ensure data is available
-    console.log('RunnerScreen: Creating combinedScript with', savedStorageRef.current.length, 'storage items');
-    const storageScript = createStorageRestoreScript(savedStorageRef.current);
-    const scrollScript = getScrollDetectionScript();
-    const combinedScript = `
-        ${getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode)}
-        ${storageScript}
-        ${scrollScript}
-    `;
 
 
     return (
@@ -921,9 +940,9 @@ export default function RunnerScreen() {
                     scrollEnabled={!isEditMode} // Disable outer scroll in Edit Mode to let WebView handle scrolling exclusively
                 >
                     <WebView
-                        key={`${app.id}-${app.currentVersion}-${isEditMode}`}
+                        key={`${app.id}-${isEditMode}`}
                         ref={webViewRef}
-                        source={{ html: htmlContent, baseUrl: `https://app-${app.id}.appacadabra.local/` }} // baseUrl required for some permissions
+                        source={source}
                         style={styles.webview}
                         originWhitelist={['*']}
                         javaScriptEnabled
@@ -1017,97 +1036,97 @@ export default function RunnerScreen() {
                     </TouchableOpacity>
 
                     {!navCollapsed && (
-                    <>
-                    {/* Simple tabs - always visible */}
-                    <View style={styles.navSimple}>
-                        <TouchableOpacity
-                            style={[styles.navItem, isSelectionMode && styles.navItemActive]}
-                            onPress={() => {
-                                const newMode = !isSelectionMode;
-                                setIsSelectionMode(newMode);
-                                if (webViewRef.current) {
-                                    webViewRef.current.injectJavaScript(`window.toggleSelectionMode(${newMode}); true;`);
-                                }
-                            }}
-                        >
-                            <Text style={styles.navIcon}>👆</Text>
-                            <Text style={[styles.navLabel, isSelectionMode && styles.navLabelActive]}>
-                                {isSelectionMode ? t('cancel') : t('selectElement')}
-                            </Text>
-                        </TouchableOpacity>
+                        <>
+                            {/* Simple tabs - always visible */}
+                            <View style={styles.navSimple}>
+                                <TouchableOpacity
+                                    style={[styles.navItem, isSelectionMode && styles.navItemActive]}
+                                    onPress={() => {
+                                        const newMode = !isSelectionMode;
+                                        setIsSelectionMode(newMode);
+                                        if (webViewRef.current) {
+                                            webViewRef.current.injectJavaScript(`window.toggleSelectionMode(${newMode}); true;`);
+                                        }
+                                    }}
+                                >
+                                    <Text style={styles.navIcon}>👆</Text>
+                                    <Text style={[styles.navLabel, isSelectionMode && styles.navLabelActive]}>
+                                        {isSelectionMode ? t('cancel') : t('selectElement')}
+                                    </Text>
+                                </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={styles.navItem}
-                            onPress={() => {
-                                setEditPrompt('');
-                                setShowEditSheet(true);
-                            }}
-                        >
-                            <Text style={styles.navIcon}>✏️</Text>
-                            <Text style={styles.navLabel}>{t('edit')}</Text>
-                        </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.navItem}
+                                    onPress={() => {
+                                        setEditPrompt('');
+                                        setShowEditSheet(true);
+                                    }}
+                                >
+                                    <Text style={styles.navIcon}>✏️</Text>
+                                    <Text style={styles.navLabel}>{t('edit')}</Text>
+                                </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={styles.navItem}
-                            onPress={() => {
-                                loadVersions();
-                                setShowHistory(true);
-                            }}
-                        >
-                            <Text style={styles.navIcon}>📜</Text>
-                            <Text style={styles.navLabel}>{t('history')}</Text>
-                        </TouchableOpacity>
-                    </View>
+                                <TouchableOpacity
+                                    style={styles.navItem}
+                                    onPress={() => {
+                                        loadVersions();
+                                        setShowHistory(true);
+                                    }}
+                                >
+                                    <Text style={styles.navIcon}>📜</Text>
+                                    <Text style={styles.navLabel}>{t('history')}</Text>
+                                </TouchableOpacity>
+                            </View>
 
-                    {/* Advanced toggle */}
-                    <View style={styles.advancedToggle}>
-                        <TouchableOpacity
-                            style={[styles.advBtn, showAdvanced && styles.advBtnOpen]}
-                            onPress={() => setShowAdvanced(!showAdvanced)}
-                        >
-                            <Text style={[styles.advArrow, showAdvanced && styles.advArrowOpen]}>
-                                {showAdvanced ? '▾' : '▸'}
-                            </Text>
-                            <Text style={[styles.advLabel, showAdvanced && styles.advLabelOpen]}>
-                                {showAdvanced ? t('editorCloseAdvanced') : t('editorAdvancedMode')}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
+                            {/* Advanced toggle */}
+                            <View style={styles.advancedToggle}>
+                                <TouchableOpacity
+                                    style={[styles.advBtn, showAdvanced && styles.advBtnOpen]}
+                                    onPress={() => setShowAdvanced(!showAdvanced)}
+                                >
+                                    <Text style={[styles.advArrow, showAdvanced && styles.advArrowOpen]}>
+                                        {showAdvanced ? '▾' : '▸'}
+                                    </Text>
+                                    <Text style={[styles.advLabel, showAdvanced && styles.advLabelOpen]}>
+                                        {showAdvanced ? t('editorCloseAdvanced') : t('editorAdvancedMode')}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
 
-                    {/* Advanced tabs */}
-                    {showAdvanced && (
-                        <View style={styles.navAdvanced}>
-                            <TouchableOpacity
-                                style={styles.navItemAdv}
-                                onPress={() => {
-                                    setManualCode(app.code);
-                                    setShowManualEditor(true);
-                                }}
-                            >
-                                <Text style={styles.advLock}>🔒</Text>
-                                <Text style={styles.navIcon}>💻</Text>
-                                <Text style={styles.navLabelAdv}>{t('code')}</Text>
-                            </TouchableOpacity>
+                            {/* Advanced tabs */}
+                            {showAdvanced && (
+                                <View style={styles.navAdvanced}>
+                                    <TouchableOpacity
+                                        style={styles.navItemAdv}
+                                        onPress={() => {
+                                            setManualCode(app.code);
+                                            setShowManualEditor(true);
+                                        }}
+                                    >
+                                        <Text style={styles.advLock}>🔒</Text>
+                                        <Text style={styles.navIcon}>💻</Text>
+                                        <Text style={styles.navLabelAdv}>{t('code')}</Text>
+                                    </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={styles.navItemAdv}
-                                onPress={() => setShowDebugPanel(true)}
-                            >
-                                <Text style={styles.advLock}>🔒</Text>
-                                <Text style={styles.navIcon}>🐛</Text>
-                                <Text style={styles.navLabelAdv}>{t('debug')}</Text>
-                            </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.navItemAdv}
+                                        onPress={() => setShowDebugPanel(true)}
+                                    >
+                                        <Text style={styles.advLock}>🔒</Text>
+                                        <Text style={styles.navIcon}>🐛</Text>
+                                        <Text style={styles.navLabelAdv}>{t('debug')}</Text>
+                                    </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={styles.navItemAdv}
-                                onPress={() => setShowEditorOnboarding(true)}
-                            >
-                                <Text style={styles.navIcon}>❓</Text>
-                                <Text style={styles.navLabelAdv}>{t('editorReplayTutorial')}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-                    </>
+                                    <TouchableOpacity
+                                        style={styles.navItemAdv}
+                                        onPress={() => setShowEditorOnboarding(true)}
+                                    >
+                                        <Text style={styles.navIcon}>❓</Text>
+                                        <Text style={styles.navLabelAdv}>{t('editorReplayTutorial')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </>
                     )}
                 </View>
             )}

@@ -91,6 +91,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     }
   }
 
+
   // Expose fluent/builder AI API
   window.AppacadabraAI = (function() {
     // Media limits (base64 char lengths ≈ file size * 4/3)
@@ -1288,21 +1289,21 @@ export function createCallbackScript(callbackName: string, success: boolean, dat
     .replace(/"/g, '\\"')
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '\\r')
-    .replace(/\t/g, '\\t');
+    .replace(/\t/g, '\\t')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 
   return `
     (function() {
-      // Log the return from Native Bridge so it appears in debug console
+      var __d = "${escapedData}";
+      var dataPreview = __d.length > 100 ? __d.substring(0, 100) + "..." : __d;
       if ("${callbackName}" && "${callbackName}" !== "undefined") {
-          var dataPreview = "${escapedData}".length > 100 ? "${escapedData}".substring(0, 100) + "..." : "${escapedData}";
           console.log("[BridgeReturn] ${callbackName} | Success: ${success} | Data: " + dataPreview);
-
           if (typeof ${callbackName} === 'function') {
-            ${callbackName}(${success}, "${escapedData}");
+            ${callbackName}(${success}, __d);
           }
       } else {
-          var dataPreview = "${escapedData}".length > 100 ? "${escapedData}".substring(0, 100) + "..." : "${escapedData}";
-          console.log("[BridgeReturn] No callback name provided, but operation succeeded. Data: " + dataPreview);
+          console.log("[BridgeReturn] No callback | Data: " + dataPreview);
       }
     })();
   `;

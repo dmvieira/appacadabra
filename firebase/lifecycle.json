@@ -9,6 +9,7 @@
                 "matchesPrefix": [
                     "generated_images/",
                     "generated_videos/",
+                    "generated_audio/",
                     "job_inputs/"
                 ]
             }

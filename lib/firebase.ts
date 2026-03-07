@@ -209,10 +209,10 @@ function sanitizePayload(payload: any): any {
 
 // Helper to submit a job and wait for it
 async function submitJobAndWait(action: Job['action'], payload: any): Promise<GenerationResult> {
-    console.error(`[DEBUG] submitJobAndWait called. Action: ${action}`);
+    console.log(`[DEBUG] submitJobAndWait called. Action: ${action}`);
     try {
         const userId = await ensureAuthenticated();
-        console.error(`[DEBUG] UserId: ${userId}`);
+        console.log(`[DEBUG] UserId: ${userId}`);
 
         const db = getFirestore();
         const jobsRef = collection(db, 'jobs');
@@ -224,12 +224,12 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
                 const totalSize = payload[key].reduce((acc: number, cur: string) => acc + (cur?.length || 0), 0);
                 // If total size > 800KB, upload via Storage proxy
                 if (totalSize > 800_000) {
-                    console.error(`[DEBUG] Payload ${key} is large (${Math.round(totalSize / 1024)}KB). Uploading to Storage...`);
+                    console.log(`[DEBUG] Payload ${key} is large (${Math.round(totalSize / 1024)}KB). Uploading to Storage...`);
                     const uploadFn = httpsCallable(getFunctionsInstance(), 'uploadMedia');
                     const uploadResult = await uploadFn({ media: payload[key], contentType });
                     const { urls } = uploadResult.data as { urls: string[] };
                     payload[key] = urls; // Replace base64 with URLs
-                    console.error(`[DEBUG] ${key} uploaded. Received ${urls.length} URLs.`);
+                    console.log(`[DEBUG] ${key} uploaded. Received ${urls.length} URLs.`);
                 }
             }
         };
@@ -239,7 +239,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
         await uploadIfNeeded('audiosBase64', 'audio/wav');
 
         const cleanPayload = sanitizePayload({ ...payload, appVersion: APP_VERSION });
-        console.error(`[DEBUG] Adding doc to jobs collection with payload size: ${JSON.stringify(cleanPayload).length} chars`);
+        console.log(`[DEBUG] Adding doc to jobs collection with payload size: ${JSON.stringify(cleanPayload).length} chars`);
 
         // Create a new job document
         const jobDoc = await addDoc(jobsRef, {
@@ -250,7 +250,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
             payload: cleanPayload
         });
 
-        console.error(`[DEBUG] Job submitted. ID: ${jobDoc.id}. Listening...`);
+        console.log(`[DEBUG] Job submitted. ID: ${jobDoc.id}. Listening...`);
 
         // Poll/Listen for completion
         return new Promise<GenerationResult>((resolve, reject) => {
@@ -262,18 +262,18 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
 
             const listen = () => {
                 if (unsubscribe) unsubscribe();
-                console.error(`[DEBUG] Setting up onSnapshot for ${jobDoc.id} (retry ${retryCount})`);
+                console.log(`[DEBUG] Setting up onSnapshot for ${jobDoc.id} (retry ${retryCount})`);
                 unsubscribe = onSnapshot(jobDoc, (snapshot) => {
-                    console.error(`[DEBUG] Snapshot update for ${jobDoc.id}. Exists? ${snapshot.exists()}`);
+                    console.log(`[DEBUG] Snapshot update for ${jobDoc.id}. Exists? ${snapshot.exists()}`);
                     const data = snapshot.data() as Job | undefined;
                     if (!data) {
-                        console.error(`[DEBUG] No data in snapshot.`);
+                        console.log(`[DEBUG] No data in snapshot.`);
                         return;
                     }
-                    console.error(`[DEBUG] Job Status: ${data.status}`);
+                    console.log(`[DEBUG] Job Status: ${data.status}`);
 
                     if (data.status === 'completed' && data.result) {
-                        console.error(`[DEBUG] Job completed!`);
+                        console.log(`[DEBUG] Job completed!`);
                         unsubscribe?.();
                         const finalText = decompressContent(data.result.text);
                         resolve({
@@ -283,12 +283,12 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
                             creditsRemaining: data.result.creditsRemaining || 0
                         });
                     } else if (data.status === 'failed') {
-                        console.error(`[DEBUG] Job failed: ${data.error}`);
+                        console.log(`[DEBUG] Job failed: ${data.error}`);
                         unsubscribe?.();
                         reject(new Error(data.error || 'Job failed unknown error'));
                     }
                 }, async (error) => {
-                    console.error('[DEBUG] Job listener error:', error);
+                    console.log('[DEBUG] Job listener error:', error);
 
                     if ((error as any).code !== 'unavailable') {
                         reject(error);
@@ -297,12 +297,12 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
 
                     const elapsed = Date.now() - startedAt;
                     if (elapsed >= TOTAL_TIMEOUT_MS) {
-                        console.error('[DEBUG] Timeout atingido. Tentando getDoc de resgate...');
+                        console.log('[DEBUG] Timeout atingido. Tentando getDoc de resgate...');
                         try {
                             const snap = await getDoc(jobDoc);
                             const d = snap.data() as Job | undefined;
                             if (d?.status === 'completed' && d.result) {
-                                console.error('[DEBUG] Resgate: job já estava completo, recuperando resultado');
+                                console.log('[DEBUG] Resgate: job já estava completo, recuperando resultado');
                                 const finalText = decompressContent(d.result.text);
                                 resolve({
                                     text: finalText,
@@ -316,7 +316,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
                                 return;
                             }
                         } catch (fetchErr) {
-                            console.error('[DEBUG] getDoc de resgate também falhou:', fetchErr);
+                            console.log('[DEBUG] getDoc de resgate também falhou:', fetchErr);
                         }
                         reject(error);
                         return;
@@ -324,7 +324,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
 
                     retryCount++;
                     const delay = Math.min(Math.pow(2, retryCount) * 1000, BACKOFF_CAP_MS);
-                    console.error(`[DEBUG] UNAVAILABLE — retry em ${delay}ms (total elapsed: ${Math.round(elapsed / 1000)}s)`);
+                    console.log(`[DEBUG] UNAVAILABLE — retry em ${delay}ms (total elapsed: ${Math.round(elapsed / 1000)}s)`);
                     setTimeout(listen, delay);
                 });
             };
@@ -332,7 +332,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
             listen();
         });
     } catch (e) {
-        console.error('[DEBUG] submitJobAndWait CRITICAL ERROR:', e);
+        console.log('[DEBUG] submitJobAndWait CRITICAL ERROR:', e);
         throw e;
     }
 }

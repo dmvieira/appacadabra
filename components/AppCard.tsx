@@ -265,33 +265,6 @@ export function AppCard({
                                     <Text style={styles.btnIconDots}>⋯</Text>
                                 </TouchableOpacity>
 
-                                {/* Coach mark tooltip */}
-                                {!!coachStep && (
-                                    <View style={[styles.coachBubble, coachStep === 3 && styles.coachBubbleCard]}>
-                                        <View style={[styles.coachArrow, coachStep === 3 && styles.coachArrowCard]} />
-                                        <Text style={styles.coachStep}>
-                                            {coachStep === 1 ? `1 ${t('coachOf')} 3`
-                                                : coachStep === 2 ? `2 ${t('coachOf')} 3`
-                                                    : `3 ${t('coachOf')} 3`}
-                                        </Text>
-                                        <Text style={styles.coachText}>
-                                            {coachStep === 1 ? t('coachMenuHint')
-                                                : coachStep === 2 ? t('coachEditHint')
-                                                    : t('coachLongPressHint')}
-                                        </Text>
-                                        <TouchableOpacity
-                                            style={styles.coachDismissBtn}
-                                            onPress={onCoachDismiss}
-                                            activeOpacity={0.7}
-                                            accessibilityRole="button"
-                                            accessibilityLabel={coachStep < 3 ? t('coachNext') : t('coachGotIt')}
-                                        >
-                                            <Text style={styles.coachDismissText}>
-                                                {coachStep < 3 ? t('coachNext') : t('coachGotIt')}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
                             </View>
                         )}
                     </TouchableOpacity>
@@ -507,6 +480,34 @@ export function AppCard({
                     </Modal>
                 </View>
             </Animated.View>
+
+            {/* Coach mark tooltip — rendered outside the card to avoid overflow:hidden clipping */}
+            {!!coachStep && (
+                <View style={[styles.coachBubble, coachStep === 3 && styles.coachBubbleCard]}>
+                    <View style={[styles.coachArrow, coachStep === 3 && styles.coachArrowCard]} />
+                    <Text style={styles.coachStep}>
+                        {coachStep === 1 ? `1 ${t('coachOf')} 3`
+                            : coachStep === 2 ? `2 ${t('coachOf')} 3`
+                                : `3 ${t('coachOf')} 3`}
+                    </Text>
+                    <Text style={styles.coachText}>
+                        {coachStep === 1 ? t('coachMenuHint')
+                            : coachStep === 2 ? t('coachEditHint')
+                                : t('coachLongPressHint')}
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.coachDismissBtn}
+                        onPress={onCoachDismiss}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={coachStep < 3 ? t('coachNext') : t('coachGotIt')}
+                    >
+                        <Text style={styles.coachDismissText}>
+                            {coachStep < 3 ? t('coachNext') : t('coachGotIt')}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 }
@@ -691,8 +692,10 @@ const styles = StyleSheet.create({
     },
     coachBubble: {
         position: 'absolute',
-        top: 84,
-        right: -4,
+        // Positioned relative to wrapper (outside the card's overflow:hidden boundary).
+        // top:100 ≈ card paddingTop(16) + cardActions offset(84) from original placement.
+        top: 100,
+        right: 12,
         backgroundColor: '#7C3AED',
         borderRadius: 14,
         padding: 12,
@@ -703,7 +706,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.4,
         shadowRadius: 24,
-        elevation: 12,
+        elevation: 20,
     },
     coachArrow: {
         position: 'absolute',
@@ -718,7 +721,7 @@ const styles = StyleSheet.create({
     // Step 3 (long-press hint): bubble shifts left so the arrow points at the card body
     coachBubbleCard: {
         right: undefined,
-        left: -172,
+        left: 16,
     },
     coachArrowCard: {
         right: undefined,

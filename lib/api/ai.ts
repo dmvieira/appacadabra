@@ -28,22 +28,46 @@ async function withTimeoutAndRetry<T>(
             try {
                 // Create a promise that rejects after timeout
                 const timeoutPromise = new Promise<never>((_, reject) => {
-                    setTimeout(() => reject(new Error('Operation timed out')), timeoutMs);
+                    setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs);
                 });
 
                 // Race the operation against the timeout
                 return await Promise.race([operation(), timeoutPromise]);
-            } catch (error) {
-                lastError = error;
+            } catch (e) {
+                lastError = e;
+                console.warn(`[AI] Attempt ${attempt + 1} failed:`, e);
                 if (attempt < retries) {
-                    console.warn(`[AI] Attempt ${attempt + 1} failed, retrying...`, error);
-                    // Optional: slight delay backoff could go here
+                    // Exponential backoff
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
                 }
             }
         }
         throw lastError;
     };
+
     return runOp();
+}
+
+async function resolveStorageUrlToBase64(urlOrBase64: string): Promise<string> {
+    if (!urlOrBase64 || !urlOrBase64.startsWith('http')) return urlOrBase64;
+
+    console.log('[AI] resolveStorageUrlToBase64: Downloading...', urlOrBase64.substring(0, 100));
+    try {
+        const response = await fetch(urlOrBase64);
+        const blob = await response.blob();
+        return await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = (reader.result as string).split(',')[1] || (reader.result as string);
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (err) {
+        console.error('[AI] Failed to resolve storage URL:', err);
+        throw err;
+    }
 }
 
 // ============= AI FUNCTIONS (FIREBASE WRAPPERS) =============
@@ -155,11 +179,12 @@ export async function aiGenerateImage(prompt: string): Promise<{ imageBase64: st
     console.log('[AI] aiGenerateImage (via Firebase)', prompt?.substring(0, 80));
 
     const result = await firebase.generateSpellImageGen(prompt);
+    const imageBase64 = await resolveStorageUrlToBase64(result.text);
 
     const creditsUsed = result.creditsUsed || 0;
     logAiGenerateImage(creditsUsed);
     return {
-        imageBase64: result.text, // Server returns base64 image data in text field
+        imageBase64,
         usage: result.usage,
         creditsUsed,
     };
@@ -170,10 +195,11 @@ export async function aiGenerateTTS(text: string, voiceName?: string): Promise<{
     console.log('[AI] aiGenerateTTS (via Firebase)', text?.substring(0, 80), 'voice:', voiceName);
 
     const result = await firebase.generateSpellTTS(text, voiceName);
+    const audioBase64 = await resolveStorageUrlToBase64(result.text);
 
     const creditsUsed = result.creditsUsed || 0;
     return {
-        audioBase64: result.text, // Server returns base64 audio data in text field
+        audioBase64,
         usage: result.usage,
         creditsUsed,
     };
@@ -184,11 +210,11 @@ export async function aiGenerateVideo(prompt: string, imagesBase64?: string[]): 
     console.log('[AI] aiGenerateVideo (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
     const result = await firebase.generateSpellVideoGen(prompt, imagesBase64);
+    const videoBase64 = await resolveStorageUrlToBase64(result.text);
 
     const creditsUsed = result.creditsUsed || 0;
-    // reuse image analytics log for now or skip if not available
     return {
-        videoBase64: result.text, // Server returns base64 video data in text field
+        videoBase64,
         usage: result.usage,
         creditsUsed,
     };

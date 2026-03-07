@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     Platform,
     KeyboardAvoidingView,
     BackHandler,
+    DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -26,11 +27,13 @@ import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from '../lib/bridges/injectedJS';
-import * as gemini from '../lib/api/gemini';
+import { handleBridgeMessage, cleanupAllMedia } from '../lib/bridges/messageHandlers';
+import * as gemini from '../lib/api/ai';
 import * as db from '../lib/database/db';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { GeneratedApp, AppVersion } from '../lib/database/types';
 import * as ShareIntent from 'share-intent';
+import { t } from '../lib/i18n';
 
 interface AppRunnerProps {
     appId: number;
@@ -40,16 +43,9 @@ interface AppRunnerProps {
 
 export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunnerProps) {
     const webViewRef = useRef<WebView>(null);
-    const { minimizeApp, updateAppCode, updateAppWithAI, closeApp } = useAppStore();
+    const { minimizeApp, updateAppCode, updateAppWithAI, closeApp, lastFailedPrompt, clearLastFailedPrompt } = useAppStore();
 
-    // ... (rest of imports and hooks)
 
-    // (Note: I need to ensure I don't delete the component body. Since I cannot replace non-contiguous blocks easily without risking context loss or very large edits, I will edit the Interface/Props and the Toolbar render separately if possible. Or replace the whole start/end.)
-
-    // Strategy: Replace the top part first to add 'mode'.
-    // Then replace the bottom part to wrap toolbar.
-
-    // Wait, let's use multi_replace.
 
 
 
@@ -76,6 +72,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     }, [isVisible, mode, minimizeApp]);
 
     const [app, setApp] = useState<GeneratedApp | null>(null);
+    const [pendingVersionApp, setPendingVersionApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
 
@@ -116,6 +113,27 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         }
         loadApp();
     }, [appId]);
+
+    // Queue app updates as pending to avoid reloading WebView mid-flight AI request
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('APP_UPDATED', async (data: { appId: number }) => {
+            if (data.appId === appId) {
+                console.log(`[AppRunner] Queuing pending update for app ${appId}`);
+                const updatedData = await db.getAppById(appId);
+                if (updatedData) {
+                    setPendingVersionApp(updatedData);
+                }
+            }
+        });
+        return () => sub.remove();
+    }, [appId]);
+
+    const applyPendingUpdate = useCallback(() => {
+        if (pendingVersionApp) {
+            setApp(pendingVersionApp);
+            setPendingVersionApp(null);
+        }
+    }, [pendingVersionApp]);
 
     // Inject saved localStorage when WebView loads
     const handleLoadEnd = useCallback(() => {
@@ -231,18 +249,21 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
             let success = true;
             let result = '';
+            let deferredCallback = false;
 
             switch (type) {
                 // ============= AI Handlers =============
                 case 'AI_GENERATE':
                     try {
-                        result = await gemini.aiGenerate({
+                        const aiResponse = await gemini.aiGenerate({
                             prompt: data.prompt,
                             search: data.search,
                             schema: data.schema,
-                            image: data.image,
-                            audio: data.audio,
+                            images: data.images || undefined,
+                            audios: data.audios || undefined,
+                            videos: data.videos || undefined,
                         });
+                        result = aiResponse.text;
                     } catch (e) {
                         success = false;
                         result = e instanceof Error ? e.message : 'Error';
@@ -610,9 +631,25 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     Magnetometer.removeAllListeners();
                     result = 'All sensors stopped';
                     break;
+
+                default: {
+                    const handlerResult = await handleBridgeMessage(type, data, {
+                        webViewRef: webViewRef as React.RefObject<WebView>,
+                        appId: app?.id || null,
+                        callbackName,
+                    });
+                    if (handlerResult.handled) {
+                        success = handlerResult.success;
+                        result = handlerResult.result;
+                        deferredCallback = !!handlerResult.deferredCallback;
+                    } else {
+                        console.log(`[App ${appId}] Unknown message type: ${type}`);
+                    }
+                    break;
+                }
             }
 
-            if (callbackName && webViewRef.current) {
+            if (callbackName && webViewRef.current && !deferredCallback) {
                 const script = createCallbackScript(callbackName, success, result);
                 webViewRef.current.injectJavaScript(script);
             }
@@ -624,6 +661,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     // Save logs on unmount/cleanup
     useEffect(() => {
         return () => {
+            cleanupAllMedia();
             if (app && consoleLogs.length > 0) {
                 db.updateApp({ ...app, consoleLogs: consoleLogs.join('\n') });
             }
@@ -635,9 +673,8 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         if (!app || !editPrompt.trim()) return;
         setIsEditing(true);
         try {
-            const updatedApp = await updateAppWithAI(app, editPrompt, selectionContext);
-            if (updatedApp) {
-                setApp(updatedApp);
+            const submissionSuccess = await updateAppWithAI(app, editPrompt, selectionContext);
+            if (submissionSuccess) {
                 setShowEditSheet(false);
                 setEditPrompt('');
             }
@@ -721,7 +758,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         return null;
     }
 
-    const htmlContent = `
+    const htmlContent = useMemo(() => {
+        if (!app) return '';
+        return `
     <!DOCTYPE html>
     <html>
     <head>
@@ -731,9 +770,24 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     <body>${app.code}</body>
     </html>
     `;
+    }, [app?.id, app?.code]);
 
-    const storageScript = createStorageRestoreScript(savedStorage);
-    const combinedScript = `${getInjectedJavaScript(app.id)} ${storageScript}`;
+    const combinedScript = useMemo(() => {
+        if (!app) return '';
+        const storageScript = createStorageRestoreScript(savedStorage);
+        return `
+            ${getInjectedJavaScript(app.id, undefined, mode === 'edit')}
+            ${storageScript}
+        `;
+    }, [app?.id, mode, savedStorage]);
+
+    const source = useMemo(() => {
+        if (!app) return { html: '' };
+        return {
+            html: htmlContent,
+            baseUrl: `https://app-${app.id}.appacadabra.local/`
+        };
+    }, [htmlContent, app?.id]);
 
     return (
         <SafeAreaView
@@ -752,10 +806,21 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 </View>
             )}
 
+            {pendingVersionApp && (
+                <TouchableOpacity
+                    style={styles.updateBanner}
+                    onPress={applyPendingUpdate}
+                    activeOpacity={0.85}
+                >
+                    <Text style={styles.updateBannerText}>✨ {t('newVersionAvailable')}</Text>
+                </TouchableOpacity>
+            )}
+
             {/* WebView */}
             <WebView
+                key={`${app.id}-${mode}`}
                 ref={webViewRef}
-                source={{ html: htmlContent, baseUrl: 'https://appacadabra.local/' }}
+                source={source}
                 style={styles.webview}
                 originWhitelist={['*']}
                 javaScriptEnabled
@@ -926,6 +991,8 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     hidden: { position: 'absolute', opacity: 0, zIndex: -1, width: 0, height: 0, overflow: 'hidden' },
+    updateBanner: { backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 16, alignItems: 'center' },
+    updateBannerText: { color: '#fff', fontSize: 13, fontWeight: '600' },
     loadingContainer: { justifyContent: 'center', alignItems: 'center' },
     header: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.surfaceVariant },
     backBtn: { marginRight: spacing.md },

@@ -81,7 +81,6 @@ export default function HomeScreen() {
         clearError,
         clearStatusMessage,
         setStatusMessage,
-        initializeListeners,
         lastCreatedAppId,
         clearLastCreatedApp,
         reorderApp,
@@ -143,7 +142,6 @@ export default function HomeScreen() {
 
     // Initialize background listeners for async jobs
     useEffect(() => {
-        initializeListeners();
         hydrateBackup();
         startPeriodicBackup();
         return () => stopPeriodicBackup();
@@ -627,6 +625,12 @@ export default function HomeScreen() {
         try {
             const seen = await AsyncStorage.getItem('appacadabra_coach_done');
             if (!seen) {
+                // If the user already has multiple spells (e.g. synced from another device),
+                // they're not a new user — skip coach marks and mark as done.
+                if (apps.length > 1) {
+                    await AsyncStorage.setItem('appacadabra_coach_done', '1');
+                    return;
+                }
                 // Small delay so the card is visible before showing coach
                 setTimeout(() => setCoachStep(1), 500);
             }

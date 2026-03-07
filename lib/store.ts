@@ -15,6 +15,8 @@ import { useManaStore } from './manaStore';
 
 const DISMISSED_URI_TTL_MS = 15000;
 
+let _jobListenerInitialized = false;
+
 interface AppState {
     apps: GeneratedApp[];
     isLoading: boolean;
@@ -127,7 +129,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     initializeListeners: () => {
-        // Prevent double initialization if needed, but useEffect in App usually handles strict mode
+        if (_jobListenerInitialized) {
+            console.warn('[Store] initializeListeners called twice — skipping');
+            return;
+        }
+        _jobListenerInitialized = true;
         console.log('[Store] Initializing job listeners...');
 
         // Listen to active jobs
@@ -192,6 +198,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Internal helper to process job results
     _processCompletedJob: async (job: Job) => {
         console.log('[Store] Processing completed job:', job.id, 'Action:', job.action);
+
+        // webview_ai jobs are managed by the bridge — skip store processing
+        if (job.action.startsWith('webview_ai')) {
+            console.log('[Store] Ignoring webview AI completed job (handled by bridge):', job.id);
+            return;
+        }
 
         // Cleanup placeholders/locks moved to end of action-specific blocks
 

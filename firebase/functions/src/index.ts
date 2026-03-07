@@ -31,13 +31,14 @@ const db = getFirestore();
 // Initialize Gemini AI (API key from environment)
 const API_KEY = process.env.GEMINI_API_KEY || "";
 let _ai: GoogleGenAI | null = null;
-function getAI(): GoogleGenAI { return _ai ?? (_ai = new GoogleGenAI({ apiKey: API_KEY })); }
+function getAI(): GoogleGenAI { return _ai ?? (_ai = new GoogleGenAI({ apiKey: API_KEY, httpOptions: { timeout: 300000 } })); }
 
 // Main model config (reused for all create/edit/convert calls)
 const MAIN_MODEL_CONFIG = {
     tools: [{ googleSearch: {} }],
     thinkingConfig: { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH },
 };
+
 
 // Config for cached calls — tools must not be repeated here (they live in the cache)
 const CACHED_MAIN_MODEL_CONFIG = {
@@ -1264,7 +1265,7 @@ For each suggestion:
 - title: short name (3–5 words)
 - description: one sentence written as a prompt for the AI to create it, starting with an action verb.`;
 
-            const result = await getAI().models.generateContent({
+            const result = await withRetry(() => getAI().models.generateContent({
                 model: "gemini-2.5-flash-lite",
                 contents: prompt,
                 config: {
@@ -1281,7 +1282,7 @@ For each suggestion:
                         },
                     },
                 },
-            });
+            }));
 
             const suggestions = JSON.parse(result.text!);
             return { suggestions };
@@ -1434,18 +1435,26 @@ export const processSpellJob = onDocumentCreated(
                     catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back:`, cacheErr); }
 
                     const callModel = async (p: string, fullPromptFallback: string) => {
-                        if (sysCacheName) {
+                        const timeoutPromise = new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('AI Generation Timeout (300s)')), 300000)
+                        );
+
+                        const generationPromise = withRetry(async () => {
+                            if (sysCacheName) {
+                                return getAI().models.generateContent({
+                                    model: 'models/gemini-3-flash-preview',
+                                    contents: p,
+                                    config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
+                                });
+                            }
                             return getAI().models.generateContent({
                                 model: 'models/gemini-3-flash-preview',
-                                contents: p,
-                                config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
+                                contents: fullPromptFallback,
+                                config: MAIN_MODEL_CONFIG,
                             });
-                        }
-                        return getAI().models.generateContent({
-                            model: 'models/gemini-3-flash-preview',
-                            contents: fullPromptFallback,
-                            config: MAIN_MODEL_CONFIG,
                         });
+
+                        return Promise.race([generationPromise, timeoutPromise]) as Promise<any>;
                     };
 
                     // Stage 1: Planning
@@ -1538,17 +1547,19 @@ export const processSpellJob = onDocumentCreated(
                     catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back:`, cacheErr); }
 
                     const callEditModel = async (p: string, fullPromptFallback: string) => {
-                        if (editCacheName) {
+                        return withRetry(async () => {
+                            if (editCacheName) {
+                                return getAI().models.generateContent({
+                                    model: 'models/gemini-3-flash-preview',
+                                    contents: p,
+                                    config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: editCacheName },
+                                });
+                            }
                             return getAI().models.generateContent({
                                 model: 'models/gemini-3-flash-preview',
-                                contents: p,
-                                config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: editCacheName },
+                                contents: fullPromptFallback,
+                                config: MAIN_MODEL_CONFIG,
                             });
-                        }
-                        return getAI().models.generateContent({
-                            model: 'models/gemini-3-flash-preview',
-                            contents: fullPromptFallback,
-                            config: MAIN_MODEL_CONFIG,
                         });
                     };
 
@@ -1655,7 +1666,7 @@ export const processSpellJob = onDocumentCreated(
                         }
                     }
 
-                    const result = await getAI().models.generateContent({
+                    const result = await withRetry(() => getAI().models.generateContent({
                         model: modelId,
                         contents: parts,
                         config: {
@@ -1665,7 +1676,7 @@ export const processSpellJob = onDocumentCreated(
                                 : { includeThoughts: true, thinkingBudget: modelId.includes('2.5-flash-lite') ? 24576 : 32768 },
                             tools: toolConfig.length > 0 ? toolConfig : undefined,
                         },
-                    });
+                    }));
 
                     usage = sanitizeForFirestore({
                         promptTokens: Math.max(0, Number(result.usageMetadata?.promptTokenCount) || 0),
@@ -1713,13 +1724,13 @@ export const processSpellJob = onDocumentCreated(
 
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_IMAGE] Generating image for: ${prompt.substring(0, 80)}...`);
 
-                    const imgResult = await getAI().models.generateContent({
+                    const imgResult = await withRetry(() => getAI().models.generateContent({
                         model: 'gemini-2.5-flash-image',
                         contents: [{ role: 'user', parts: [{ text: prompt }] }],
                         config: {
                             responseModalities: ['TEXT', 'IMAGE'],
                         },
-                    });
+                    }));
 
                     usage = sanitizeForFirestore({
                         promptTokens: Math.max(0, Number(imgResult.usageMetadata?.promptTokenCount) || 0),
@@ -1822,14 +1833,28 @@ export const processSpellJob = onDocumentCreated(
                     const videoFile = operation.response?.generatedVideos?.[0]?.video;
                     if (!videoFile?.uri) throw new Error('No video generated by model');
 
-                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Downloading from: ${videoFile.uri}`);
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Downloading from: ${videoFile.uri.substring(0, 100)}... API_KEY present: ${!!API_KEY}`);
                     const videoResponse = await fetch(videoFile.uri, {
                         headers: { 'x-goog-api-key': API_KEY }
                     });
-                    if (!videoResponse.ok) throw new Error(`Video download failed: ${videoResponse.status}`);
+
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Download status: ${videoResponse.status}, Content-Type: ${videoResponse.headers.get('content-type')}`);
+                    if (!videoResponse.ok) {
+                        const errBody = await videoResponse.text();
+                        console.error(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Download failed body: ${errBody.substring(0, 200)}`);
+                        throw new Error(`Video download failed: ${videoResponse.status}`);
+                    }
 
                     const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
                     if (!videoBuffer.length) throw new Error('Video generation returned empty data');
+
+                    // Verify magic bytes for MP4 (00 00 00 ... ftyp)
+                    const magic = videoBuffer.subarray(0, 12).toString('hex');
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Buffer size: ${videoBuffer.length} bytes. Magic bytes (hex): ${magic}`);
+
+                    if (!magic.includes('66747970')) { // "ftyp" in hex
+                        console.error(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] WARNING: Buffer does not seem to be a valid MP4 file (missing ftyp)`);
+                    }
                     // ====================================================
                     // UPLOAD TO FIREBASE STORAGE (Bypass 1MB Firestore limit)
                     // ====================================================
@@ -1915,7 +1940,7 @@ export const processSpellJob = onDocumentCreated(
                     const selectedVoice = voiceName || 'Aoede';
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_TTS] voice=${selectedVoice}, text="${prompt.substring(0, 60)}..."`);
 
-                    const ttsResult = await getAI().models.generateContent({
+                    const ttsResult = await withRetry(() => getAI().models.generateContent({
                         model: 'gemini-2.5-flash-preview-tts',
                         contents: prompt,
                         config: {
@@ -1924,7 +1949,7 @@ export const processSpellJob = onDocumentCreated(
                                 voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
                             },
                         },
-                    });
+                    }));
 
                     const ttsParts = ttsResult.candidates?.[0]?.content?.parts || [];
                     let audioBase64 = '';
@@ -1949,7 +1974,36 @@ export const processSpellJob = onDocumentCreated(
                     creditsUsed = ttsCostUsd / MANA_VALUE_USD;
 
                     const pcmBuffer = Buffer.from(audioBase64, 'base64');
-                    resultText = pcmToWav(pcmBuffer).toString('base64');
+                    const wavBuffer = pcmToWav(pcmBuffer);
+
+                    // ====================================================
+                    // UPLOAD TO FIREBASE STORAGE (Bypass 1MB Firestore limit)
+                    // ====================================================
+                    if (wavBuffer.length > 800_000) {
+                        console.log(`[Job ${jobId}] [WEBVIEW_AI_TTS] Audio size (${Math.round(wavBuffer.length / 1024)}KB) exceeds threshold. Uploading to Storage...`);
+                        const bucket = getStorage().bucket();
+                        const fileName = `generated_audio/${uid}/${jobId}.wav`;
+                        const file = bucket.file(fileName);
+
+                        const token = require('crypto').randomUUID();
+                        await file.save(wavBuffer, {
+                            contentType: 'audio/wav',
+                            metadata: {
+                                metadata: {
+                                    firebaseStorageDownloadTokens: token,
+                                    userId: uid,
+                                    jobId: jobId,
+                                }
+                            }
+                        });
+
+                        const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
+                        resultText = downloadUrl;
+                        logExtras.audioUrl = downloadUrl;
+                    } else {
+                        resultText = wavBuffer.toString('base64');
+                    }
+
                     logModelId = 'gemini-2.5-flash-preview-tts';
                     break;
                 }
