@@ -1,4 +1,4 @@
-import { JSDOM } from 'jsdom';
+import { JSDOM, VirtualConsole } from 'jsdom';
 import { ValidationError, ValidationResult } from './codeValidator';
 
 // Padrões de erro do jsdom que são limitações da lib, não bugs do código gerado
@@ -126,10 +126,16 @@ export function validateWithExecution(html: string): ValidationResult {
         const htmlWithStubs = injectAtStart(html, CDN_LIBRARY_STUBS);
         const htmlWithMocks = injectAtStart(htmlWithStubs, APPACADABRA_MOCKS);
 
+        const virtualConsole = new VirtualConsole();
+        // Silence jsdomError (covers "not implemented": navigation, canvas, AudioContext, etc.)
+        // Real JS errors are captured separately via onerror/addEventListener
+        virtualConsole.on('jsdomError', () => {});
+
         const dom = new JSDOM(htmlWithMocks, {
             runScripts: 'dangerously',
             pretendToBeVisual: true,
             url: 'https://app.appacadabra.local/',
+            virtualConsole,
             beforeParse(win) {
                 (win as any).onerror = (msg: string | Event) => {
                     const message = typeof msg === 'string' ? msg : (msg as ErrorEvent).message ?? String(msg);
@@ -178,7 +184,6 @@ export function validateWithExecution(html: string): ValidationResult {
         (window as any).alert = () => {};
         (window as any).confirm = () => true;
         (window as any).prompt = () => '';
-        (window as any).location.reload = () => {};
 
         const allClickable = window.document.querySelectorAll('[onclick]');
         for (const el of Array.from(allClickable)) {
