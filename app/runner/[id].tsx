@@ -50,7 +50,6 @@ const EDITOR_ONBOARDING_KEY = 'appacadabra_editor_onboarding_seen';
 // Configure notifications
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
         shouldShowBanner: true,

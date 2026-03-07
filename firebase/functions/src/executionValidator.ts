@@ -178,6 +178,7 @@ export function validateWithExecution(html: string): ValidationResult {
         (window as any).alert = () => {};
         (window as any).confirm = () => true;
         (window as any).prompt = () => '';
+        (window as any).location.reload = () => {};
 
         const allClickable = window.document.querySelectorAll('[onclick]');
         for (const el of Array.from(allClickable)) {

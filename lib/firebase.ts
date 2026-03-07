@@ -170,8 +170,8 @@ async function initializeAppCheckWrapper() {
 initializeAppCheckWrapper();
 
 // Enable Crashlytics + Analytics collection (disabled in dev to reduce noise)
-crashlytics().setCrashlyticsCollectionEnabled(!__DEV__);
-analytics().setAnalyticsCollectionEnabled(!__DEV__);
+crashlytics(getApp()).setCrashlyticsCollectionEnabled(!__DEV__);
+analytics(getApp()).setAnalyticsCollectionEnabled(!__DEV__);
 
 // Get current user ID (null if not authenticated)
 export function getCurrentUserId(): string | null {
