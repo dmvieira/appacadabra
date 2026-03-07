@@ -156,6 +156,16 @@ export default function HomeScreen() {
         }
     }, [searchQuery]);
 
+    // Auto-dismiss active card after 1 minute of inactivity
+    useEffect(() => {
+        if (activeCardId !== null) {
+            const timer = setTimeout(() => {
+                setActiveCardId(null);
+            }, 60000); // 1 minute
+            return () => clearTimeout(timer);
+        }
+    }, [activeCardId]);
+
     // Show setup modal when a new spell is created
     useEffect(() => {
         if (lastCreatedAppId) {
@@ -696,9 +706,15 @@ export default function HomeScreen() {
                     await FileSystem.makeDirectoryAsync(iconDir, { intermediates: true });
                 }
                 const iconPath = `${iconDir}ai_icon_${setupTarget.id}_${Date.now()}.png`;
-                await FileSystem.writeAsStringAsync(iconPath, base64Image, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
+
+                if (base64Image.startsWith('http')) {
+                    await FileSystem.downloadAsync(base64Image, iconPath);
+                } else {
+                    await FileSystem.writeAsStringAsync(iconPath, base64Image, {
+                        encoding: FileSystem.EncodingType.Base64,
+                    });
+                }
+
                 await updateAppIcon(setupTarget.id, iconPath);
                 if (creditsUsed > 0) {
                     await incrementAppManaCost(setupTarget.id, creditsUsed);
@@ -880,8 +896,8 @@ export default function HomeScreen() {
                         {t('appName')}
                     </Text>
                 </View>
-                <ManaDisplay />
-                <TouchableOpacity onPress={() => setShowMenu(true)} style={[styles.menuBtn, { marginStart: spacing.md }]} accessibilityLabel={t('options')} accessibilityRole="button">
+                <ManaDisplay onPress={() => setActiveCardId(null)} />
+                <TouchableOpacity onPress={() => { setActiveCardId(null); setShowMenu(true); }} style={[styles.menuBtn, { marginStart: spacing.md }]} accessibilityLabel={t('options')} accessibilityRole="button">
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
             </View>
@@ -1049,19 +1065,20 @@ export default function HomeScreen() {
                         return (
                             <AppCard
                                 app={item}
-                                onRun={() => handleRunApp(item)}
-                                onEdit={() => handleEditApp(item)}
-                                onDelete={() => setDeleteTarget(item)}
+                                onRun={() => { setActiveCardId(null); handleRunApp(item); }}
+                                onEdit={() => { setActiveCardId(null); handleEditApp(item); }}
+                                onDelete={() => { setActiveCardId(null); setDeleteTarget(item); }}
                                 onRename={() => {
+                                    setActiveCardId(null);
                                     setSetupTarget(item);
                                     setSetupName(item.name);
                                     setSetupDescription(item.shortDescription || '');
                                     setSetupMode('edit');
                                 }}
-                                onShortcut={() => handleCreateShortcut(item)}
-                                onToggleBiometric={() => handleToggleBiometric(item)}
-                                onShare={() => handleShareApp(item)}
-                                onViewSchedules={() => setScheduleTarget(item)}
+                                onShortcut={() => { setActiveCardId(null); handleCreateShortcut(item); }}
+                                onToggleBiometric={() => { setActiveCardId(null); handleToggleBiometric(item); }}
+                                onShare={() => { setActiveCardId(null); handleShareApp(item); }}
+                                onViewSchedules={() => { setActiveCardId(null); setScheduleTarget(item); }}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
                                 notificationCount={notifCounts[item.id] || 0}
@@ -1078,6 +1095,7 @@ export default function HomeScreen() {
                                     setActiveCardId(item.id);
                                 } : undefined}
                                 onClearData={() => {
+                                    setActiveCardId(null);
                                     Alert.alert(
                                         t('clearDataConfirmTitle'),
                                         t('clearDataConfirmMessage'),
@@ -1105,6 +1123,7 @@ export default function HomeScreen() {
                 <TouchableOpacity
                     style={styles.fab}
                     onPress={() => {
+                        setActiveCardId(null);
                         if (balance <= 0) {
                             Alert.alert(
                                 t('manaDepletedTitle'),

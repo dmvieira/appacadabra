@@ -1527,7 +1527,6 @@ export async function handleBridgeMessage(
             try {
                 const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined);
                 result = videoResult.videoBase64;
-
                 // Log cost and update mana
                 const creditsUsed = videoResult.creditsUsed || 0;
                 console.log(`[Bridge] AI video generated. Credits used: ${creditsUsed}`);

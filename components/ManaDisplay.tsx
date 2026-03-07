@@ -4,10 +4,11 @@ import { useManaStore } from '../lib/manaStore';
 import { colors, borderRadius, spacing } from '../lib/theme';
 import { logShopOpened } from '../lib/analytics';
 
-export function ManaDisplay() {
+export function ManaDisplay({ onPress }: { onPress?: () => void }) {
     const { balance, openShop } = useManaStore();
 
     const handlePress = () => {
+        onPress?.();
         logShopOpened();
         openShop();
     };

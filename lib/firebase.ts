@@ -217,8 +217,29 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
         const db = getFirestore();
         const jobsRef = collection(db, 'jobs');
 
+        // Check for large media to bypass Firestore 1MB limit
+        // If an image/video array exists and looks large, upload to Storage first
+        const uploadIfNeeded = async (key: string, contentType: string) => {
+            if (payload[key] && Array.isArray(payload[key])) {
+                const totalSize = payload[key].reduce((acc: number, cur: string) => acc + (cur?.length || 0), 0);
+                // If total size > 800KB, upload via Storage proxy
+                if (totalSize > 800_000) {
+                    console.error(`[DEBUG] Payload ${key} is large (${Math.round(totalSize / 1024)}KB). Uploading to Storage...`);
+                    const uploadFn = httpsCallable(getFunctionsInstance(), 'uploadMedia');
+                    const uploadResult = await uploadFn({ media: payload[key], contentType });
+                    const { urls } = uploadResult.data as { urls: string[] };
+                    payload[key] = urls; // Replace base64 with URLs
+                    console.error(`[DEBUG] ${key} uploaded. Received ${urls.length} URLs.`);
+                }
+            }
+        };
+
+        await uploadIfNeeded('imagesBase64', 'image/jpeg');
+        await uploadIfNeeded('videosBase64', 'video/mp4');
+        await uploadIfNeeded('audiosBase64', 'audio/wav');
+
         const cleanPayload = sanitizePayload({ ...payload, appVersion: APP_VERSION });
-        console.error(`[DEBUG] Adding doc to jobs collection with payload:`, JSON.stringify(cleanPayload));
+        console.error(`[DEBUG] Adding doc to jobs collection with payload size: ${JSON.stringify(cleanPayload).length} chars`);
 
         // Create a new job document
         const jobDoc = await addDoc(jobsRef, {

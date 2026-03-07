@@ -1,0 +1,17 @@
+{
+    "rule": [
+        {
+            "action": {
+                "type": "Delete"
+            },
+            "condition": {
+                "age": 1,
+                "matchesPrefix": [
+                    "generated_images/",
+                    "generated_videos/",
+                    "job_inputs/"
+                ]
+            }
+        }
+    ]
+}

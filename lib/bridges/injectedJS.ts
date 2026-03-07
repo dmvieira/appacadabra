@@ -202,11 +202,59 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       generate: function(prompt, cb) { return new AIBuilder().generate(prompt, cb); },
       generateImage: function(prompt, callbackName) {
         console.log('[AppacadabraAI.generateImage] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
-        sendMessage('AI_GENERATE_IMAGE', { prompt: prompt }, callbackName);
+        var interceptName = callbackName + '_intercept_' + Math.floor(Math.random()*10000);
+        window[interceptName] = function(success, result) {
+            if (success && typeof result === 'string' && result.indexOf('http') === 0) {
+                fetch(result)
+                    .then(function(res) { return res.blob(); })
+                    .then(function(blob) {
+                        var reader = new FileReader();
+                        reader.onloadend = function() {
+                           var base64 = reader.result.split(',')[1] || reader.result;
+                           if (window[callbackName]) window[callbackName](true, base64);
+                        };
+                        reader.onerror = function() {
+                           if (window[callbackName]) window[callbackName](false, "Failed to read image Blob");
+                        };
+                        reader.readAsDataURL(blob);
+                    })
+                    .catch(function(err) {
+                        if (window[callbackName]) window[callbackName](false, "Failed to download image from storage: " + err.message);
+                    });
+            } else {
+                if (window[callbackName]) window[callbackName](success, result);
+            }
+            delete window[interceptName];
+        };
+        sendMessage('AI_GENERATE_IMAGE', { prompt: prompt }, interceptName);
       },
       generateVideo: function(prompt, callbackName) {
         console.log('[AppacadabraAI.generateVideo] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
-        sendMessage('AI_GENERATE_VIDEO', { prompt: prompt }, callbackName);
+        var interceptName = callbackName + '_intercept_' + Math.floor(Math.random()*10000);
+        window[interceptName] = function(success, result) {
+            if (success && typeof result === 'string' && result.indexOf('http') === 0) {
+                fetch(result)
+                    .then(function(res) { return res.blob(); })
+                    .then(function(blob) {
+                        var reader = new FileReader();
+                        reader.onloadend = function() {
+                           var base64 = reader.result.split(',')[1] || reader.result;
+                           if (window[callbackName]) window[callbackName](true, base64);
+                        };
+                        reader.onerror = function() {
+                           if (window[callbackName]) window[callbackName](false, "Failed to read video Blob");
+                        };
+                        reader.readAsDataURL(blob);
+                    })
+                    .catch(function(err) {
+                        if (window[callbackName]) window[callbackName](false, "Failed to download video from storage: " + err.message);
+                    });
+            } else {
+                if (window[callbackName]) window[callbackName](success, result);
+            }
+            delete window[interceptName];
+        };
+        sendMessage('AI_GENERATE_VIDEO', { prompt: prompt }, interceptName);
       },
       similarity: function(items, callbackName) {
         console.log('[AppacadabraAI.similarity] items:', items ? items.length : 0, 'callback:', callbackName);

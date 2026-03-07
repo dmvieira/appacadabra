@@ -7,7 +7,9 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { GoogleGenAI, VideoGenerationReferenceType, Type, ThinkingLevel } from "@google/genai";
+
 import * as zlib from 'zlib';
 import {
     SYSTEM_INSTRUCTIONS,
@@ -114,6 +116,55 @@ function decompressContent(input: string): string {
         }
     }
     return input;
+}
+
+
+// ============= FIRESTORE UTILS =============
+
+
+/**
+ * Aggressive sanitization for metadata blocks (usage, logs, extras).
+ * Only primitive types, strict plain objects, and arrays are allowed.
+ */
+function sanitizeForFirestore(obj: any): any {
+    if (obj === null || obj === undefined) return null;
+
+    const t = typeof obj;
+    if (t === 'number') {
+        return isNaN(obj) || !isFinite(obj) ? 0 : obj;
+    }
+    if (t === 'string' || t === 'boolean') {
+        return obj;
+    }
+
+    const typeStr = Object.prototype.toString.call(obj);
+
+    if (typeStr === '[object Array]') {
+        return obj.map((item: any) => sanitizeForFirestore(item)).filter((item: any) => item !== undefined);
+    }
+
+    if (typeStr === '[object Object]') {
+        // Double check it's actually a plain object (no custom prototype)
+        const proto = Object.getPrototypeOf(obj);
+        if (proto !== null && proto !== Object.prototype) {
+            // It's a class instance like Metadata or Map. Reject it completely.
+            return null;
+        }
+
+        const plain: any = {};
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                const val = obj[key];
+                if (val !== undefined && typeof val !== 'function') {
+                    plain[key] = sanitizeForFirestore(val);
+                }
+            }
+        }
+        return plain;
+    }
+
+    // Reject Dates, Maps, Sets, Promises, Buffers, etc.
+    return null;
 }
 
 
@@ -334,6 +385,10 @@ function extractText(result: any): string {
         console.log("--- GEMINI REASONING ---\n" + thoughts + "\n--- END ---");
     }
 
+    if (!resultText) {
+        resultText = result.text ?? "";  // SDK-level fallback for edge cases
+    }
+
     return resultText;
 }
 
@@ -354,6 +409,34 @@ function getUsage(result: any): { promptTokens: number; responseTokens: number; 
         thoughtsTokens,
         totalTokens: usage?.totalTokenCount || 0,
     };
+}
+
+// Helper to repair common AI JSON issues (literal newlines/tabs inside string values)
+function repairJson(text: string): string {
+    let result = '';
+    let inString = false;
+    let escape = false;
+    for (const ch of text) {
+        if (escape) {
+            result += ch;
+            escape = false;
+        } else if (ch === '\\' && inString) {
+            result += ch;
+            escape = true;
+        } else if (ch === '"') {
+            inString = !inString;
+            result += ch;
+        } else if (inString && ch === '\n') {
+            result += '\\n';
+        } else if (inString && ch === '\r') {
+            result += '\\r';
+        } else if (inString && ch === '\t') {
+            result += '\\t';
+        } else {
+            result += ch;
+        }
+    }
+    return result;
 }
 
 // Helper to extract HTML from markdown code block
@@ -384,12 +467,16 @@ function extractJson(response: string): any {
         text = text.substring(startObj, endObj + 1);
     }
 
-    // 3. Attempt to parse
+    // 3. Repair common AI JSON issues (literal newlines/tabs inside string values)
+    text = repairJson(text);
+
+    // 4. Attempt to parse
     try {
         return JSON.parse(text);
     } catch (e) {
         console.error("JSON Parse Error:", e);
         console.error("Raw Text:", response);
+        console.error("Repaired Text:", text);
         throw e; // Re-throw to be caught by caller
     }
 }
@@ -611,6 +698,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
         const { schema, imagesBase64, videosBase64, audiosBase64 } = request.data;
 
         if (!action) throw new HttpsError("invalid-argument", "Action required");
+        console.log(`[generateSpell] Action: ${action}, uid: ${uid}`);
 
         // Content moderation
         const textToValidate = prompt || sourceCode || "";
@@ -650,6 +738,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         throw new HttpsError("failed-precondition", "Use async jobs for create/edit");
 
                     case "convert": {
+                        console.log(`[CONVERT] Starting spell conversion`);
                         // Fixed cost for Convert (Import) same as Create/Edit
                         // User confirmed: criação, edição e importação = 1 mana fixo
 
@@ -678,6 +767,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         const u = getUsage(result);
                         usage = { ...u, cachedTokens: result.usageMetadata?.cachedContentTokenCount || 0 };
                         resultText = fixCallbackPatterns(extractHtml(extractText(result)));
+                        if (!resultText) throw new Error("AI returned empty response");
 
                         // Price as Fixed Cost
                         creditsUsed = FIXED_COST_CREATE_EDIT;
@@ -752,6 +842,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         };
 
                         resultText = extractText(result);
+                        if (!resultText) throw new Error("AI returned empty response");
 
                         // Count actual tool calls from grounding metadata
                         const groundingMeta = result.candidates?.[0]?.groundingMetadata;
@@ -885,6 +976,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         if (!videoResponse.ok) throw new Error(`Video download failed: ${videoResponse.status}`);
 
                         const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+                        if (!videoBuffer.length) throw new Error('Video generation returned empty data');
                         resultText = videoBuffer.toString('base64');
 
                         const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 5;
@@ -899,6 +991,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                     case "webview_ai_similarity": {
                         // Similarity endpoint: accepts an array of items, returns pairwise similarity matrix
                         const items: string[] = request.data.items || [];
+                        console.log(`[WEBVIEW_AI_SIMILARITY] items: ${items?.length ?? 0}`);
                         if (items.length < 2) throw new HttpsError("invalid-argument", "At least 2 items required for similarity");
 
                         // Compute embeddings for all items
@@ -908,7 +1001,9 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                                 contents: item,
                             })))
                         );
+                        console.log(`[WEBVIEW_AI_SIMILARITY] Embeddings computed, building matrix...`);
                         const vectors = embeddings.map(e => e.embeddings![0].values!);
+                        if (vectors.some(v => !v?.length)) throw new Error('Similarity model returned empty embeddings');
 
                         // Cosine similarity helper
                         function cosine(a: number[], b: number[]): number {
@@ -1283,9 +1378,28 @@ export const processSpellJob = onDocumentCreated(
         const voiceName = payload.voiceName;
         const items: string[] = payload.items || [];
 
-        const userRef = db.collection("users").doc(uid);
+        const resolveMedia = async (mediaArray: string[] | undefined): Promise<string[] | undefined> => {
+            if (!mediaArray || mediaArray.length === 0) return mediaArray;
+            return Promise.all(mediaArray.map(async (item) => {
+                if (item.startsWith('http')) {
+                    console.log(`[Job ${jobId}] Downloading media from Storage: ${item.substring(0, 100)}...`);
+                    // Use native fetch to download
+                    const response = await fetch(item);
+                    if (!response.ok) throw new Error(`Failed to download job input media: ${response.status}`);
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    return buffer.toString('base64');
+                }
+                return item;
+            }));
+        };
 
+        const userRef = db.collection("users").doc(uid);
         try {
+            // Resolve any Storage URLs in media arrays back to Base64 for the models
+            const resolvedImages = await resolveMedia(imagesBase64);
+            const resolvedVideos = await resolveMedia(videosBase64);
+            const resolvedAudios = await resolveMedia(audiosBase64);
+
             // 1. Check Credits/Limits
             const userDoc = await userRef.get();
             if (!userDoc.exists) throw new Error("User not found");
@@ -1349,6 +1463,7 @@ export const processSpellJob = onDocumentCreated(
                     addUsage(codeResult);
 
                     resultText = fixCallbackPatterns(extractHtml(extractText(codeResult)));
+                    if (!resultText) throw new Error("AI returned empty response");
 
                     // Audit
                     auditLog = {
@@ -1376,6 +1491,7 @@ export const processSpellJob = onDocumentCreated(
                         const fixResult = await callModel(fixPrompt, fixPrompt);
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
+                        if (!resultText) throw new Error("AI returned empty response");
                         validation = validateGeneratedCode(resultText);
                         execValidation = validateWithExecution(resultText);
                         allErrors = [...validation.errors, ...execValidation.errors];
@@ -1479,6 +1595,7 @@ export const processSpellJob = onDocumentCreated(
                         const fixResult = await callEditModel(fixPrompt, fixPrompt);
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
+                        if (!resultText) throw new Error("AI returned empty response");
                         editValidation = validateGeneratedCode(resultText);
                         editExecValidation = validateWithExecution(resultText);
                         editAllErrors = [...editValidation.errors, ...editExecValidation.errors];
@@ -1511,18 +1628,18 @@ export const processSpellJob = onDocumentCreated(
 
                     // Build Parts
                     const parts: any[] = [prompt];
-                    if (imagesBase64?.length) {
-                        for (const img of imagesBase64) {
+                    if (resolvedImages?.length) {
+                        for (const img of resolvedImages) {
                             parts.push({ inlineData: { mimeType: "image/jpeg", data: img } });
                         }
                     }
-                    if (videosBase64?.length) {
-                        for (const vid of videosBase64) {
+                    if (resolvedVideos?.length) {
+                        for (const vid of resolvedVideos) {
                             parts.push({ inlineData: { mimeType: "video/mp4", data: vid } });
                         }
                     }
-                    if (audiosBase64?.length) {
-                        for (const aud of audiosBase64) {
+                    if (resolvedAudios?.length) {
+                        for (const aud of resolvedAudios) {
                             parts.push({ inlineData: { mimeType: "audio/wav", data: aud } });
                         }
                     }
@@ -1550,16 +1667,20 @@ export const processSpellJob = onDocumentCreated(
                         },
                     });
 
-                    const u = getUsage(result);
-                    usage = {
-                        promptTokens: u.promptTokens,
-                        responseTokens: u.responseTokens,
-                        thoughtsTokens: u.thoughtsTokens,
-                        totalTokens: u.totalTokens,
-                        cachedTokens: result.usageMetadata?.cachedContentTokenCount || 0,
-                    };
+                    usage = sanitizeForFirestore({
+                        promptTokens: Math.max(0, Number(result.usageMetadata?.promptTokenCount) || 0),
+                        responseTokens: Math.max(0, Number(result.usageMetadata?.candidatesTokenCount) || 0),
+                        thoughtsTokens: Math.max(0, Number(result.usageMetadata?.thoughtsTokenCount) || 0),
+                        totalTokens: Math.max(0, Number(result.usageMetadata?.totalTokenCount) || 0),
+                        cachedTokens: Math.max(0, Number(result.usageMetadata?.cachedContentTokenCount) || 0),
+                    });
 
                     resultText = extractText(result);
+
+                    // Empty AI response is always invalid — fail the job explicitly
+                    if (!resultText) {
+                        throw new Error("AI returned empty response");
+                    }
 
                     // Count actual tool calls from grounding metadata
                     const groundingMeta = result.candidates?.[0]?.groundingMetadata;
@@ -1600,13 +1721,13 @@ export const processSpellJob = onDocumentCreated(
                         },
                     });
 
-                    usage = {
-                        promptTokens: imgResult.usageMetadata?.promptTokenCount || 0,
-                        responseTokens: imgResult.usageMetadata?.candidatesTokenCount || 0,
+                    usage = sanitizeForFirestore({
+                        promptTokens: Math.max(0, Number(imgResult.usageMetadata?.promptTokenCount) || 0),
+                        responseTokens: Math.max(0, Number(imgResult.usageMetadata?.candidatesTokenCount) || 0),
                         thoughtsTokens: 0,
-                        totalTokens: imgResult.usageMetadata?.totalTokenCount || 0,
+                        totalTokens: Math.max(0, Number(imgResult.usageMetadata?.totalTokenCount) || 0),
                         cachedTokens: 0
-                    };
+                    });
 
                     // Extract image from response parts
                     const imgParts = imgResult.candidates?.[0]?.content?.parts || [];
@@ -1620,10 +1741,32 @@ export const processSpellJob = onDocumentCreated(
 
                     if (!imageBase64) throw new Error('No image generated by model');
 
-                    resultText = imageBase64;
+                    // ====================================================
+                    // UPLOAD TO FIREBASE STORAGE (Bypass 1MB Firestore limit)
+                    // ====================================================
+                    const bucket = getStorage().bucket();
+                    const fileName = `generated_images/${uid}/${jobId}.jpeg`;
+                    const file = bucket.file(fileName);
+
+                    const token = require('crypto').randomUUID();
+                    await file.save(Buffer.from(imageBase64, 'base64'), {
+                        contentType: 'image/jpeg',
+                        metadata: {
+                            metadata: {
+                                firebaseStorageDownloadTokens: token,
+                                userId: uid,
+                                jobId: jobId,
+                            }
+                        }
+                    });
+
+                    const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
+
+                    resultText = downloadUrl;
                     creditsUsed = 0.5;
                     logModelId = 'gemini-2.5-flash-image';
                     logExtras.imageCount = 1;
+                    logExtras.imageUrl = downloadUrl;
                     break;
                 }
 
@@ -1636,8 +1779,8 @@ export const processSpellJob = onDocumentCreated(
                         return 'image/jpeg';
                     };
 
-                    const firstImageB64 = imagesBase64?.[0];
-                    const extraImageB64s = imagesBase64?.slice(1, 3) ?? [];
+                    const firstImageB64 = resolvedImages?.[0];
+                    const extraImageB64s = resolvedImages?.slice(1, 3) ?? [];
                     const hasImages = !!firstImageB64;
                     const hasReferenceImages = extraImageB64s.length > 0;
 
@@ -1686,16 +1829,41 @@ export const processSpellJob = onDocumentCreated(
                     if (!videoResponse.ok) throw new Error(`Video download failed: ${videoResponse.status}`);
 
                     const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-                    resultText = videoBuffer.toString('base64');
+                    if (!videoBuffer.length) throw new Error('Video generation returned empty data');
+                    // ====================================================
+                    // UPLOAD TO FIREBASE STORAGE (Bypass 1MB Firestore limit)
+                    // ====================================================
+                    const bucket = getStorage().bucket();
+                    const fileName = `generated_videos/${uid}/${jobId}.mp4`;
+                    const file = bucket.file(fileName);
+
+                    const token = require('crypto').randomUUID();
+                    await file.save(videoBuffer, {
+                        contentType: 'video/mp4',
+                        metadata: {
+                            metadata: {
+                                firebaseStorageDownloadTokens: token,
+                                userId: uid,
+                                jobId: jobId,
+                            }
+                        }
+                    });
+
+                    const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
+
+                    resultText = downloadUrl;
 
                     const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 5;
                     creditsUsed = durationSeconds * (hasImages ? 5.0 : 2.0);
                     logModelId = hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview';
                     logExtras.durationSec = durationSeconds;
+                    logExtras.videoUrl = downloadUrl;
                     break;
+
                 }
 
                 case "webview_ai_similarity": {
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_SIMILARITY] items: ${items?.length ?? 0}`);
                     if (items.length < 2) throw new Error("At least 2 items required for similarity");
 
                     const embeddings = await Promise.all(
@@ -1704,7 +1872,9 @@ export const processSpellJob = onDocumentCreated(
                             contents: item,
                         }))
                     );
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_SIMILARITY] Embeddings computed, building matrix...`);
                     const vectors = embeddings.map(e => e.embeddings![0].values!);
+                    if (vectors.some(v => !v?.length)) throw new Error('Similarity model returned empty embeddings');
 
                     function cosine(a: number[], b: number[]): number {
                         let dot = 0, magA = 0, magB = 0;
@@ -1768,7 +1938,13 @@ export const processSpellJob = onDocumentCreated(
                     if (!audioBase64) throw new Error('TTS returned no audio');
 
                     const u = getUsage(ttsResult);
-                    usage = { promptTokens: u.promptTokens, responseTokens: u.responseTokens, thoughtsTokens: u.thoughtsTokens, totalTokens: u.totalTokens, cachedTokens: 0 };
+                    usage = sanitizeForFirestore({
+                        promptTokens: Math.max(0, Number(u.promptTokens) || 0),
+                        responseTokens: Math.max(0, Number(u.responseTokens) || 0),
+                        thoughtsTokens: Math.max(0, Number(u.thoughtsTokens) || 0),
+                        totalTokens: Math.max(0, Number(u.totalTokens) || 0),
+                        cachedTokens: 0
+                    });
                     const ttsCostUsd = calculateCostUsd('gemini-2.5-flash-preview-tts', usage);
                     creditsUsed = ttsCostUsd / MANA_VALUE_USD;
 
@@ -1779,6 +1955,7 @@ export const processSpellJob = onDocumentCreated(
                 }
 
                 default:
+                    console.error(`[Job ${jobId}] Unknown action: ${action}`);
                     throw new Error(`Invalid Async Action: ${action}`);
             }
 
@@ -1808,20 +1985,55 @@ export const processSpellJob = onDocumentCreated(
                         lastActive: FieldValue.serverTimestamp(),
                     });
 
-                    // Update Job
-                    t.update(snapshot.ref, {
-                        status: 'completed',
-                        completedAt: FieldValue.serverTimestamp(),
-                        result: {
-                            text: compressContent(resultText),
-                            usage,
-                            costUsd,
-                            creditsUsed,
-                            creditsRemaining: newCredits,
-                            ...(appName ? { appName } : {}),
+                    // Ensure EVERYTHING in finalResult is a primitive or basic Array/Object.
+                    // This explicitly strips out grpc-js Metadata or any hidden SDK classes.
+                    const finalResult = {
+                        text: compressContent(resultText || ""),
+                        costUsd: Math.max(0, Number(costUsd) || 0),
+                        creditsUsed: Math.max(0, Number(creditsUsed) || 0),
+                        creditsRemaining: Math.max(0, Number(newCredits) || 0),
+                        usage: {
+                            promptTokens: Math.max(0, Number(usage?.promptTokens) || 0),
+                            responseTokens: Math.max(0, Number(usage?.responseTokens) || 0),
+                            thoughtsTokens: Math.max(0, Number(usage?.thoughtsTokens) || 0),
+                            totalTokens: Math.max(0, Number(usage?.totalTokens) || 0),
+                            cachedTokens: Math.max(0, Number(usage?.cachedTokens) || 0),
                         },
-                        audit: auditLog // Save audit logs
-                    });
+                        appName: appName ? String(appName) : undefined,
+                    };
+
+                    const resultSize = JSON.stringify(finalResult).length;
+                    if (resultSize > 1000000) {
+                        console.warn(`[Job ${jobId}] WARNING: Result size is large: ${resultSize} chars`);
+                    }
+
+                    // ABSOLUTE FINAL SAFETY CAST - This is mathematically guaranteed to remove all hidden classes
+                    // or gRPC artifacts that might have bypassed previous checks.
+                    let safeResult = sanitizeForFirestore(finalResult);
+                    let safeAudit = sanitizeForFirestore(auditLog);
+
+                    try {
+                        safeResult = JSON.parse(JSON.stringify(safeResult));
+                        safeAudit = JSON.parse(JSON.stringify(safeAudit));
+                    } catch (stringifyErr) {
+                        console.error(`[Job ${jobId}] JSON stringify failed! Data contained circular/invalid structure:`, stringifyErr);
+                    }
+
+                    console.log(`[Job ${jobId}] safeResult keys: ${Object.keys(safeResult || {})}`);
+                    console.log(`[Job ${jobId}] safeResult.usage keys: ${Object.keys((safeResult || {}).usage || {})}`);
+                    console.log(`[Job ${jobId}] final safeResult string snippet: ${JSON.stringify(safeResult).substring(0, 300)}`);
+
+                    try {
+                        t.update(snapshot.ref, {
+                            status: 'completed',
+                            completedAt: FieldValue.serverTimestamp(),
+                            result: safeResult,
+                            audit: safeAudit // Save audited logs
+                        });
+                    } catch (updateErr) {
+                        console.error(`[Job ${jobId}] t.update failed for completed state:`, updateErr);
+                        throw updateErr;
+                    }
 
                     // Write usage log
                     const logRef = db.collection('users').doc(uid).collection('usageLogs').doc();
@@ -1837,18 +2049,69 @@ export const processSpellJob = onDocumentCreated(
                         creditsUsed,
                         timestamp: FieldValue.serverTimestamp(),
                         jobId,
-                        ...logExtras,
+                        ...sanitizeForFirestore(logExtras),
                     });
                 }
             });
 
         } catch (error: any) {
             console.error(`Job ${jobId} failed:`, error);
-            await snapshot.ref.update({
-                status: 'failed',
-                error: error.message || 'Unknown error',
-                failedAt: FieldValue.serverTimestamp(),
-            });
+            const errorMsg = typeof error?.message === 'string' ? error.message : String(error || 'Unknown error');
+            try {
+                await snapshot.ref.update({
+                    status: 'failed',
+                    error: errorMsg,
+                    failedAt: FieldValue.serverTimestamp(),
+                });
+            } catch (fallbackErr) {
+                console.error(`[Job ${jobId}] Failed to write failure state to Firestore:`, fallbackErr);
+            }
         }
     }
 );
+
+/**
+ * uploadMedia: Securely upload large base64 media (images/videos/audios)
+ * from the app to Firebase Storage and return URLs.
+ * This bypasses the 1MB Firestore document limit for job payloads.
+ */
+export const uploadMedia = onCall({
+    region: 'southamerica-east1',
+    enforceAppCheck: false, // Set to true if app check is fully configured
+    memory: '1GiB',
+    timeoutSeconds: 300,
+}, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
+    const uid = request.auth.uid;
+    const { media, contentType } = request.data;
+
+    if (!Array.isArray(media) || media.length === 0) {
+        throw new HttpsError('invalid-argument', 'Media array required');
+    }
+
+    const bucket = getStorage().bucket();
+    const urls: string[] = [];
+
+    for (const base64 of media) {
+        const uuid = require('crypto').randomUUID();
+        const ext = contentType?.split('/')[1] || 'bin';
+        const fileName = `job_inputs/${uid}/${uuid}.${ext}`;
+        const file = bucket.file(fileName);
+
+        const token = require('crypto').randomUUID();
+        await file.save(Buffer.from(base64, 'base64'), {
+            contentType: contentType || 'application/octet-stream',
+            metadata: {
+                metadata: {
+                    firebaseStorageDownloadTokens: token,
+                    userId: uid,
+                }
+            }
+        });
+
+        const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
+        urls.push(url);
+    }
+
+    return { urls };
+});

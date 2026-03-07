@@ -44,7 +44,52 @@ const APPACADABRA_MOCKS = `
 (function() {
     var noop = function() {};
     var apiProxy = new Proxy({}, { get: function() { return noop; } });
-    window.AppacadabraAI = apiProxy;
+
+    function sampleFromSchema(s) {
+        if (!s) return {};
+        if (s.type === 'string') return 'test';
+        if (s.type === 'number' || s.type === 'integer') return 0;
+        if (s.type === 'boolean') return false;
+        if (s.type === 'array') return s.items ? [sampleFromSchema(s.items)] : [];
+        if (s.type === 'object') {
+            var obj = {};
+            if (s.properties) Object.keys(s.properties).forEach(function(k) { obj[k] = sampleFromSchema(s.properties[k]); });
+            return obj;
+        }
+        return null;
+    }
+
+    function makeAIBuilder(schema) {
+        var builder = {
+            withSchema: function(s) { return makeAIBuilder(s); },
+            withSearch: function() { return this; },
+            fromImage: function() { return this; },
+            fromVideo: function() { return this; },
+            fromAudio: function() { return this; },
+            generate: function(prompt, callbackName) {
+                if (callbackName && typeof window[callbackName] === 'function') {
+                    var sample = schema ? JSON.stringify(sampleFromSchema(schema)) : '{}';
+                    window[callbackName](true, sample);
+                }
+            }
+        };
+        return builder;
+    }
+
+    window.AppacadabraAI = {
+        withSchema: function(s) { return makeAIBuilder(s); },
+        withSearch: function() { return makeAIBuilder(null); },
+        fromImage: function() { return makeAIBuilder(null); },
+        fromVideo: function() { return makeAIBuilder(null); },
+        fromAudio: function() { return makeAIBuilder(null); },
+        generate: function(prompt, cb) {
+            if (cb && typeof window[cb] === 'function') window[cb](true, '{}');
+        },
+        generateImage: noop,
+        generateVideo: noop,
+        similarity: noop,
+    };
+
     window.AppacadabraNotify = apiProxy;
     window.AppacadabraCalendar = apiProxy;
     window.AppacadabraShare = apiProxy;
@@ -125,6 +170,21 @@ export function validateWithExecution(html: string): ValidationResult {
                     message: `onclick handler "${fnName}" is not defined — button will be frozen when clicked`,
                     fixable: true
                 });
+            }
+        }
+
+        // 3. Invoke onclick handlers to exercise AI callback paths
+        // Suppress browser dialogs that would block JSDOM
+        (window as any).alert = () => {};
+        (window as any).confirm = () => true;
+        (window as any).prompt = () => '';
+
+        const allClickable = window.document.querySelectorAll('[onclick]');
+        for (const el of Array.from(allClickable)) {
+            const onclickAttr = el.getAttribute('onclick') ?? '';
+            const fnName = onclickAttr.match(/^\s*(\w+)\s*\(/)?.[1];
+            if (fnName && typeof (window as any)[fnName] === 'function') {
+                try { (window as any)[fnName](); } catch (_) { /* errors captured via onerror */ }
             }
         }
 
