@@ -41,7 +41,7 @@ import { useSpeechToText } from '../../lib/useSpeech';
 import { t, getWebViewTranslations } from '../../lib/i18n';
 import QRScannerOverlay from '../../components/QRScannerOverlay';
 import { useManaStore } from '../../lib/manaStore';
-import { reloadStorageForApp } from '../../lib/storageCache';
+import { reloadStorageForApp, getStorageFromCache } from '../../lib/storageCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EditorOnboarding from '../../components/EditorOnboarding';
 
@@ -144,17 +144,18 @@ export default function RunnerScreen() {
   `;
     }, [app?.id, app?.code]);
 
-    const combinedScript = useMemo(() => {
+    // Stable part — only changes when app/editMode changes, not on runtime storage writes
+    const baseInjectedScript = useMemo(() => {
         if (!app) return '';
-        console.log('RunnerScreen: Creating combinedScript with', savedStorageRef.current.length, 'storage items');
-        const storageScript = createStorageRestoreScript(savedStorageRef.current);
-        const scrollScript = getScrollDetectionScript();
-        return `
-            ${getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode)}
-            ${storageScript}
-            ${scrollScript}
-        `;
-    }, [app?.id, isEditMode, storageLoaded]);
+        return getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode);
+    }, [app?.id, isEditMode]);
+
+    // Computed inline so injectedJavaScriptBeforeContentLoaded always has fresh cache data
+    const combinedScript = app ? `
+        ${baseInjectedScript}
+        ${createStorageRestoreScript(getStorageFromCache(app.id))}
+        ${getScrollDetectionScript()}
+    ` : '';
 
     const source = useMemo(() => {
         if (!app) return { html: '' };
@@ -580,10 +581,11 @@ export default function RunnerScreen() {
     const handleLoadEnd = useCallback(() => {
         console.log('Runner: handleLoadEnd called');
 
-        if (webViewRef.current) {
-            // Always inject saved storage from ref (more reliable than state)
-            const storageToRestore = savedStorageRef.current;
-            console.log('Runner: Injecting', storageToRestore.length, 'storage items from ref');
+        if (webViewRef.current && app) {
+            // Use fresh cache to include runtime writes made since mount
+            const storageToRestore = getStorageFromCache(app.id);
+            savedStorageRef.current = storageToRestore;
+            console.log('Runner: Injecting', storageToRestore.length, 'storage items from cache');
             const script = createStorageRestoreScript(storageToRestore);
             webViewRef.current.injectJavaScript(script);
 
@@ -614,7 +616,7 @@ export default function RunnerScreen() {
                 }, 500);
             }
         }
-    }, [localSharedContent, sharedContent, clearSharedContent, isFocused]);
+    }, [localSharedContent, sharedContent, clearSharedContent, isFocused, app]);
 
     // Handle incoming share when already loaded (hot update)
     useEffect(() => {
