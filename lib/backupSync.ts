@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
-import { createBackup, processBackupData, BackupData, readBackupFile } from './backup';
+import { createBackup, processBackupData, BackupData, BackupApp, readBackupFile } from './backup';
 import { getGoogleAccessToken, isGoogleUser } from './firebase';
 import { useBackupStore } from './backupStore';
 import { useAppStore } from './store';
@@ -82,12 +82,38 @@ async function deleteDriveFile(accessToken: string, fileId: string): Promise<voi
     }
 }
 
+/** Merge two BackupData objects, keeping the more recently updated version of each app */
+function mergeBackups(local: BackupData, remote: BackupData): BackupData {
+    const map = new Map<string, BackupApp>();
+    // Remote first, then local overwrites if local is newer (or equal)
+    for (const app of [...remote.apps, ...local.apps]) {
+        const existing = map.get(app.name);
+        if (!existing || app.lastUpdated >= existing.lastUpdated) {
+            map.set(app.name, app);
+        }
+    }
+    return { ...local, apps: Array.from(map.values()) };
+}
+
 /** Upload (create or update) backup to Google Drive appDataFolder.
+ *  Merges with existing Drive data before uploading so no device loses its apps.
  *  Cleans up duplicate files, keeping only the most recently modified one. */
 async function uploadToDrive(accessToken: string, backupJson: string): Promise<boolean> {
     try {
         // Files are sorted modifiedTime DESC — [0] is the most recent (canonical)
         const existing = await listDriveFiles(accessToken);
+
+        // Merge local data with remote Drive data before uploading
+        let dataToUpload = backupJson;
+        if (existing.length > 0) {
+            const remoteData = await downloadFromDrive(accessToken);
+            if (remoteData && remoteData.apps && remoteData.apps.length > 0) {
+                const localData = JSON.parse(backupJson) as BackupData;
+                const merged = mergeBackups(localData, remoteData);
+                dataToUpload = JSON.stringify(merged);
+                console.log(`[BackupSync] Merged local ${localData.apps.length} + remote ${remoteData.apps.length} apps → ${merged.apps.length} unique`);
+            }
+        }
 
         // Delete all duplicates (keep [0], delete the rest)
         if (existing.length > 1) {
@@ -116,7 +142,7 @@ async function uploadToDrive(accessToken: string, backupJson: string): Promise<b
             `${JSON.stringify(metadata)}\r\n` +
             `--${boundary}\r\n` +
             `Content-Type: application/json\r\n\r\n` +
-            `${backupJson}\r\n` +
+            `${dataToUpload}\r\n` +
             `--${boundary}--`;
 
         const res = await fetch(url, {

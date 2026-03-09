@@ -353,10 +353,43 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
 
         for (const app of validApps) {
             if (existingNames.has(app.name)) {
-                console.log('[Backup] App already exists, updating sortOrder only:', app.name);
                 const existing = existingApps.find(a => a.name === app.name);
-                if (existing && app.sortOrder !== undefined) {
-                    await db.updateApp({ ...existing, sortOrder: app.sortOrder });
+                if (existing && app.lastUpdated > existing.lastUpdated) {
+                    console.log('[Backup] App exists but backup is newer, updating:', app.name);
+                    await db.updateApp({
+                        ...existing,
+                        code: app.code,
+                        currentVersion: app.currentVersion,
+                        lastUpdated: app.lastUpdated,
+                        consoleLogs: app.consoleLogs ?? existing.consoleLogs,
+                        totalManaCost: app.totalManaCost ?? existing.totalManaCost,
+                        shortDescription: app.shortDescription ?? existing.shortDescription,
+                        sortOrder: app.sortOrder ?? existing.sortOrder,
+                        requiresBiometric: app.requiresBiometric ?? existing.requiresBiometric,
+                    });
+                    // Insert versions from backup that don't exist locally
+                    const versionsToCheck = app.versions || backup.versions?.[app.id] || [];
+                    if (versionsToCheck.length > 0) {
+                        const existingVersions = await db.getVersionsForApp(existing.id);
+                        const existingVersionNums = new Set(existingVersions.map(v => v.version));
+                        for (const version of versionsToCheck) {
+                            if (!existingVersionNums.has(version.version)) {
+                                await db.insertVersion({
+                                    appId: existing.id,
+                                    version: version.version,
+                                    code: version.code,
+                                    instruction: version.instruction || null,
+                                    selectedContext: version.selectedContext || null,
+                                    createdAt: version.createdAt,
+                                });
+                            }
+                        }
+                    }
+                } else {
+                    console.log('[Backup] App already exists and is up-to-date, skipping:', app.name);
+                    if (existing && app.sortOrder !== undefined) {
+                        await db.updateApp({ ...existing, sortOrder: app.sortOrder });
+                    }
                 }
                 skippedCount++;
                 continue;
