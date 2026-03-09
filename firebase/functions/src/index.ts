@@ -1305,6 +1305,10 @@ interface Job {
         instruction?: string;
         selectedContext?: string;
         previousEdits?: PreviousEdit[];
+        storageStructure?: Array<{
+            key: string;
+            schema: object;
+        }>;
         // webview_ai fields
         schema?: object;
         imagesBase64?: string[];
@@ -1360,6 +1364,8 @@ export const processSpellJob = onDocumentCreated(
         const currentCode = decompressContent(payload.currentCode || "");
         const instruction = decompressContent(payload.instruction || "");
         const selectedContext = payload.selectedContext ? decompressContent(payload.selectedContext) : undefined;
+        const storageStructure: Array<{ key: string; schema: object }> =
+            Array.isArray(payload.storageStructure) ? payload.storageStructure : [];
         let previousEdits = payload.previousEdits;
         // limit number of versions sent to model for context (e.g. 10), but always include first version if exists, as it usually contains original instruction
         if (Array.isArray(previousEdits) && previousEdits.length > 0) {
@@ -1541,6 +1547,9 @@ export const processSpellJob = onDocumentCreated(
                     const selectionPart = selectedContext
                         ? `\nSelected code:\n"""\n${selectedContext}\n"""\n`
                         : "";
+                    const storageKeysPart = storageStructure.length > 0
+                        ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(item => `- localStorage["${item.key}"]: ${JSON.stringify(item.schema)}`).join('\n')}\n`
+                        : '';
 
                     let editCacheName: string | null = null;
                     try { editCacheName = await getOrCreateSysCache(); }
@@ -1565,7 +1574,7 @@ export const processSpellJob = onDocumentCreated(
 
                     // Stage 1: Plan
                     console.log(`[Job ${jobId}] Stage 1: Planning Edit...`);
-                    const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
+                    const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
                     const planResult = await callEditModel(planPrompt, `${SYSTEM_INSTRUCTIONS}\n\n${planPrompt}`);
                     addUsage(planResult);
                     const editPlan = extractJson(extractText(planResult));

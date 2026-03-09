@@ -12,6 +12,7 @@ import { Job } from './firebase';
 import SharingShortcuts from './bridges/SharingShortcuts';
 import { t } from './i18n';
 import { useManaStore } from './manaStore';
+import { getStorageFromCache } from './storageCache';
 
 const DISMISSED_URI_TTL_MS = 15000;
 
@@ -91,6 +92,24 @@ interface AppState {
     _processFailedJob: (job: Job) => void;
     reorderApp: (appId: number, direction: 'up' | 'down') => Promise<void>;
     wipeAllData: () => Promise<void>;
+}
+
+function inferJsonSchema(value: any): object {
+    if (value === null) return { type: 'null' };
+    if (Array.isArray(value)) {
+        if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
+            return { type: 'array', items: inferJsonSchema(value[0]) };
+        }
+        return { type: 'array' };
+    }
+    if (typeof value === 'object') {
+        const properties: Record<string, object> = {};
+        for (const key of Object.keys(value)) {
+            properties[key] = inferJsonSchema(value[key]);
+        }
+        return { type: 'object', properties };
+    }
+    return { type: typeof value };
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -552,12 +571,23 @@ export const useAppStore = create<AppState>((set, get) => ({
                 .slice(0, 10)
                 .map(v => ({ version: v.version, instruction: v.instruction }));
 
+            const storageItems = getStorageFromCache(app.id);
+            const storageStructure = storageItems.map(item => {
+                try {
+                    const parsed = JSON.parse(item.value);
+                    return { key: item.key, schema: inferJsonSchema(parsed) };
+                } catch {
+                    return { key: item.key, schema: { type: 'string' } };
+                }
+            });
+
             const jobId = await firebase.submitJob('edit', {
                 appId: app.id, // IMPORTANT: Pass appId so we know what to update
                 currentCode: firebase.compressContent(app.code),
                 instruction: firebase.compressContent(instructions),
                 previousEdits, // Already objects, sanitizePayload will handle? Yes.
                 selectedContext: selectedContext ? firebase.compressContent(selectedContext) : undefined,
+                storageStructure: storageStructure.length > 0 ? storageStructure : undefined,
             });
 
             // Lock the app
