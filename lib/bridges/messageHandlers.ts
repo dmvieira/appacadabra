@@ -263,6 +263,7 @@ export interface HandlerResult {
     result: string;
     handled: boolean;  // false if message type was not recognized
     deferredCallback?: boolean;
+    creditsUsed?: number;
 }
 
 /**
@@ -291,6 +292,7 @@ export async function handleBridgeMessage(
     let success = true;
     let result = '';
     let deferredCallback = false;
+    let creditsUsedResult = 0;
 
     // Helper to log to both native console and WebView console
     const debugLog = (msg: string, force = false) => {
@@ -322,6 +324,7 @@ export async function handleBridgeMessage(
 
                 // Log cost and update app's totalManaCost
                 const creditsUsed = genResult.creditsUsed || 0;
+                creditsUsedResult = creditsUsed;
                 console.log(`[Bridge] AI generated. Credits used: ${creditsUsed}`);
 
                 // Update App Total Mana Cost atomically
@@ -1429,6 +1432,7 @@ export async function handleBridgeMessage(
             try {
                 const ttsResult = await ai.aiGenerateTTS(data.text, data.voiceName);
                 const { audioBase64, creditsUsed } = ttsResult;
+                creditsUsedResult = creditsUsed;
 
                 // Write audio to a temp file and play it
                 const fileUri = FileSystem.cacheDirectory + `tts_${Date.now()}.wav`;
@@ -1495,6 +1499,7 @@ export async function handleBridgeMessage(
 
                 // Log cost and update mana
                 const creditsUsed = imgResult.creditsUsed || 0;
+                creditsUsedResult = creditsUsed;
                 console.log(`[Bridge] AI image generated. Credits used: ${creditsUsed}`);
 
                 if (ctx.appId && creditsUsed > 0) {
@@ -1529,6 +1534,7 @@ export async function handleBridgeMessage(
                 result = videoResult.videoBase64;
                 // Log cost and update mana
                 const creditsUsed = videoResult.creditsUsed || 0;
+                creditsUsedResult = creditsUsed;
                 console.log(`[Bridge] AI video generated. Credits used: ${creditsUsed}`);
 
                 if (ctx.appId && creditsUsed > 0) {
@@ -1991,5 +1997,5 @@ export async function handleBridgeMessage(
             return { success: false, result: '', handled: false };
     }
 
-    return { success, result, handled: true, deferredCallback };
+    return { success, result, handled: true, deferredCallback, creditsUsed: creditsUsedResult || undefined };
 }

@@ -3,6 +3,8 @@ import * as Notifications from 'expo-notifications';
 import { DeviceEventEmitter } from 'react-native';
 import { GeneratedApp, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Paths } from 'expo-file-system/next';
 import * as ai from './api/ai';
 import * as backup from './backup';
 import { onboardingTemplates } from './onboardingTemplates';
@@ -615,6 +617,17 @@ export const useAppStore = create<AppState>((set, get) => ({
         try {
             // Remove the notification channel for this spell (Android)
             await Notifications.deleteNotificationChannelAsync(`spell-${id}`);
+
+            try {
+                const mediaPaths = await db.getWebviewAiMediaPaths(id);
+                for (const p of mediaPaths) {
+                    await FileSystem.deleteAsync(p, { idempotent: true }).catch(() => {});
+                }
+                const dir = `${Paths.document}/appacadabra_media/${id}`;
+                await FileSystem.deleteAsync(dir, { idempotent: true }).catch(() => {});
+            } catch (e) {
+                console.warn('[Store] Failed to cleanup AI media files:', e);
+            }
 
             await db.deleteApp(id);
             set(state => ({

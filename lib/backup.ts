@@ -1,5 +1,5 @@
 import { Paths, File, Directory } from 'expo-file-system/next';
-import { readAsStringAsync, copyAsync, cacheDirectory } from 'expo-file-system/legacy';
+import { readAsStringAsync, copyAsync, cacheDirectory, writeAsStringAsync, makeDirectoryAsync, EncodingType } from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import * as Notifications from 'expo-notifications';
@@ -43,6 +43,18 @@ export interface BackupApp {
     // Android nested format
     versions?: { version: number; code: string; instruction: string; selectedContext: string; createdAt: number; jobId?: string }[];
     localStorage?: Record<string, string>;
+    aiMedia?: Array<{
+        callbackName: string;
+        action: string;
+        requestData: string | null;
+        mediaBase64: string | null;
+        mediaType: string | null;
+        textResult: string | null;
+        creditsUsed: number;
+        success: number;
+        delivered: number;
+        createdAt: number;
+    }>;
 }
 
 export async function createBackup(includeStorage: boolean = true, targetAppId?: number): Promise<BackupData> {
@@ -115,6 +127,46 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             }
         }
 
+        // Collect AI media cache entries
+        let aiMedia: BackupApp['aiMedia'] = undefined;
+        if (includeStorage) {
+            try {
+                const aiRows = await db.getAllWebviewAiCacheForApp(app.id);
+                if (aiRows.length > 0) {
+                    aiMedia = await Promise.all(aiRows.map(async (row) => {
+                        let mediaBase64: string | null = null;
+                        let mediaType: string | null = null;
+                        let textResult: string | null = null;
+                        if (row.mediaLocalPath) {
+                            const ext = row.mediaLocalPath.split('.').pop() ?? null;
+                            mediaType = ext;
+                            try {
+                                mediaBase64 = await readAsStringAsync(
+                                    row.mediaLocalPath, { encoding: EncodingType.Base64 }
+                                );
+                            } catch { /* file missing, skip */ }
+                        } else {
+                            textResult = row.result;
+                        }
+                        return {
+                            callbackName: row.callbackName,
+                            action: row.action,
+                            requestData: row.requestData,
+                            mediaBase64,
+                            mediaType,
+                            textResult,
+                            creditsUsed: row.creditsUsed,
+                            success: row.success,
+                            delivered: row.delivered,
+                            createdAt: row.createdAt,
+                        };
+                    }));
+                }
+            } catch (e) {
+                console.warn('Failed to read AI cache for backup:', e);
+            }
+        }
+
         // Convert icon to base64 if exists
         let iconBase64: string | undefined;
         if (app.iconPath) {
@@ -151,6 +203,7 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
                 createdAt: v.createdAt,
             })) : undefined,
             localStorage: includeStorage ? localStorage : undefined,
+            aiMedia,
         });
     }
 
@@ -502,6 +555,36 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                 await reloadStorageForApp(newId);
             } catch (e) {
                 console.warn('Failed to reload storage cache after import:', e);
+            }
+
+            // Restore AI media cache
+            if (app.aiMedia && app.aiMedia.length > 0) {
+                for (const item of app.aiMedia) {
+                    try {
+                        let mediaLocalPath: string | undefined;
+                        let result = item.textResult ?? '';
+                        if (item.mediaBase64 && item.mediaType) {
+                            const dir = `${Paths.document}/appacadabra_media/${newId}`;
+                            await makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+                            const path = `${dir}/${item.callbackName}.${item.mediaType}`;
+                            await writeAsStringAsync(path, item.mediaBase64, { encoding: EncodingType.Base64 });
+                            mediaLocalPath = path;
+                            result = `file://${path}`;
+                        }
+                        await db.saveWebviewAiCache({
+                            appId: newId,
+                            callbackName: item.callbackName,
+                            action: item.action,
+                            requestData: item.requestData ?? undefined,
+                            result,
+                            mediaLocalPath,
+                            creditsUsed: item.creditsUsed,
+                            success: item.success,
+                        });
+                    } catch (e) {
+                        console.warn('Failed to restore AI cache item:', e);
+                    }
+                }
             }
 
             // Restore mana events preserving original timestamps so recentManaCost

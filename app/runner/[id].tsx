@@ -25,6 +25,7 @@ import { useBridgeUIStore } from '../../lib/bridgeUIStore';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Paths } from 'expo-file-system/next';
 import * as Sharing from 'expo-sharing';
 import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -46,6 +47,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import EditorOnboarding from '../../components/EditorOnboarding';
 
 const EDITOR_ONBOARDING_KEY = 'appacadabra_editor_onboarding_seen';
+
+const AI_MEDIA_EXT: Record<string, string> = {
+    AI_GENERATE_IMAGE: 'jpg',
+    AI_GENERATE_VIDEO: 'mp4',
+};
+
+async function saveAiMediaToFile(appId: number, callbackName: string, action: string, base64: string): Promise<string> {
+    const ext = AI_MEDIA_EXT[action] ?? 'bin';
+    const dir = `${Paths.document}/appacadabra_media/${appId}`;
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+    const path = `${dir}/${callbackName}.${ext}`;
+    await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
+    return path;
+}
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -578,7 +593,7 @@ export default function RunnerScreen() {
 
 
     // Inject saved localStorage and shared content (File or Store)
-    const handleLoadEnd = useCallback(() => {
+    const handleLoadEnd = useCallback(async () => {
         console.log('Runner: handleLoadEnd called');
 
         if (webViewRef.current && app) {
@@ -589,6 +604,38 @@ export default function RunnerScreen() {
             const script = createStorageRestoreScript(storageToRestore);
             webViewRef.current.injectJavaScript(script);
 
+            // Recover undelivered AI responses
+            try {
+                const pending = await db.getUndeliveredWebviewAiCache(app.id);
+                if (pending.length > 0 && webViewRef.current) {
+                    const recoveries = await Promise.all(pending.map(async (entry) => {
+                        let recoveryResult = entry.result;
+                        if (entry.mediaLocalPath) {
+                            try {
+                                recoveryResult = await FileSystem.readAsStringAsync(
+                                    entry.mediaLocalPath, { encoding: FileSystem.EncodingType.Base64 }
+                                );
+                            } catch { /* keep DB result (file URI or URL) */ }
+                        }
+                        await db.markWebviewAiCacheDelivered(entry.id);
+                        return {
+                            callbackName: entry.callbackName,
+                            action: entry.action,
+                            requestData: entry.requestData,
+                            result: recoveryResult,
+                            success: entry.success === 1,
+                        };
+                    }));
+                    webViewRef.current.injectJavaScript(`(function(){
+                        window.__appacadabra_ai_pending = ${JSON.stringify(recoveries)};
+                        document.dispatchEvent(new CustomEvent('appacadabra:ai:recovered', {
+                            detail: window.__appacadabra_ai_pending
+                        }));
+                    })(); true;`);
+                }
+            } catch (e) {
+                console.warn('[Runner] AI cache recovery failed:', e);
+            }
 
             // CHECK BOTH SOURCES: Local File Payload OR Global Store
             const contentToInject = localSharedContent || sharedContent;
@@ -727,6 +774,31 @@ export default function RunnerScreen() {
                         deferredCallback = !!handlerResult.deferredCallback;
                     } else {
                         console.log('Unknown message type:', type);
+                    }
+
+                    const isAiAction = ['AI_GENERATE', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO'].includes(type);
+                    if (isAiAction && handlerResult.handled && app?.id && callbackName) {
+                        try {
+                            const isMedia = type !== 'AI_GENERATE';
+                            let mediaLocalPath: string | undefined;
+                            let cacheResult = result;
+                            if (isMedia && success && result && !result.startsWith('http')) {
+                                mediaLocalPath = await saveAiMediaToFile(app.id, callbackName, type, result);
+                                cacheResult = `file://${mediaLocalPath}`;
+                            }
+                            await db.saveWebviewAiCache({
+                                appId: app.id,
+                                callbackName,
+                                action: type,
+                                requestData: JSON.stringify(data),
+                                result: cacheResult,
+                                mediaLocalPath,
+                                creditsUsed: handlerResult.creditsUsed ?? 0,
+                                success: success ? 1 : 0,
+                            });
+                        } catch (cacheErr) {
+                            console.warn('[Runner] Failed to cache AI response:', cacheErr);
+                        }
                     }
             }
 

@@ -70,6 +70,22 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     );
 
     CREATE INDEX IF NOT EXISTS idx_mana_events_appId_ts ON mana_events(appId, timestamp);
+
+    CREATE TABLE IF NOT EXISTS webview_ai_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      appId INTEGER NOT NULL,
+      callbackName TEXT NOT NULL,
+      action TEXT NOT NULL,
+      requestData TEXT,
+      result TEXT NOT NULL,
+      mediaLocalPath TEXT,
+      creditsUsed REAL NOT NULL DEFAULT 0,
+      success INTEGER NOT NULL DEFAULT 1,
+      delivered INTEGER NOT NULL DEFAULT 0,
+      createdAt INTEGER NOT NULL,
+      FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_wac_appId_delivered ON webview_ai_cache(appId, delivered);
   `);
 
     // Helper to safely add column if missing
@@ -431,6 +447,65 @@ export async function removeStorageItem(appId: number, key: string): Promise<voi
 export async function clearStorageForApp(appId: number): Promise<void> {
     const database = await getDatabase();
     await database.runAsync('DELETE FROM app_storage WHERE appId = ?', [appId]);
+}
+
+// ============= WebView AI Cache =============
+
+export async function saveWebviewAiCache(entry: {
+    appId: number; callbackName: string; action: string;
+    requestData?: string; result: string; mediaLocalPath?: string;
+    creditsUsed: number; success: number;
+}): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        `INSERT OR REPLACE INTO webview_ai_cache
+         (appId, callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        [entry.appId, entry.callbackName, entry.action,
+         entry.requestData ?? null, entry.result,
+         entry.mediaLocalPath ?? null, entry.creditsUsed,
+         entry.success, Date.now()]
+    );
+}
+
+export async function getUndeliveredWebviewAiCache(appId: number): Promise<Array<{
+    id: number; callbackName: string; action: string;
+    requestData: string | null; result: string;
+    mediaLocalPath: string | null; success: number; creditsUsed: number;
+}>> {
+    const database = await getDatabase();
+    return await database.getAllAsync(
+        `SELECT id, callbackName, action, requestData, result, mediaLocalPath, success, creditsUsed
+         FROM webview_ai_cache WHERE appId = ? AND delivered = 0 ORDER BY createdAt ASC`,
+        [appId]
+    ) as any[];
+}
+
+export async function markWebviewAiCacheDelivered(id: number): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(`UPDATE webview_ai_cache SET delivered = 1 WHERE id = ?`, [id]);
+}
+
+export async function getWebviewAiMediaPaths(appId: number): Promise<string[]> {
+    const database = await getDatabase();
+    const rows = await database.getAllAsync<{ mediaLocalPath: string }>(
+        `SELECT mediaLocalPath FROM webview_ai_cache WHERE appId = ? AND mediaLocalPath IS NOT NULL`,
+        [appId]
+    );
+    return rows.map(r => r.mediaLocalPath);
+}
+
+export async function getAllWebviewAiCacheForApp(appId: number): Promise<Array<{
+    callbackName: string; action: string; requestData: string | null;
+    result: string; mediaLocalPath: string | null; creditsUsed: number;
+    success: number; delivered: number; createdAt: number;
+}>> {
+    const database = await getDatabase();
+    return await database.getAllAsync(
+        `SELECT callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt
+         FROM webview_ai_cache WHERE appId = ? ORDER BY createdAt ASC`,
+        [appId]
+    ) as any[];
 }
 
 // ============= Dismissed URIs (for ShareReceiver) =============

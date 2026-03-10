@@ -1278,6 +1278,21 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     return originalXHRSend.apply(this, arguments);
   };
 
+  document.addEventListener('appacadabra:ai:recovered', function(e) {
+    var pending = (e && e.detail) ? e.detail : (window.__appacadabra_ai_pending || []);
+    window.__appacadabra_ai_cache = window.__appacadabra_ai_cache || {};
+    pending.forEach(function(entry) {
+      if (entry.callbackName && typeof window[entry.callbackName] === 'function') {
+        window[entry.callbackName](entry.success, entry.result);
+      }
+      window.__appacadabra_ai_cache[entry.callbackName] = {
+        action: entry.action,
+        result: entry.result,
+        success: entry.success
+      };
+    });
+  });
+
 })();
   `;
 }
