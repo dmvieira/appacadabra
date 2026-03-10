@@ -6,6 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { GeneratedApp, AppVersion, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import { reloadStorageForApp } from './storageCache';
+import { cancelSpellNotifications } from './bridges/messageHandlers';
 import { t } from './i18n';
 
 
@@ -437,6 +438,33 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                                 });
                             }
                         }
+                    }
+
+                    // Sync notifications: cancel old, restore new from backup
+                    try {
+                        await cancelSpellNotifications(existing.id);
+                        if (app.notifications && app.notifications.length > 0) {
+                            const now = Date.now();
+                            for (const notif of app.notifications) {
+                                const secondsUntilFire = Math.round((notif.fireDate - now) / 1000);
+                                if (secondsUntilFire < 10) continue;
+                                await Notifications.scheduleNotificationAsync({
+                                    content: {
+                                        title: notif.title,
+                                        body: notif.body,
+                                        channelId: `spell-${existing.id}`,
+                                        badge: existing.id,
+                                    } as any,
+                                    trigger: {
+                                        type: 'timeInterval',
+                                        seconds: secondsUntilFire,
+                                        repeats: false,
+                                    } as any,
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[Backup] Failed to sync notifications for updated app:', e);
                     }
                 } else {
                     console.log('[Backup] App already exists and is up-to-date, skipping:', app.name);

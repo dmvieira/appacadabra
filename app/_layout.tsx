@@ -88,6 +88,16 @@ export default function RootLayout() {
             const appId = extractAppIdFromNotification(content);
             if (!appId) return;
 
+            // Guard: do not open runner for a deleted spell
+            const knownApps = useAppStore.getState().apps;
+            if (!knownApps.some(a => String(a.id) === String(appId))) {
+                console.warn('[Layout] Notification for unknown/deleted spell:', appId);
+                Notifications.dismissNotificationAsync(
+                    response.notification.request.identifier
+                ).catch(() => {});
+                return;
+            }
+
             const notificationType = content?.data?.notificationType;
 
             lastHandledNotificationTapId = tapId || String(appId);

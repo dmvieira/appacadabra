@@ -15,6 +15,7 @@ import SharingShortcuts from './bridges/SharingShortcuts';
 import { t } from './i18n';
 import { useManaStore } from './manaStore';
 import { getStorageFromCache } from './storageCache';
+import { cancelSpellNotifications } from './bridges/messageHandlers';
 
 const DISMISSED_URI_TTL_MS = 15000;
 
@@ -615,6 +616,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     deleteApp: async (id: number) => {
         try {
+            // Cancel all scheduled notifications before removing the channel
+            try {
+                await cancelSpellNotifications(id);
+            } catch (e) {
+                console.warn('[Store] Failed to cancel notifications:', e);
+            }
+
             // Remove the notification channel for this spell (Android)
             await Notifications.deleteNotificationChannelAsync(`spell-${id}`);
 

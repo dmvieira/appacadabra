@@ -172,6 +172,13 @@ async function getSpellNotifications(appId: number | null) {
     }
 }
 
+export async function cancelSpellNotifications(appId: number): Promise<void> {
+    const toCancel = await getSpellNotifications(appId);
+    for (const n of toCancel) {
+        await Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {});
+    }
+}
+
 /**
  * Cancel duplicate notification (same title + body) for a spell
  */
@@ -677,6 +684,7 @@ export async function handleBridgeMessage(
             try {
                 await Notifications.cancelScheduledNotificationAsync(data.id);
                 result = 'Notification cancelled';
+                markBackupDirty();
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -693,6 +701,7 @@ export async function handleBridgeMessage(
                     await Notifications.cancelScheduledNotificationAsync(n.identifier);
                 }
                 result = `Cancelled ${spellToCancel.length} notifications`;
+                markBackupDirty();
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
