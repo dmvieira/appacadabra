@@ -14,6 +14,7 @@ import {
 import { GeneratedApp } from '../lib/database/types';
 import { colors } from '../lib/theme';
 import { getCurrentLanguage, t } from '../lib/i18n';
+import { logSpellMenuOpened, logSpellMenuAction } from '../lib/analytics';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -145,7 +146,7 @@ export function AppCard({
             >
                 <TouchableOpacity
                     style={styles.arrowCircleUp}
-                    onPress={onMoveUp}
+                    onPress={() => { logSpellMenuAction('reorder_up'); onMoveUp?.(); }}
                     activeOpacity={0.8}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 >
@@ -163,7 +164,7 @@ export function AppCard({
             >
                 <TouchableOpacity
                     style={styles.arrowCircleDown}
-                    onPress={onMoveDown}
+                    onPress={() => { logSpellMenuAction('reorder_down'); onMoveDown?.(); }}
                     activeOpacity={0.8}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 >
@@ -186,7 +187,7 @@ export function AppCard({
                         onLongPress={!isInteractionDisabled ? onLongPress : undefined}
                         onPress={() => {
                             if (isActive) { onDismissActive?.(); return; }
-                            if (!isInteractionDisabled) onRun();
+                            if (!isInteractionDisabled) { logSpellMenuAction('open'); onRun(); }
                         }}
                         delayLongPress={400}
                     >
@@ -244,6 +245,7 @@ export function AppCard({
                                     style={[styles.btnIcon, coachStep === 2 && styles.btnIconHighlight]}
                                     onPress={() => {
                                         if (isActive) { onDismissActive?.(); return; }
+                                        logSpellMenuAction('edit');
                                         onEdit();
                                     }}
                                     hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
@@ -256,6 +258,7 @@ export function AppCard({
                                     style={[styles.btnIcon, coachStep === 1 && styles.btnIconHighlight]}
                                     onPress={() => {
                                         if (isActive) { onDismissActive?.(); return; }
+                                        logSpellMenuOpened();
                                         setShowSheet(true);
                                     }}
                                     hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
@@ -284,6 +287,7 @@ export function AppCard({
                                 style={styles.btnOpen}
                                 onPress={() => {
                                     if (isActive) { onDismissActive?.(); return; }
+                                    logSpellMenuAction('open');
                                     onRun();
                                 }}
                                 activeOpacity={0.8}
@@ -349,7 +353,7 @@ export function AppCard({
                                     {/* Edit spell details (name, desc) */}
                                     <TouchableOpacity
                                         style={styles.sheetItem}
-                                        onPress={() => { setShowSheet(false); onRename(); }}
+                                        onPress={() => { logSpellMenuAction('rename'); setShowSheet(false); onRename(); }}
                                         accessibilityRole="button"
                                         accessibilityLabel={t('editAppDetails')}
                                     >
@@ -368,7 +372,7 @@ export function AppCard({
                                     {onShortcut && (
                                         <TouchableOpacity
                                             style={styles.sheetItem}
-                                            onPress={() => { setShowSheet(false); onShortcut(); }}
+                                            onPress={() => { logSpellMenuAction('shortcut'); setShowSheet(false); onShortcut(); }}
                                             accessibilityRole="button"
                                             accessibilityLabel={t('createShortcut')}
                                         >
@@ -386,7 +390,7 @@ export function AppCard({
                                     {onToggleBiometric && (
                                         <TouchableOpacity
                                             style={styles.sheetItem}
-                                            onPress={() => { setShowSheet(false); onToggleBiometric(); }}
+                                            onPress={() => { logSpellMenuAction('biometric_toggle'); setShowSheet(false); onToggleBiometric(); }}
                                             accessibilityRole="button"
                                             accessibilityLabel={app.requiresBiometric ? t('disableBiometric') : t('enableBiometric')}
                                         >
@@ -407,7 +411,7 @@ export function AppCard({
                                     {onViewSchedules && (
                                         <TouchableOpacity
                                             style={styles.sheetItem}
-                                            onPress={() => { setShowSheet(false); onViewSchedules(); }}
+                                            onPress={() => { logSpellMenuAction('schedules'); setShowSheet(false); onViewSchedules(); }}
                                             accessibilityRole="button"
                                             accessibilityLabel={t('scheduledNotifications')}
                                         >
@@ -429,7 +433,7 @@ export function AppCard({
                                     {onShare && (
                                         <TouchableOpacity
                                             style={styles.sheetItem}
-                                            onPress={() => { setShowSheet(false); onShare(); }}
+                                            onPress={() => { logSpellMenuAction('share'); setShowSheet(false); onShare(); }}
                                             accessibilityRole="button"
                                             accessibilityLabel={t('shareSpell')}
                                         >
@@ -446,7 +450,7 @@ export function AppCard({
                                     {onClearData && (
                                         <TouchableOpacity
                                             style={styles.sheetItem}
-                                            onPress={() => { setShowSheet(false); onClearData(); }}
+                                            onPress={() => { logSpellMenuAction('spell_data'); setShowSheet(false); onClearData(); }}
                                             accessibilityRole="button"
                                             accessibilityLabel={t('spellDataTitle')}
                                         >
@@ -463,7 +467,7 @@ export function AppCard({
                                     {/* Delete */}
                                     <TouchableOpacity
                                         style={[styles.sheetItem, styles.sheetItemDanger]}
-                                        onPress={() => { setShowSheet(false); onDelete(); }}
+                                        onPress={() => { logSpellMenuAction('delete'); setShowSheet(false); onDelete(); }}
                                         accessibilityRole="button"
                                         accessibilityLabel={t('delete')}
                                     >

@@ -48,7 +48,7 @@ import * as firebase from '../lib/firebase';
 import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useManaStore } from '../lib/manaStore';
 import SpellSetup from '../components/SpellSetup';
-import { logIconGenerated } from '../lib/analytics';
+import { logIconGenerated, logSpellCreateOpened, logSpellCreateSubmitted } from '../lib/analytics';
 import { useBackupStore } from '../lib/backupStore';
 import BackupSyncModal from '../components/BackupSyncModal';
 import { autoBackupAfterChange, tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup } from '../lib/backupSync';
@@ -443,6 +443,7 @@ export default function HomeScreen() {
     }, [searchQuery, apps]);
 
     const handleCreateApp = async (description: string) => {
+        logSpellCreateSubmitted(apps.length === 0);
         // Double check mana before submitting (though button should be intercepted)
         if (balance <= 0) {
             Alert.alert(
@@ -1124,6 +1125,7 @@ export default function HomeScreen() {
                                 ]
                             );
                         } else {
+                            logSpellCreateOpened(apps.length === 0);
                             setShowCreateDialog(true);
                         }
                     }}

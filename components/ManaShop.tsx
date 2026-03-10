@@ -6,7 +6,7 @@ import { colors, borderRadius, spacing } from '../lib/theme';
 import * as firebase from '../lib/firebase';
 import { RewardedAd, RewardedAdEventType, AdEventType } from 'react-native-google-mobile-ads';
 import * as iap from '../lib/iapService';
-import { logManaEarned, logShopOpened } from '../lib/analytics';
+import { logManaEarned, logShopOpened, logAdStarted } from '../lib/analytics';
 
 // Production Ad Unit ID (always use real ads)
 const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
@@ -257,6 +257,7 @@ export function ManaShop() {
 
     const handleWatchAd = async () => {
         if (rewardedAd && rewardedAd.loaded) {
+            logAdStarted();
             rewardedAd.show();
         } else if (!isAdLoading) {
             // Start loading if not already loading

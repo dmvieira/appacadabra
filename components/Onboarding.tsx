@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
+import { logObScreenView, logObChipSelected, logObCompleted, logObSkipped } from '../lib/analytics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TOTAL_SCREENS = 3;
@@ -159,6 +160,11 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
         }
     }, [visible]);
 
+    // Track screen views
+    useEffect(() => {
+        if (visible) logObScreenView(currentScreen);
+    }, [currentScreen, visible]);
+
     // Show mini app preview after delay on screen 1
     useEffect(() => {
         if (visible && currentScreen === 0 && !showPreview) {
@@ -177,6 +183,8 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
         Animated.timing(slideAnim, { toValue: 0, duration: 300, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
     };
 
+    const chipKeys = ['shopping', 'diary', 'workout', 'expenses'];
+
     const handleNext = () => {
         // Don't advance from try-it screen (now screen 2) without a chip selection
         if (currentScreen === 2 && selectedChip === null) return;
@@ -184,11 +192,13 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
         if (currentScreen < TOTAL_SCREENS - 1) {
             goToScreen(currentScreen + 1);
         } else {
+            logObCompleted(selectedChip !== null ? chipKeys[selectedChip] : '');
             onComplete(selectedChip);
         }
     };
 
     const handleChipPress = (index: number) => {
+        logObChipSelected(chipKeys[index]);
         setSelectedChip(index);
     };
 
@@ -228,7 +238,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                     {currentScreen === 2 && (
                         <TouchableOpacity
                             style={s.skipButton}
-                            onPress={() => onComplete(null)}
+                            onPress={() => { logObSkipped(currentScreen); onComplete(null); }}
                             accessibilityLabel={t('onboardingSkip')}
                             accessibilityRole="button"
                         >

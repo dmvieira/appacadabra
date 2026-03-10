@@ -45,6 +45,7 @@ import { useManaStore } from '../../lib/manaStore';
 import { reloadStorageForApp, getStorageFromCache } from '../../lib/storageCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EditorOnboarding from '../../components/EditorOnboarding';
+import { logEditorTabOpened, logEditorAiEditSubmitted, logEditorVersionRestored, logEditorVersionDeleted } from '../../lib/analytics';
 
 const EDITOR_ONBOARDING_KEY = 'appacadabra_editor_onboarding_seen';
 
@@ -846,6 +847,7 @@ export default function RunnerScreen() {
                 fullPrompt = `Alterar o elemento <${selectedElement.tagName}>:\n${selectedElement.preview}\n\nInstrução: ${editPrompt}`;
             }
 
+            logEditorAiEditSubmitted(selectedElement !== null);
             const success = await updateAppWithAI(freshApp, fullPrompt);
             if (success) {
                 // Async job started. 
@@ -881,6 +883,7 @@ export default function RunnerScreen() {
     // Restore version
     const handleRestoreVersion = async (version: AppVersion) => {
         if (!app) return;
+        logEditorVersionRestored();
         console.log('Restoring version:', version.version);
 
         await db.updateApp({
@@ -914,6 +917,7 @@ export default function RunnerScreen() {
                     text: t('delete'),
                     style: 'destructive',
                     onPress: async () => {
+                        logEditorVersionDeleted();
                         await db.deleteVersion(version.id);
                         const updatedVersions = await db.getVersionsForApp(app.id);
                         setVersions(updatedVersions);
@@ -1115,6 +1119,7 @@ export default function RunnerScreen() {
                                 <TouchableOpacity
                                     style={[styles.navItem, isSelectionMode && styles.navItemActive]}
                                     onPress={() => {
+                                        logEditorTabOpened('select_element');
                                         const newMode = !isSelectionMode;
                                         setIsSelectionMode(newMode);
                                         if (webViewRef.current) {
@@ -1131,6 +1136,7 @@ export default function RunnerScreen() {
                                 <TouchableOpacity
                                     style={styles.navItem}
                                     onPress={() => {
+                                        logEditorTabOpened('edit_ai');
                                         setEditPrompt('');
                                         setShowEditSheet(true);
                                     }}
@@ -1142,6 +1148,7 @@ export default function RunnerScreen() {
                                 <TouchableOpacity
                                     style={styles.navItem}
                                     onPress={() => {
+                                        logEditorTabOpened('history');
                                         loadVersions();
                                         setShowHistory(true);
                                     }}
@@ -1172,6 +1179,7 @@ export default function RunnerScreen() {
                                     <TouchableOpacity
                                         style={styles.navItemAdv}
                                         onPress={() => {
+                                            logEditorTabOpened('manual');
                                             setManualCode(app.code);
                                             setShowManualEditor(true);
                                         }}
@@ -1183,7 +1191,7 @@ export default function RunnerScreen() {
 
                                     <TouchableOpacity
                                         style={styles.navItemAdv}
-                                        onPress={() => setShowDebugPanel(true)}
+                                        onPress={() => { logEditorTabOpened('debug'); setShowDebugPanel(true); }}
                                     >
                                         <Text style={styles.advLock}>🔒</Text>
                                         <Text style={styles.navIcon}>🐛</Text>
@@ -1192,7 +1200,7 @@ export default function RunnerScreen() {
 
                                     <TouchableOpacity
                                         style={styles.navItemAdv}
-                                        onPress={() => setShowEditorOnboarding(true)}
+                                        onPress={() => { logEditorTabOpened('tutorial'); setShowEditorOnboarding(true); }}
                                     >
                                         <Text style={styles.navIcon}>❓</Text>
                                         <Text style={styles.navLabelAdv}>{t('editorReplayTutorial')}</Text>
