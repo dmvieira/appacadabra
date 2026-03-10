@@ -496,16 +496,26 @@ export async function getWebviewAiMediaPaths(appId: number): Promise<string[]> {
 }
 
 export async function getAllWebviewAiCacheForApp(appId: number): Promise<Array<{
-    callbackName: string; action: string; requestData: string | null;
+    id: number; callbackName: string; action: string; requestData: string | null;
     result: string; mediaLocalPath: string | null; creditsUsed: number;
     success: number; delivered: number; createdAt: number;
 }>> {
     const database = await getDatabase();
     return await database.getAllAsync(
-        `SELECT callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt
+        `SELECT id, callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt
          FROM webview_ai_cache WHERE appId = ? ORDER BY createdAt ASC`,
         [appId]
     ) as any[];
+}
+
+export async function deleteWebviewAiCacheEntry(id: number): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync('DELETE FROM webview_ai_cache WHERE id = ?', [id]);
+}
+
+export async function clearAllWebviewAiCacheForApp(appId: number): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync('DELETE FROM webview_ai_cache WHERE appId = ?', [appId]);
 }
 
 // ============= Dismissed URIs (for ShareReceiver) =============

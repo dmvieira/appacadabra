@@ -1100,21 +1100,7 @@ export default function HomeScreen() {
                                 } : undefined}
                                 onClearData={() => {
                                     setActiveCardId(null);
-                                    Alert.alert(
-                                        t('clearDataConfirmTitle'),
-                                        t('clearDataConfirmMessage'),
-                                        [
-                                            { text: t('cancel'), style: 'cancel' },
-                                            {
-                                                text: t('clearDataConfirm'),
-                                                style: 'destructive',
-                                                onPress: () => {
-                                                    clearAppStorage(item.id);
-                                                    markBackupDirty();
-                                                }
-                                            }
-                                        ]
-                                    );
+                                    router.push({ pathname: '/spell/[id]', params: { id: String(item.id) } });
                                 }}
                             />
                         );

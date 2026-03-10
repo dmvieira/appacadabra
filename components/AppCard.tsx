@@ -442,20 +442,20 @@ export function AppCard({
                                         </TouchableOpacity>
                                     )}
 
-                                    {/* Clear Data */}
+                                    {/* Spell Data */}
                                     {onClearData && (
                                         <TouchableOpacity
                                             style={styles.sheetItem}
                                             onPress={() => { setShowSheet(false); onClearData(); }}
                                             accessibilityRole="button"
-                                            accessibilityLabel={t('clearDataTitle')}
+                                            accessibilityLabel={t('spellDataTitle')}
                                         >
                                             <View style={styles.sheetItemIconWrap}>
-                                                <Text style={styles.sheetItemIconEmoji}>🧹</Text>
+                                                <Text style={styles.sheetItemIconEmoji}>🗂️</Text>
                                             </View>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={styles.sheetItemTitle}>{t('clearDataTitle')}</Text>
-                                                <Text style={styles.sheetItemSub}>{t('clearDataDesc')}</Text>
+                                                <Text style={styles.sheetItemTitle}>{t('spellDataTitle')}</Text>
+                                                <Text style={styles.sheetItemSub}>{t('spellDataMenuDesc')}</Text>
                                             </View>
                                         </TouchableOpacity>
                                     )}
