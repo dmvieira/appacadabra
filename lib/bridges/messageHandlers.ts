@@ -10,6 +10,7 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Paths as FsPaths } from 'expo-file-system/next';
 import * as Sharing from 'expo-sharing';
 import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -175,7 +176,7 @@ async function getSpellNotifications(appId: number | null) {
 export async function cancelSpellNotifications(appId: number): Promise<void> {
     const toCancel = await getSpellNotifications(appId);
     for (const n of toCancel) {
-        await Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {});
+        await Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => { });
     }
 }
 
@@ -1443,6 +1444,22 @@ export async function handleBridgeMessage(
                 const { audioBase64, creditsUsed } = ttsResult;
                 creditsUsedResult = creditsUsed;
 
+                // Save to permanent storage before playback
+                let permanentPath: string | undefined;
+                if (ctx.appId && ctx.callbackName) {
+                    try {
+                        const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
+                        const dir = `${docDir}appacadabra_media/${ctx.appId}`;
+                        await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
+                        permanentPath = `${dir}/${ctx.callbackName}.wav`;
+                        await FileSystem.writeAsStringAsync(`file://${permanentPath}`, audioBase64, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+                    } catch (saveErr) {
+                        console.warn('[AUDIO_SPEAK_AI] Failed to save permanent file:', saveErr);
+                    }
+                }
+
                 // Write audio to a temp file and play it
                 const fileUri = FileSystem.cacheDirectory + `tts_${Date.now()}.wav`;
                 await FileSystem.writeAsStringAsync(fileUri, audioBase64, {
@@ -1473,7 +1490,7 @@ export async function handleBridgeMessage(
                     }
                 }
 
-                result = 'Speaking';
+                result = permanentPath ?? 'Speaking';
             } catch (e) {
                 const errorMsg = e instanceof Error ? e.message : 'Error';
 
@@ -1540,7 +1557,22 @@ export async function handleBridgeMessage(
             debugLog(`AI Video Gen request: ${data.prompt?.substring(0, 50)}...`);
             try {
                 const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined);
-                result = videoResult.videoBase64;
+                // Save to permanent storage (base64 too large for JS injection)
+                let permanentVideoPath: string | undefined;
+                if (ctx.appId && ctx.callbackName) {
+                    try {
+                        const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
+                        const dir = `${docDir}appacadabra_media/${ctx.appId}`;
+                        await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
+                        permanentVideoPath = `${dir}/${ctx.callbackName}.mp4`;
+                        await FileSystem.writeAsStringAsync(`file://${permanentVideoPath}`, videoResult.videoBase64, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+                    } catch (saveErr) {
+                        console.warn('[AI_GENERATE_VIDEO] Failed to save permanent file:', saveErr);
+                    }
+                }
+                result = permanentVideoPath ?? videoResult.videoBase64;
                 // Log cost and update mana
                 const creditsUsed = videoResult.creditsUsed || 0;
                 creditsUsedResult = creditsUsed;
@@ -1780,7 +1812,7 @@ export async function handleBridgeMessage(
                 const resultPicker = await ImagePicker.launchCameraAsync({
                     mediaTypes: ImagePicker.MediaTypeOptions.Images,
                     base64: true,
-                    quality: 0.8,
+                    quality: 0.5,
                 });
 
                 if (!resultPicker.canceled && resultPicker.assets[0].base64) {

@@ -34,6 +34,7 @@ import { colors, spacing, borderRadius } from '../lib/theme';
 import { GeneratedApp, AppVersion } from '../lib/database/types';
 import * as ShareIntent from 'share-intent';
 import { t } from '../lib/i18n';
+import { ensureViewportMeta } from '../lib/htmlUtils';
 
 interface AppRunnerProps {
     appId: number;
@@ -760,6 +761,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
     const htmlContent = useMemo(() => {
         if (!app) return '';
+        const safeCode = ensureViewportMeta(app.code);
         return `
     <!DOCTYPE html>
     <html>
@@ -767,7 +769,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
       <style>* { box-sizing: border-box; } body { margin: 0; padding: 0; }</style>
     </head>
-    <body>${app.code}</body>
+    <body>${safeCode}</body>
     </html>
     `;
     }, [app?.id, app?.code]);

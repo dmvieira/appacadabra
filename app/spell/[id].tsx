@@ -9,6 +9,8 @@ import {
     Alert,
     DeviceEventEmitter,
     Platform,
+    Linking,
+    Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -42,19 +44,26 @@ type StorageEntry = {
 };
 
 function getMediaType(entry: RelicEntry): MediaType {
-    if (!entry.mediaLocalPath) return 'text';
-    const ext = entry.mediaLocalPath.split('.').pop()?.toLowerCase() ?? '';
-    if (['mp4', 'webm', 'mov'].includes(ext)) return 'video';
-    if (['mp3', 'wav', 'm4a', 'aac', 'ogg'].includes(ext)) return 'audio';
-    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) return 'image';
+    if (entry.mediaLocalPath) {
+        const ext = entry.mediaLocalPath.split('.').pop()?.toLowerCase() ?? '';
+        if (['mp4', 'webm', 'mov'].includes(ext)) return 'video';
+        if (['mp3', 'wav', 'm4a', 'aac', 'ogg'].includes(ext)) return 'audio';
+        if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) return 'image';
+    }
+    // Fallback: infer from action
+    if (['AI_GENERATE_VIDEO', 'CAMERA_RECORD_VIDEO'].includes(entry.action)) return 'video';
+    if (['AI_GENERATE_IMAGE', 'CAMERA_TAKE_PHOTO'].includes(entry.action)) return 'image';
+    if (['AUDIO_RECORD_STOP', 'AUDIO_SPEAK_AI'].includes(entry.action)) return 'audio';
     return 'text';
 }
 
 function isRelicActive(entry: RelicEntry, storageItems: StorageEntry[]): boolean {
-    return storageItems.some(item =>
-        item.value.includes(entry.callbackName) ||
-        (entry.result && item.value.includes(entry.result))
-    );
+    const callback = entry.callbackName;
+    return storageItems.some(item => {
+        // Skip searching in massive values (probably base64 images) to avoid freezing JS thread
+        if (item.value.length > 5000) return false;
+        return item.value.includes(callback);
+    });
 }
 
 function getActionLabel(mediaType: MediaType): string {
@@ -67,18 +76,36 @@ function getActionLabel(mediaType: MediaType): string {
 function mediaTypeEmoji(mediaType: MediaType): string {
     if (mediaType === 'image') return '🖼️';
     if (mediaType === 'video') return '🎬';
-    if (mediaType === 'audio') return '🎵';
-    return '📄';
+    if (mediaType === 'audio') return '🎙️';
+    return '📝';
 }
 
-function countDepth(val: any): number {
-    if (typeof val !== 'object' || val === null) return 0;
-    if (Array.isArray(val)) {
-        return 1 + Math.max(0, ...val.map(countDepth));
+const RELIC_FRIENDLY_NAMES: Record<string, string> = {
+    CAMERA_TAKE_PHOTO: t('relicFilterImage'),
+    CAMERA_RECORD_VIDEO: t('relicFilterVideo'),
+    AI_GENERATE_IMAGE: t('relicFilterImage') + ' AI',
+    AI_GENERATE_VIDEO: t('relicFilterVideo') + ' AI',
+    AI_GENERATE: t('relicFilterText') + ' AI',
+    AUDIO_RECORD_STOP: t('relicFilterAudio'),
+    AUDIO_SPEAK_AI: t('relicFilterAudio') + ' AI',
+};
+
+function getRelicDisplayName(entry: RelicEntry): string {
+    if (entry.action === 'FILESYSTEM') {
+        const type = getMediaType(entry);
+        if (type === 'video') return t('relicFilterVideo');
+        if (type === 'audio') return t('relicFilterAudio');
+        if (type === 'image') return t('relicFilterImage');
+        return t('relicFilterText');
     }
-    const vals = Object.values(val);
-    if (vals.length === 0) return 1;
-    return 1 + Math.max(0, ...vals.map(countDepth));
+    return RELIC_FRIENDLY_NAMES[entry.action] ?? entry.callbackName;
+}
+
+function formatShortDate(ts: number): string {
+    const d = new Date(ts);
+    const day = d.getDate();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${day} ${months[d.getMonth()]}`;
 }
 
 export default function SpellDataScreen() {
@@ -97,12 +124,48 @@ export default function SpellDataScreen() {
     const [cleanModal, setCleanModal] = useState(false);
 
     const loadData = useCallback(async () => {
-        const [r, s] = await Promise.all([
-            db.getAllWebviewAiCacheForApp(appId),
-            db.getStorageForApp(appId),
-        ]);
-        setRelics(r as RelicEntry[]);
-        setStorageItems(s as StorageEntry[]);
+        try {
+            const [dbRelics, s] = await Promise.all([
+                db.getAllWebviewAiCacheForApp(appId),
+                db.getStorageForApp(appId),
+            ]);
+
+            // Use documentDirectory (with file:// prefix) to match what RunnerApp uses
+            const docDir = (FileSystem.documentDirectory ?? '').replace(/\/$/, '');
+            const mediaDir = `${docDir}/appacadabra_media/${appId}`;
+            // Bare path for comparison (without file://)
+            const mediaDirBare = mediaDir.replace('file://', '');
+
+            let fsFiles: string[] = [];
+            try {
+                fsFiles = await FileSystem.readDirectoryAsync(mediaDir);
+            } catch { /* directory doesn't exist yet */ }
+
+            // Normalize dbPaths — strip file:// for consistent comparison
+            const dbPaths = new Set(
+                (dbRelics as RelicEntry[]).map(r => r.mediaLocalPath?.replace('file://', '')).filter(Boolean)
+            );
+
+            const fsRelics: RelicEntry[] = fsFiles
+                .filter(f => !dbPaths.has(`${mediaDirBare}/${f}`))
+                .map((f, i) => ({
+                    id: -(i + 1),
+                    callbackName: f,
+                    action: 'FILESYSTEM',
+                    requestData: null,
+                    result: `${mediaDirBare}/${f}`,
+                    mediaLocalPath: `${mediaDirBare}/${f}`,
+                    creditsUsed: 0,
+                    success: 1,
+                    delivered: 1,
+                    createdAt: Date.now(),
+                }));
+
+            setRelics([...(dbRelics as RelicEntry[]), ...fsRelics]);
+            setStorageItems(s as StorageEntry[]);
+        } catch (err) {
+            console.warn('[SpellData] Error loading data:', err);
+        }
     }, [appId]);
 
     useFocusEffect(useCallback(() => {
@@ -126,10 +189,32 @@ export default function SpellDataScreen() {
             setTextModal({ visible: true, content: entry.result });
         } else if (entry.mediaLocalPath) {
             try {
-                await Sharing.shareAsync('file://' + entry.mediaLocalPath);
+                const ext = entry.mediaLocalPath.split('.').pop()?.toLowerCase() ?? '';
+                const mimeMap: Record<string, string> = {
+                    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+                    gif: 'image/gif', webp: 'image/webp',
+                    mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
+                    wav: 'audio/wav', mp3: 'audio/mpeg', m4a: 'audio/mp4',
+                };
+                const mimeType = mimeMap[ext] ?? '*/*';
+                await Sharing.shareAsync('file://' + entry.mediaLocalPath, { mimeType });
             } catch {
                 Alert.alert(t('errorTitle'), t('unknownError'));
             }
+        } else if (entry.result?.startsWith('file://')) {
+            try {
+                await Sharing.shareAsync(entry.result);
+            } catch {
+                Alert.alert(t('errorTitle'), t('unknownError'));
+            }
+        } else if (entry.result?.startsWith('http')) {
+            try {
+                await Linking.openURL(entry.result);
+            } catch {
+                Alert.alert(t('errorTitle'), t('unknownError'));
+            }
+        } else {
+            setTextModal({ visible: true, content: entry.result });
         }
     };
 
@@ -164,9 +249,9 @@ export default function SpellDataScreen() {
                         const toDelete = relics.filter(r => !isRelicActive(r, storageItems));
                         for (const relic of toDelete) {
                             if (relic.mediaLocalPath) {
-                                await FileSystem.deleteAsync(relic.mediaLocalPath, { idempotent: true }).catch(() => {});
+                                await FileSystem.deleteAsync(relic.mediaLocalPath, { idempotent: true }).catch(() => { });
                             }
-                            await db.deleteWebviewAiCacheEntry(relic.id);
+                            if (relic.id > 0) await db.deleteWebviewAiCacheEntry(relic.id);
                         }
                         await loadData();
                     },
@@ -188,7 +273,7 @@ export default function SpellDataScreen() {
                         await db.clearStorageForApp(appId);
                         for (const relic of relics) {
                             if (relic.mediaLocalPath) {
-                                await FileSystem.deleteAsync(relic.mediaLocalPath, { idempotent: true }).catch(() => {});
+                                await FileSystem.deleteAsync(relic.mediaLocalPath, { idempotent: true }).catch(() => { });
                             }
                         }
                         await db.clearAllWebviewAiCacheForApp(appId);
@@ -199,24 +284,14 @@ export default function SpellDataScreen() {
         );
     };
 
-    const renderValue = (val: any, depth = 0): ReactNode => {
-        if (depth >= 3) {
-            const remaining = countDepth(val);
-            return (
-                <Text key="more" style={styles.moreText}>
-                    {t('essenceMoreLevels', { count: remaining })}
-                </Text>
-            );
-        }
+    // ── Recursive value renderer for localStorage ──
+    const renderValue = (val: any, depth: number = 0): ReactNode => {
         if (Array.isArray(val)) {
             return (
                 <View style={styles.indentLevel}>
-                    {val.slice(0, 3).map((item, i) => (
+                    {val.map((item, i) => (
                         <View key={i}>{renderValue(item, depth + 1)}</View>
                     ))}
-                    {val.length > 3 && (
-                        <Text style={styles.moreText}>{t('essenceMoreLevels', { count: val.length - 3 })}</Text>
-                    )}
                 </View>
             );
         }
@@ -224,7 +299,7 @@ export default function SpellDataScreen() {
             return (
                 <View style={styles.indentLevel}>
                     {Object.entries(val).map(([k, v]) => (
-                        <View key={k} style={{ marginBottom: 2 }}>
+                        <View key={k} style={{ marginBottom: 4 }}>
                             <Text style={styles.dimKey}>{k}</Text>
                             {renderValue(v, depth + 1)}
                         </View>
@@ -232,15 +307,28 @@ export default function SpellDataScreen() {
                 </View>
             );
         }
-        const linked = relics.find(r =>
-            String(val).includes(r.callbackName) || String(val) === r.result
-        );
+        // Primitive value — check if linked to a relic (skip for huge values to avoid OOM/Freezes)
+        const valStr = typeof val === 'string' ? val : String(val);
+        const isHuge = valStr.length > 5000;
+        
+        let linked: RelicEntry | undefined;
+        if (!isHuge) {
+            linked = relics.find(r => 
+                // Only compare against smaller strings
+                valStr.includes(r.callbackName) || (r.result.length < 5000 && valStr === r.result)
+            );
+        }
+
+        const displayVal = isHuge ? `"${valStr.substring(0, 500)}…"` : `"${valStr}"`;
+
         return (
             <View style={styles.valueRow}>
-                <Text style={styles.valueText} numberOfLines={2}>{String(val)}</Text>
+                <Text style={styles.valueText}>
+                    {displayVal}
+                </Text>
                 {linked && (
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{linked.callbackName}</Text>
+                    <View style={styles.linkedBadge}>
+                        <Text style={styles.linkedBadgeText}>#{Math.abs(linked.id)}</Text>
                     </View>
                 )}
             </View>
@@ -250,44 +338,56 @@ export default function SpellDataScreen() {
     const renderStorageItem = (item: StorageEntry) => {
         let parsed: any = item.value;
         try { parsed = JSON.parse(item.value); } catch { /* keep string */ }
+        const isObject = typeof parsed === 'object' && parsed !== null;
 
         return (
-            <View key={item.key} style={styles.storageItem}>
-                <Text style={styles.storageKey}>{item.key}</Text>
-                {renderValue(parsed, 0)}
+            <View key={item.key} style={styles.storageRow}>
+                <View style={styles.storageRowHeader}>
+                    <Text style={styles.storageKey}>{item.key}</Text>
+                    {!isObject && (() => {
+                        const raw = typeof parsed === 'string' ? parsed : String(parsed);
+                        const display = typeof parsed === 'string'
+                            ? (raw.length > 500 ? `"${raw.substring(0, 500)}…"` : `"${raw}"`)
+                            : raw;
+                        return <Text style={styles.storagePrimitiveValue}>{display}</Text>;
+                    })()}
+                </View>
+                {isObject && renderValue(parsed)}
             </View>
         );
     };
 
     const filters: { key: FilterType; label: string }[] = [
         { key: 'all', label: t('relicFilterAll') },
-        { key: 'text', label: t('relicFilterText') },
-        { key: 'image', label: t('relicFilterImage') },
         { key: 'video', label: t('relicFilterVideo') },
         { key: 'audio', label: t('relicFilterAudio') },
+        { key: 'text', label: t('relicFilterText') },
+        { key: 'image', label: t('relicFilterImage') },
     ];
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-            {/* Header */}
+            {/* ── Header ── */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
-                <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>{t('spellDataTitle')}</Text>
-                    {app && <Text style={styles.headerSubtitle} numberOfLines={1}>{app.name}</Text>}
-                </View>
+                <Text style={styles.headerTitle}>{t('spellDataTitle')}</Text>
                 <View style={styles.backBtn} />
             </View>
 
-            <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
-                {/* Relics Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{t('relicsCreated')}</Text>
+            <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+                {/* ═══════════ Section 1: Relics ═══════════ */}
+                <View style={styles.sectionWrapper}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionLabel}>{t('relicsCreated')}</Text>
+                        <TouchableOpacity onPress={() => setCleanModal(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Text style={styles.trashIcon}>🗑️</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     {/* Filter Pills */}
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingRight: 8 }}>
                         {filters.map(f => (
                             <TouchableOpacity
                                 key={f.key}
@@ -301,85 +401,109 @@ export default function SpellDataScreen() {
                         ))}
                     </ScrollView>
 
-                    {filteredRelics.length === 0 ? (
-                        <Text style={styles.emptyText}>{t('noRelics')}</Text>
-                    ) : (
-                        filteredRelics.map((entry, idx) => {
-                            const mediaType = getMediaType(entry);
-                            const active = isRelicActive(entry, storageItems);
-                            return (
-                                <View key={entry.id ?? idx} style={styles.relicCard}>
-                                    <View style={styles.relicHeader}>
-                                        <Text style={styles.relicEmoji}>{mediaTypeEmoji(mediaType)}</Text>
-                                        <View style={styles.relicInfo}>
-                                            <Text style={styles.relicName} numberOfLines={1}>{entry.callbackName}</Text>
-                                            <Text style={styles.relicDate}>
-                                                {new Date(entry.createdAt).toLocaleDateString()}
-                                            </Text>
-                                        </View>
-                                        {active && (
-                                            <View style={styles.activeBadge}>
-                                                <Text style={styles.activeBadgeText}>{t('relicActive')}</Text>
+                    {/* Relics Card */}
+                    <View style={styles.card}>
+                        {filteredRelics.length === 0 ? (
+                            <Text style={styles.emptyText}>{t('noRelics')}</Text>
+                        ) : (
+                            <ScrollView style={{ maxHeight: 340 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                                {filteredRelics.map((entry, idx) => {
+                                    const mediaType = getMediaType(entry);
+                                    const active = isRelicActive(entry, storageItems);
+                                    return (
+                                        <View
+                                            key={entry.id ?? idx}
+                                            style={[
+                                                styles.relicRow,
+                                                active && styles.relicRowActive,
+                                                idx < filteredRelics.length - 1 && styles.relicRowBorder,
+                                            ]}
+                                        >
+                                            <View style={styles.relicLeft}>
+                                                <Text style={styles.relicEmoji}>{mediaTypeEmoji(mediaType)}</Text>
+                                                <View style={styles.relicInfo}>
+                                                    <Text style={styles.relicName} numberOfLines={1}>{getRelicDisplayName(entry)} #{Math.abs(entry.id)}</Text>
+                                                    <View style={styles.relicMeta}>
+                                                        {active && <Text style={styles.activeBadgeText}>{t('relicActive')}</Text>}
+                                                        <Text style={styles.relicDate}>{formatShortDate(entry.createdAt)}</Text>
+                                                        {entry.creditsUsed > 0 && (
+                                                            <Text style={styles.relicMana}>⚡ {entry.creditsUsed.toFixed(2).replace('.', ',')}</Text>
+                                                        )}
+                                                    </View>
+                                                </View>
                                             </View>
-                                        )}
-                                    </View>
-                                    {entry.result ? (
-                                        <Text style={styles.relicPreview} numberOfLines={2}>{entry.result}</Text>
-                                    ) : null}
-                                    <TouchableOpacity
-                                        style={styles.relicActionBtn}
-                                        onPress={() => handleOpenRelic(entry)}
-                                    >
-                                        <Text style={styles.relicActionText}>{getActionLabel(mediaType)}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            );
-                        })
-                    )}
+                                            <TouchableOpacity style={styles.relicActionBtn} onPress={() => handleOpenRelic(entry)}>
+                                                <Text style={styles.relicActionText}>{getActionLabel(mediaType)}</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                })}
+                            </ScrollView>
+                        )}
+                    </View>
                 </View>
 
-                {/* Essence Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{t('spellEssence')}</Text>
-                    {storageItems.length === 0 ? (
-                        <Text style={styles.emptyText}>{t('noEssence')}</Text>
-                    ) : (
-                        storageItems.map(renderStorageItem)
-                    )}
+                {/* ═══════════ Section 2: Essence (LocalStorage) ═══════════ */}
+                <View style={styles.sectionWrapper}>
+                    <Text style={styles.sectionLabel}>{t('spellEssence')}</Text>
+                    <View style={[styles.card, { paddingHorizontal: spacing.sm }]}>
+                        {storageItems.length === 0 ? (
+                            <Text style={styles.emptyText}>{t('noEssence')}</Text>
+                        ) : (
+                            <ScrollView style={{ maxHeight: 300 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                                {storageItems.map(renderStorageItem)}
+                            </ScrollView>
+                        )}
+                    </View>
                 </View>
 
-                {/* Purification Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{t('purificationRitual')}</Text>
-                    <Text style={styles.purificationSubtitle}>{t('purificationSubtitle')}</Text>
-
-                    <TouchableOpacity style={styles.purifyOption} onPress={handleCleanEssence}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.purifyOptionTitle}>{t('cleanEssence')}</Text>
-                            <Text style={styles.purifyOptionDesc}>{t('cleanEssenceDesc')}</Text>
-                        </View>
-                        <Text style={styles.purifyArrow}>›</Text>
+                {/* ═══════════ Purification Ritual ═══════════ */}
+                <View style={styles.sectionWrapper}>
+                    <TouchableOpacity style={styles.purifyMainBtn} onPress={() => setCleanModal(true)} activeOpacity={0.75}>
+                        <Text style={styles.purifyMainIcon}>✦</Text>
+                        <Text style={styles.purifyMainText}>{t('purificationRitual')}</Text>
                     </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.purifyOption} onPress={handlePurgeOldRelics}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.purifyOptionTitle}>{t('purgeOldRelics')}</Text>
-                            <Text style={styles.purifyOptionDesc}>{t('purgeOldRelicsDesc')}</Text>
-                        </View>
-                        <Text style={styles.purifyArrow}>›</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.purifyOption, styles.purifyOptionDanger]} onPress={handleResetTotal}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.purifyOptionTitle, styles.purifyDangerText]}>{t('resetTotal')}</Text>
-                            <Text style={[styles.purifyOptionDesc, styles.purifyDangerText]}>{t('resetTotalDesc')}</Text>
-                        </View>
-                        <Text style={[styles.purifyArrow, styles.purifyDangerText]}>›</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.purifyHint}>{t('purificationSubtitle')}</Text>
                 </View>
             </ScrollView>
 
-            {/* Text Content Modal */}
+            {/* ── Cleanup Modal ── */}
+            <Modal visible={cleanModal} transparent animationType="fade" onRequestClose={() => setCleanModal(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <View style={styles.modalTopRow}>
+                            <Text style={styles.modalTitle}>{t('purificationRitual')}</Text>
+                            <TouchableOpacity onPress={() => setCleanModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                <Text style={styles.modalCloseX}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalDesc}>{t('purificationSubtitle')}</Text>
+
+                        <View style={{ gap: 10, marginTop: 8 }}>
+                            <TouchableOpacity style={styles.cleanOption} onPress={() => { setCleanModal(false); handleCleanEssence(); }}>
+                                <Text style={styles.cleanOptionTitle}>{t('cleanEssence')}</Text>
+                                <Text style={styles.cleanOptionDesc}>{t('cleanEssenceDesc')}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.cleanOption} onPress={() => { setCleanModal(false); handlePurgeOldRelics(); }}>
+                                <Text style={styles.cleanOptionTitle}>{t('purgeOldRelics')}</Text>
+                                <Text style={styles.cleanOptionDesc}>{t('purgeOldRelicsDesc')}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={[styles.cleanOption, styles.cleanOptionDanger]} onPress={() => { setCleanModal(false); handleResetTotal(); }}>
+                                <Text style={[styles.cleanOptionTitle, { color: colors.error }]}>{t('resetTotal')}</Text>
+                                <Text style={[styles.cleanOptionDesc, { color: 'rgba(255,75,110,0.6)' }]}>{t('resetTotalDesc')}</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setCleanModal(false)}>
+                            <Text style={styles.modalCancelText}>{t('cancel')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ── Text Content Modal ── */}
             <Modal
                 visible={textModal.visible}
                 transparent
@@ -387,15 +511,20 @@ export default function SpellDataScreen() {
                 onRequestClose={() => setTextModal({ visible: false, content: '' })}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{t('textViewerTitle')}</Text>
-                            <TouchableOpacity onPress={() => setTextModal({ visible: false, content: '' })}>
-                                <Text style={styles.modalClose}>{t('close')}</Text>
-                            </TouchableOpacity>
+                    <View style={styles.textModalContent}>
+                        <View style={styles.textModalHeader}>
+                            <Text style={styles.textModalTitle}>{t('textViewerTitle')}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <TouchableOpacity onPress={() => Share.share({ message: textModal.content })}>
+                                    <Text style={styles.textModalShare}>📤</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => setTextModal({ visible: false, content: '' })}>
+                                    <Text style={styles.textModalClose}>{t('close')}</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <ScrollView style={styles.modalScroll}>
-                            <Text style={styles.modalBody} selectable>{textModal.content}</Text>
+                        <ScrollView style={styles.textModalScroll}>
+                            <Text style={styles.textModalBody} selectable>{textModal.content}</Text>
                         </ScrollView>
                     </View>
                 </View>
@@ -409,162 +538,208 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.background,
     },
+
+    // ── Header ──
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.surfaceVariant,
+        paddingVertical: spacing.sm + 2,
     },
     backBtn: {
-        width: 32,
+        width: 36,
         alignItems: 'center',
     },
     backText: {
-        fontSize: 28,
-        color: colors.primary,
-        lineHeight: 32,
-    },
-    headerCenter: {
-        flex: 1,
-        alignItems: 'center',
+        fontSize: 30,
+        color: colors.onSurfaceVariant,
+        lineHeight: 34,
     },
     headerTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
+        flex: 1,
+        textAlign: 'center',
+        fontSize: 17,
+        fontWeight: '700',
         color: colors.onBackground,
+        letterSpacing: -0.3,
     },
-    headerSubtitle: {
-        fontSize: 12,
-        color: colors.onSurfaceVariant,
-        marginTop: 1,
-        maxWidth: 200,
-    },
+
+    // ── Scroll ──
     scroll: {
         flex: 1,
+        paddingHorizontal: spacing.md,
     },
-    section: {
-        margin: spacing.md,
-        marginBottom: 0,
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
+
+    // ── Section ──
+    sectionWrapper: {
+        marginBottom: spacing.lg,
     },
-    sectionTitle: {
-        fontSize: 14,
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+        paddingHorizontal: 2,
+    },
+    sectionLabel: {
+        fontSize: 11,
         fontWeight: '700',
-        color: colors.onSurfaceVariant,
+        color: colors.primary,
         textTransform: 'uppercase',
-        letterSpacing: 0.8,
-        marginBottom: spacing.sm,
+        letterSpacing: 1.5,
+        marginBottom: 8,
     },
+    trashIcon: {
+        fontSize: 15,
+        opacity: 0.5,
+    },
+
+    // ── Filter Pills ──
     filterRow: {
         marginBottom: spacing.sm,
+        maxHeight: 36,
     },
     filterPill: {
-        paddingHorizontal: 12,
+        paddingHorizontal: 14,
         paddingVertical: 6,
         borderRadius: borderRadius.full,
-        backgroundColor: colors.surfaceVariant,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
         marginRight: 6,
     },
     filterPillActive: {
         backgroundColor: colors.primary,
+        borderColor: colors.primary,
     },
     filterPillText: {
-        fontSize: 12,
+        fontSize: 11,
+        fontWeight: '600',
         color: colors.onSurfaceVariant,
     },
     filterPillTextActive: {
         color: '#fff',
-        fontWeight: '600',
     },
+
+    // ── Card ──
+    card: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.xl,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.04)',
+        overflow: 'hidden',
+    },
+
     emptyText: {
         color: colors.onSurfaceVariant,
         fontSize: 13,
         textAlign: 'center',
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.lg,
         fontStyle: 'italic',
     },
-    relicCard: {
-        backgroundColor: colors.surfaceVariant,
-        borderRadius: borderRadius.md,
-        padding: spacing.sm,
-        marginBottom: spacing.sm,
-    },
-    relicHeader: {
+
+    // ── Relic Row ──
+    relicRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 4,
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.md,
+        paddingVertical: 12,
+    },
+    relicRowActive: {
+        borderLeftWidth: 3,
+        borderLeftColor: colors.primary,
+        backgroundColor: 'rgba(123,46,255,0.04)',
+    },
+    relicRowBorder: {
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.04)',
+    },
+    relicLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        flex: 1,
+        marginRight: 8,
     },
     relicEmoji: {
         fontSize: 20,
-        marginRight: spacing.sm,
     },
     relicInfo: {
         flex: 1,
     },
     relicName: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '600',
         color: colors.onBackground,
     },
-    relicDate: {
-        fontSize: 11,
-        color: colors.onSurfaceVariant,
-        marginTop: 1,
-    },
-    activeBadge: {
-        backgroundColor: colors.success,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: borderRadius.full,
+    relicMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 2,
     },
     activeBadgeText: {
-        fontSize: 10,
-        color: '#fff',
-        fontWeight: '700',
+        fontSize: 8,
+        fontWeight: '800',
+        color: colors.success,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
-    relicPreview: {
-        fontSize: 12,
+    relicDate: {
+        fontSize: 9,
         color: colors.onSurfaceVariant,
-        marginBottom: 6,
-        lineHeight: 16,
+    },
+    relicMana: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#ffcc00',
     },
     relicActionBtn: {
-        alignSelf: 'flex-start',
-        paddingHorizontal: 12,
+        paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: borderRadius.sm,
-        backgroundColor: colors.primaryContainer,
+        borderWidth: 1,
+        borderColor: 'rgba(123,46,255,0.3)',
     },
     relicActionText: {
-        fontSize: 12,
+        fontSize: 10,
+        fontWeight: '700',
         color: colors.primary,
-        fontWeight: '600',
     },
-    storageItem: {
-        marginBottom: spacing.sm,
-        paddingBottom: spacing.sm,
+
+    // ── Storage / Essence ──
+    storageRow: {
+        paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: colors.surfaceVariant,
+        borderBottomColor: 'rgba(255,255,255,0.04)',
+    },
+    storageRowHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     storageKey: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: colors.secondary,
-        marginBottom: 2,
+        fontSize: 10,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        color: colors.onSurfaceVariant,
+    },
+    storagePrimitiveValue: {
+        fontSize: 10,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        color: '#c4a0ff',
+        flexShrink: 1,
     },
     indentLevel: {
         paddingLeft: 12,
         borderLeftWidth: 1,
-        borderLeftColor: colors.surfaceVariant,
-        marginTop: 2,
+        borderLeftColor: 'rgba(123,46,255,0.25)',
+        marginLeft: 8,
+        marginTop: 6,
+        gap: 4,
     },
     dimKey: {
-        fontSize: 11,
-        color: colors.onSurfaceVariant,
+        fontSize: 9,
+        color: 'rgba(184,176,208,0.6)',
         fontStyle: 'italic',
     },
     valueRow: {
@@ -574,94 +749,165 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     valueText: {
-        fontSize: 12,
-        color: colors.onBackground,
+        fontSize: 9,
+        color: '#c4a0ff',
         flex: 1,
     },
-    badge: {
-        backgroundColor: colors.primaryContainer,
+    linkedBadge: {
+        backgroundColor: 'rgba(16,185,129,0.1)',
         paddingHorizontal: 6,
         paddingVertical: 1,
-        borderRadius: borderRadius.sm,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: 'rgba(16,185,129,0.2)',
     },
-    badgeText: {
-        fontSize: 9,
-        color: colors.primary,
-        fontWeight: '600',
+    linkedBadgeText: {
+        fontSize: 8,
+        color: colors.success,
+        fontWeight: '500',
     },
-    moreText: {
-        fontSize: 11,
-        color: colors.onSurfaceVariant,
-        fontStyle: 'italic',
-        marginTop: 2,
-    },
-    purificationSubtitle: {
-        fontSize: 13,
-        color: colors.onSurfaceVariant,
-        marginBottom: spacing.sm,
-    },
-    purifyOption: {
+
+    // ── Purification ──
+    purifyMainBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.surfaceVariant,
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 14,
+        borderRadius: borderRadius.xl,
+        backgroundColor: 'rgba(255,75,110,0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,75,110,0.18)',
     },
-    purifyOptionDanger: {
-        borderBottomWidth: 0,
-    },
-    purifyOptionTitle: {
+    purifyMainIcon: {
         fontSize: 14,
-        fontWeight: '600',
-        color: colors.onBackground,
-        marginBottom: 2,
-    },
-    purifyOptionDesc: {
-        fontSize: 12,
-        color: colors.onSurfaceVariant,
-    },
-    purifyDangerText: {
         color: colors.error,
     },
-    purifyArrow: {
-        fontSize: 20,
-        color: colors.onSurfaceVariant,
-        marginLeft: spacing.sm,
+    purifyMainText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: colors.error,
+        textTransform: 'uppercase',
+        letterSpacing: 1.5,
     },
+    purifyHint: {
+        fontSize: 10,
+        textAlign: 'center',
+        color: colors.onSurfaceVariant,
+        marginTop: 8,
+        paddingHorizontal: spacing.xl,
+        lineHeight: 16,
+        fontStyle: 'italic',
+    },
+
+    // ── Cleanup Modal ──
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: spacing.lg,
     },
-    modalContent: {
+    modalCard: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.xl + 4,
+        padding: spacing.lg,
+        width: '100%',
+        maxWidth: 360,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    modalTopRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    modalTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: colors.onBackground,
+    },
+    modalCloseX: {
+        fontSize: 16,
+        color: colors.onSurfaceVariant,
+    },
+    modalDesc: {
+        fontSize: 12,
+        color: colors.onSurfaceVariant,
+        marginBottom: 12,
+    },
+    cleanOption: {
+        padding: spacing.md,
+        borderRadius: borderRadius.xl,
+        backgroundColor: 'rgba(255,255,255,0.02)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+    },
+    cleanOptionDanger: {
+        borderColor: 'rgba(255,75,110,0.15)',
+    },
+    cleanOptionTitle: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#c4a0ff',
+        marginBottom: 2,
+    },
+    cleanOptionDesc: {
+        fontSize: 10,
+        color: 'rgba(184,176,208,0.6)',
+        lineHeight: 15,
+    },
+    modalCancelBtn: {
+        marginTop: spacing.md,
+        paddingVertical: 14,
+        borderRadius: borderRadius.xl,
+        backgroundColor: colors.surfaceVariant,
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.onBackground,
+    },
+
+    // ── Text Viewer Modal ──
+    textModalContent: {
         backgroundColor: colors.surface,
         borderTopLeftRadius: borderRadius.xl,
         borderTopRightRadius: borderRadius.xl,
         maxHeight: '80%',
         minHeight: 200,
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
     },
-    modalHeader: {
+    textModalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: colors.surfaceVariant,
+        borderBottomColor: 'rgba(255,255,255,0.06)',
     },
-    modalTitle: {
+    textModalTitle: {
         fontSize: 16,
         fontWeight: '700',
         color: colors.onBackground,
     },
-    modalClose: {
+    textModalShare: {
+        fontSize: 18,
+    },
+    textModalClose: {
         fontSize: 14,
         color: colors.primary,
         fontWeight: '600',
     },
-    modalScroll: {
+    textModalScroll: {
         padding: spacing.md,
     },
-    modalBody: {
+    textModalBody: {
         fontSize: 13,
         color: colors.onBackground,
         lineHeight: 20,

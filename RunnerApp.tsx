@@ -250,9 +250,11 @@ function RunnerContent({ appId }: Props) {
 
     // Handle messages from WebView
     const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
+        let callbackName: string | undefined;
         try {
             const message = JSON.parse(event.nativeEvent.data);
-            const { type, data, callbackName } = message;
+            const { type, data, callbackName: cbName } = message;
+            callbackName = cbName;
 
             // Skip logging for frequent message types
             if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG') {
@@ -279,9 +281,85 @@ function RunnerContent({ appId }: Props) {
                 callbackName, // Pass callbackName for scanner/handlers
             });
 
+            // Cache media results and save to DB
+            const RUNNER_MEDIA_TYPES = new Set([
+                'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI',
+                'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
+            ]);
+            const RUNNER_MEDIA_EXT: Record<string, string> = {
+                AI_GENERATE_IMAGE: 'jpg', AI_GENERATE_VIDEO: 'mp4',
+                CAMERA_TAKE_PHOTO: 'jpg', CAMERA_RECORD_VIDEO: 'mp4',
+                AUDIO_RECORD_STOP: 'm4a', AUDIO_SPEAK_AI: 'wav',
+            };
+            let resultForWebView = handlerResult.result;
+            if (RUNNER_MEDIA_TYPES.has(type) && handlerResult.success && handlerResult.result) {
+                let mediaLocalPath: string | undefined;
+                let cacheResult = handlerResult.result;
+                // Detect if result is a filesystem path (not base64 — JPEG base64 starts with /9j/ which is NOT a path)
+                const isPath = handlerResult.result.startsWith('file://') ||
+                    (handlerResult.result.startsWith('/') && handlerResult.result.length < 1000 && /^\/[\w.]/.test(handlerResult.result));
+                if (isPath) {
+                    mediaLocalPath = handlerResult.result.startsWith('file://') ? handlerResult.result.slice(7) : handlerResult.result;
+                    cacheResult = `file://${mediaLocalPath}`;
+                    if (type === 'AI_GENERATE_VIDEO') {
+                        try {
+                            resultForWebView = await FileSystem.readAsStringAsync(cacheResult, {
+                                encoding: FileSystem.EncodingType.Base64,
+                            });
+                        } catch {
+                            resultForWebView = cacheResult;
+                        }
+                    } else {
+                        resultForWebView = cacheResult;
+                    }
+                } else if (handlerResult.result.length > 100) {
+                    try {
+                        const ext = RUNNER_MEDIA_EXT[type] ?? 'bin';
+                        const dir = `${FileSystem.documentDirectory}appacadabra_media/${app?.id}`;
+                        await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
+                        const fileUri = `${dir}/${callbackName}.${ext}`; // dir starts with file://
+                        await FileSystem.writeAsStringAsync(fileUri, handlerResult.result, { encoding: FileSystem.EncodingType.Base64 });
+                        mediaLocalPath = fileUri.slice(7); // bare path without file://
+                        cacheResult = fileUri;
+                        // CAMERA_RECORD_VIDEO: handlerResult.result is already base64 — keep resultForWebView as-is
+                    } catch (fileErr) {
+                        console.warn('[RunnerApp] Failed to save media file:', fileErr);
+                    }
+                }
+                if (app?.id && callbackName) {
+                    try {
+                        await db.saveWebviewAiCache({
+                            appId: app.id, callbackName, action: type,
+                            requestData: JSON.stringify(data),
+                            result: cacheResult, mediaLocalPath,
+                            creditsUsed: handlerResult.creditsUsed ?? 0,
+                            success: handlerResult.success ? 1 : 0,
+                        });
+                    } catch (cacheErr) {
+                        console.warn('[RunnerApp] Failed to cache AI response:', cacheErr);
+                    }
+                }
+            }
+
+            if (type === 'AI_GENERATE' && handlerResult.success && handlerResult.result && app?.id && callbackName) {
+                try {
+                    await db.saveWebviewAiCache({
+                        appId: app.id, callbackName, action: type,
+                        requestData: JSON.stringify(data),
+                        result: handlerResult.result,
+                        mediaLocalPath: undefined,
+                        creditsUsed: handlerResult.creditsUsed ?? 0,
+                        success: 1,
+                    });
+                } catch (cacheErr) {
+                    console.warn('[RunnerApp] Failed to cache AI_GENERATE response:', cacheErr);
+                }
+            }
+
             // Send callback if needed, unless deferred (e.g. scanner)
             if (callbackName && webViewRef.current && !handlerResult.deferredCallback) {
-                const script = createCallbackScript(callbackName, handlerResult.success, handlerResult.result);
+                console.log(`[RunnerApp] Sending callback: ${callbackName} | type: ${type} | success: ${handlerResult.success} | resultLen: ${resultForWebView?.length} | starts: ${resultForWebView?.substring(0, 100)}`);
+                const script = createCallbackScript(callbackName, handlerResult.success, resultForWebView);
                 webViewRef.current.injectJavaScript(script);
             }
 
@@ -290,6 +368,12 @@ function RunnerContent({ appId }: Props) {
             }
         } catch (e) {
             console.error('Error handling WebView message:', e);
+            // IMPORTANT: Always send callback on error to prevent JS from hanging
+            if (callbackName && webViewRef.current) {
+                const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+                const script = createCallbackScript(callbackName, false, errorMsg);
+                webViewRef.current.injectJavaScript(script);
+            }
         }
     }, [app]);
 
@@ -345,6 +429,7 @@ function RunnerContent({ appId }: Props) {
                         ref={webViewRef}
                         source={{ html: htmlContent, baseUrl: `https://app-${appId}.appacadabra.local/` }}
                         style={styles.webview}
+                        scalesPageToFit={true}
                         originWhitelist={['*']}
                         javaScriptEnabled
                         domStorageEnabled

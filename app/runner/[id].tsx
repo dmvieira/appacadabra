@@ -46,20 +46,25 @@ import { reloadStorageForApp, getStorageFromCache } from '../../lib/storageCache
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EditorOnboarding from '../../components/EditorOnboarding';
 import { logEditorTabOpened, logEditorAiEditSubmitted, logEditorVersionRestored, logEditorVersionDeleted } from '../../lib/analytics';
+import { ensureViewportMeta } from '../../lib/htmlUtils';
 
 const EDITOR_ONBOARDING_KEY = 'appacadabra_editor_onboarding_seen';
 
 const AI_MEDIA_EXT: Record<string, string> = {
     AI_GENERATE_IMAGE: 'jpg',
     AI_GENERATE_VIDEO: 'mp4',
+    CAMERA_TAKE_PHOTO: 'jpg',
+    CAMERA_RECORD_VIDEO: 'mp4',
+    AUDIO_RECORD_STOP: 'm4a',
 };
 
 async function saveAiMediaToFile(appId: number, callbackName: string, action: string, base64: string): Promise<string> {
     const ext = AI_MEDIA_EXT[action] ?? 'bin';
-    const dir = `${Paths.document}/appacadabra_media/${appId}`;
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+    const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
+    const dir = `${docDir}appacadabra_media/${appId}`;
+    await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
     const path = `${dir}/${callbackName}.${ext}`;
-    await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
+    await FileSystem.writeAsStringAsync(`file://${path}`, base64, { encoding: FileSystem.EncodingType.Base64 });
     return path;
 }
 
@@ -143,6 +148,7 @@ export default function RunnerScreen() {
 
     const htmlContent = useMemo(() => {
         if (!app) return '';
+        const safeCode = ensureViewportMeta(app.code);
         return `
     <!DOCTYPE html>
     <html>
@@ -154,7 +160,7 @@ export default function RunnerScreen() {
       </style>
     </head>
     <body>
-      ${app.code}
+      ${safeCode}
     </body>
     </html>
   `;
@@ -722,6 +728,8 @@ export default function RunnerScreen() {
             let success = true;
             let result = '';
             let deferredCallback = false;
+            let mediaLocalPath: string | undefined;
+            let cacheResult: string | undefined;
 
             switch (type) {
                 // ============= Scroll Status for Smart Refresh =============
@@ -777,15 +785,30 @@ export default function RunnerScreen() {
                         console.log('Unknown message type:', type);
                     }
 
-                    const isAiAction = ['AI_GENERATE', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO'].includes(type);
+                    const isAiAction = [
+                        'AI_GENERATE', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO',
+                        'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
+                        'AUDIO_SPEAK_AI',
+                    ].includes(type);
                     if (isAiAction && handlerResult.handled && app?.id && callbackName) {
                         try {
                             const isMedia = type !== 'AI_GENERATE';
-                            let mediaLocalPath: string | undefined;
-                            let cacheResult = result;
+                            cacheResult = result;
                             if (isMedia && success && result && !result.startsWith('http')) {
-                                mediaLocalPath = await saveAiMediaToFile(app.id, callbackName, type, result);
-                                cacheResult = `file://${mediaLocalPath}`;
+                                // Detect real filesystem paths (not base64 — JPEG base64 starts with /9j/)
+                                const looksLikePath = result.startsWith('file://') ||
+                                    (result.startsWith('/') && result.length < 1000 && /^\/[\w.]/.test(result));
+                                if (looksLikePath) {
+                                    mediaLocalPath = result.startsWith('file://') ? result.slice(7) : result;
+                                    cacheResult = `file://${mediaLocalPath}`;
+                                } else {
+                                    try {
+                                        mediaLocalPath = await saveAiMediaToFile(app.id, callbackName, type, result);
+                                        cacheResult = `file://${mediaLocalPath}`;
+                                    } catch (fileErr) {
+                                        console.warn('[Runner] Failed to save media file:', fileErr);
+                                    }
+                                }
                             }
                             await db.saveWebviewAiCache({
                                 appId: app.id,
@@ -805,7 +828,18 @@ export default function RunnerScreen() {
 
             // Send callback if needed (unless deferred, e.g. for scanner which will call back via overlay)
             if (callbackName && webViewRef.current && !deferredCallback) {
-                const script = createCallbackScript(callbackName, success, result);
+                let scriptResult = result;
+                if (type === 'AI_GENERATE_VIDEO' && mediaLocalPath && success) {
+                    try {
+                        scriptResult = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+                    } catch {
+                        scriptResult = result;
+                    }
+                }
+                // CAMERA_RECORD_VIDEO: result is already base64, use directly
+                const script = createCallbackScript(callbackName, success, scriptResult);
                 webViewRef.current.injectJavaScript(script);
             }
         } catch (e) {
@@ -1021,6 +1055,7 @@ export default function RunnerScreen() {
                         ref={webViewRef}
                         source={source}
                         style={styles.webview}
+                        scalesPageToFit={true}
                         originWhitelist={['*']}
                         javaScriptEnabled
                         domStorageEnabled

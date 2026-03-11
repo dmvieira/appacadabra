@@ -21,7 +21,9 @@
       "WebFetch(domain:developers.googleblog.com)",
       "Bash(python3:*)",
       "Bash(wc:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)"
     ]
   }
 }
