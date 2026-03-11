@@ -18,7 +18,7 @@ import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript } from './lib/bridges/injectedJS';
-import { handleBridgeMessage, cleanupAllMedia } from './lib/bridges/messageHandlers';
+import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob } from './lib/bridges/messageHandlers';
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
@@ -120,8 +120,13 @@ function RunnerContent({ appId }: Props) {
             const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
             console.log(`RunnerApp[${appId}]: Got ${storageItems.length} items from DB`);
 
+            // Migrate any legacy base64 blobs stored directly in DB to files
+            await migrateStorageBlobsToFiles(appData.id);
+            // Expand blob markers back to base64 for WebView injection
+            const expandedItems = await expandStorageBlobMarkers(storageItems);
+
             // Update ref and state
-            savedStorageRef.current = storageItems;
+            savedStorageRef.current = expandedItems;
 
             // Check for code updates
             if (appData.code !== lastCodeRef.current && lastCodeRef.current !== null) {
@@ -131,7 +136,7 @@ function RunnerContent({ appId }: Props) {
             lastCodeRef.current = appData.code;
 
             setApp(appData);
-            setSavedStorage(storageItems);
+            setSavedStorage(expandedItems);
             setStorageLoaded(true);
             setIsLoading(false);
         } else {
@@ -291,6 +296,11 @@ function RunnerContent({ appId }: Props) {
                 CAMERA_TAKE_PHOTO: 'jpg', CAMERA_RECORD_VIDEO: 'mp4',
                 AUDIO_RECORD_STOP: 'm4a', AUDIO_SPEAK_AI: 'wav',
             };
+            const RUNNER_MEDIA_MIME: Record<string, string> = {
+                AI_GENERATE_IMAGE: 'image/jpeg', AI_GENERATE_VIDEO: 'video/mp4',
+                CAMERA_TAKE_PHOTO: 'image/jpeg', CAMERA_RECORD_VIDEO: 'video/mp4',
+                AUDIO_RECORD_STOP: 'audio/m4a', AUDIO_SPEAK_AI: 'audio/wav',
+            };
             let resultForWebView = handlerResult.result;
             if (RUNNER_MEDIA_TYPES.has(type) && handlerResult.success && handlerResult.result) {
                 let mediaLocalPath: string | undefined;
@@ -321,6 +331,7 @@ function RunnerContent({ appId }: Props) {
                         await FileSystem.writeAsStringAsync(fileUri, handlerResult.result, { encoding: FileSystem.EncodingType.Base64 });
                         mediaLocalPath = fileUri.slice(7); // bare path without file://
                         cacheResult = fileUri;
+                        registerPendingMediaBlob(handlerResult.result, callbackName ?? '', RUNNER_MEDIA_MIME[type]);
                         // CAMERA_RECORD_VIDEO: handlerResult.result is already base64 — keep resultForWebView as-is
                     } catch (fileErr) {
                         console.warn('[RunnerApp] Failed to save media file:', fileErr);

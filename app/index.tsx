@@ -700,7 +700,7 @@ export default function HomeScreen() {
                 const first = versions.length > 0 ? versions[versions.length - 1] : null;
                 creationPrompt = first?.instruction || '';
             }
-            const prompt = `App icon for "${setupTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} . REALLY simple, easy to understand, colorful, minimalist, rounded square, borderless icon suitable for a mobile app. No text. Recognizable symbol because the icon is small.`;
+            const prompt = `App icon for "${setupTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} REALLY simple, colorful, minimalist icon for a mobile app. No text. No border. No frame. No outline. No padding. No drop shadow. No background ring. No decorative edge. The icon fills the entire canvas edge to edge.`;
             const result = await firebase.generateSpellImageGen(prompt);
             const base64Image = result.text;
             const creditsUsed = result.creditsUsed || 0;

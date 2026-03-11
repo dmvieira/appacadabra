@@ -876,11 +876,22 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         console.log(`[WEBVIEW_AI_IMAGE] Generating image for: ${prompt.substring(0, 80)}...`);
 
+                        const detectMimeTypeImg = (base64: string): string => {
+                            if (base64.startsWith('/9j/')) return 'image/jpeg';
+                            if (base64.startsWith('iVBOR')) return 'image/png';
+                            return 'image/jpeg';
+                        };
+
+                        const imagePartsFromInput = (imagesBase64 ?? []).slice(0, 14).map((b64: string) => ({
+                            inlineData: { mimeType: detectMimeTypeImg(b64), data: b64 },
+                        }));
+
                         const imgResult = await withRetry(() => getAI().models.generateContent({
-                            model: 'gemini-2.5-flash-image',
-                            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                            model: 'gemini-3.1-flash-image-preview',
+                            contents: [{ role: 'user', parts: [{ text: prompt }, ...imagePartsFromInput] }],
                             config: {
                                 responseModalities: ['TEXT', 'IMAGE'],
+                                imageConfig: { imageSize: '512' },
                             },
                         }));
 
@@ -910,7 +921,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         // Fixed cost: 0.5 mana per image generation
                         creditsUsed = 0.5;
-                        logModelId = 'gemini-2.5-flash-image';
+                        logModelId = 'gemini-3.1-flash-image-preview';
                         logExtras.imageCount = 1;
                         break;
                     }
@@ -980,7 +991,8 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         if (!videoBuffer.length) throw new Error('Video generation returned empty data');
                         resultText = videoBuffer.toString('base64');
 
-                        const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 5;
+                        const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 8;
+                        console.log(`[WEBVIEW_AI_VIDEO] videoFile metadata:`, JSON.stringify((videoFile as any).videoMetadata));
                         // Mana cost: ~1 mana ≈ $0.075 USD
                         // Fast ($0.15/s) → 2.0 mana/s | Standard ($0.40/s) → 5.0 mana/s
                         creditsUsed = durationSeconds * (hasImages ? 5.0 : 2.0);
@@ -1733,11 +1745,22 @@ export const processSpellJob = onDocumentCreated(
 
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_IMAGE] Generating image for: ${prompt.substring(0, 80)}...`);
 
+                    const detectMimeTypeJobImg = (base64: string): string => {
+                        if (base64.startsWith('/9j/')) return 'image/jpeg';
+                        if (base64.startsWith('iVBOR')) return 'image/png';
+                        return 'image/jpeg';
+                    };
+
+                    const jobImagePartsFromInput = (resolvedImages ?? []).slice(0, 14).map((b64: string) => ({
+                        inlineData: { mimeType: detectMimeTypeJobImg(b64), data: b64 },
+                    }));
+
                     const imgResult = await withRetry(() => getAI().models.generateContent({
-                        model: 'gemini-2.5-flash-image',
-                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        model: 'gemini-3.1-flash-image-preview',
+                        contents: [{ role: 'user', parts: [{ text: prompt }, ...jobImagePartsFromInput] }],
                         config: {
                             responseModalities: ['TEXT', 'IMAGE'],
+                            imageConfig: { imageSize: '512' },
                         },
                     }));
 
@@ -1784,7 +1807,7 @@ export const processSpellJob = onDocumentCreated(
 
                     resultText = downloadUrl;
                     creditsUsed = 0.5;
-                    logModelId = 'gemini-2.5-flash-image';
+                    logModelId = 'gemini-3.1-flash-image-preview';
                     logExtras.imageCount = 1;
                     logExtras.imageUrl = downloadUrl;
                     break;
@@ -1887,7 +1910,8 @@ export const processSpellJob = onDocumentCreated(
 
                     resultText = downloadUrl;
 
-                    const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 5;
+                    const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 8;
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] videoFile metadata:`, JSON.stringify((videoFile as any).videoMetadata));
                     creditsUsed = durationSeconds * (hasImages ? 5.0 : 2.0);
                     logModelId = hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview';
                     logExtras.durationSec = durationSeconds;

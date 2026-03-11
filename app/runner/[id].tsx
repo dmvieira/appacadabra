@@ -33,7 +33,7 @@ import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript } from '../../lib/bridges/injectedJS';
-import { handleBridgeMessage, cleanupAllMedia } from '../../lib/bridges/messageHandlers';
+import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob } from '../../lib/bridges/messageHandlers';
 import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -56,6 +56,12 @@ const AI_MEDIA_EXT: Record<string, string> = {
     CAMERA_TAKE_PHOTO: 'jpg',
     CAMERA_RECORD_VIDEO: 'mp4',
     AUDIO_RECORD_STOP: 'm4a',
+    AUDIO_SPEAK_AI: 'wav',
+};
+const AI_MEDIA_MIME: Record<string, string> = {
+    AI_GENERATE_IMAGE: 'image/jpeg', AI_GENERATE_VIDEO: 'video/mp4',
+    CAMERA_TAKE_PHOTO: 'image/jpeg', CAMERA_RECORD_VIDEO: 'video/mp4',
+    AUDIO_RECORD_STOP: 'audio/m4a', AUDIO_SPEAK_AI: 'audio/wav',
 };
 
 async function saveAiMediaToFile(appId: number, callbackName: string, action: string, base64: string): Promise<string> {
@@ -172,10 +178,10 @@ export default function RunnerScreen() {
         return getInjectedJavaScript(app.id, getWebViewTranslations(), isEditMode);
     }, [app?.id, isEditMode]);
 
-    // Computed inline so injectedJavaScriptBeforeContentLoaded always has fresh cache data
+    // Computed inline so injectedJavaScriptBeforeContentLoaded always has fresh (expanded) data
     const combinedScript = app ? `
         ${baseInjectedScript}
-        ${createStorageRestoreScript(getStorageFromCache(app.id))}
+        ${createStorageRestoreScript(savedStorageRef.current)}
         ${getScrollDetectionScript()}
     ` : '';
 
@@ -206,9 +212,14 @@ export default function RunnerScreen() {
                         const storageItems = await reloadStorageForApp(loadedApp.id);
                         console.log('RunnerScreen: Storage loaded:', storageItems.length, 'items');
 
+                        // Migrate any legacy base64 blobs stored directly in DB to files
+                        await migrateStorageBlobsToFiles(loadedApp.id);
+                        // Expand blob markers back to base64 for WebView injection
+                        const expandedItems = await expandStorageBlobMarkers(storageItems);
+
                         // Set both ref (for sync injection) and state (for debug UI)
-                        savedStorageRef.current = storageItems;
-                        setSavedStorage(storageItems);
+                        savedStorageRef.current = expandedItems;
+                        setSavedStorage(expandedItems);
                         setStorageLoaded(true);
                     } catch (e) {
                         console.error('RunnerScreen: Error loading storage:', e);
@@ -295,10 +306,11 @@ export default function RunnerScreen() {
             const loadedApp = await db.getAppById(app.id);
             if (loadedApp) {
                 setApp(loadedApp);
-                // Also reload storage
+                // Also reload storage and expand markers
                 const storageItems = await reloadStorageForApp(loadedApp.id);
-                savedStorageRef.current = storageItems;
-                setSavedStorage(storageItems);
+                const expandedItems = await expandStorageBlobMarkers(storageItems);
+                savedStorageRef.current = expandedItems;
+                setSavedStorage(expandedItems);
             }
         } catch (e) {
             console.error('RunnerScreen: Refresh error:', e);
@@ -606,9 +618,11 @@ export default function RunnerScreen() {
         if (webViewRef.current && app) {
             // Use fresh cache to include runtime writes made since mount
             const storageToRestore = getStorageFromCache(app.id);
-            savedStorageRef.current = storageToRestore;
-            console.log('Runner: Injecting', storageToRestore.length, 'storage items from cache');
-            const script = createStorageRestoreScript(storageToRestore);
+            // Expand blob markers back to base64 for WebView injection
+            const expandedToRestore = await expandStorageBlobMarkers(storageToRestore);
+            savedStorageRef.current = expandedToRestore;
+            console.log('Runner: Injecting', expandedToRestore.length, 'storage items from cache');
+            const script = createStorageRestoreScript(expandedToRestore);
             webViewRef.current.injectJavaScript(script);
 
             // Recover undelivered AI responses
@@ -620,7 +634,7 @@ export default function RunnerScreen() {
                         if (entry.mediaLocalPath) {
                             try {
                                 recoveryResult = await FileSystem.readAsStringAsync(
-                                    entry.mediaLocalPath, { encoding: FileSystem.EncodingType.Base64 }
+                                    `file://${entry.mediaLocalPath}`, { encoding: FileSystem.EncodingType.Base64 }
                                 );
                             } catch { /* keep DB result (file URI or URL) */ }
                         }
@@ -805,6 +819,7 @@ export default function RunnerScreen() {
                                     try {
                                         mediaLocalPath = await saveAiMediaToFile(app.id, callbackName, type, result);
                                         cacheResult = `file://${mediaLocalPath}`;
+                                        registerPendingMediaBlob(result, callbackName, AI_MEDIA_MIME[type]);
                                     } catch (fileErr) {
                                         console.warn('[Runner] Failed to save media file:', fileErr);
                                     }

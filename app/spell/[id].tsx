@@ -18,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useAppStore } from '../../lib/store';
+import { migrateStorageBlobsToFiles } from '../../lib/bridges/messageHandlers';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
@@ -60,7 +61,7 @@ function getMediaType(entry: RelicEntry): MediaType {
 function isRelicActive(entry: RelicEntry, storageItems: StorageEntry[]): boolean {
     const callback = entry.callbackName;
     return storageItems.some(item => {
-        // Skip searching in massive values (probably base64 images) to avoid freezing JS thread
+        // Skip searching in massive values (probably raw base64) to avoid freezing JS thread
         if (item.value.length > 5000) return false;
         return item.value.includes(callback);
     });
@@ -125,6 +126,9 @@ export default function SpellDataScreen() {
 
     const loadData = useCallback(async () => {
         try {
+            // Migrate any raw base64 blobs (e.g. from Android camera with \n) to files first
+            await migrateStorageBlobsToFiles(appId);
+
             const [dbRelics, s] = await Promise.all([
                 db.getAllWebviewAiCacheForApp(appId),
                 db.getStorageForApp(appId),
@@ -307,24 +311,59 @@ export default function SpellDataScreen() {
                 </View>
             );
         }
-        // Primitive value — check if linked to a relic (skip for huge values to avoid OOM/Freezes)
+        // Primitive value — check if linked to a relic
         const valStr = typeof val === 'string' ? val : String(val);
         const isHuge = valStr.length > 5000;
-        
-        let linked: RelicEntry | undefined;
-        if (!isHuge) {
-            linked = relics.find(r => 
-                // Only compare against smaller strings
-                valStr.includes(r.callbackName) || (r.result.length < 5000 && valStr === r.result)
+
+        // Always run relic check (O(n relics), fast regardless of value size)
+        const linked = relics.find(r =>
+            valStr.includes(r.callbackName) || (r.result.length < 5000 && valStr === r.result)
+        );
+
+        // Detect blob markers — show [mimeType] and link via embedded callbackName
+        if (typeof val === 'string' && val.startsWith('__appblob__:')) {
+            const payload = val.slice('__appblob__:'.length);
+            const firstSep = payload.indexOf('|');
+            const mimeType = firstSep >= 0 ? payload.slice(0, firstSep) : payload;
+            const rest = firstSep >= 0 ? payload.slice(firstSep + 1) : '';
+            const secondSep = rest.indexOf('|');
+            const embeddedCb = secondSep >= 0 ? rest.slice(0, secondSep) : '';
+            const blobLinked = embeddedCb
+                ? relics.find(r => r.callbackName === embeddedCb)
+                : linked;
+            return (
+                <View style={styles.valueRow}>
+                    <Text style={styles.valueText}>[{mimeType || 'blob'}]</Text>
+                    {blobLinked && (
+                        <View style={styles.linkedBadge}>
+                            <Text style={styles.linkedBadgeText}>#{Math.abs(blobLinked.id)}</Text>
+                        </View>
+                    )}
+                </View>
             );
         }
 
-        const displayVal = isHuge ? `"${valStr.substring(0, 500)}…"` : `"${valStr}"`;
+        // Belt-and-suspenders: large raw data that bypassed blob conversion
+        if (isHuge) {
+            const mimeLabel = valStr.startsWith('data:')
+                ? valStr.slice(5, valStr.indexOf(';'))
+                : 'data';
+            return (
+                <View style={styles.valueRow}>
+                    <Text style={styles.valueText}>[{mimeLabel}]</Text>
+                    {linked && (
+                        <View style={styles.linkedBadge}>
+                            <Text style={styles.linkedBadgeText}>#{Math.abs(linked.id)}</Text>
+                        </View>
+                    )}
+                </View>
+            );
+        }
 
         return (
             <View style={styles.valueRow}>
                 <Text style={styles.valueText}>
-                    {displayVal}
+                    "{valStr}"
                 </Text>
                 {linked && (
                     <View style={styles.linkedBadge}>
@@ -338,21 +377,13 @@ export default function SpellDataScreen() {
     const renderStorageItem = (item: StorageEntry) => {
         let parsed: any = item.value;
         try { parsed = JSON.parse(item.value); } catch { /* keep string */ }
-        const isObject = typeof parsed === 'object' && parsed !== null;
 
         return (
             <View key={item.key} style={styles.storageRow}>
                 <View style={styles.storageRowHeader}>
                     <Text style={styles.storageKey}>{item.key}</Text>
-                    {!isObject && (() => {
-                        const raw = typeof parsed === 'string' ? parsed : String(parsed);
-                        const display = typeof parsed === 'string'
-                            ? (raw.length > 500 ? `"${raw.substring(0, 500)}…"` : `"${raw}"`)
-                            : raw;
-                        return <Text style={styles.storagePrimitiveValue}>{display}</Text>;
-                    })()}
                 </View>
-                {isObject && renderValue(parsed)}
+                {renderValue(parsed)}
             </View>
         );
     };

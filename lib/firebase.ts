@@ -413,10 +413,12 @@ export async function generateSpellSimilarity(
 
 // Image Generation via Gemini
 export async function generateSpellImageGen(
-    prompt: string
+    prompt: string,
+    imagesBase64?: string[]
 ): Promise<GenerationResult> {
     return submitJobAndWait('webview_ai_image', {
         prompt: compressContent(prompt),
+        imagesBase64,
     });
 }
 

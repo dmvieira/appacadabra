@@ -159,6 +159,32 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       sendMessage('AI_GENERATE_VIDEO', { prompt: prompt, images: this.options.images }, callbackName);
     };
 
+    AIBuilder.prototype.generateImage = function(prompt, callbackName) {
+      console.log('[AppacadabraAI.generateImage] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
+      var interceptName = callbackName + '_intercept_' + Math.floor(Math.random()*10000);
+      window[interceptName] = function(success, result) {
+          if (success && typeof result === 'string' && result.indexOf('http') === 0) {
+              fetch(result)
+                  .then(function(res) { return res.blob(); })
+                  .then(function(blob) {
+                      var reader = new FileReader();
+                      reader.onloadend = function() {
+                         var base64 = reader.result.split(',')[1] || reader.result;
+                         if (window[callbackName]) window[callbackName](true, base64);
+                      };
+                      reader.readAsDataURL(blob);
+                  })
+                  .catch(function(err) {
+                      if (window[callbackName]) window[callbackName](false, "Failed to download image from storage: " + err.message);
+                  });
+          } else {
+              if (window[callbackName]) window[callbackName](success, result);
+          }
+          delete window[interceptName];
+      };
+      sendMessage('AI_GENERATE_IMAGE', { prompt: prompt, images: this.options.images }, interceptName);
+    };
+
     AIBuilder.prototype.generate = function(prompt, callbackName) {
       // Validate media limits before sending
       var err = validateMedia(this.options.images, 'images')

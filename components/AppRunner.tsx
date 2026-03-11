@@ -27,13 +27,13 @@ import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from '../lib/bridges/injectedJS';
-import { handleBridgeMessage, cleanupAllMedia } from '../lib/bridges/messageHandlers';
+import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles } from '../lib/bridges/messageHandlers';
 import * as gemini from '../lib/api/ai';
 import * as db from '../lib/database/db';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { GeneratedApp, AppVersion } from '../lib/database/types';
 import * as ShareIntent from 'share-intent';
-import { t } from '../lib/i18n';
+import { t, getCurrentLanguage } from '../lib/i18n';
 import { ensureViewportMeta } from '../lib/htmlUtils';
 
 interface AppRunnerProps {
@@ -108,7 +108,12 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 setApp(appData);
                 // Load stored localStorage data
                 const storage = await db.getStorageForApp(appData.id);
-                setSavedStorage(storage.map(s => ({ key: s.key, value: s.value })));
+                const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
+                // Migrate any legacy base64 blobs stored directly in DB to files
+                await migrateStorageBlobsToFiles(appData.id);
+                // Expand blob markers back to base64 for WebView injection
+                const expandedItems = await expandStorageBlobMarkers(storageItems);
+                setSavedStorage(expandedItems);
             }
             setIsLoading(false);
         }
@@ -137,9 +142,10 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     }, [pendingVersionApp]);
 
     // Inject saved localStorage when WebView loads
-    const handleLoadEnd = useCallback(() => {
+    const handleLoadEnd = useCallback(async () => {
         if (webViewRef.current && savedStorage.length > 0) {
-            const script = createStorageRestoreScript(savedStorage);
+            const expandedStorage = await expandStorageBlobMarkers(savedStorage);
+            const script = createStorageRestoreScript(expandedStorage);
             webViewRef.current.injectJavaScript(script);
         }
     }, [savedStorage]);
@@ -687,7 +693,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     // Save manual edit
     const handleSaveManual = async () => {
         if (!app || !manualCode.trim()) return;
-        await updateAppCode(app.id, manualCode, 'Edição manual');
+        await updateAppCode(app.id, manualCode, t('manualEditLog'));
         const updatedApp = await db.getAppById(app.id);
         if (updatedApp) setApp(updatedApp);
         setShowManualEditor(false);
@@ -801,7 +807,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             {mode === 'edit' && (
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => minimizeApp()} style={styles.backBtn}>
-                        <Text style={styles.backText}>← Voltar</Text>
+                        <Text style={styles.backText}>← {t('back')}</Text>
                     </TouchableOpacity>
                     <Text style={styles.title} numberOfLines={1}>{app.name}</Text>
                     <Text style={styles.version}>v{app.currentVersion}</Text>
@@ -868,19 +874,19 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                         onPress={handleEditPress}
                     >
                         <Text style={styles.toolbarIcon}>{isSelectingElement ? '❌' : '✏️'}</Text>
-                        <Text style={styles.toolbarText}>{isSelectingElement ? 'Cancelar' : 'Editar'}</Text>
+                        <Text style={styles.toolbarText}>{isSelectingElement ? t('cancel') : t('edit')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.toolbarBtn} onPress={() => { setManualCode(app.code); setShowManualEditor(true); }}>
                         <Text style={styles.toolbarIcon}>💻</Text>
-                        <Text style={styles.toolbarText}>Código</Text>
+                        <Text style={styles.toolbarText}>{t('code')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.toolbarBtn} onPress={() => { loadVersions(); setShowHistory(true); }}>
                         <Text style={styles.toolbarIcon}>📜</Text>
-                        <Text style={styles.toolbarText}>Histórico</Text>
+                        <Text style={styles.toolbarText}>{t('history')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.toolbarBtn} onPress={() => setShowDebugPanel(true)}>
                         <Text style={styles.toolbarIcon}>🐛</Text>
-                        <Text style={styles.toolbarText}>Debug</Text>
+                        <Text style={styles.toolbarText}>{t('debug')}</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -889,20 +895,20 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showEditSheet} transparent animationType="slide">
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheetOverlay}>
                     <View style={styles.sheet}>
-                        <Text style={styles.sheetTitle}>Editar com IA</Text>
+                        <Text style={styles.sheetTitle}>{t('editWithAI')}</Text>
                         {isEditing ? (
                             <View style={styles.editingContainer}>
                                 <ActivityIndicator size="large" color={colors.primary} />
-                                <Text style={styles.editingText}>Aplicando mudanças...</Text>
+                                <Text style={styles.editingText}>{t('applyingChanges')}</Text>
                             </View>
                         ) : (
                             <>
                                 {selectionContext ? (
                                     <View style={styles.contextContainer}>
-                                        <Text style={styles.contextLabel}>Focando na seleção:</Text>
+                                        <Text style={styles.contextLabel}>{t('focusSelection')}</Text>
                                         <Text style={styles.contextValue} numberOfLines={2}>"{selectionContext}"</Text>
                                         <TouchableOpacity onPress={() => setSelectionContext('')} style={styles.contextClearBtn}>
-                                            <Text style={styles.contextClearText}>Remover seleção</Text>
+                                            <Text style={styles.contextClearText}>{t('removeSelection')}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 ) : null}
@@ -910,17 +916,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                                     style={styles.editInput}
                                     value={editPrompt}
                                     onChangeText={setEditPrompt}
-                                    placeholder="Descreva as mudanças desejadas..."
+                                    placeholder={t('describeChanges')}
                                     placeholderTextColor={colors.onSurfaceVariant}
                                     multiline
                                     numberOfLines={4}
                                 />
                                 <View style={styles.sheetButtons}>
                                     <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEditSheet(false)}>
-                                        <Text style={styles.cancelText}>Cancelar</Text>
+                                        <Text style={styles.cancelText}>{t('cancel')}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={styles.applyBtn} onPress={handleApplyEdit}>
-                                        <Text style={styles.applyText}>Aplicar</Text>
+                                        <Text style={styles.applyText}>{t('apply')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>
@@ -932,9 +938,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showManualEditor} animationType="slide">
                 <SafeAreaView style={styles.editorContainer}>
                     <View style={styles.editorHeader}>
-                        <TouchableOpacity onPress={() => setShowManualEditor(false)}><Text style={styles.cancelText}>Cancelar</Text></TouchableOpacity>
-                        <Text style={styles.editorTitle}>Editor de Código</Text>
-                        <TouchableOpacity onPress={handleSaveManual}><Text style={styles.saveText}>Salvar</Text></TouchableOpacity>
+                        <TouchableOpacity onPress={() => setShowManualEditor(false)}><Text style={styles.cancelText}>{t('cancel')}</Text></TouchableOpacity>
+                        <Text style={styles.editorTitle}>{t('codeEditorTitle')}</Text>
+                        <TouchableOpacity onPress={handleSaveManual}><Text style={styles.saveText}>{t('save')}</Text></TouchableOpacity>
                     </View>
                     <TextInput style={styles.codeEditor} value={manualCode} onChangeText={setManualCode} multiline autoCapitalize="none" autoCorrect={false} spellCheck={false} />
                 </SafeAreaView>
@@ -943,17 +949,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showHistory} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '70%' }]}>
-                        <Text style={styles.sheetTitle}>Histórico de Versões</Text>
+                        <Text style={styles.sheetTitle}>{t('versionHistory')}</Text>
                         <ScrollView style={styles.versionList}>
                             {versions.map((version) => (
                                 <TouchableOpacity key={version.id} style={[styles.versionItem, version.version === app.currentVersion && styles.versionItemActive]} onPress={() => handleRestoreVersion(version)} disabled={version.version === app.currentVersion}>
                                     <Text style={styles.versionNumber}>v{version.version}</Text>
-                                    <Text style={styles.versionDate}>{new Date(version.createdAt).toLocaleDateString('pt-BR')}</Text>
+                                    <Text style={styles.versionDate}>{new Date(version.createdAt).toLocaleDateString(getCurrentLanguage())}</Text>
                                     {version.instruction && <Text style={styles.versionInstruction} numberOfLines={1}>{version.instruction}</Text>}
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
-                        <TouchableOpacity style={styles.closeBtn} onPress={() => setShowHistory(false)}><Text style={styles.closeText}>Fechar</Text></TouchableOpacity>
+                        <TouchableOpacity style={styles.closeBtn} onPress={() => setShowHistory(false)}><Text style={styles.closeText}>{t('close')}</Text></TouchableOpacity>
                     </View>
                 </View>
             </Modal>
@@ -961,16 +967,16 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             <Modal visible={showDebugPanel} transparent animationType="slide">
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '80%' }]}>
-                        <Text style={styles.sheetTitle}>🐛 Debug</Text>
-                        <Text style={styles.debugSectionTitle}>Console Logs ({consoleLogs.length})</Text>
+                        <Text style={styles.sheetTitle}>🐛 {t('debug')}</Text>
+                        <Text style={styles.debugSectionTitle}>{t('consoleLogs')} ({consoleLogs.length})</Text>
                         <ScrollView style={styles.debugLogsContainer}>
-                            {consoleLogs.length === 0 ? <Text style={styles.debugEmpty}>Nenhum log ainda</Text> : consoleLogs.map((log, idx) => (
+                            {consoleLogs.length === 0 ? <Text style={styles.debugEmpty}>{t('noLogs')}</Text> : consoleLogs.map((log, idx) => (
                                 <Text key={idx} style={[styles.debugLogItem, log.startsWith('[error]') && styles.debugLogError, log.startsWith('[warn]') && styles.debugLogWarn]}>{log}</Text>
                             ))}
                         </ScrollView>
-                        <Text style={styles.debugSectionTitle}>Network ({networkLogs.length})</Text>
+                        <Text style={styles.debugSectionTitle}>{t('network')} ({networkLogs.length})</Text>
                         <ScrollView style={styles.debugLogsContainer}>
-                            {networkLogs.length === 0 ? <Text style={styles.debugEmpty}>Nenhuma requisição ainda</Text> : networkLogs.map((req, idx) => (
+                            {networkLogs.length === 0 ? <Text style={styles.debugEmpty}>{t('noRequests')}</Text> : networkLogs.map((req, idx) => (
                                 <View key={idx} style={styles.networkLogItem}>
                                     <Text style={styles.networkMethod}>{req.method}</Text>
                                     <Text style={styles.networkUrl} numberOfLines={1}>{req.url}</Text>
@@ -979,8 +985,8 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                             ))}
                         </ScrollView>
                         <View style={styles.debugButtons}>
-                            <TouchableOpacity style={styles.debugClearBtn} onPress={() => { setConsoleLogs([]); setNetworkLogs([]); }}><Text style={styles.debugClearText}>Limpar</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowDebugPanel(false)}><Text style={styles.closeText}>Fechar</Text></TouchableOpacity>
+                            <TouchableOpacity style={styles.debugClearBtn} onPress={() => { setConsoleLogs([]); setNetworkLogs([]); }}><Text style={styles.debugClearText}>{t('clear')}</Text></TouchableOpacity>
+                            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowDebugPanel(false)}><Text style={styles.closeText}>{t('close')}</Text></TouchableOpacity>
                         </View>
                     </View>
                 </View>

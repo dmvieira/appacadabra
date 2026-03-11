@@ -175,10 +175,10 @@ export async function aiSimilarity(items: string[]): Promise<{ text: string, cre
 }
 
 // Used by WebView Bridge - Generate Image
-export async function aiGenerateImage(prompt: string): Promise<{ imageBase64: string, usage: any, creditsUsed: number }> {
-    console.log('[AI] aiGenerateImage (via Firebase)', prompt?.substring(0, 80));
+export async function aiGenerateImage(prompt: string, imagesBase64?: string[]): Promise<{ imageBase64: string, usage: any, creditsUsed: number }> {
+    console.log('[AI] aiGenerateImage (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
-    const result = await firebase.generateSpellImageGen(prompt);
+    const result = await firebase.generateSpellImageGen(prompt, imagesBase64);
     const imageBase64 = await resolveStorageUrlToBase64(result.text);
 
     const creditsUsed = result.creditsUsed || 0;

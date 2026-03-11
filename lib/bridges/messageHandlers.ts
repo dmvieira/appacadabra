@@ -134,6 +134,114 @@ import { useManaStore } from '../manaStore';
 import { useAppStore } from '../store';
 import { updateStorageCache, removeFromStorageCache } from '../storageCache';
 
+// ============= Storage Blob Helpers =============
+const STORAGE_BLOB_MARKER = '__appblob__:';
+
+// Map from base64 fingerprint → callbackName, so storeBlobToFile can embed the callbackName
+// in the marker for proper relic linking in the data viewer.
+const pendingMediaBlobs = new Map<string, string>(); // base64Key → callbackName
+const pendingMediaMimeTypes = new Map<string, string>(); // callbackName → mimeType hint
+const MAX_PENDING = 20;
+
+function pendingMediaKey(base64: string): string {
+    // Strip data: prefix and whitespace to match storeBlobToFile normalization
+    const raw = base64.replace(/^data:[^;]+;base64,/, '');
+    const cleaned = raw.replace(/\s/g, '');
+    return `${cleaned.slice(0, 100)}:${cleaned.length}`;
+}
+
+export function registerPendingMediaBlob(base64: string, callbackName: string, mimeTypeHint?: string): void {
+    if (pendingMediaBlobs.size >= MAX_PENDING) {
+        pendingMediaBlobs.delete(pendingMediaBlobs.keys().next().value!);
+    }
+    pendingMediaBlobs.set(pendingMediaKey(base64), callbackName);
+    if (callbackName && mimeTypeHint) {
+        pendingMediaMimeTypes.set(callbackName, mimeTypeHint);
+    }
+}
+
+function isLargeBase64(value: string): boolean {
+    if (value.length < 500) return false;
+    if (/^data:[a-z]+\/[a-z0-9+.\-]+;base64,/i.test(value)) return true;
+    // Strip whitespace before testing (Android base64 has \n every 76 chars)
+    const cleaned = value.replace(/\s/g, '');
+    return cleaned.length >= 500 && /^[A-Za-z0-9+/]{500,}={0,2}$/.test(cleaned);
+}
+
+async function storeBlobToFile(appId: number, key: string, value: string): Promise<string> {
+    let base64Data = value;
+    let mimeType = '';
+    let ext = 'bin';
+
+    const match = value.match(/^data:([^;]+);base64,(.+)$/s);
+    if (match) {
+        mimeType = match[1];
+        base64Data = match[2];
+        ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
+    }
+    base64Data = base64Data.replace(/\s/g, ''); // Strip whitespace (Android adds \n every 76 chars)
+
+    // Look up registered callbackName before file creation so ext is correct
+    const cbKey = pendingMediaKey(base64Data);
+    const cbName = pendingMediaBlobs.get(cbKey) ?? '';
+    if (cbName) pendingMediaBlobs.delete(cbKey);
+
+    // If no mimeType from data: prefix, try the hint stored by registerPendingMediaBlob
+    if (!mimeType && cbName && pendingMediaMimeTypes.has(cbName)) {
+        mimeType = pendingMediaMimeTypes.get(cbName)!;
+        ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? ext;
+        pendingMediaMimeTypes.delete(cbName);
+    }
+
+    const safeKey = key.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+    const dir = `${FileSystem.documentDirectory}appacadabra_media/${appId}`;
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+    const fileUri = `${dir}/ls_${safeKey}.${ext}`;
+    await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+        encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const barePath = fileUri.startsWith('file://') ? fileUri.slice(7) : fileUri;
+    // Format: __appblob__:mimeType|callbackName|barePath  (cbName may be empty for backward compat)
+    return `${STORAGE_BLOB_MARKER}${mimeType}|${cbName}|${barePath}`;
+}
+
+export async function expandStorageBlobMarkers(
+    items: { key: string; value: string }[]
+): Promise<{ key: string; value: string }[]> {
+    return Promise.all(items.map(async (item) => {
+        if (!item.value.startsWith(STORAGE_BLOB_MARKER)) return item;
+        const payload = item.value.slice(STORAGE_BLOB_MARKER.length);
+        // Support both formats:
+        //   New: mimeType|callbackName|barePath  (2 pipes)
+        //   Old: mimeType|barePath               (1 pipe)
+        const firstSep = payload.indexOf('|');
+        const mimeType = payload.slice(0, firstSep);
+        const rest = payload.slice(firstSep + 1);
+        const secondSep = rest.indexOf('|');
+        const barePath = secondSep >= 0 ? rest.slice(secondSep + 1) : rest;
+        try {
+            const base64 = await FileSystem.readAsStringAsync(`file://${barePath}`, {
+                encoding: FileSystem.EncodingType.Base64,
+            });
+            return { key: item.key, value: mimeType ? `data:${mimeType};base64,${base64}` : base64 };
+        } catch {
+            return { key: item.key, value: '' };
+        }
+    }));
+}
+
+export async function migrateStorageBlobsToFiles(appId: number): Promise<void> {
+    const items = await db.getStorageForApp(appId);
+    for (const item of items) {
+        if (item.value.startsWith(STORAGE_BLOB_MARKER)) continue;
+        if (!isLargeBase64(item.value)) continue;
+        const marker = await storeBlobToFile(appId, item.key, item.value);
+        await db.setStorageItem(appId, item.key, marker);
+        updateStorageCache(appId, item.key, marker);
+    }
+}
+
 // ============= Notification Limits (Native Protection) =============
 const MAX_NOTIFICATIONS_PER_SPELL = 10;
 
@@ -715,9 +823,13 @@ export async function handleBridgeMessage(
                 debugLog(`Storage set: ${data.key} (Throttled x${messageThrottles['STORAGE_SET:' + data.key] || 0})`);
             }
             if (ctx.appId) {
-                await db.setStorageItem(ctx.appId, data.key, data.value);
+                let storedValue = data.value;
+                if (isLargeBase64(data.value)) {
+                    storedValue = await storeBlobToFile(ctx.appId, data.key, data.value);
+                }
+                await db.setStorageItem(ctx.appId, data.key, storedValue);
                 // Keep cache in sync so returning from background doesn't overwrite new data
-                updateStorageCache(ctx.appId, data.key, data.value);
+                updateStorageCache(ctx.appId, data.key, storedValue);
                 markBackupDirty();
             }
             break;
@@ -1520,7 +1632,7 @@ export async function handleBridgeMessage(
         case 'AI_GENERATE_IMAGE': {
             debugLog(`AI Image Gen request: ${data.prompt?.substring(0, 50)}...`);
             try {
-                const imgResult = await ai.aiGenerateImage(data.prompt);
+                const imgResult = await ai.aiGenerateImage(data.prompt, data.images ?? undefined);
                 result = imgResult.imageBase64;
 
                 // Log cost and update mana
@@ -1816,7 +1928,7 @@ export async function handleBridgeMessage(
                 });
 
                 if (!resultPicker.canceled && resultPicker.assets[0].base64) {
-                    result = resultPicker.assets[0].base64;
+                    result = resultPicker.assets[0].base64.replace(/[\r\n]/g, ''); // Android adds \n every 76 chars
                 } else {
                     success = false;
                     result = 'Cancelled';
