@@ -12,6 +12,7 @@ import {
     Linking,
     Share,
     RefreshControl,
+    useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -119,6 +120,7 @@ export default function SpellDataScreen() {
     const apps = useAppStore(s => s.apps);
     const app = apps.find(a => a.id === appId) ?? null;
 
+    const { height: screenHeight } = useWindowDimensions();
     const [relics, setRelics] = useState<RelicEntry[]>([]);
     const [storageItems, setStorageItems] = useState<StorageEntry[]>([]);
     const [filter, setFilter] = useState<FilterType>('all');
@@ -434,7 +436,7 @@ export default function SpellDataScreen() {
 
             <ScrollView
                 style={styles.scroll}
-                contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -475,7 +477,7 @@ export default function SpellDataScreen() {
                             <Text style={styles.emptyText}>{t('noRelics')}</Text>
                         ) : (
                             <ScrollView
-                                style={{ maxHeight: 340 }}
+                                style={{ maxHeight: screenHeight * 0.35 }}
                                 nestedScrollEnabled
                                 showsVerticalScrollIndicator={false}
                                 onScroll={(e) => {
@@ -528,7 +530,7 @@ export default function SpellDataScreen() {
                             <Text style={styles.emptyText}>{t('noEssence')}</Text>
                         ) : (
                             <ScrollView
-                                style={{ maxHeight: 300 }}
+                                style={{ maxHeight: screenHeight * 0.25 }}
                                 nestedScrollEnabled
                                 showsVerticalScrollIndicator={false}
                                 onScroll={(e) => {
@@ -551,6 +553,9 @@ export default function SpellDataScreen() {
                     </TouchableOpacity>
                     <Text style={styles.purifyHint}>{t('purificationSubtitle')}</Text>
                 </View>
+
+                {/* Extra bottom spacing for better readability */}
+                <View style={{ height: 40 }} />
             </ScrollView>
 
             {/* ── Cleanup Modal ── */}
