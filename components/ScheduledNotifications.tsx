@@ -143,8 +143,11 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
+            <View style={styles.overlay}>
+                {/* Backdrop: catches taps outside the sheet to close */}
+                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+                
+                <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
                     <View style={styles.handle} />
 
                     {/* Header */}
@@ -197,8 +200,8 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                             )}
                         />
                     )}
-                </Pressable>
-            </Pressable>
+                </View>
+            </View>
         </Modal>
     );
 }

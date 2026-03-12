@@ -13,9 +13,9 @@ import { logManaEarned, logShopOpened, logAdStarted } from '../lib/analytics';
 const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
 
 
-// Conversion rate: 1 mana = $0.17 USD (based on mana_10 gross price)
-// Formula: mana = revenueUSD / 0.17
-const MANA_COST_USD = 0.17;
+// Conversion rate: 1 mana = $0.27 USD (based on mana_10 gross price of $2.69, net after fees)
+// Formula: mana = revenueUSD / 0.27
+const MANA_COST_USD = 0.27;
 
 // Maximum mana reward cap (to prevent exploits)
 const MAX_MANA_REWARD = 5;
@@ -296,7 +296,7 @@ export function ManaShop() {
             await firebase.linkWithGoogle();
             await refreshUser();
             getHardwareId().then(id => {
-                if (id) firebase.claimInstallBonus(id).catch(() => {});
+                if (id) firebase.claimInstallBonus(id).catch(() => { });
             });
             setShowLoginPrompt(false);
         } catch (e: any) {
@@ -317,7 +317,7 @@ export function ManaShop() {
                                         await firebase.addCredits(anonBalance, 'device_merge');
                                     }
                                     getHardwareId().then(id => {
-                                        if (id) firebase.claimInstallBonus(id).catch(() => {});
+                                        if (id) firebase.claimInstallBonus(id).catch(() => { });
                                     });
                                     setShowLoginPrompt(false);
                                 } catch (err) {

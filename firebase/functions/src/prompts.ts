@@ -105,14 +105,12 @@ AppacadabraAI.generate("Hello", handleResult);
     - \`generate(prompt, callback)\`: Execute the AI request with the configured options.
     - \`withSearch()\`: Enable Google Search grounding for real-time info.
     - \`withSchema(jsonSchemaObj)\`: Force structured JSON output matching the schema.
-    - \`fromImage(input)\`: Attach image(s) for vision analysis. Accepts a single Base64 string OR an array of Base64 strings.
-    - \`fromVideo(input)\`: Attach video(s) for analysis/summarization. Accepts a single Base64 string OR an array of Base64 strings.
-    - \`fromAudio(input)\`: Attach audio(s) for transcription/analysis. Accepts a single Base64 string (from \`recordStop\`) OR an array.
-    - \`generateVideo(prompt, callback)\`: Generate a video from text with or without images (image-to-video) with max 3 reference images. Returns base64 MP4.
-      - Only support this chain to animate an image: \`AppacadabraAI.fromImage(base64).generateVideo("Bring this photo to life", callback)\`
-    - \`generateImage(prompt, callback)\`: Generate an image from text with or without images (image-to-image) with max 14 reference images. Returns base64 PNG.
-      - Only support this chain to animate an image: \`AppacadabraAI.fromImage(base64).generateImage("Bring this photo to life", callback)\`
-    - **Standalone Methods** (NOT chainable — call directly on \`AppacadabraAI\`):
+    - \`fromImage(input)\`: Attach image(s) for vision analysis or image generation. Accepts a single Base64 string OR an array (up to 14). Typically the base64 comes from \`AppacadabraCamera.takePhoto()\`.
+    - \`fromVideo(input)\`: Attach video(s) for analysis/summarization. Accepts a single Base64 string OR an array. Typically the base64 comes from \`AppacadabraCamera.recordVideo()\`.
+    - \`fromAudio(input)\`: Attach audio(s) for transcription/analysis. Accepts a single Base64 string (from \`AppacadabraAudio.recordStop\`) OR an array.
+    - \`generateVideo(prompt, callback)\`: Generate a video from text (standalone) OR animate up to 3 reference images (chained). Returns base64 MP4. When chained with \`fromImage\`, the first image becomes the starting frame and up to 2 additional images serve as style references. The callback receives \`(success, videoBase64, thumbnailBase64)\` — \`thumbnailBase64\` is always a JPEG base64: the first frame of the video when extraction succeeds, or a static dark placeholder with a play icon when it fails. Ready to use as an \`<img>\` preview while the video loads.
+    - \`generateImage(prompt, callback)\`: Generate an image from text (standalone) OR edit/remix up to 14 input images (chained with \`fromImage\`). Returns base64 PNG.
+    - **Standalone-only Methods** (NOT chainable — call directly on \`AppacadabraAI\`):
     - \`similarity(itemsArray, callback)\`: Compute semantic similarity between 2+ text strings. Returns a JSON object with a pairwise similarity \`matrix\` (values 0.0-1.0) and \`count\`.
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`
@@ -125,13 +123,16 @@ AppacadabraAI.generate("Hello", handleResult);
     - Multiple audios: \`AppacadabraAI.fromAudio([audio1, audio2]).generate("Compare these recordings", callback)\`
     - *Chained*: \`AppacadabraAI.withSearch().withSchema(schema).generate("Find data...", callback)\`
     - Image Gen: \`AppacadabraAI.generateImage("A cute cat wearing a hat", "onImageReady")\`
+    - Image edit (from takePhoto): \`AppacadabraAI.fromImage(photoBase64).generateImage("Make the sky purple", "onImageReady")\`
+    - Image remix (multiple): \`AppacadabraAI.fromImage([img1, img2]).generateImage("Blend these styles", "onImageReady")\`
     - Video Gen: \`AppacadabraAI.generateVideo("A cinematic drone shot of a beach", "onVideoReady")\`
     - Image-to-video: \`AppacadabraAI.fromImage(photoBase64).generateVideo("Bring this photo to life with gentle movement", "onVideoReady")\`
+    - Multi-image-to-video: \`AppacadabraAI.fromImage([img1, img2]).generateVideo("Animate blending these scenes", "onVideoReady")\`
     - Similarity (2 items): \`AppacadabraAI.similarity(["cat", "kitten"], "onResult")\` → \`{ matrix: [[1, 0.87], [0.87, 1]], vectors: [[0.1, ...], [0.12, ...]], count: 2 }\`
     - Similarity (3+ items): \`AppacadabraAI.similarity(["dog", "puppy", "car"], "onResult")\` → \`{ matrix: [[1, 0.91, 0.12], [0.91, 1, 0.10], [0.12, 0.10, 1]], vectors: [...], count: 3 }\`
 - **Return (generate)**: Generated text (string). If \`withSchema\` is used, result is a JSON string.
 - **Return (generateImage)**: base64 PNG string. Use as img src: \`"data:image/png;base64," + result\`.
-- **Return (generateVideo)**: base64 MP4 string. Use as video src: \`"data:video/mp4;base64," + result\`.
+- **Return (generateVideo)**: Callback receives \`(success, videoBase64, thumbnailBase64)\`. Use video as \`"data:video/mp4;base64," + videoBase64\` and thumbnail as \`"data:image/jpeg;base64," + thumbnailBase64\` for an instant preview image. Example: \`function onVideoReady(ok, video, thumb) { if (thumb) img.src = 'data:image/jpeg;base64,' + thumb; }\`
 - **Return (similarity)**: JSON string \`{ matrix: number[][], vectors: number[][], count: number }\`. \`matrix\` = pairwise cosine similarity (symmetric, 1.0 on diagonal, 0.0-1.0). \`vectors\` = raw embedding arrays (optional, for advanced use like caching or custom distance).
 
 📤 SHARE (AppacadabraShare)

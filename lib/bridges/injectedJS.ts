@@ -258,30 +258,90 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       generateVideo: function(prompt, callbackName) {
         console.log('[AppacadabraAI.generateVideo] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
         var interceptName = callbackName + '_intercept_' + Math.floor(Math.random()*10000);
+
+        function makeVideoPlaceholder(w, h) {
+          try {
+            var c = document.createElement('canvas');
+            c.width = w || 320; c.height = h || 180;
+            var ctx = c.getContext('2d');
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, c.width, c.height);
+            var cx = c.width / 2, cy = c.height / 2, r = Math.min(c.width, c.height) * 0.18;
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 1.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.beginPath();
+            ctx.moveTo(cx - r * 0.4, cy - r * 0.7);
+            ctx.lineTo(cx - r * 0.4, cy + r * 0.7);
+            ctx.lineTo(cx + r * 0.9, cy);
+            ctx.closePath();
+            ctx.fill();
+            return c.toDataURL('image/jpeg', 0.8).split(',')[1] || '';
+          } catch(e) { return ''; }
+        }
+
+        function deliverWithThumb(videoBase64) {
+          var delivered = false;
+          function deliver(thumb) {
+            if (delivered) return;
+            delivered = true;
+            if (window[callbackName]) window[callbackName](true, videoBase64, thumb || makeVideoPlaceholder(320, 180));
+          }
+          try {
+            var video  = document.createElement('video');
+            var canvas = document.createElement('canvas');
+            var timer  = setTimeout(function() { deliver(null); }, 3000);
+
+            video.onloadedmetadata = function() {
+              canvas.width  = Math.min(video.videoWidth  || 320, 640);
+              canvas.height = Math.min(video.videoHeight || 180, 360);
+              video.currentTime = 0;
+            };
+            video.onseeked = function() {
+              try {
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                var dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                var thumb = dataUrl.split(',')[1] || '';
+                clearTimeout(timer);
+                video.src = '';
+                deliver(thumb || null);
+              } catch(e) { clearTimeout(timer); deliver(null); }
+            };
+            video.onerror = function() { clearTimeout(timer); deliver(null); };
+            video.src = 'data:video/mp4;base64,' + videoBase64;
+            video.load();
+          } catch(e) { deliver(null); }
+        }
+
         window[interceptName] = function(success, result) {
-            if (success && typeof result === 'string' && result.indexOf('http') === 0) {
+            if (!success) {
+                if (window[callbackName]) window[callbackName](false, result);
+                delete window[interceptName];
+                return;
+            }
+            if (typeof result === 'string' && result.indexOf('http') === 0) {
                 fetch(result)
                     .then(function(res) { return res.blob(); })
                     .then(function(blob) {
                         var reader = new FileReader();
                         reader.onloadend = function() {
                            var base64 = reader.result.split(',')[1] || reader.result;
-                           if (window[callbackName]) window[callbackName](true, base64);
-                        };
-                        reader.onerror = function() {
-                           if (window[callbackName]) window[callbackName](false, "Failed to read video Blob");
+                           deliverWithThumb(base64);
                         };
                         reader.readAsDataURL(blob);
                     })
                     .catch(function(err) {
-                        if (window[callbackName]) window[callbackName](false, "Failed to download video from storage: " + err.message);
+                        if (window[callbackName]) window[callbackName](false, 'Failed to download video from storage: ' + err.message);
                     });
             } else {
-                if (window[callbackName]) window[callbackName](success, result);
+                deliverWithThumb(result);
             }
             delete window[interceptName];
         };
-        sendMessage('AI_GENERATE_VIDEO', { prompt: prompt }, interceptName);
+        sendMessage('AI_GENERATE_VIDEO', { prompt: prompt, images: this.options.images }, interceptName);
       },
       similarity: function(items, callbackName) {
         console.log('[AppacadabraAI.similarity] items:', items ? items.length : 0, 'callback:', callbackName);

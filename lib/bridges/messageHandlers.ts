@@ -142,6 +142,9 @@ const STORAGE_BLOB_MARKER = '__appblob__:';
 const pendingMediaBlobs = new Map<string, string>(); // base64Key → callbackName
 const pendingMediaMimeTypes = new Map<string, string>(); // callbackName → mimeType hint
 const MAX_PENDING = 20;
+// Fallback queue for when fingerprint lookup fails (e.g. base64 round-trip differences)
+const pendingMediaQueue: { callbackName: string; mimeType: string }[] = [];
+const MAX_QUEUE = 5;
 
 function pendingMediaKey(base64: string): string {
     // Strip data: prefix and whitespace to match storeBlobToFile normalization
@@ -157,6 +160,8 @@ export function registerPendingMediaBlob(base64: string, callbackName: string, m
     pendingMediaBlobs.set(pendingMediaKey(base64), callbackName);
     if (callbackName && mimeTypeHint) {
         pendingMediaMimeTypes.set(callbackName, mimeTypeHint);
+        pendingMediaQueue.push({ callbackName, mimeType: mimeTypeHint });
+        if (pendingMediaQueue.length > MAX_QUEUE) pendingMediaQueue.shift();
     }
 }
 
@@ -165,7 +170,12 @@ function isLargeBase64(value: string): boolean {
     if (/^data:[a-z]+\/[a-z0-9+.\-]+;base64,/i.test(value)) return true;
     // Strip whitespace before testing (Android base64 has \n every 76 chars)
     const cleaned = value.replace(/\s/g, '');
-    return cleaned.length >= 500 && /^[A-Za-z0-9+/]{500,}={0,2}$/.test(cleaned);
+    if (cleaned.length < 500) return false;
+    // Standard base64 (A-Za-z0-9+/=)
+    if (/^[A-Za-z0-9+/]{500,}={0,2}$/.test(cleaned)) return true;
+    // URL-safe base64 (A-Za-z0-9-_=) — some Expo/Android versions use this
+    if (/^[A-Za-z0-9\-_]{500,}={0,2}$/.test(cleaned)) return true;
+    return false;
 }
 
 async function storeBlobToFile(appId: number, key: string, value: string): Promise<string> {
@@ -183,8 +193,21 @@ async function storeBlobToFile(appId: number, key: string, value: string): Promi
 
     // Look up registered callbackName before file creation so ext is correct
     const cbKey = pendingMediaKey(base64Data);
-    const cbName = pendingMediaBlobs.get(cbKey) ?? '';
+    let cbName = pendingMediaBlobs.get(cbKey) ?? '';
     if (cbName) pendingMediaBlobs.delete(cbKey);
+
+    // Fallback: fingerprint may not match due to base64 round-trip differences;
+    // use the most recently registered entry that still has a pending mime type.
+    if (!cbName) {
+        for (let i = pendingMediaQueue.length - 1; i >= 0; i--) {
+            const entry = pendingMediaQueue[i];
+            if (pendingMediaMimeTypes.has(entry.callbackName)) {
+                cbName = entry.callbackName;
+                pendingMediaQueue.splice(i, 1);
+                break;
+            }
+        }
+    }
 
     // If no mimeType from data: prefix, try the hint stored by registerPendingMediaBlob
     if (!mimeType && cbName && pendingMediaMimeTypes.has(cbName)) {

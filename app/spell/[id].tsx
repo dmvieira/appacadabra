@@ -222,6 +222,22 @@ export default function SpellDataScreen() {
         }
     };
 
+    const deleteStorageBlobFiles = async (items: StorageEntry[]) => {
+        const MARKER = '__appblob__:';
+        for (const item of items) {
+            if (!item.value.startsWith(MARKER)) continue;
+            const payload = item.value.slice(MARKER.length);
+            const firstSep = payload.indexOf('|');
+            if (firstSep < 0) continue;
+            const rest = payload.slice(firstSep + 1);
+            const secondSep = rest.indexOf('|');
+            const barePath = secondSep >= 0 ? rest.slice(secondSep + 1) : rest;
+            if (barePath) {
+                await FileSystem.deleteAsync('file://' + barePath, { idempotent: true }).catch(() => {});
+            }
+        }
+    };
+
     const handleCleanEssence = () => {
         Alert.alert(
             t('cleanEssence'),
@@ -232,6 +248,7 @@ export default function SpellDataScreen() {
                     text: t('confirm'),
                     style: 'destructive',
                     onPress: async () => {
+                        await deleteStorageBlobFiles(storageItems);
                         await db.clearStorageForApp(appId);
                         await loadData();
                     },
@@ -274,6 +291,7 @@ export default function SpellDataScreen() {
                     text: t('confirm'),
                     style: 'destructive',
                     onPress: async () => {
+                        await deleteStorageBlobFiles(storageItems);
                         await db.clearStorageForApp(appId);
                         for (const relic of relics) {
                             if (relic.mediaLocalPath) {
