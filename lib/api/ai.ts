@@ -219,3 +219,7 @@ export async function aiGenerateVideo(prompt: string, imagesBase64?: string[]): 
         creditsUsed,
     };
 }
+
+export async function estimateManaCost(type: string, data: any): Promise<{ mana: string; value: number }> {
+    return firebase.estimateManaCost(type, data);
+}

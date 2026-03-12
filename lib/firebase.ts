@@ -473,6 +473,14 @@ export async function claimInstallBonus(hardwareId: string): Promise<{ granted: 
     return result.data;
 }
 
+export async function estimateManaCost(type: string, data: any): Promise<{ mana: string; value: number }> {
+    const fn = httpsCallable<{ type: string; data: any }, { mana: string; value: number }>(
+        getFunctionsInstance(), 'estimateManaCost'
+    );
+    const result = await fn({ type, data });
+    return result.data;
+}
+
 export async function addCredits(amount: number, source: string): Promise<AddCreditsResult> {
     await ensureAuthenticated();
 

@@ -128,7 +128,7 @@ import { WebView } from 'react-native-webview';
 import * as ai from '../api/ai';
 
 import * as db from '../database/db';
-import { createCallbackScript } from './injectedJS';
+import { createCallbackScript, ExpandedStorageItem } from './injectedJS';
 import { t } from '../i18n';
 import { useManaStore } from '../manaStore';
 import { useAppStore } from '../store';
@@ -136,6 +136,33 @@ import { updateStorageCache, removeFromStorageCache } from '../storageCache';
 
 // ============= Storage Blob Helpers =============
 const STORAGE_BLOB_MARKER = '__appblob__:';
+
+export const AI_MEDIA_EXT: Record<string, string> = {
+    AI_GENERATE_IMAGE: 'jpg', AI_GENERATE_VIDEO: 'mp4',
+    CAMERA_TAKE_PHOTO: 'jpg', CAMERA_RECORD_VIDEO: 'mp4',
+    AUDIO_RECORD_STOP: 'm4a', AUDIO_SPEAK_AI: 'wav',
+};
+export const AI_MEDIA_MIME: Record<string, string> = {
+    AI_GENERATE_IMAGE: 'image/jpeg', AI_GENERATE_VIDEO: 'video/mp4',
+    CAMERA_TAKE_PHOTO: 'image/jpeg', CAMERA_RECORD_VIDEO: 'video/mp4',
+    AUDIO_RECORD_STOP: 'audio/m4a', AUDIO_SPEAK_AI: 'audio/wav',
+};
+
+export async function saveAiMediaToFile(
+    appId: number, callbackName: string, action: string, base64: string
+): Promise<string> {
+    const ext = AI_MEDIA_EXT[action] ?? 'bin';
+    const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
+    const dir = `${docDir}appacadabra_media/${appId}`;
+    await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => {});
+    const path = `${dir}/${callbackName}.${ext}`;
+    await FileSystem.writeAsStringAsync(`file://${path}`, base64, { encoding: FileSystem.EncodingType.Base64 });
+    return path; // bare path (no file://)
+}
+
+export function buildBlobMarker(mimeType: string, callbackName: string, barePath: string): string {
+    return `${STORAGE_BLOB_MARKER}${mimeType}|${callbackName}|${barePath}`;
+}
 
 // Map from base64 fingerprint → callbackName, so storeBlobToFile can embed the callbackName
 // in the marker for proper relic linking in the data viewer.
@@ -231,8 +258,8 @@ async function storeBlobToFile(appId: number, key: string, value: string): Promi
 
 export async function expandStorageBlobMarkers(
     items: { key: string; value: string }[]
-): Promise<{ key: string; value: string }[]> {
-    return Promise.all(items.map(async (item) => {
+): Promise<ExpandedStorageItem[]> {
+    return Promise.all(items.map(async (item): Promise<ExpandedStorageItem> => {
         if (!item.value.startsWith(STORAGE_BLOB_MARKER)) return item;
         const payload = item.value.slice(STORAGE_BLOB_MARKER.length);
         // Support both formats:
@@ -242,14 +269,36 @@ export async function expandStorageBlobMarkers(
         const mimeType = payload.slice(0, firstSep);
         const rest = payload.slice(firstSep + 1);
         const secondSep = rest.indexOf('|');
-        const barePath = secondSep >= 0 ? rest.slice(secondSep + 1) : rest;
-        try {
-            const base64 = await FileSystem.readAsStringAsync(`file://${barePath}`, {
-                encoding: FileSystem.EncodingType.Base64,
-            });
-            return { key: item.key, value: mimeType ? `data:${mimeType};base64,${base64}` : base64 };
-        } catch {
-            return { key: item.key, value: '' };
+
+        if (secondSep >= 0) {
+            // New format: mimeType|callbackName|barePath
+            const callbackName = rest.slice(0, secondSep);
+            const barePath = rest.slice(secondSep + 1);
+            try {
+                const base64 = await FileSystem.readAsStringAsync(`file://${barePath}`, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                const blobDataUri = mimeType ? `data:${mimeType};base64,${base64}` : base64;
+                return {
+                    key: item.key,
+                    value: item.value, // Keep marker as value for WebView localStorage
+                    blobDataUri,
+                    blobCallbackName: callbackName || undefined,
+                };
+            } catch {
+                return { key: item.key, value: '' };
+            }
+        } else {
+            // Old format: mimeType|barePath (backward compat: expand to data URI directly)
+            const barePath = rest;
+            try {
+                const base64 = await FileSystem.readAsStringAsync(`file://${barePath}`, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                return { key: item.key, value: mimeType ? `data:${mimeType};base64,${base64}` : base64 };
+            } catch {
+                return { key: item.key, value: '' };
+            }
         }
     }));
 }
@@ -403,6 +452,20 @@ export interface HandlerResult {
     handled: boolean;  // false if message type was not recognized
     deferredCallback?: boolean;
     creditsUsed?: number;
+    isFirstAiUse?: boolean;
+}
+
+/**
+ * Checks if this is the first time the user has ever used AI.
+ * If so, marks it as used and returns true.
+ */
+async function checkAndMarkFirstAiUse(): Promise<boolean> {
+    const hasUsed = await db.getSetting('has_used_ai_ever');
+    if (!hasUsed) {
+        await db.setSetting('has_used_ai_ever', 'true');
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -423,6 +486,26 @@ const mapSleepStage = (stage: number): string => {
     }
 };
 
+// ============= Mana Cost Estimator =============
+async function estimateManaCost(type: string, data: any): Promise<string> {
+    const manaLabel = t('mana');
+    try {
+        const result = await ai.estimateManaCost(type, data);
+        return `${result.mana} ${manaLabel}`;
+    } catch (e) {
+        console.warn('[Bridge] Remote mana estimation failed, using local fallback:', e);
+        // Minimal local fallback
+        switch (type) {
+            case 'generate': return `~2-5 ${manaLabel}`;
+            case 'image': return `~0.5 ${manaLabel}`;
+            case 'video': return `~20-40 ${manaLabel}`;
+            case 'audio': return `~0.1 ${manaLabel}`;
+            case 'similarity': return `~0.01 ${manaLabel}`;
+            default: return `~1 ${manaLabel}`;
+        }
+    }
+}
+
 export async function handleBridgeMessage(
     type: string,
     data: any,
@@ -432,6 +515,7 @@ export async function handleBridgeMessage(
     let result = '';
     let deferredCallback = false;
     let creditsUsedResult = 0;
+    let isFirstAiUse = false;
 
     // Helper to log to both native console and WebView console
     const debugLog = (msg: string, force = false) => {
@@ -448,7 +532,10 @@ export async function handleBridgeMessage(
     };
 
     switch (type) {
-        case 'AI_GENERATE':
+        case 'AI_GENERATE': {
+            const manaConfirmedGenerate = await useBridgeUIStore.getState()
+                .requestManaConfirmation(ctx.appId, 'generate', await estimateManaCost('generate', data));
+            if (!manaConfirmedGenerate) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI Generate request: ${data.prompt?.substring(0, 50)}...`);
             try {
                 const genResult = await ai.aiGenerate({
@@ -475,6 +562,9 @@ export async function handleBridgeMessage(
                         console.warn('Failed to update app mana cost:', e);
                     }
                 }
+
+                // Track first success
+                isFirstAiUse = await checkAndMarkFirstAiUse();
             } catch (e) {
                 success = false;
                 const errorMsg = e instanceof Error ? e.message : 'Error';
@@ -492,8 +582,12 @@ export async function handleBridgeMessage(
                 }
             }
             break;
+        }
 
         case 'AI_SIMILARITY': {
+            const manaConfirmedSimilarity = await useBridgeUIStore.getState()
+                .requestManaConfirmation(ctx.appId, 'similarity', await estimateManaCost('similarity', data));
+            if (!manaConfirmedSimilarity) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI Similarity request: ${data.items?.length || 0} items`);
             try {
                 const simResult = await ai.aiSimilarity(data.items || []);
@@ -509,6 +603,9 @@ export async function handleBridgeMessage(
                         console.warn('Failed to update app mana cost:', e);
                     }
                 }
+
+                // Track first success
+                isFirstAiUse = await checkAndMarkFirstAiUse();
             } catch (e) {
                 success = false;
                 const errorMsg = e instanceof Error ? e.message : 'Error';
@@ -1573,6 +1670,9 @@ export async function handleBridgeMessage(
 
         // ============= AI TTS Handler (Gemini TTS) =============
         case 'AUDIO_SPEAK_AI': {
+            const manaConfirmedAudio = await useBridgeUIStore.getState()
+                .requestManaConfirmation(ctx.appId, 'audio', await estimateManaCost('audio', data));
+            if (!manaConfirmedAudio) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI TTS request: "${data.text?.substring(0, 50)}..." voice=${data.voiceName || 'Aoede'}`);
             try {
                 const ttsResult = await ai.aiGenerateTTS(data.text, data.voiceName);
@@ -1625,6 +1725,9 @@ export async function handleBridgeMessage(
                     }
                 }
 
+                // Track first success
+                isFirstAiUse = await checkAndMarkFirstAiUse();
+
                 result = permanentPath ?? 'Speaking';
             } catch (e) {
                 const errorMsg = e instanceof Error ? e.message : 'Error';
@@ -1653,6 +1756,9 @@ export async function handleBridgeMessage(
 
         // ============= AI Image Generation Handler =============
         case 'AI_GENERATE_IMAGE': {
+            const manaConfirmedImage = await useBridgeUIStore.getState()
+                .requestManaConfirmation(ctx.appId, 'image', await estimateManaCost('image', data));
+            if (!manaConfirmedImage) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI Image Gen request: ${data.prompt?.substring(0, 50)}...`);
             try {
                 const imgResult = await ai.aiGenerateImage(data.prompt, data.images ?? undefined);
@@ -1671,6 +1777,9 @@ export async function handleBridgeMessage(
                         console.warn('Failed to update app mana cost:', e);
                     }
                 }
+
+                // Track first success
+                isFirstAiUse = await checkAndMarkFirstAiUse();
             } catch (e) {
                 success = false;
                 const errorMsg = e instanceof Error ? e.message : 'Error';
@@ -1689,6 +1798,9 @@ export async function handleBridgeMessage(
         }
 
         case 'AI_GENERATE_VIDEO': {
+            const manaConfirmedVideo = await useBridgeUIStore.getState()
+                .requestManaConfirmation(ctx.appId, 'video', await estimateManaCost('video', data));
+            if (!manaConfirmedVideo) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI Video Gen request: ${data.prompt?.substring(0, 50)}...`);
             try {
                 const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined);
@@ -1721,6 +1833,9 @@ export async function handleBridgeMessage(
                         console.warn('Failed to update app mana cost:', e);
                     }
                 }
+
+                // Track first success
+                isFirstAiUse = await checkAndMarkFirstAiUse();
             } catch (e) {
                 success = false;
                 const errorMsg = e instanceof Error ? e.message : 'Error';
@@ -2173,5 +2288,12 @@ export async function handleBridgeMessage(
             return { success: false, result: '', handled: false };
     }
 
-    return { success, result, handled: true, deferredCallback, creditsUsed: creditsUsedResult || undefined };
+    return {
+        success,
+        result,
+        handled: true,
+        deferredCallback,
+        creditsUsed: creditsUsedResult,
+        isFirstAiUse
+    };
 }

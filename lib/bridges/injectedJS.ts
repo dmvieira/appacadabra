@@ -12,6 +12,13 @@ export interface InjectedTranslations {
   errorProcessingFile: string;
 }
 
+export interface ExpandedStorageItem {
+  key: string;
+  value: string;
+  blobDataUri?: string;
+  blobCallbackName?: string;
+}
+
 export function getInjectedJavaScript(appId: number, translations?: InjectedTranslations, isEditMode?: boolean): string {
   // Default English translations
   const t = translations || {
@@ -92,6 +99,24 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   }
 
 
+  // Helper: wrap a callback to resolve __appblob__: markers to data URIs (backward compat)
+  function wrapBlobCallback(callbackName, interceptName) {
+    window[interceptName] = function(success, result) {
+      var actual = result;
+      if (success && result && typeof result === 'string' && result.indexOf('__appblob__:') === 0) {
+        var parts = result.split('|');
+        var cn = parts.length >= 3 ? parts[1] : '';
+        if (cn && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cn]) {
+          actual = window.__APPACADABRA_BLOB_CACHE__[cn];
+          window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
+          window.__APPACADABRA_MARKER_CACHE__[cn] = result;
+        }
+      }
+      if (window[callbackName]) window[callbackName](success, actual);
+      delete window[interceptName];
+    };
+  }
+
   // Expose fluent/builder AI API
   window.AppacadabraAI = (function() {
     // Media limits (base64 char lengths ≈ file size * 4/3)
@@ -156,7 +181,9 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     
     AIBuilder.prototype.generateVideo = function(prompt, callbackName) {
       console.log('[AppacadabraAI.generateVideo] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
-      sendMessage('AI_GENERATE_VIDEO', { prompt: prompt, images: this.options.images }, callbackName);
+      var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
+      wrapBlobCallback(callbackName, interceptName);
+      sendMessage('AI_GENERATE_VIDEO', { prompt: prompt, images: this.options.images }, interceptName);
     };
 
     AIBuilder.prototype.generateImage = function(prompt, callbackName) {
@@ -177,10 +204,21 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
                   .catch(function(err) {
                       if (window[callbackName]) window[callbackName](false, "Failed to download image from storage: " + err.message);
                   });
+          } else if (success && result && typeof result === 'string' && result.indexOf('__appblob__:') === 0) {
+              var parts = result.split('|');
+              var cn = parts.length >= 3 ? parts[1] : '';
+              if (cn && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cn]) {
+                  window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
+                  window.__APPACADABRA_MARKER_CACHE__[cn] = result;
+                  if (window[callbackName]) window[callbackName](true, window.__APPACADABRA_BLOB_CACHE__[cn]);
+              } else {
+                  if (window[callbackName]) window[callbackName](success, result);
+              }
+              delete window[interceptName];
           } else {
               if (window[callbackName]) window[callbackName](success, result);
+              delete window[interceptName];
           }
-          delete window[interceptName];
       };
       sendMessage('AI_GENERATE_IMAGE', { prompt: prompt, images: this.options.images }, interceptName);
     };
@@ -248,10 +286,21 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
                     .catch(function(err) {
                         if (window[callbackName]) window[callbackName](false, "Failed to download image from storage: " + err.message);
                     });
+            } else if (success && result && typeof result === 'string' && result.indexOf('__appblob__:') === 0) {
+                var parts = result.split('|');
+                var cn = parts.length >= 3 ? parts[1] : '';
+                if (cn && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cn]) {
+                    window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
+                    window.__APPACADABRA_MARKER_CACHE__[cn] = result;
+                    if (window[callbackName]) window[callbackName](true, window.__APPACADABRA_BLOB_CACHE__[cn]);
+                } else {
+                    if (window[callbackName]) window[callbackName](success, result);
+                }
+                delete window[interceptName];
             } else {
                 if (window[callbackName]) window[callbackName](success, result);
+                delete window[interceptName];
             }
-            delete window[interceptName];
         };
         sendMessage('AI_GENERATE_IMAGE', { prompt: prompt }, interceptName);
       },
@@ -336,6 +385,18 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
                     .catch(function(err) {
                         if (window[callbackName]) window[callbackName](false, 'Failed to download video from storage: ' + err.message);
                     });
+            } else if (typeof result === 'string' && result.indexOf('__appblob__:') === 0) {
+                var parts = result.split('|');
+                var cn = parts.length >= 3 ? parts[1] : '';
+                if (cn && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cn]) {
+                    window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
+                    window.__APPACADABRA_MARKER_CACHE__[cn] = result;
+                    var dataUri = window.__APPACADABRA_BLOB_CACHE__[cn];
+                    var base64 = dataUri.replace(/^data:[^;]+;base64,/, '');
+                    deliverWithThumb(base64);
+                } else {
+                    if (window[callbackName]) window[callbackName](true, result);
+                }
             } else {
                 deliverWithThumb(result);
             }
@@ -960,17 +1021,21 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       Object.assign(window.AppacadabraSensors, SensorsObj);
   window.AppacadabraCamera = {
       takePhoto: function(callbackName) {
-          sendMessage('CAMERA_TAKE_PHOTO', {}, callbackName);
+          var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
+          wrapBlobCallback(callbackName, interceptName);
+          sendMessage('CAMERA_TAKE_PHOTO', {}, interceptName);
       },
       // Video Recording (opens native camera, returns base64 when done)
       recordVideo: function(options, callbackName) {
           if (typeof options === 'string') { callbackName = options; options = {}; }
           var opts = options || {};
           console.log('[AppacadabraCamera.recordVideo] maxDuration:', opts.maxDuration || 60, 'callback:', callbackName);
+          var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
+          wrapBlobCallback(callbackName, interceptName);
           sendMessage('CAMERA_RECORD_VIDEO', {
               maxDuration: opts.maxDuration || 60,
               quality: opts.quality || 'high'
-          }, callbackName);
+          }, interceptName);
       },
       // Video Playback
       playVideo: function(base64, options, callbackName) {
@@ -999,7 +1064,9 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           sendMessage('AUDIO_RECORD_START', {}, callbackName);
       },
       recordStop: function(callbackName) {
-          sendMessage('AUDIO_RECORD_STOP', {}, callbackName);
+          var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
+          wrapBlobCallback(callbackName, interceptName);
+          sendMessage('AUDIO_RECORD_STOP', {}, interceptName);
       },
       // Text-to-Speech
       speak: function(text, options, callbackName) {
@@ -1012,11 +1079,13 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       speakAI: function(text, options, callbackName) {
         console.log('[AppacadabraAudio.speakAI] text:', text?.substring(0, 50), 'callback:', callbackName);
         var opts = options || {};
+        var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
+        wrapBlobCallback(callbackName, interceptName);
         sendMessage('AUDIO_SPEAK_AI', {
           text: text,
           voiceName: opts.voice || 'Aoede',
           language: opts.language || null
-        }, callbackName);
+        }, interceptName);
       },
       stopSpeaking: function(callbackName) {
         console.log('[AppacadabraAudio.stopSpeaking] callback:', callbackName);
@@ -1030,11 +1099,24 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   
   // Storage (localStorage wrapper to sync with native DB)
   // We hook into localStorage.setItem to persist data (only in runner mode, not edit mode)
-  const originalSetItem = localStorage.setItem;
+  const originalSetItem = localStorage.setItem.bind(localStorage);
   localStorage.setItem = function(key, value) {
-      originalSetItem.apply(this, arguments);
+      var storedValue = value;
+      // If value is a data URI from our blob cache, replace with the compact marker
+      if (value && typeof value === 'string' && value.indexOf('data:') === 0 && value.length > 500
+          && window.__APPACADABRA_MARKER_CACHE__) {
+          var prefix = value.slice(0, 100);
+          for (var cn in window.__APPACADABRA_MARKER_CACHE__) {
+              var cached = window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cn];
+              if (cached && cached.slice(0, 100) === prefix) {
+                  storedValue = window.__APPACADABRA_MARKER_CACHE__[cn];
+                  break;
+              }
+          }
+      }
+      originalSetItem.call(this, key, storedValue);
       if (!__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
-          sendMessage('STORAGE_SET', { key, value });
+          sendMessage('STORAGE_SET', { key, value: storedValue });
       }
   };
 
@@ -1053,7 +1135,22 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           sendMessage('STORAGE_CLEAR', {});
       }
   };
-  
+
+  // Override getItem to resolve __appblob__: markers to data URIs via blob cache
+  const originalGetItem = localStorage.getItem.bind(localStorage);
+  localStorage.getItem = function(key) {
+      var value = originalGetItem(key);
+      if (value && typeof value === 'string' && value.indexOf('__appblob__:') === 0) {
+          var parts = value.split('|');
+          var cbName = parts.length >= 3 ? parts[1] : '';
+          if (cbName && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cbName]) {
+              return window.__APPACADABRA_BLOB_CACHE__[cbName];
+          }
+          // Old format (2 parts) or cache miss: return as-is (restore script expanded it or file was deleted)
+      }
+      return value;
+  };
+
   // Selection mode for editing
   window.toggleSelectionMode = function(enabled) {
       if (enabled) {
@@ -1442,24 +1539,29 @@ export function getScrollDetectionScript(): string {
 }
 
 // Generate script to restore localStorage from saved database items
-export function createStorageRestoreScript(items: { key: string; value: string }[]): string {
+export function createStorageRestoreScript(items: ExpandedStorageItem[]): string {
   // if (items.length === 0) return ''; // Removed to ensure clearing happens even if empty
 
+  // Inject blob data URIs into __APPACADABRA_BLOB_CACHE__ for marker resolution
+  const cacheEntries = items
+    .filter(i => i.blobDataUri && i.blobCallbackName)
+    .map(i => {
+      const k = JSON.stringify(i.blobCallbackName!);
+      const v = JSON.stringify(i.blobDataUri!);
+      return `try { window.__APPACADABRA_BLOB_CACHE__[${k}] = ${v}; } catch(e) {}`;
+    }).join('\n        ');
+
   const restoreStatements = items.map(item => {
-    const escapedKey = item.key.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    const escapedValue = item.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
-    return `
-            try {
-                localStorage.setItem("${escapedKey}", "${escapedValue}");
-                console.log('[Storage] Restored key: ${escapedKey}');
-            } catch (e) {
-                console.error('[Storage] Failed to restore key: ${escapedKey}', e);
-            }`;
+    const k = JSON.stringify(item.key);
+    const v = JSON.stringify(item.value); // marker for new blobs, dataUri for old blobs, plain string otherwise
+    return `try { localStorage.setItem(${k}, ${v}); console.log('[Storage] Restored: ' + ${k}); } catch(e) { console.error('[Storage] Failed: ' + ${k}, e); }`;
   }).join('\n        ');
 
   return `
     (function() {
         console.log('[Storage] Starting restoration of ${items.length} items...');
+        window.__APPACADABRA_BLOB_CACHE__ = window.__APPACADABRA_BLOB_CACHE__ || {};
+        ${cacheEntries}
         window.__APPACADABRA_RESTORING__ = true;
         try {
             console.log('[Storage] Clearing localStorage...');
@@ -1480,6 +1582,24 @@ export function createStorageRestoreScript(items: { key: string; value: string }
         }
     })();
     `;
+}
+
+// Generate script to deliver a media callback with blob cache injection (marker-based)
+export function createMediaCallbackScript(
+  callbackName: string, success: boolean, marker: string, dataUri: string
+): string {
+  const escapedMarker = JSON.stringify(marker);
+  const escapedDataUri = JSON.stringify(dataUri);
+  const escapedCbName = JSON.stringify(callbackName);
+  return `(function() {
+    window.__APPACADABRA_BLOB_CACHE__ = window.__APPACADABRA_BLOB_CACHE__ || {};
+    window.__APPACADABRA_BLOB_CACHE__[${escapedCbName}] = ${escapedDataUri};
+    var __d = ${escapedMarker};
+    console.log("[BridgeReturn] ${callbackName} | media marker: " + __d.substring(0, 60));
+    if (typeof ${callbackName} === 'function') {
+        ${callbackName}(${success}, __d);
+    }
+  })();`
 }
 
 

@@ -86,6 +86,11 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_wac_appId_delivered ON webview_ai_cache(appId, delivered);
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );
   `);
 
     // Helper to safely add column if missing
@@ -545,12 +550,37 @@ export async function clearOldDismissedUris(olderThanMs: number): Promise<void> 
     await database.runAsync('DELETE FROM dismissed_uris WHERE timestamp < ?', [limit]);
 }
 
+// ============= App Settings (Global) =============
+
+export async function getSetting(key: string): Promise<string | null> {
+    const database = await getDatabase();
+    const result = await database.getFirstAsync<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = ?',
+        [key]
+    );
+    return result?.value ?? null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)',
+        [key, value]
+    );
+}
+
+export async function deleteSetting(key: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync('DELETE FROM app_settings WHERE key = ?', [key]);
+}
+
 export async function wipeAllData(): Promise<void> {
     const database = await getDatabase();
     await database.execAsync(`
         DELETE FROM generated_apps;
         DELETE FROM dismissed_uris;
         DELETE FROM processed_jobs;
+        DELETE FROM app_settings;
     `);
     // Note: app_versions, app_storage, and mana_events are deleted via CASCADE from generated_apps
 }

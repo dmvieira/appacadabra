@@ -32,8 +32,8 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript } from '../../lib/bridges/injectedJS';
-import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob } from '../../lib/bridges/messageHandlers';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, ExpandedStorageItem } from '../../lib/bridges/injectedJS';
+import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, saveAiMediaToFile, AI_MEDIA_MIME, buildBlobMarker } from '../../lib/bridges/messageHandlers';
 import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -50,29 +50,29 @@ import { ensureViewportMeta } from '../../lib/htmlUtils';
 
 const EDITOR_ONBOARDING_KEY = 'appacadabra_editor_onboarding_seen';
 
-const AI_MEDIA_EXT: Record<string, string> = {
-    AI_GENERATE_IMAGE: 'jpg',
-    AI_GENERATE_VIDEO: 'mp4',
-    CAMERA_TAKE_PHOTO: 'jpg',
-    CAMERA_RECORD_VIDEO: 'mp4',
-    AUDIO_RECORD_STOP: 'm4a',
-    AUDIO_SPEAK_AI: 'wav',
-};
-const AI_MEDIA_MIME: Record<string, string> = {
-    AI_GENERATE_IMAGE: 'image/jpeg', AI_GENERATE_VIDEO: 'video/mp4',
-    CAMERA_TAKE_PHOTO: 'image/jpeg', CAMERA_RECORD_VIDEO: 'video/mp4',
-    AUDIO_RECORD_STOP: 'audio/m4a', AUDIO_SPEAK_AI: 'audio/wav',
-};
+// const AI_MEDIA_EXT: Record<string, string> = {
+//     AI_GENERATE_IMAGE: 'jpg',
+//     AI_GENERATE_VIDEO: 'mp4',
+//     CAMERA_TAKE_PHOTO: 'jpg',
+//     CAMERA_RECORD_VIDEO: 'mp4',
+//     AUDIO_RECORD_STOP: 'm4a',
+//     AUDIO_SPEAK_AI: 'wav',
+// };
+// const AI_MEDIA_MIME: Record<string, string> = {
+//     AI_GENERATE_IMAGE: 'image/jpeg', AI_GENERATE_VIDEO: 'video/mp4',
+//     CAMERA_TAKE_PHOTO: 'image/jpeg', CAMERA_RECORD_VIDEO: 'video/mp4',
+//     AUDIO_RECORD_STOP: 'audio/m4a', AUDIO_SPEAK_AI: 'audio/wav',
+// };
 
-async function saveAiMediaToFile(appId: number, callbackName: string, action: string, base64: string): Promise<string> {
-    const ext = AI_MEDIA_EXT[action] ?? 'bin';
-    const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
-    const dir = `${docDir}appacadabra_media/${appId}`;
-    await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
-    const path = `${dir}/${callbackName}.${ext}`;
-    await FileSystem.writeAsStringAsync(`file://${path}`, base64, { encoding: FileSystem.EncodingType.Base64 });
-    return path;
-}
+// async function saveAiMediaToFile(appId: number, callbackName: string, action: string, base64: string): Promise<string> {
+//     const ext = AI_MEDIA_EXT[action] ?? 'bin';
+//     const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
+//     const dir = `${docDir}appacadabra_media/${appId}`;
+//     await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
+//     const path = `${dir}/${callbackName}.${ext}`;
+//     await FileSystem.writeAsStringAsync(`file://${path}`, base64, { encoding: FileSystem.EncodingType.Base64 });
+//     return path;
+// }
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -138,6 +138,8 @@ export default function RunnerScreen() {
     const [isAtTop, setIsAtTop] = useState(true);
     const [webViewError, setWebViewError] = useState(false);
     const [pendingVersionApp, setPendingVersionApp] = useState<GeneratedApp | null>(null);
+    const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
+    const [isAiLoading, setIsAiLoading] = useState(false);
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
@@ -795,6 +797,9 @@ export default function RunnerScreen() {
                         success = handlerResult.success;
                         result = handlerResult.result;
                         deferredCallback = !!handlerResult.deferredCallback;
+                        if (handlerResult.isFirstAiUse) {
+                            setShowFirstAiUseModal(true);
+                        }
                     } else {
                         console.log('Unknown message type:', type);
                     }
@@ -1443,6 +1448,46 @@ export default function RunnerScreen() {
                             </View>
                         </ScrollView>
                     </ScrollView>
+                </View>
+            </Modal>
+
+            {/* AI Loading Indicator */}
+            {isAiLoading && (
+                <View style={styles.aiLoadingBarContainer}>
+                    <View style={styles.aiLoadingBar} />
+                </View>
+            )}
+
+            {/* First AI Use Modal */}
+            <Modal
+                visible={showFirstAiUseModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowFirstAiUseModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.successModal}>
+                        <Text style={styles.successEmoji}>✨</Text>
+                        <Text style={styles.successTitle}>{t('firstAiUseTitle')}</Text>
+                        <Text style={styles.successMessage}>
+                            {t('firstAiUseMessage')}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.successLinkBtn}
+                            onPress={() => {
+                                setShowFirstAiUseModal(false);
+                                router.push(`/spell/${id}`);
+                            }}
+                        >
+                            <Text style={styles.successLinkText}>{t('firstAiUseLink')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.successCloseBtn}
+                            onPress={() => setShowFirstAiUseModal(false)}
+                        >
+                            <Text style={styles.successCloseText}>{t('close')}</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </Modal>
 
@@ -2106,5 +2151,75 @@ const styles = StyleSheet.create({
     lockedCancelBtnText: {
         color: colors.onSurface,
         fontSize: 16,
+    },
+    successModal: {
+        width: '85%',
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.xl,
+        padding: spacing.xl,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    successEmoji: {
+        fontSize: 48,
+        marginBottom: spacing.md,
+    },
+    successTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: colors.onBackground,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+    },
+    successMessage: {
+        fontSize: 16,
+        color: colors.onSurfaceVariant,
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        lineHeight: 22,
+    },
+    successLinkBtn: {
+        backgroundColor: colors.primary,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.xl,
+        borderRadius: borderRadius.full,
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    successLinkText: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    successCloseBtn: {
+        paddingVertical: spacing.sm,
+    },
+    successCloseText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 14,
+    },
+    aiLoadingBarContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        zIndex: 9999,
+        overflow: 'hidden',
+    },
+    aiLoadingBar: {
+        width: '40%',
+        height: '100%',
+        backgroundColor: colors.primary,
+        borderRadius: borderRadius.full,
     },
 });

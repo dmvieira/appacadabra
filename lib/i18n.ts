@@ -339,8 +339,19 @@ const translations = {
         watchAd: 'Watch Ad (Mana)',
         freeMana: 'Free Mana',
 
+        manaConfirmTitle: 'Mana Cost',
+        manaConfirmCancelled: 'Operation cancelled',
+        manaConfirmProceed: 'Confirm',
+        manaConfirmCancel: 'Cancel',
+        manaConfirmBalance: 'Current balance: ⚡ %{balance} mana',
+        manaConfirmDontShowGenerate: "Don't show again for text in this spell",
+        manaConfirmDontShowImage: "Don't show again for images in this spell",
+        manaConfirmDontShowVideo: "Don't show again for videos in this spell",
+        manaConfirmDontShowAudio: "Don't show again for audio in this spell",
+        manaConfirmDontShowSimilarity: "Don't show again for similarity in this spell",
 
         currentBalance: 'Current Balance',
+        mana: 'mana',
 
 
         rewardAmazing: 'Amazing!',
@@ -543,6 +554,9 @@ const translations = {
         exercise_yoga: 'Yoga',
         back: 'Back',
         manualEditLog: 'Manual edit',
+        firstAiUseTitle: 'Congratulations!',
+        firstAiUseMessage: 'Congratulations on your first AI use! To see everything generated in a spell, check the spell data in its menu.',
+        firstAiUseLink: 'Spell data',
     },
     pt: {
 
@@ -879,6 +893,17 @@ const translations = {
         watchAd: 'Ver Anúncio (Mana)',
         freeMana: 'Mana Grátis',
 
+        manaConfirmTitle: 'Custo de Mana',
+        manaConfirmCancelled: 'Operação cancelada',
+        manaConfirmProceed: 'Confirmar',
+        manaConfirmCancel: 'Cancelar',
+        manaConfirmBalance: 'Saldo atual: ⚡ %{balance} mana',
+        mana: 'mana',
+        manaConfirmDontShowGenerate: 'Não mostrar mais para textos neste feitiço',
+        manaConfirmDontShowImage: 'Não mostrar mais para imagens neste feitiço',
+        manaConfirmDontShowVideo: 'Não mostrar mais para vídeos neste feitiço',
+        manaConfirmDontShowAudio: 'Não mostrar mais para áudios neste feitiço',
+        manaConfirmDontShowSimilarity: 'Não mostrar mais para similaridade neste feitiço',
 
         currentBalance: 'Saldo Atual',
 
@@ -1081,6 +1106,9 @@ const translations = {
         exercise_yoga: 'Yoga',
         back: 'Voltar',
         manualEditLog: 'Edição manual',
+        firstAiUseTitle: 'Parabéns!',
+        firstAiUseMessage: 'Parabéns pelo primeiro uso de IA! Para ver tudo que gerou num feitiço veja os dados do feitiço no menu dele.',
+        firstAiUseLink: 'dados do feitiço',
     },
     es: {
 
@@ -1367,8 +1395,20 @@ const translations = {
         watchAd: 'Ver Anuncio (Mana)',
         freeMana: 'Mana Gratis',
 
+        manaConfirmTitle: 'Costo de Maná',
+        manaConfirmCancelled: 'Operación cancelada',
+        manaConfirmProceed: 'Confirmar',
+        manaConfirmCancel: 'Cancelar',
+        manaConfirmBalance: 'Saldo actual: ⚡ %{balance} maná',
+        manaConfirmDontShowGenerate: 'No mostrar más para textos en este hechizo',
+        manaConfirmDontShowImage: 'No mostrar más para imágenes en este hechizo',
+        manaConfirmDontShowVideo: 'No mostrar más para vídeos en este hechizo',
+        manaConfirmDontShowAudio: 'No mostrar más para audios en este hechizo',
+        manaConfirmDontShowSimilarity: 'No mostrar más para similitud en este hechizo',
+
 
         currentBalance: 'Saldo Actual',
+        mana: 'maná',
 
 
         rewardAmazing: '¡Increíble!',
@@ -1582,6 +1622,9 @@ const translations = {
         editorObRetry: 'Revisar tutorial',
         editorObTabHint: 'Esta es la pestaña que usaremos ahora:',
         editorReplayTutorial: 'Tutorial',
+        firstAiUseTitle: '¡Felicidades!',
+        firstAiUseMessage: '¡Felicidades por tu primer uso de IA! Para ver todo lo que se generó en un hechizo, consulta los datos del hechizo en su menú.',
+        firstAiUseLink: 'datos del hechizo',
     },
     fr: {
 
@@ -1865,8 +1908,20 @@ const translations = {
         watchAd: 'Regarder Pub (Mana)',
         freeMana: 'Mana Gratuit',
 
+        manaConfirmTitle: 'Coût en Mana',
+        manaConfirmCancelled: 'Opération annulée',
+        manaConfirmProceed: 'Confirmer',
+        manaConfirmCancel: 'Annuler',
+        manaConfirmBalance: 'Solde actuel : ⚡ %{balance} mana',
+        manaConfirmDontShowGenerate: 'Ne plus afficher pour les textes dans ce sort',
+        manaConfirmDontShowImage: 'Ne plus afficher pour les images dans ce sort',
+        manaConfirmDontShowVideo: 'Ne plus afficher pour les vidéos dans ce sort',
+        manaConfirmDontShowAudio: 'Ne plus afficher pour les audios dans ce sort',
+        manaConfirmDontShowSimilarity: 'Ne plus afficher pour la similarité dans ce sort',
+
 
         currentBalance: 'Solde Actuel',
+        mana: 'mana',
 
 
         rewardAmazing: 'Incroyable !',
@@ -2082,6 +2137,9 @@ const translations = {
         editorObRetry: 'Revoir le tutoriel',
         editorObTabHint: 'Voici l\'onglet que nous allons utiliser :',
         editorReplayTutorial: 'Tutoriel',
+        firstAiUseTitle: 'Félicitations !',
+        firstAiUseMessage: 'Félicitations pour votre première utilisation de l\'IA ! Pour voir tout ce qui a été généré dans un sort, consultez les données du sort dans son menu.',
+        firstAiUseLink: 'données du sort',
     },
     de: {
 
@@ -2326,8 +2384,20 @@ const translations = {
         watchAd: 'Werbung ansehen (Mana)',
         freeMana: 'Gratis Mana',
 
+        manaConfirmTitle: 'Mana-Kosten',
+        manaConfirmCancelled: 'Vorgang abgebrochen',
+        manaConfirmProceed: 'Bestätigen',
+        manaConfirmCancel: 'Abbrechen',
+        manaConfirmBalance: 'Aktuelles Guthaben: ⚡ %{balance} Mana',
+        manaConfirmDontShowGenerate: 'Für Texte in diesem Zauber nicht mehr anzeigen',
+        manaConfirmDontShowImage: 'Für Bilder in diesem Zauber nicht mehr anzeigen',
+        manaConfirmDontShowVideo: 'Für Videos in diesem Zauber nicht mehr anzeigen',
+        manaConfirmDontShowAudio: 'Für Audios in diesem Zauber nicht mehr anzeigen',
+        manaConfirmDontShowSimilarity: 'Für Ähnlichkeit in diesem Zauber nicht mehr anzeigen',
+
 
         currentBalance: 'Aktuelles Guthaben',
+        mana: 'Mana',
 
 
         rewardAmazing: 'Unglaublich!',
@@ -2512,6 +2582,9 @@ const translations = {
         editorObRetry: 'Tutorial ansehen',
         editorObTabHint: 'Das ist der Tab, den wir jetzt verwenden:',
         editorReplayTutorial: 'Tutorium',
+        firstAiUseTitle: 'Herzlichen Glückwunsch!',
+        firstAiUseMessage: 'Herzlichen Glückwunsch zu deiner ersten KI-Nutzung! Um alles zu sehen, was in einem Zauberspruch generiert wurde, sieh dir die Zauberspruchdaten in seinem Menü an.',
+        firstAiUseLink: 'Zauber-Daten',
     },
     it: {
 
@@ -2756,8 +2829,20 @@ const translations = {
         watchAd: 'Guarda Pubblicità (Mana)',
         freeMana: 'Mana Gratis',
 
+        manaConfirmTitle: 'Costo Mana',
+        manaConfirmCancelled: 'Operazione annullata',
+        manaConfirmProceed: 'Conferma',
+        manaConfirmCancel: 'Annulla',
+        manaConfirmBalance: 'Saldo attuale: ⚡ %{balance} mana',
+        manaConfirmDontShowGenerate: 'Non mostrare più per i testi in questo incantesimo',
+        manaConfirmDontShowImage: 'Non mostrare più per le immagini in questo incantesimo',
+        manaConfirmDontShowVideo: 'Non mostrare più per i video in questo incantesimo',
+        manaConfirmDontShowAudio: 'Non mostrare più per gli audio in questo incantesimo',
+        manaConfirmDontShowSimilarity: 'Non mostrare più per la similarità in questo incantesimo',
+
 
         currentBalance: 'Saldo Attuale',
+        mana: 'mana',
 
 
         rewardAmazing: 'Incredibile!',
@@ -2935,6 +3020,9 @@ const translations = {
         editorObBack: 'Indietro',
         back: 'Indietro',
         manualEditLog: 'Modifica manuale',
+        firstAiUseTitle: 'Congratulazioni!',
+        firstAiUseMessage: 'Congratulazioni per il tuo primo utilizzo dell\'IA! Per vedere tutto ciò che è stato generato in un incantesimo, controlla i dati dell\'incantesimo nel suo menu.',
+        firstAiUseLink: 'dati dell\'incantesimo',
         editorObGotIt: 'Capito, andiamo! 🚀',
         editorObFinishTitle: 'Tutto pronto!',
         editorObFinishDesc: 'Inizia con Seleziona per fare la tua prima modifica!',
@@ -3188,8 +3276,20 @@ const translations = {
         watchAd: '広告を見る (マナ)',
         freeMana: '無料マナ',
 
+        manaConfirmTitle: 'マナコスト',
+        manaConfirmCancelled: '操作がキャンセルされました',
+        manaConfirmProceed: '確定',
+        manaConfirmCancel: 'キャンセル',
+        manaConfirmBalance: '現在の残高: ⚡ %{balance} マナ',
+        manaConfirmDontShowGenerate: 'この呪文のテキストについては今後表示しない',
+        manaConfirmDontShowImage: 'この呪文の画像については今後表示しない',
+        manaConfirmDontShowVideo: 'この呪文の動画については今後表示しない',
+        manaConfirmDontShowAudio: 'この呪文의 音声については今後表示しない',
+        manaConfirmDontShowSimilarity: 'この呪文의 類似性については今後表示しない',
+
 
         currentBalance: '現在の残高',
+        mana: 'マナ',
 
 
         rewardAmazing: '素晴らしい！',
@@ -3352,6 +3452,9 @@ const translations = {
         editorObRetry: 'チュートリアルを見直す',
         editorObTabHint: 'これから使うタブはこちら：',
         editorReplayTutorial: 'チュートリアル',
+        firstAiUseTitle: 'おめでとうございます！',
+        firstAiUseMessage: 'AIの初使用おめでとうございます！呪文内で生成された内容を確認するには、メニューの「呪文データ」をご覧ください。',
+        firstAiUseLink: '呪文データ',
     },
     // Chinese (Simplified)
     zh: {
@@ -3596,8 +3699,20 @@ const translations = {
         watchAd: '观看广告 (魔力)',
         freeMana: '免费魔力',
 
+        manaConfirmTitle: '玛娜消耗',
+        manaConfirmCancelled: '操作已取消',
+        manaConfirmProceed: '确认',
+        manaConfirmCancel: '取消',
+        manaConfirmBalance: '当前余额: ⚡ %{balance} 玛娜',
+        manaConfirmDontShowGenerate: '在此咒语中不再显示文本提示',
+        manaConfirmDontShowImage: '在此咒语中不再显示图像提示',
+        manaConfirmDontShowVideo: '在此咒语中不再显示视频提示',
+        manaConfirmDontShowAudio: '在此咒语中不再显示音频提示',
+        manaConfirmDontShowSimilarity: '在此咒语中不再显示相似度提示',
+
 
         currentBalance: '当前余额',
+        mana: '玛娜',
 
 
         rewardAmazing: '太棒了！',
@@ -3767,6 +3882,9 @@ const translations = {
         apply: '应用',
         back: '返回',
         manualEditLog: '手动编辑',
+        firstAiUseTitle: '恭喜！',
+        firstAiUseMessage: '恭喜您完成首次 AI 交互！要查看法术中生成的所有内容，请在菜单中查看法术数据。',
+        firstAiUseLink: '法术数据',
     },
     // Korean
     ko: {
@@ -4017,8 +4135,20 @@ const translations = {
         watchAd: '광고 보기 (마나)',
         freeMana: '무료 마나',
 
+        manaConfirmTitle: '마나 비용',
+        manaConfirmCancelled: '작업이 취소되었습니다',
+        manaConfirmProceed: '확인',
+        manaConfirmCancel: '취소',
+        manaConfirmBalance: '현재 잔액: ⚡ %{balance} 마나',
+        manaConfirmDontShowGenerate: '이 주문의 텍스트에 대해 다시 표시하지 않음',
+        manaConfirmDontShowImage: '이 주문의 이미지에 대해 다시 표시하지 않음',
+        manaConfirmDontShowVideo: '이 주문의 비디오에 대해 다시 표시하지 않음',
+        manaConfirmDontShowAudio: '이 주문의 오디오에 대해 다시 표시하지 않음',
+        manaConfirmDontShowSimilarity: '이 주문의 유사성에 대해 다시 표시하지 않음',
+
 
         currentBalance: '현재 잔액',
+        mana: '마나',
 
 
         rewardAmazing: '놀라워요!',
@@ -4182,6 +4312,9 @@ const translations = {
         apply: '적용',
         back: '뒤로',
         manualEditLog: '수동 편집',
+        firstAiUseTitle: '축하합니다!',
+        firstAiUseMessage: '첫 AI 사용을 축하합니다! 주문에서 생성된 모든 내용을 보려면 메뉴의 주문 데이터를 확인하세요.',
+        firstAiUseLink: '주문 데이터',
     },
     // Arabic
     ar: {
@@ -4432,8 +4565,20 @@ const translations = {
         watchAd: 'مشاهدة إعلان (مانا)',
         freeMana: 'مانا مجانية',
 
+        manaConfirmTitle: 'تكلفة المانا',
+        manaConfirmCancelled: 'تم إلغاء العملية',
+        manaConfirmProceed: 'تأكيد',
+        manaConfirmCancel: 'إلغاء',
+        manaConfirmBalance: 'الرصيد الحالي: ⚡ %{balance} مانا',
+        manaConfirmDontShowGenerate: 'عدم الإظهار مرة أخرى للنصوص في هذه التعويذة',
+        manaConfirmDontShowImage: 'عدم الإظهار مرة أخرى للصور في هذه التعويذة',
+        manaConfirmDontShowVideo: 'عدم الإظهار مرة أخرى للفيديو في هذه التعويذة',
+        manaConfirmDontShowAudio: 'عدم الإظهار مرة أخرى للصوت في هذه التعويذة',
+        manaConfirmDontShowSimilarity: 'عدم الإظهار مرة أخرى للتشابه في هذه التعويذة',
+
 
         currentBalance: 'الرصيد الحالي',
+        mana: 'مانا',
 
 
         rewardAmazing: 'مذهل!',
@@ -4597,6 +4742,9 @@ const translations = {
         apply: 'تطبيق',
         back: 'رجوع',
         manualEditLog: 'تعديل يدوي',
+        firstAiUseTitle: 'تهانينا!',
+        firstAiUseMessage: 'تهانينا على أول استخدام لك للذكاء الاصطناعي! لرؤية كل ما تم إنشاؤه في تعويذة، راجع بيانات التعويذة في قائمتها.',
+        firstAiUseLink: 'بيانات التعويذة',
     },
     // Hindi
     hi: {
@@ -4847,8 +4995,20 @@ const translations = {
         watchAd: 'विज्ञापन देखें (माना)',
         freeMana: 'मुफ्त माना',
 
+        manaConfirmTitle: 'माना लागत',
+        manaConfirmCancelled: 'ऑपरेशन रद्द कर दिया गया',
+        manaConfirmProceed: 'पुष्टि करें',
+        manaConfirmCancel: 'रद्द करें',
+        manaConfirmBalance: 'वर्तमान शेष: ⚡ %{balance} माना',
+        manaConfirmDontShowGenerate: 'इस मंत्र में टेक्स्ट के लिए फिर से न दिखाएं',
+        manaConfirmDontShowImage: 'इस मंत्र में छवियों के लिए फिर se n dikhayen',
+        manaConfirmDontShowVideo: 'इस मंत्र में वीडियो के लिए फिर से न दिखाएं',
+        manaConfirmDontShowAudio: 'इस मंत्र में ऑडियो के लिए फिर से न दिखाएं',
+        manaConfirmDontShowSimilarity: 'इस मंत्र में समानता के लिए फिर से न दिखाएं',
+
 
         currentBalance: 'वर्तमान शेष',
+        mana: 'माना',
 
 
         rewardAmazing: 'अद्भुत!',
@@ -5012,6 +5172,9 @@ const translations = {
         apply: 'लागू करें',
         back: 'वापस',
         manualEditLog: 'मैनुअल संपादन',
+        firstAiUseTitle: 'बधाई हो!',
+        firstAiUseMessage: 'आपके पहले AI उपयोग पर बधाई! मंत्र में जो कुछ भी उत्पन्न हुआ है उसे देखने के लिए, उसके मेनू में मंत्र डेटा देखें।',
+        firstAiUseLink: 'मंत्र डेटा',
     },
     // Russian
     ru: {
@@ -5262,8 +5425,20 @@ const translations = {
         watchAd: 'Смотреть рекламу (Мана)',
         freeMana: 'Бесплатная мана',
 
+        manaConfirmTitle: 'Стоимость маны',
+        manaConfirmCancelled: 'Операция отменена',
+        manaConfirmProceed: 'Подтвердить',
+        manaConfirmCancel: 'Отмена',
+        manaConfirmBalance: 'Текущий баланс: ⚡ %{balance} маны',
+        manaConfirmDontShowGenerate: 'Больше не показывать для текста в этом заклинании',
+        manaConfirmDontShowImage: 'Больше не показывать для изображений в этом заклинании',
+        manaConfirmDontShowVideo: 'Больше не показывать для видео в этом заклинании',
+        manaConfirmDontShowAudio: 'Больше не показывать для аудио в этом заклинании',
+        manaConfirmDontShowSimilarity: 'Больше не показывать для сходства в этом заклинании',
+
 
         currentBalance: 'Текущий баланс',
+        mana: 'Мана',
 
 
         rewardAmazing: 'Потрясающе!',
@@ -5427,6 +5602,9 @@ const translations = {
         apply: 'Применить',
         back: 'Назад',
         manualEditLog: 'Ручное редактирование',
+        firstAiUseTitle: 'Поздравляем!',
+        firstAiUseMessage: 'Поздравляем с первым использованием ИИ! Чтобы увидеть всё, что было создано в заклинании, просмотрите данные заклинания в его меню.',
+        firstAiUseLink: 'данные заклинания',
     },
     // Turkish
     tr: {
@@ -5680,8 +5858,20 @@ const translations = {
         watchAd: 'Reklam İzle (Mana)',
         freeMana: 'Ücretsiz Mana',
 
+        manaConfirmTitle: 'Mana Maliyeti',
+        manaConfirmCancelled: 'İşlem iptal edildi',
+        manaConfirmProceed: 'Onayla',
+        manaConfirmCancel: 'İptal',
+        manaConfirmBalance: 'Mevcut bakiye: ⚡ %{balance} mana',
+        manaConfirmDontShowGenerate: 'Bu büyüdeki metinler için tekrar gösterme',
+        manaConfirmDontShowImage: 'Bu büyüdeki resimler für tekrar Gösterme',
+        manaConfirmDontShowVideo: 'Bu büyüdeki videolar için tekrar gösterme',
+        manaConfirmDontShowAudio: 'Bu büyüdeki sesler için tekrar gösterme',
+        manaConfirmDontShowSimilarity: 'Bu büyüdeki benzerlik için tekrar gösterme',
+
 
         currentBalance: 'Mevcut Bakiye',
+        mana: 'mana',
 
 
         rewardAmazing: 'Harika!',
@@ -6098,8 +6288,20 @@ const translations = {
         watchAd: 'Bekijk advertentie (Mana)',
         freeMana: 'Gratis Mana',
 
+        manaConfirmTitle: 'Manakosten',
+        manaConfirmCancelled: 'Bewerking geannuleerd',
+        manaConfirmProceed: 'Bevestigen',
+        manaConfirmCancel: 'Annuleren',
+        manaConfirmBalance: 'Huidig saldo: ⚡ %{balance} mana',
+        manaConfirmDontShowGenerate: 'Niet meer tonen voor tekst in deze spreuk',
+        manaConfirmDontShowImage: 'Niet meer tonen voor afbeeldingen in deze spreuk',
+        manaConfirmDontShowVideo: 'Niet meer tonen voor video\'s in deze spreuk',
+        manaConfirmDontShowAudio: 'Niet meer tonen voor audio in deze spreuk',
+        manaConfirmDontShowSimilarity: 'Niet meer tonen voor gelijkenis in deze spreuk',
+
 
         currentBalance: 'Huidig Saldo',
+        mana: 'mana',
 
 
         rewardAmazing: 'Geweldig!',
@@ -6261,6 +6463,9 @@ const translations = {
         apply: 'Toepassen',
         back: 'Terug',
         manualEditLog: 'Handmatige bewerking',
+        firstAiUseTitle: 'Gefeliciteerd!',
+        firstAiUseMessage: 'Gefeliciteerd met je eerste gebruik van AI! Om alles te zien wat er in een spreuk is gegenereerd, bekijk je de spreukgegevens in het menu.',
+        firstAiUseLink: 'spreukgegevens',
     },
     // Polish
     pl: {
@@ -6514,8 +6719,20 @@ const translations = {
         watchAd: 'Obejrzyj reklamę (Mana)',
         freeMana: 'Darmowa Mana',
 
+        manaConfirmTitle: 'Koszt Many',
+        manaConfirmCancelled: 'Operacja anulowana',
+        manaConfirmProceed: 'Potwierdź',
+        manaConfirmCancel: 'Anuluj',
+        manaConfirmBalance: 'Obecne saldo: ⚡ %{balance} mana',
+        manaConfirmDontShowGenerate: 'Nie pokazuj więcej dla tekstu w tym zaklęciu',
+        manaConfirmDontShowImage: 'Nie pokazuj więcej dla obrazów w tym zaklęciu',
+        manaConfirmDontShowVideo: 'Nie pokazuj więcej dla wideo w tym zaklęciu',
+        manaConfirmDontShowAudio: 'Nie pokazuj więcej dla audio w tym zaklęciu',
+        manaConfirmDontShowSimilarity: 'Nie pokazuj więcej dla podobieństwa w tym zaklęciu',
+
 
         currentBalance: 'Obecne Saldo',
+        mana: 'mana',
 
 
         rewardAmazing: 'Niesamowite!',
@@ -6679,6 +6896,9 @@ const translations = {
         apply: 'Zastosuj',
         back: 'Wstecz',
         manualEditLog: 'Ręczna edycja',
+        firstAiUseTitle: 'Gratulacje!',
+        firstAiUseMessage: 'Gratulacje z okazji pierwszego użycia AI! Aby zobaczyć wszystko, co zostało wygenerowane w zaklęciu, sprawdź dane zaklęcia w jego menu.',
+        firstAiUseLink: 'dane zaklęcia',
     },
     // Vietnamese
     vi: {
@@ -6932,8 +7152,20 @@ const translations = {
         watchAd: 'Xem quảng cáo (Mana)',
         freeMana: 'Mana Miễn Phí',
 
+        manaConfirmTitle: 'Chi phí Mana',
+        manaConfirmCancelled: 'Đã hủy thao tác',
+        manaConfirmProceed: 'Xác nhận',
+        manaConfirmCancel: 'Hủy',
+        manaConfirmBalance: 'Số dư hiện tại: ⚡ %{balance} mana',
+        manaConfirmDontShowGenerate: 'Không hiển thị lại cho văn bản trong câu thần chú này',
+        manaConfirmDontShowImage: 'Không hiển thị lại cho hình ảnh trong câu thần chú này',
+        manaConfirmDontShowVideo: 'Không hiển thị lại cho video trong câu thần chú này',
+        manaConfirmDontShowAudio: 'Không hiển thị lại cho âm thanh trong câu thần chú này',
+        manaConfirmDontShowSimilarity: 'Không hiển thị lại cho độ tương đồng trong câu thần chú này',
+
 
         currentBalance: 'Số Dư Hiện Tại',
+        mana: 'mana',
 
 
         rewardAmazing: 'Tuyệt vời!',
@@ -7097,6 +7329,9 @@ const translations = {
         apply: 'Áp dụng',
         back: 'Quay lại',
         manualEditLog: 'Chỉnh sửa thủ công',
+        firstAiUseTitle: 'Chúc mừng!',
+        firstAiUseMessage: 'Chúc mừng bạn đã lần đầu sử dụng AI thành công! Để xem tất cả những gì đã tạo trong một câu chú, hãy xem dữ liệu câu chú trong menu của nó.',
+        firstAiUseLink: 'dữ liệu câu chú',
     },
     // Thai
     th: {
@@ -7350,8 +7585,20 @@ const translations = {
         watchAd: 'ดูโฆษณา (มานา)',
         freeMana: 'มานาฟรี',
 
+        manaConfirmTitle: 'ค่าใช้จ่ายมานา',
+        manaConfirmCancelled: 'ยกเลิกการดำเนินการแล้ว',
+        manaConfirmProceed: 'ยืนยัน',
+        manaConfirmCancel: 'ยกเลิก',
+        manaConfirmBalance: 'ยอดคงเหลือปัจจุบัน: ⚡ %{balance} มานา',
+        manaConfirmDontShowGenerate: 'ไม่ต้องแสดงอีกสำหรับข้อความในคาถานี้',
+        manaConfirmDontShowImage: 'ไม่ต้องแสดงอีกสำหรับรูปภาพในคาถานี้',
+        manaConfirmDontShowVideo: 'ไม่ต้องแสดงอีกสำหรับวิดีโอในคาถานี้',
+        manaConfirmDontShowAudio: 'ไม่ต้องแสดงอีกสำหรับเสียงในคาถานี้',
+        manaConfirmDontShowSimilarity: 'ไม่ต้องแสดงอีกสำหรับความคล้ายคลึงในคาถานี้',
+
 
         currentBalance: 'ยอดคงเหลือปัจจุบัน',
+        mana: 'มานา',
 
 
         rewardAmazing: 'ยอดเยี่ยม!',
@@ -7515,6 +7762,9 @@ const translations = {
         apply: 'นำไปใช้',
         back: 'ย้อนกลับ',
         manualEditLog: 'แก้ไขด้วยตนเอง',
+        firstAiUseTitle: 'ขอแสดงความยินดี!',
+        firstAiUseMessage: 'ขอแสดงความยินดีกับการใช้งาน AI ครั้งแรกของคุณ! หากต้องการดูทุกสิ่งที่สร้างขึ้นในคาถา ให้ดูที่ข้อมูลคาถาในเมนูของมัน',
+        firstAiUseLink: 'ข้อมูลคาถา',
     },
 };
 

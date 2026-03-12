@@ -9,6 +9,8 @@ import {
     ScrollView,
     RefreshControl,
     DeviceEventEmitter,
+    TouchableOpacity,
+    Modal,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -22,7 +24,7 @@ import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrate
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
-import { getWebViewTranslations } from './lib/i18n';
+import { t, getWebViewTranslations } from './lib/i18n';
 import { getStorageFromCache, isCacheLoaded, reloadStorageForApp, StorageItem } from './lib/storageCache';
 import QRScannerOverlay from './components/QRScannerOverlay';
 import { useBridgeUIStore } from './lib/bridgeUIStore';
@@ -57,6 +59,8 @@ function RunnerContent({ appId }: Props) {
     const [refreshing, setRefreshing] = useState(false);
     const [initialReloadDone, setInitialReloadDone] = useState(false);
     const [isAtTop, setIsAtTop] = useState(true); // Helper to prevent conflicting scrolls
+    const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
+    const [isAiLoading, setIsAiLoading] = useState(false);
 
     // Check drop-box file for pending shared content
     const checkDropBox = useCallback(async () => {
@@ -278,13 +282,29 @@ function RunnerContent({ appId }: Props) {
                 return;
             }
 
-            // Delegate to shared handlers
-            const handlerResult = await handleBridgeMessage(type, data, {
-                webViewRef: webViewRef as React.RefObject<WebView>,
-                viewContainerRef: viewContainerRef,
-                appId: app?.id || null,
-                callbackName, // Pass callbackName for scanner/handlers
-            });
+            const isAiCall = [
+                'AI_GENERATE', 'AI_SIMILARITY', 'AI_GENERATE_IMAGE',
+                'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI'
+            ].includes(type);
+
+            if (isAiCall) setIsAiLoading(true);
+
+            let handlerResult;
+            try {
+                // Delegate to shared handlers
+                handlerResult = await handleBridgeMessage(type, data, {
+                    webViewRef: webViewRef as React.RefObject<WebView>,
+                    viewContainerRef: viewContainerRef,
+                    appId: app?.id || null,
+                    callbackName, // Pass callbackName for scanner/handlers
+                });
+
+                if (handlerResult.isFirstAiUse) {
+                    setShowFirstAiUseModal(true);
+                }
+            } finally {
+                if (isAiCall) setIsAiLoading(false);
+            }
 
             // Cache media results and save to DB
             const RUNNER_MEDIA_TYPES = new Set([
@@ -513,7 +533,48 @@ function RunnerContent({ appId }: Props) {
                     />
                 </ScrollView>
             </View>
+
+            {/* AI Loading Indicator */}
+            {isAiLoading && (
+                <View style={styles.aiLoadingBarContainer}>
+                    <View style={styles.aiLoadingBar} />
+                </View>
+            )}
+
             <QRScannerOverlay webviewRef={webViewRef} />
+
+            {/* First AI Use Modal */}
+            <Modal
+                visible={showFirstAiUseModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowFirstAiUseModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.successModal}>
+                        <Text style={styles.successEmoji}>✨</Text>
+                        <Text style={styles.successTitle}>{t('firstAiUseTitle')}</Text>
+                        <Text style={styles.successMessage}>
+                            {t('firstAiUseMessage')}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.successLinkBtn}
+                            onPress={() => {
+                                setShowFirstAiUseModal(false);
+                                Linking.openURL(`appacadabra://spell/${appId}`);
+                            }}
+                        >
+                            <Text style={styles.successLinkText}>{t('firstAiUseLink')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.successCloseBtn}
+                            onPress={() => setShowFirstAiUseModal(false)}
+                        >
+                            <Text style={styles.successCloseText}>{t('close')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </>
     );
 }
@@ -568,5 +629,75 @@ const styles = StyleSheet.create({
     webview: {
         flex: 1,
         backgroundColor: '#FFFFFF',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    successModal: {
+        width: '85%',
+        backgroundColor: '#1E1E1E',
+        borderRadius: 20,
+        padding: 24,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    successEmoji: {
+        fontSize: 48,
+        marginBottom: 16,
+    },
+    successTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    successMessage: {
+        fontSize: 16,
+        color: 'rgba(255,255,255,0.7)',
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 22,
+    },
+    successLinkBtn: {
+        backgroundColor: colors.primary,
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 30,
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    successLinkText: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    successCloseBtn: {
+        paddingVertical: 8,
+    },
+    successCloseText: {
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: 14,
+    },
+    aiLoadingBarContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        zIndex: 9999,
+        overflow: 'hidden',
+    },
+    aiLoadingBar: {
+        width: '40%',
+        height: '100%',
+        backgroundColor: colors.primary,
+        borderRadius: 20,
     },
 });

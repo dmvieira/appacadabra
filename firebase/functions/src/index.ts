@@ -2243,3 +2243,75 @@ export const claimInstallBonus = onCall({ region: 'southamerica-east1' }, async 
 
     return result;
 });
+
+export const estimateManaCost = onCall({
+    region: 'southamerica-east1',
+    enforceAppCheck: false,
+}, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
+
+    const { type, data } = request.data;
+    if (!type || !data) throw new HttpsError('invalid-argument', 'Type and data required');
+
+    // These should match the constants used in the actual generation logic
+    const MANA_VAL = MANA_VALUE_USD;
+
+    switch (type) {
+        case 'generate': {
+            const promptLen = (data.prompt || '').length;
+            const numImages = data.images?.length || 0;
+            const numVideos = data.videos?.length || 0;
+            const numAudios = data.audios?.length || 0;
+            const hasSearch = !!data.search;
+            const hasSchema = !!data.schema;
+
+            const audioTokens = numAudios * 5_000;
+            const nonAudioInputTk = (promptLen / 4)
+                + (numImages * 500)
+                + (numVideos * 15_000);
+
+            const inputCostUsd = (nonAudioInputTk / 1_000_000) * 0.50
+                + (audioTokens / 1_000_000) * 1.00;
+
+            const thinkingTk = 3_000;
+            const outputTk = hasSchema ? 500 : 300;
+            const outputCostUsd = ((thinkingTk + outputTk) / 1_000_000) * 3.00;
+
+            const searchCostUsd = hasSearch ? 0.014 : 0;
+
+            const mana = (inputCostUsd + outputCostUsd + searchCostUsd) / MANA_VAL;
+            return { mana: `~${mana.toFixed(1)}`, value: mana };
+        }
+
+        case 'image':
+            return { mana: '~0.5', value: 0.5 };
+
+        case 'video': {
+            const hasImages = (data.images?.length || 0) > 0;
+            const mana = 8 * (hasImages ? 5.0 : 2.0);
+            return { mana: `~${mana}`, value: mana };
+        }
+
+        case 'audio': {
+            const chars = (data.text || '').length;
+            const inputTk = chars / 4;
+            const outputTk = inputTk * 8;
+            const costUsd = (inputTk / 1_000_000) * 0.50
+                + (outputTk / 1_000_000) * 10.00;
+            const mana = Math.max(0.01, costUsd / MANA_VAL);
+            return { mana: `~${mana.toFixed(2)}`, value: mana };
+        }
+
+        case 'similarity': {
+            const items = data.items || [];
+            const totalChars = items.reduce((s: number, x: string) =>
+                s + (typeof x === 'string' ? x.length : 0), 0);
+            const totalTk = totalChars / 4;
+            const mana = Math.max(0.01, (totalTk / 1_000_000) * 0.15 / MANA_VAL);
+            return { mana: `~${mana.toFixed(3)}`, value: mana };
+        }
+
+        default:
+            return { mana: '~1', value: 1.0 };
+    }
+});

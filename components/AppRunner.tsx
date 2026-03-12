@@ -13,6 +13,7 @@ import {
     BackHandler,
     DeviceEventEmitter,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Calendar from 'expo-calendar';
@@ -99,6 +100,11 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);
     const [networkLogs, setNetworkLogs] = useState<{ url: string; method: string; status?: number; time: number }[]>([]);
+
+    // First AI Use Modal
+    const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
+    const [isAiLoading, setIsAiLoading] = useState(false);
+    const router = useRouter();
 
     // Load app data
     useEffect(() => {
@@ -261,21 +267,28 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             switch (type) {
                 // ============= AI Handlers =============
                 case 'AI_GENERATE':
+                case 'AI_SIMILARITY':
+                case 'AI_GENERATE_IMAGE':
+                case 'AI_GENERATE_VIDEO':
+                case 'AUDIO_SPEAK_AI': {
+                    setIsAiLoading(true);
                     try {
-                        const aiResponse = await gemini.aiGenerate({
-                            prompt: data.prompt,
-                            search: data.search,
-                            schema: data.schema,
-                            images: data.images || undefined,
-                            audios: data.audios || undefined,
-                            videos: data.videos || undefined,
+                        const handlerResult = await handleBridgeMessage(type, data, {
+                            webViewRef: webViewRef as React.RefObject<WebView>,
+                            appId: app?.id || null,
+                            callbackName,
                         });
-                        result = aiResponse.text;
-                    } catch (e) {
-                        success = false;
-                        result = e instanceof Error ? e.message : 'Error';
+                        success = handlerResult.success;
+                        result = handlerResult.result;
+                        deferredCallback = !!handlerResult.deferredCallback;
+                        if (handlerResult.isFirstAiUse) {
+                            setShowFirstAiUseModal(true);
+                        }
+                    } finally {
+                        setIsAiLoading(false);
                     }
                     break;
+                }
 
                 // ============= Calendar Handlers =============
                 case 'CALENDAR_CREATE_EVENT':
@@ -648,7 +661,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     if (handlerResult.handled) {
                         success = handlerResult.success;
                         result = handlerResult.result;
-                        deferredCallback = !!handlerResult.deferredCallback;
+                        if (handlerResult.isFirstAiUse) {
+                            setShowFirstAiUseModal(true);
+                        }
                     } else {
                         console.log(`[App ${appId}] Unknown message type: ${type}`);
                     }
@@ -992,6 +1007,46 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 </View>
             </Modal>
 
+            {/* AI Loading Indicator */}
+            {isAiLoading && (
+                <View style={styles.aiLoadingBarContainer}>
+                    <View style={styles.aiLoadingBar} />
+                </View>
+            )}
+
+            {/* First AI Use Modal */}
+            <Modal
+                visible={showFirstAiUseModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowFirstAiUseModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.successModal}>
+                        <Text style={styles.successEmoji}>✨</Text>
+                        <Text style={styles.successTitle}>{t('firstAiUseTitle')}</Text>
+                        <Text style={styles.successMessage}>
+                            {t('firstAiUseMessage')}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.successLinkBtn}
+                            onPress={() => {
+                                setShowFirstAiUseModal(false);
+                                router.push(`/spell/${appId}`);
+                            }}
+                        >
+                            <Text style={styles.successLinkText}>{t('firstAiUseLink')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.successCloseBtn}
+                            onPress={() => setShowFirstAiUseModal(false)}
+                        >
+                            <Text style={styles.successCloseText}>{t('close')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
         </SafeAreaView>
     );
 }
@@ -1013,6 +1068,7 @@ const styles = StyleSheet.create({
     toolbarIcon: { fontSize: 24 },
     toolbarText: { color: colors.onSurface, fontSize: 12, marginTop: 4 },
     sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
     sheet: { backgroundColor: colors.surface, borderTopLeftRadius: borderRadius.xl, borderTopRightRadius: borderRadius.xl, padding: spacing.lg },
     sheetTitle: { fontSize: 20, fontWeight: 'bold', color: colors.onSurface, marginBottom: spacing.md },
     editInput: { backgroundColor: colors.surfaceVariant, borderRadius: borderRadius.md, padding: spacing.md, color: colors.onSurface, fontSize: 16, minHeight: 100, textAlignVertical: 'top' },
@@ -1056,4 +1112,76 @@ const styles = StyleSheet.create({
     contextValue: { color: colors.onSurface, fontWeight: 'bold', marginVertical: 4 },
     contextClearBtn: { alignSelf: 'flex-end' },
     contextClearText: { color: colors.primary, fontSize: 12 },
+    successModal: {
+        width: '85%',
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.xl,
+        padding: spacing.xl,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    successEmoji: {
+        fontSize: 48,
+        marginBottom: spacing.md,
+    },
+    successTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: colors.onBackground,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+    },
+    successMessage: {
+        fontSize: 16,
+        color: colors.onSurfaceVariant,
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        lineHeight: 22,
+    },
+    successLinkBtn: {
+        backgroundColor: colors.primary,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.xl,
+        borderRadius: borderRadius.full,
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    successLinkText: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    successCloseBtn: {
+        paddingVertical: spacing.sm,
+    },
+    successCloseText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 14,
+    },
+    aiLoadingBarContainer: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 100 : 70, // Adjust based on header height
+        left: 0,
+        right: 0,
+        height: 3,
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        zIndex: 9999,
+        overflow: 'hidden',
+    },
+    aiLoadingBar: {
+        width: '40%',
+        height: '100%',
+        backgroundColor: colors.primary,
+        borderRadius: borderRadius.full,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 4,
+        elevation: 4,
+        // The animation would be done with Animated.View usually, 
+        // but since we want "any color/discreet", a static but distinctive bar 
+        // that's small is a good start. For a real shimmer we'd need Animated.
+    },
 });

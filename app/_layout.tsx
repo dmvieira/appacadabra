@@ -8,6 +8,7 @@ import { colors } from '../lib/theme';
 import { t } from '../lib/i18n';
 import ShareReceiver from '../components/ShareReceiver';
 import { ManaShop } from '../components/ManaShop';
+import { ManaConfirmModal } from '../components/ManaConfirmModal';
 import { useManaStore } from '../lib/manaStore';
 import { Toast } from '../components/Toast';
 import { useAppStore } from '../lib/store';
@@ -216,6 +217,7 @@ export default function RootLayout() {
             </Stack>
             <ShareReceiver />
             <ManaShop />
+            <ManaConfirmModal />
             <ToastComponent />
         </>
     );

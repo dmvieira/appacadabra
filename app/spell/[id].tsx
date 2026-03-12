@@ -11,6 +11,7 @@ import {
     Platform,
     Linking,
     Share,
+    RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -123,8 +124,10 @@ export default function SpellDataScreen() {
     const [filter, setFilter] = useState<FilterType>('all');
     const [textModal, setTextModal] = useState<{ visible: boolean; content: string }>({ visible: false, content: '' });
     const [cleanModal, setCleanModal] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     const loadData = useCallback(async () => {
+        setRefreshing(true);
         try {
             // Migrate any raw base64 blobs (e.g. from Android camera with \n) to files first
             await migrateStorageBlobsToFiles(appId);
@@ -169,6 +172,8 @@ export default function SpellDataScreen() {
             setStorageItems(s as StorageEntry[]);
         } catch (err) {
             console.warn('[SpellData] Error loading data:', err);
+        } finally {
+            setRefreshing(false);
         }
     }, [appId]);
 
@@ -425,7 +430,18 @@ export default function SpellDataScreen() {
                 <View style={styles.backBtn} />
             </View>
 
-            <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={loadData}
+                        tintColor={colors.primary}
+                        colors={[colors.primary]}
+                    />
+                }
+            >
                 {/* ═══════════ Section 1: Relics ═══════════ */}
                 <View style={styles.sectionWrapper}>
                     <View style={styles.sectionHeader}>
