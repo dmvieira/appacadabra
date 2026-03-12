@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, ActivityIndicator, ToastAndroid } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, ActivityIndicator, ToastAndroid, Platform } from 'react-native';
+import * as Application from 'expo-application';
 import { useManaStore } from '../lib/manaStore';
 import { t } from '../lib/i18n';
 import { colors, borderRadius, spacing } from '../lib/theme';
@@ -280,12 +281,23 @@ export function ManaShop() {
         setShowLoginPrompt(true);
     };
 
+    async function getHardwareId(): Promise<string> {
+        if (Platform.OS === 'android') {
+            return Application.getAndroidId() ?? '';
+        } else {
+            return (await Application.getIosIdForVendorAsync()) ?? '';
+        }
+    }
+
     const handleGoogleSignIn = async () => {
         setIsSigningIn(true);
         try {
             await firebase.ensureAuthenticated();
             await firebase.linkWithGoogle();
             await refreshUser();
+            getHardwareId().then(id => {
+                if (id) firebase.claimInstallBonus(id).catch(() => {});
+            });
             setShowLoginPrompt(false);
         } catch (e: any) {
             console.error(e);
@@ -304,6 +316,9 @@ export function ManaShop() {
                                     if (anonBalance > 0) {
                                         await firebase.addCredits(anonBalance, 'device_merge');
                                     }
+                                    getHardwareId().then(id => {
+                                        if (id) firebase.claimInstallBonus(id).catch(() => {});
+                                    });
                                     setShowLoginPrompt(false);
                                 } catch (err) {
                                     Alert.alert(t('error'), t('signInFailed'));

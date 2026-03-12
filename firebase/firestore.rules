@@ -12,6 +12,10 @@ service cloud.firestore {
         allow write: if false;
       }
     }
+    // Install bonus dedup — somente Cloud Functions (Admin SDK) podem escrever
+    match /install_bonuses/{docId} {
+      allow read, write: if false;
+    }
     // Jobs collection - Async Job Queue
     match /jobs/{jobId} {
       // User can create a job if they own it

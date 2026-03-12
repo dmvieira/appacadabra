@@ -23,7 +23,8 @@
       "Bash(wc:*)",
       "Bash(git:*)",
       "Bash(head:*)",
-      "Bash(tail:*)"
+      "Bash(tail:*)",
+      "Bash(npx expo:*)"
     ]
   }
 }

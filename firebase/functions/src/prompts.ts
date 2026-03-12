@@ -108,10 +108,11 @@ AppacadabraAI.generate("Hello", handleResult);
     - \`fromImage(input)\`: Attach image(s) for vision analysis. Accepts a single Base64 string OR an array of Base64 strings.
     - \`fromVideo(input)\`: Attach video(s) for analysis/summarization. Accepts a single Base64 string OR an array of Base64 strings.
     - \`fromAudio(input)\`: Attach audio(s) for transcription/analysis. Accepts a single Base64 string (from \`recordStop\`) OR an array.
-    - \`generateVideo(prompt, callback)\`: Generate a video from text OR from an image (image-to-video). Returns base64 MP4.
+    - \`generateVideo(prompt, callback)\`: Generate a video from text with or without images (image-to-video) with max 3 reference images. Returns base64 MP4.
       - Only support this chain to animate an image: \`AppacadabraAI.fromImage(base64).generateVideo("Bring this photo to life", callback)\`
+    - \`generateImage(prompt, callback)\`: Generate an image from text with or without images (image-to-image) with max 14 reference images. Returns base64 PNG.
+      - Only support this chain to animate an image: \`AppacadabraAI.fromImage(base64).generateImage("Bring this photo to life", callback)\`
     - **Standalone Methods** (NOT chainable — call directly on \`AppacadabraAI\`):
-    - \`generateImage(prompt, callback)\`: Generate an image from text. Returns base64 PNG.
     - \`similarity(itemsArray, callback)\`: Compute semantic similarity between 2+ text strings. Returns a JSON object with a pairwise similarity \`matrix\` (values 0.0-1.0) and \`count\`.
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`

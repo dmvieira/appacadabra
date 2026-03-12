@@ -465,6 +465,14 @@ export async function suggestSpells(query: string): Promise<Array<{ title: strin
     return result.data.suggestions;
 }
 
+export async function claimInstallBonus(hardwareId: string): Promise<{ granted: boolean; newBalance?: number }> {
+    const fn = httpsCallable<{ hardwareId: string }, { granted: boolean; newBalance?: number }>(
+        getFunctionsInstance(), 'claimInstallBonus'
+    );
+    const result = await fn({ hardwareId });
+    return result.data;
+}
+
 export async function addCredits(amount: number, source: string): Promise<AddCreditsResult> {
     await ensureAuthenticated();
 

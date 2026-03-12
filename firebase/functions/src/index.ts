@@ -8,6 +8,7 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { getAuth } from "firebase-admin/auth";
 import { GoogleGenAI, VideoGenerationReferenceType, Type, ThinkingLevel } from "@google/genai";
 
 import * as zlib from 'zlib';
@@ -2201,4 +2202,44 @@ export const uploadMedia = onCall({
     }
 
     return { urls };
+});
+
+export const claimInstallBonus = onCall({ region: 'southamerica-east1' }, async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'Not authenticated');
+
+    const hardwareId: string | undefined = request.data?.hardwareId;
+    if (!hardwareId || hardwareId.length < 4) {
+        throw new HttpsError('invalid-argument', 'Missing hardwareId');
+    }
+
+    // Fetch Google UID server-side — cannot be forged by client
+    const userRecord = await getAuth().getUser(uid);
+    const googleProvider = userRecord.providerData.find(p => p.providerId === 'google.com');
+    const googleUid = googleProvider?.uid;
+    if (!googleUid) throw new HttpsError('failed-precondition', 'No Google account linked');
+
+    const deviceRef = db.collection('install_bonuses').doc(`device_${hardwareId}`);
+    const googleRef = db.collection('install_bonuses').doc(`google_${googleUid}`);
+
+    const result = await db.runTransaction(async (tx) => {
+        const [deviceDoc, googleDoc] = await Promise.all([tx.get(deviceRef), tx.get(googleRef)]);
+        if (deviceDoc.exists || googleDoc.exists) {
+            return { granted: false };
+        }
+
+        const userRef = db.collection('users').doc(uid);
+        const userDoc = await tx.get(userRef);
+        const current = userDoc.exists ? (userDoc.data()?.credits ?? 0) : 0;
+        const now = FieldValue.serverTimestamp();
+
+        tx.set(deviceRef, { claimedAt: now, userId: uid, googleUid, hardwareId });
+        tx.set(googleRef, { claimedAt: now, userId: uid, googleUid, hardwareId });
+        tx.set(userRef, { credits: current + 2 }, { merge: true });
+        tx.set(userRef.collection('creditLogs').doc(), { amount: 2, source: 'install_bonus', timestamp: now });
+
+        return { granted: true, newBalance: current + 2 };
+    });
+
+    return result;
 });

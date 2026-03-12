@@ -6,7 +6,7 @@ import {
     Pressable,
     StyleSheet,
     Modal,
-    ScrollView,
+    FlatList,
     ActivityIndicator,
     Alert,
     Platform,
@@ -172,9 +172,13 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                             <Text style={styles.emptyText}>{t('noScheduledNotifications')}</Text>
                         </View>
                     ) : (
-                        <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-                            {notifications.map((n) => (
-                                <View key={n.identifier} style={styles.item}>
+                        <FlatList
+                            data={notifications}
+                            keyExtractor={(item) => item.identifier}
+                            style={styles.list}
+                            contentContainerStyle={styles.listContent}
+                            renderItem={({ item: n }) => (
+                                <View style={styles.item}>
                                     <View style={styles.itemIconWrap}>
                                         <Text style={styles.itemEmoji}>🔔</Text>
                                     </View>
@@ -190,8 +194,8 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                                         <Text style={styles.itemDeleteIcon}>🗑️</Text>
                                     </TouchableOpacity>
                                 </View>
-                            ))}
-                        </ScrollView>
+                            )}
+                        />
                     )}
                 </Pressable>
             </Pressable>
@@ -209,7 +213,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#111827',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        maxHeight: '70%',
+        maxHeight: '85%',
+        minHeight: '40%',
     },
     handle: {
         width: 40,
@@ -280,7 +285,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     list: {
-        maxHeight: 400,
+        flex: 1,
     },
     listContent: {
         paddingHorizontal: 20,
