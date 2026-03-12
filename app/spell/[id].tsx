@@ -125,6 +125,8 @@ export default function SpellDataScreen() {
     const [textModal, setTextModal] = useState<{ visible: boolean; content: string }>({ visible: false, content: '' });
     const [cleanModal, setCleanModal] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [relicsAtTop, setRelicsAtTop] = useState(true);
+    const [essenceAtTop, setEssenceAtTop] = useState(true);
 
     const loadData = useCallback(async () => {
         setRefreshing(true);
@@ -437,6 +439,7 @@ export default function SpellDataScreen() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={loadData}
+                        enabled={relicsAtTop && essenceAtTop}
                         tintColor={colors.primary}
                         colors={[colors.primary]}
                     />
@@ -471,7 +474,16 @@ export default function SpellDataScreen() {
                         {filteredRelics.length === 0 ? (
                             <Text style={styles.emptyText}>{t('noRelics')}</Text>
                         ) : (
-                            <ScrollView style={{ maxHeight: 340 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                            <ScrollView
+                                style={{ maxHeight: 340 }}
+                                nestedScrollEnabled
+                                showsVerticalScrollIndicator={false}
+                                onScroll={(e) => {
+                                    const y = e.nativeEvent.contentOffset.y;
+                                    setRelicsAtTop(y <= 0);
+                                }}
+                                scrollEventThrottle={16}
+                            >
                                 {filteredRelics.map((entry, idx) => {
                                     const mediaType = getMediaType(entry);
                                     const active = isRelicActive(entry, storageItems);
@@ -515,7 +527,16 @@ export default function SpellDataScreen() {
                         {storageItems.length === 0 ? (
                             <Text style={styles.emptyText}>{t('noEssence')}</Text>
                         ) : (
-                            <ScrollView style={{ maxHeight: 300 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                            <ScrollView
+                                style={{ maxHeight: 300 }}
+                                nestedScrollEnabled
+                                showsVerticalScrollIndicator={false}
+                                onScroll={(e) => {
+                                    const y = e.nativeEvent.contentOffset.y;
+                                    setEssenceAtTop(y <= 0);
+                                }}
+                                scrollEventThrottle={16}
+                            >
                                 {storageItems.map(renderStorageItem)}
                             </ScrollView>
                         )}
