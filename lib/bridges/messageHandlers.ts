@@ -2065,8 +2065,13 @@ export async function handleBridgeMessage(
                     quality: 0.5,
                 });
 
-                if (!resultPicker.canceled && resultPicker.assets[0].base64) {
-                    result = resultPicker.assets[0].base64.replace(/[\r\n]/g, ''); // Android adds \n every 76 chars
+                if (!resultPicker.canceled) {
+                    if (resultPicker.assets[0].base64) {
+                        result = resultPicker.assets[0].base64.replace(/[\r\n]/g, '');
+                    } else {
+                        const fileB64 = await FileSystem.readAsStringAsync(resultPicker.assets[0].uri, { encoding: FileSystem.EncodingType.Base64 });
+                        result = fileB64.replace(/[\r\n]/g, '');
+                    }
                 } else {
                     success = false;
                     result = 'Cancelled';

@@ -401,7 +401,7 @@ export default function ShareReceiver() {
                 const fileContent = await FileSystem.readAsStringAsync(cacheUri, {
                     encoding: FileSystem.EncodingType.Base64,
                 });
-                base64Data = fileContent;
+                base64Data = fileContent.replace(/[\r\n]/g, '');
                 console.log('ShareReceiver: File read successfully, base64 length:', base64Data?.length || 0);
 
                 // Clean up cache file

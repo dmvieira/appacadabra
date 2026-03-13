@@ -96,6 +96,13 @@ export default function RunnerScreen() {
         useBridgeUIStore.getState().setWebViewRef(webViewRef as any);
     }, []); // Run once, the ref object is stable
 
+    // Cancel pending mana confirmation when runner loses focus
+    useEffect(() => {
+        if (!isFocused) {
+            useBridgeUIStore.getState().resolveManaConfirmation(false);
+        }
+    }, [isFocused]);
+
     // Cleanup all media when leaving screen or app goes to background
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextState) => {
@@ -322,6 +329,13 @@ export default function RunnerScreen() {
     // Listen for edit completion signal to navigate back
     const lastCompletedEditAppId = useAppStore(state => state.lastCompletedEditAppId);
     const clearLastCompletedEdit = useAppStore(state => state.clearLastCompletedEdit);
+
+    // Sync __IS_EDIT_MODE__ into the running WebView without forcing a remount
+    useEffect(() => {
+        if (webViewRef.current) {
+            webViewRef.current.injectJavaScript(`window.__IS_EDIT_MODE__ = ${isEditMode}; true;`);
+        }
+    }, [isEditMode]);
 
     useEffect(() => {
         if (lastCompletedEditAppId && lastCompletedEditAppId === Number(id) && isEditMode) {
@@ -797,7 +811,7 @@ export default function RunnerScreen() {
                         if (isAiAction) setIsAiLoading(false);
                     }
 
-                    if ((isAiAction || isDeviceMediaAction) && handlerResult && handlerResult.handled && app?.id && callbackName) {
+                    if ((isAiAction || isDeviceMediaAction) && handlerResult && handlerResult.handled && app?.id && callbackName && success) {
                         try {
                             const isMedia = type !== 'AI_GENERATE';
                             cacheResult = result;
@@ -844,9 +858,9 @@ export default function RunnerScreen() {
                 if (success && mediaLocalPath && type !== 'AI_GENERATE' && type !== 'AI_SIMILARITY') {
                     try {
                         const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
-                        const b64 = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                        const b64 = (await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
                             encoding: FileSystem.EncodingType.Base64,
-                        });
+                        })).replace(/[\r\n]/g, '');
                         const dataUri = `data:${mime};base64,${b64}`;
                         const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
                         const script = createMediaCallbackScript(callbackName, success, marker, dataUri);
@@ -1072,7 +1086,7 @@ export default function RunnerScreen() {
                     scrollEnabled={!isEditMode} // Disable outer scroll in Edit Mode to let WebView handle scrolling exclusively
                 >
                     <WebView
-                        key={`${app.id}-${isEditMode}`}
+                        key={`${app.id}`}
                         ref={webViewRef}
                         source={source}
                         style={styles.webview}

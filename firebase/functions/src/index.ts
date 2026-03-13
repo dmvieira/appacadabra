@@ -333,6 +333,7 @@ const USD_PRICING: Record<string, {
 const USD_IMAGE_PER_UNIT = 0.04;           // gemini-2.5-flash-image (Imagen 4 standard)
 const USD_VIDEO_PER_SECOND_FAST = 0.15;    // veo-3.1-fast-generate-preview (Veo 3.1 Fast, no images)
 const USD_VIDEO_PER_SECOND_STD = 0.40;    // veo-3.1-generate-preview (Veo 3.1 Standard, with images)
+const MANA_PER_INPUT_IMAGE = 0.1; // extra mana per inspiration image sent to AI_GENERATE_IMAGE
 
 function calculateCostUsd(
     modelId: string,
@@ -920,8 +921,8 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         resultText = imageBase64;
 
-                        // Fixed cost: 0.5 mana per image generation
-                        creditsUsed = 0.5;
+                        // Base cost + extra per inspiration image
+                        creditsUsed = 0.5 + imagePartsFromInput.length * MANA_PER_INPUT_IMAGE;
                         logModelId = 'gemini-3.1-flash-image-preview';
                         logExtras.imageCount = 1;
                         break;
@@ -1807,7 +1808,8 @@ export const processSpellJob = onDocumentCreated(
                     const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
 
                     resultText = downloadUrl;
-                    creditsUsed = 0.5;
+                    // Base cost + extra per inspiration image
+                    creditsUsed = 0.5 + jobImagePartsFromInput.length * MANA_PER_INPUT_IMAGE;
                     logModelId = 'gemini-3.1-flash-image-preview';
                     logExtras.imageCount = 1;
                     logExtras.imageUrl = downloadUrl;
@@ -2283,8 +2285,11 @@ export const estimateManaCost = onCall({
             return { mana: `~${mana.toFixed(1)}`, value: mana };
         }
 
-        case 'image':
-            return { mana: '~0.5', value: 0.5 };
+        case 'image': {
+            const numInputImages = data.images?.length || 0;
+            const mana = 0.5 + numInputImages * MANA_PER_INPUT_IMAGE;
+            return { mana: `~${mana.toFixed(1)}`, value: mana };
+        }
 
         case 'video': {
             const hasImages = (data.images?.length || 0) > 0;

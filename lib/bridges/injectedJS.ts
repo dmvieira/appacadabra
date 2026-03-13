@@ -33,8 +33,8 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
 
   return `
 (function() {
-  // Edit mode flag - prevents localStorage persistence
-  const __IS_EDIT_MODE__ = ${isEditMode ? 'true' : 'false'};
+  // Edit mode flag - prevents localStorage persistence (mutable so it can be updated without WebView reload)
+  window.__IS_EDIT_MODE__ = ${isEditMode ? 'true' : 'false'};
   
   // Store pending callbacks
   const pendingCallbacks = {};
@@ -1115,7 +1115,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           }
       }
       originalSetItem.call(this, key, storedValue);
-      if (!__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
+      if (!window.__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
           sendMessage('STORAGE_SET', { key, value: storedValue });
       }
   };
@@ -1123,7 +1123,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   const originalRemoveItem = localStorage.removeItem;
   localStorage.removeItem = function(key) {
       originalRemoveItem.apply(this, arguments);
-      if (!__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
+      if (!window.__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
           sendMessage('STORAGE_REMOVE', { key });
       }
   };
@@ -1131,7 +1131,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   const originalClear = localStorage.clear;
   localStorage.clear = function() {
       originalClear.apply(this, arguments);
-      if (!__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
+      if (!window.__IS_EDIT_MODE__ && !window.__APPACADABRA_RESTORING__) {
           sendMessage('STORAGE_CLEAR', {});
       }
   };
@@ -1596,8 +1596,9 @@ export function createMediaCallbackScript(
     window.__APPACADABRA_BLOB_CACHE__[${escapedCbName}] = ${escapedDataUri};
     var __d = ${escapedMarker};
     console.log("[BridgeReturn] ${callbackName} | media marker: " + __d.substring(0, 60));
-    if (typeof ${callbackName} === 'function') {
-        ${callbackName}(${success}, __d);
+    var _cb = typeof ${callbackName} === 'function' ? ${callbackName} : window['${callbackName}'];
+    if (typeof _cb === 'function') {
+        _cb(${success}, __d);
     }
   })();`
 }
@@ -1740,7 +1741,7 @@ export function createSharedContentSetupScript(translations?: InjectedTranslatio
         if (!injected && isImage && sharedContent.base64) {
            const imgField = document.querySelector('img:not([src]), img[src=""]');
            if (imgField) {
-             imgField.src = 'data:' + sharedContent.mimeType + ';base64,' + sharedContent.base64;
+             imgField.src = 'data:' + sharedContent.mimeType + ';base64,' + sharedContent.base64.replace(/\s/g, '');
               showToast('__IMAGE_LOADED__');
              injected = true;
            }
