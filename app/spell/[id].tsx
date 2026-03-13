@@ -279,7 +279,7 @@ export default function SpellDataScreen() {
                         const toDelete = relics.filter(r => !isRelicActive(r, storageItems));
                         for (const relic of toDelete) {
                             if (relic.mediaLocalPath) {
-                                await FileSystem.deleteAsync(relic.mediaLocalPath, { idempotent: true }).catch(() => { });
+                                await FileSystem.deleteAsync('file://' + relic.mediaLocalPath, { idempotent: true }).catch(() => { });
                             }
                             if (relic.id > 0) await db.deleteWebviewAiCacheEntry(relic.id);
                         }
@@ -302,11 +302,12 @@ export default function SpellDataScreen() {
                     onPress: async () => {
                         await deleteStorageBlobFiles(storageItems);
                         await db.clearStorageForApp(appId);
-                        for (const relic of relics) {
-                            if (relic.mediaLocalPath) {
-                                await FileSystem.deleteAsync(relic.mediaLocalPath, { idempotent: true }).catch(() => { });
-                            }
-                        }
+                        
+                        // Delete entire media directory for this spell
+                        const docDir = (FileSystem.documentDirectory ?? '').replace(/\/$/, '');
+                        const mediaDir = `${docDir}/appacadabra_media/${appId}`;
+                        await FileSystem.deleteAsync(mediaDir, { idempotent: true }).catch(() => { });
+
                         await db.clearAllWebviewAiCacheForApp(appId);
                         await loadData();
                     },
