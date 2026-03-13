@@ -28,7 +28,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript } from '../lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, ExpandedStorageItem } from '../lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles } from '../lib/bridges/messageHandlers';
 import * as gemini from '../lib/api/ai';
 import * as db from '../lib/database/db';
@@ -96,7 +96,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     const [versions, setVersions] = useState<AppVersion[]>([]);
 
     // Saved localStorage items
-    const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
+    const [savedStorage, setSavedStorage] = useState<ExpandedStorageItem[]>([]);
 
     // Debug panel states
     const [showDebugPanel, setShowDebugPanel] = useState(false);

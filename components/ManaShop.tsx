@@ -39,6 +39,7 @@ export function ManaShop() {
 
     // IAP State
     const [products, setProducts] = useState<IAPProduct[]>([]);
+    const productsRef = useRef<IAPProduct[]>([]);
     const [isLoadingProducts, setIsLoadingProducts] = useState(false);
     const [isPurchasing, setIsPurchasing] = useState(false);
     // const [iapInitialized, setIapInitialized] = useState(false);
@@ -75,22 +76,23 @@ export function ManaShop() {
     const setupListeners = () => {
         iap.setupPurchaseListeners(
             async (purchase: any, productId: string) => {
-                // Determine mana amount from product ID
-                const product = products.find(p => p.productId === productId);
-                const amount = product ? product.manaAmount : 0; // Fallback if product not found
-
-                setIsPurchasing(false); // Stop loading on success
+                const product = productsRef.current.find(p => p.productId === productId);
+                const amount = product ? product.manaAmount : 0;
 
                 if (amount > 0) {
                     try {
                         await firebase.addCredits(amount, 'iap_purchase');
                         logManaEarned('iap_purchase', amount);
+                        setIsPurchasing(false);
                         Alert.alert(t('success'), t('purchaseSuccess', { amount }));
                         closeShop();
                     } catch (error) {
                         console.error('Failed to credit mana:', error);
+                        setIsPurchasing(false);
                         Alert.alert(t('error'), 'Purchase successful but failed to add mana. Please contact support.');
                     }
+                } else {
+                    setIsPurchasing(false);
                 }
             },
             (error: any) => {
@@ -132,6 +134,7 @@ export function ManaShop() {
                 }).sort((a, b) => a.manaAmount - b.manaAmount);
 
                 setProducts(mappedProducts);
+                productsRef.current = mappedProducts;
             }
         } finally {
             setIsLoadingProducts(false);
@@ -346,6 +349,12 @@ export function ManaShop() {
                         </TouchableOpacity>
                     </View>
 
+                    {isPurchasing && (
+                        <View style={styles.purchasingOverlay}>
+                            <ActivityIndicator size="large" color={colors.primary} />
+                            <Text style={styles.purchasingText}>{t('processingPurchase')}</Text>
+                        </View>
+                    )}
                     <ScrollView contentContainerStyle={styles.content}>
                         {rewardBanner && (
                             <TouchableOpacity
@@ -791,6 +800,23 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: colors.onSurfaceVariant,
     },
+    // ── Purchasing Overlay ──
+    purchasingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.75)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderTopLeftRadius: borderRadius.xl,
+        borderTopRightRadius: borderRadius.xl,
+        zIndex: 10,
+        gap: 16,
+    },
+    purchasingText: {
+        color: colors.onSurface,
+        fontSize: 15,
+        fontWeight: '600',
+    },
+
     // ── Reward Banner ──
     rewardBanner: {
         backgroundColor: colors.success + '25',

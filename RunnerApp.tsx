@@ -19,8 +19,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript } from './lib/bridges/injectedJS';
-import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob } from './lib/bridges/messageHandlers';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, ExpandedStorageItem } from './lib/bridges/injectedJS';
+import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, AI_MEDIA_MIME, buildBlobMarker } from './lib/bridges/messageHandlers';
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
@@ -49,10 +49,10 @@ function RunnerContent({ appId }: Props) {
     const viewContainerRef = useRef<View>(null);
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
+    const [savedStorage, setSavedStorage] = useState<ExpandedStorageItem[]>([]);
     const [storageLoaded, setStorageLoaded] = useState(false);
     // Use ref to ensure storage is available synchronously for script creation
-    const savedStorageRef = useRef<{ key: string; value: string }[]>([]);
+    const savedStorageRef = useRef<ExpandedStorageItem[]>([]);
     const [sharedContent, setSharedContent] = useState<any>(null);
     const [webViewReady, setWebViewReady] = useState(false);
     const [webViewKey, setWebViewKey] = useState(0); // Key to force WebView recreation
@@ -312,19 +312,8 @@ function RunnerContent({ appId }: Props) {
                 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI',
                 'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
             ]);
-            const RUNNER_MEDIA_EXT: Record<string, string> = {
-                AI_GENERATE_IMAGE: 'jpg', AI_GENERATE_VIDEO: 'mp4',
-                CAMERA_TAKE_PHOTO: 'jpg', CAMERA_RECORD_VIDEO: 'mp4',
-                AUDIO_RECORD_STOP: 'm4a', AUDIO_SPEAK_AI: 'wav',
-            };
-            const RUNNER_MEDIA_MIME: Record<string, string> = {
-                AI_GENERATE_IMAGE: 'image/jpeg', AI_GENERATE_VIDEO: 'video/mp4',
-                CAMERA_TAKE_PHOTO: 'image/jpeg', CAMERA_RECORD_VIDEO: 'video/mp4',
-                AUDIO_RECORD_STOP: 'audio/m4a', AUDIO_SPEAK_AI: 'audio/wav',
-            };
-            let resultForWebView = handlerResult.result;
+            let mediaLocalPath: string | undefined;
             if (RUNNER_MEDIA_TYPES.has(type) && handlerResult.success && handlerResult.result) {
-                let mediaLocalPath: string | undefined;
                 let cacheResult = handlerResult.result;
                 // Detect if result is a filesystem path (not base64 — JPEG base64 starts with /9j/ which is NOT a path)
                 const isPath = handlerResult.result.startsWith('file://') ||
@@ -332,28 +321,16 @@ function RunnerContent({ appId }: Props) {
                 if (isPath) {
                     mediaLocalPath = handlerResult.result.startsWith('file://') ? handlerResult.result.slice(7) : handlerResult.result;
                     cacheResult = `file://${mediaLocalPath}`;
-                    if (type === 'AI_GENERATE_VIDEO') {
-                        try {
-                            resultForWebView = await FileSystem.readAsStringAsync(cacheResult, {
-                                encoding: FileSystem.EncodingType.Base64,
-                            });
-                        } catch {
-                            resultForWebView = cacheResult;
-                        }
-                    } else {
-                        resultForWebView = cacheResult;
-                    }
                 } else if (handlerResult.result.length > 100) {
                     try {
-                        const ext = RUNNER_MEDIA_EXT[type] ?? 'bin';
+                        const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
+                        const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
                         const dir = `${FileSystem.documentDirectory}appacadabra_media/${app?.id}`;
                         await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
                         const fileUri = `${dir}/${callbackName}.${ext}`; // dir starts with file://
                         await FileSystem.writeAsStringAsync(fileUri, handlerResult.result, { encoding: FileSystem.EncodingType.Base64 });
                         mediaLocalPath = fileUri.slice(7); // bare path without file://
                         cacheResult = fileUri;
-                        registerPendingMediaBlob(handlerResult.result, callbackName ?? '', RUNNER_MEDIA_MIME[type]);
-                        // CAMERA_RECORD_VIDEO: handlerResult.result is already base64 — keep resultForWebView as-is
                     } catch (fileErr) {
                         console.warn('[RunnerApp] Failed to save media file:', fileErr);
                     }
@@ -390,9 +367,30 @@ function RunnerContent({ appId }: Props) {
 
             // Send callback if needed, unless deferred (e.g. scanner)
             if (callbackName && webViewRef.current && !handlerResult.deferredCallback) {
-                console.log(`[RunnerApp] Sending callback: ${callbackName} | type: ${type} | success: ${handlerResult.success} | resultLen: ${resultForWebView?.length} | starts: ${resultForWebView?.substring(0, 100)}`);
-                const script = createCallbackScript(callbackName, handlerResult.success, resultForWebView);
-                webViewRef.current.injectJavaScript(script);
+                let handledCallback = false;
+
+                // For media types with a local file: use createMediaCallbackScript to inject into blob cache
+                if (handlerResult.success && mediaLocalPath && callbackName && RUNNER_MEDIA_TYPES.has(type)) {
+                    try {
+                        const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
+                        const b64 = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+                        const dataUri = `data:${mime};base64,${b64}`;
+                        const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
+                        const script = createMediaCallbackScript(callbackName, handlerResult.success, marker, dataUri);
+                        webViewRef.current.injectJavaScript(script);
+                        handledCallback = true;
+                    } catch (readErr) {
+                        console.warn('[RunnerApp] Failed to build media callback, falling back:', readErr);
+                    }
+                }
+
+                if (!handledCallback) {
+                    console.log(`[RunnerApp] Sending callback: ${callbackName} | type: ${type} | success: ${handlerResult.success}`);
+                    const script = createCallbackScript(callbackName, handlerResult.success, handlerResult.result);
+                    webViewRef.current.injectJavaScript(script);
+                }
             }
 
             if (!handlerResult.handled) {

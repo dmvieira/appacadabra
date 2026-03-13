@@ -51,29 +51,7 @@ import { ensureViewportMeta } from '../../lib/htmlUtils';
 
 const EDITOR_ONBOARDING_KEY = 'appacadabra_editor_onboarding_seen';
 
-// const AI_MEDIA_EXT: Record<string, string> = {
-//     AI_GENERATE_IMAGE: 'jpg',
-//     AI_GENERATE_VIDEO: 'mp4',
-//     CAMERA_TAKE_PHOTO: 'jpg',
-//     CAMERA_RECORD_VIDEO: 'mp4',
-//     AUDIO_RECORD_STOP: 'm4a',
-//     AUDIO_SPEAK_AI: 'wav',
-// };
-// const AI_MEDIA_MIME: Record<string, string> = {
-//     AI_GENERATE_IMAGE: 'image/jpeg', AI_GENERATE_VIDEO: 'video/mp4',
-//     CAMERA_TAKE_PHOTO: 'image/jpeg', CAMERA_RECORD_VIDEO: 'video/mp4',
-//     AUDIO_RECORD_STOP: 'audio/m4a', AUDIO_SPEAK_AI: 'audio/wav',
-// };
-
-// async function saveAiMediaToFile(appId: number, callbackName: string, action: string, base64: string): Promise<string> {
-//     const ext = AI_MEDIA_EXT[action] ?? 'bin';
-//     const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
-//     const dir = `${docDir}appacadabra_media/${appId}`;
-//     await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
-//     const path = `${dir}/${callbackName}.${ext}`;
-//     await FileSystem.writeAsStringAsync(`file://${path}`, base64, { encoding: FileSystem.EncodingType.Base64 });
-//     return path;
-// }
+// AI_MEDIA_EXT, AI_MEDIA_MIME, saveAiMediaToFile, buildBlobMarker imported from messageHandlers
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -150,10 +128,10 @@ export default function RunnerScreen() {
     const isShareMode = share === 'true';
 
     // Saved localStorage items
-    const [savedStorage, setSavedStorage] = useState<{ key: string; value: string }[]>([]);
+    const [savedStorage, setSavedStorage] = useState<ExpandedStorageItem[]>([]);
     const [storageLoaded, setStorageLoaded] = useState(false);
     // Use ref to ensure storage is available synchronously for script creation
-    const savedStorageRef = useRef<{ key: string; value: string }[]>([]);
+    const savedStorageRef = useRef<ExpandedStorageItem[]>([]);
 
     const htmlContent = useMemo(() => {
         if (!app) return '';
@@ -787,7 +765,11 @@ export default function RunnerScreen() {
                     break;
                 default: {
                     const isAiAction = [
-                        'AI_GENERATE', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI',
+                        'AI_GENERATE', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI', 'AI_SIMILARITY',
+                    ].includes(type);
+
+                    const isDeviceMediaAction = [
+                        'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
                     ].includes(type);
 
                     if (isAiAction) setIsAiLoading(true);
@@ -815,7 +797,7 @@ export default function RunnerScreen() {
                         if (isAiAction) setIsAiLoading(false);
                     }
 
-                    if (isAiAction && handlerResult && handlerResult.handled && app?.id && callbackName) {
+                    if ((isAiAction || isDeviceMediaAction) && handlerResult && handlerResult.handled && app?.id && callbackName) {
                         try {
                             const isMedia = type !== 'AI_GENERATE';
                             cacheResult = result;
@@ -856,19 +838,29 @@ export default function RunnerScreen() {
 
             // Send callback if needed (unless deferred, e.g. for scanner which will call back via overlay)
             if (callbackName && webViewRef.current && !deferredCallback) {
-                let scriptResult = result;
-                if (type === 'AI_GENERATE_VIDEO' && mediaLocalPath && success) {
+                let handledCallback = false;
+
+                // For media types with a local file: use createMediaCallbackScript to inject into blob cache
+                if (success && mediaLocalPath && type !== 'AI_GENERATE' && type !== 'AI_SIMILARITY') {
                     try {
-                        scriptResult = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                        const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
+                        const b64 = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
                             encoding: FileSystem.EncodingType.Base64,
                         });
-                    } catch {
-                        scriptResult = result;
+                        const dataUri = `data:${mime};base64,${b64}`;
+                        const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
+                        const script = createMediaCallbackScript(callbackName, success, marker, dataUri);
+                        webViewRef.current.injectJavaScript(script);
+                        handledCallback = true;
+                    } catch (readErr) {
+                        console.warn('[Runner] Failed to build media callback, falling back:', readErr);
                     }
                 }
-                // CAMERA_RECORD_VIDEO: result is already base64, use directly
-                const script = createCallbackScript(callbackName, success, scriptResult);
-                webViewRef.current.injectJavaScript(script);
+
+                if (!handledCallback) {
+                    const script = createCallbackScript(callbackName, success, result);
+                    webViewRef.current.injectJavaScript(script);
+                }
             }
         } catch (e) {
             console.error('Error handling WebView message:', e);
