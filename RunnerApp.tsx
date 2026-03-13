@@ -48,6 +48,7 @@ function RunnerContent({ appId }: Props) {
     const webViewRef = useRef<WebView>(null);
     const viewContainerRef = useRef<View>(null);
     const [app, setApp] = useState<GeneratedApp | null>(null);
+    const [pendingVersionApp, setPendingVersionApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [savedStorage, setSavedStorage] = useState<ExpandedStorageItem[]>([]);
     const [storageLoaded, setStorageLoaded] = useState(false);
@@ -134,10 +135,15 @@ function RunnerContent({ appId }: Props) {
             savedStorageRef.current = expandedItems;
 
             // Check for code updates
-            if (appData.code !== lastCodeRef.current && lastCodeRef.current !== null) {
-                console.log('RunnerApp: Code updated during load, forcing WebView reload');
-                setWebViewKey(k => k + 1);
+            if (lastCodeRef.current !== null && appData.code !== lastCodeRef.current) {
+                console.log('RunnerApp: Code updated during load, setting pending banner instead of forcing reload');
+                setPendingVersionApp(appData);
+                // We do NOT update the app state or storage yet, wait for user
+                setStorageLoaded(true);
+                setIsLoading(false);
+                return;
             }
+            
             lastCodeRef.current = appData.code;
 
             setApp(appData);
@@ -150,6 +156,24 @@ function RunnerContent({ appId }: Props) {
             setIsLoading(false);
         }
     }, [appId]);
+
+    const applyPendingUpdate = useCallback(async () => {
+        if (pendingVersionApp) {
+            setApp(pendingVersionApp);
+            lastCodeRef.current = pendingVersionApp.code;
+            
+            // Reload storage for new version
+            const storage = await db.getStorageForApp(pendingVersionApp.id);
+            const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
+            await migrateStorageBlobsToFiles(pendingVersionApp.id);
+            const expandedItems = await expandStorageBlobMarkers(storageItems);
+            savedStorageRef.current = expandedItems;
+            setSavedStorage(expandedItems);
+            
+            setPendingVersionApp(null);
+            setWebViewKey(k => k + 1);
+        }
+    }, [pendingVersionApp]);
 
     // Initial Load
     useEffect(() => {
@@ -444,6 +468,15 @@ function RunnerContent({ appId }: Props) {
     return (
         <>
             <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
+                {pendingVersionApp && (
+                    <TouchableOpacity
+                        style={styles.updateBanner}
+                        onPress={applyPendingUpdate}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.updateBannerText}>✨ {t('newVersionAvailable')}</Text>
+                    </TouchableOpacity>
+                )}
                 <AiLoadingBar visible={isAiLoading} />
                 <ScrollView
                     contentContainerStyle={{ flex: 1 }}
@@ -677,6 +710,17 @@ const styles = StyleSheet.create({
     },
     successCloseText: {
         color: 'rgba(255,255,255,0.5)',
+        fontSize: 14,
+    },
+    updateBanner: {
+        backgroundColor: colors.success,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+    },
+    updateBannerText: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
         fontSize: 14,
     },
 });

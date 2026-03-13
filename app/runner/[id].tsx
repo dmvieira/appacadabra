@@ -314,13 +314,8 @@ export default function RunnerScreen() {
 
         if (updatedApp && updatedApp.currentVersion > app.currentVersion) {
             console.log('RunnerScreen: New version detected:', updatedApp.currentVersion, 'focused:', isFocused);
-            if (isFocused) {
-                // User is viewing the runner → show banner, don't reload
-                setPendingVersionApp(updatedApp);
-            } else {
-                // In background → apply silently
-                setApp(updatedApp);
-            }
+            // User is viewing the runner or it's in background → show banner, never force reload and destroy state
+            setPendingVersionApp(updatedApp);
         }
     }, [storeApps, app, id, isFocused]);
 
