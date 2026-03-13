@@ -16,6 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import AiLoadingBar from './AiLoadingBar';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
@@ -839,6 +840,8 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 </TouchableOpacity>
             )}
 
+            <AiLoadingBar visible={isAiLoading} />
+
             {/* WebView */}
             <WebView
                 key={`${app.id}-${mode}`}
@@ -1007,12 +1010,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 </View>
             </Modal>
 
-            {/* AI Loading Indicator */}
-            {isAiLoading && (
-                <View style={styles.aiLoadingBarContainer}>
-                    <View style={styles.aiLoadingBar} />
-                </View>
-            )}
+
 
             {/* First AI Use Modal */}
             <Modal
@@ -1138,6 +1136,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: spacing.xl,
         lineHeight: 22,
+        paddingBottom: 20,
     },
     successLinkBtn: {
         backgroundColor: colors.primary,
@@ -1159,29 +1158,5 @@ const styles = StyleSheet.create({
     successCloseText: {
         color: colors.onSurfaceVariant,
         fontSize: 14,
-    },
-    aiLoadingBarContainer: {
-        position: 'absolute',
-        top: Platform.OS === 'ios' ? 100 : 70, // Adjust based on header height
-        left: 0,
-        right: 0,
-        height: 3,
-        backgroundColor: 'rgba(0,0,0,0.1)',
-        zIndex: 9999,
-        overflow: 'hidden',
-    },
-    aiLoadingBar: {
-        width: '40%',
-        height: '100%',
-        backgroundColor: colors.primary,
-        borderRadius: borderRadius.full,
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 4,
-        elevation: 4,
-        // The animation would be done with Animated.View usually, 
-        // but since we want "any color/discreet", a static but distinctive bar 
-        // that's small is a good start. For a real shimmer we'd need Animated.
     },
 });

@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import AiLoadingBar from '../../components/AiLoadingBar';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
@@ -784,32 +785,37 @@ export default function RunnerScreen() {
                         responseBody: data.responseBody || data.error,
                     }]);
                     break;
+                default: {
+                    const isAiAction = [
+                        'AI_GENERATE', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI',
+                    ].includes(type);
 
-                default:
-                    // Delegate to shared handlers for common message types
-                    const handlerResult = await handleBridgeMessage(type, data, {
-                        webViewRef: webViewRef as React.RefObject<WebView>,
-                        viewContainerRef: viewContainerRef,
-                        appId: app?.id || null,
-                        callbackName,
-                    });
-                    if (handlerResult.handled) {
-                        success = handlerResult.success;
-                        result = handlerResult.result;
-                        deferredCallback = !!handlerResult.deferredCallback;
-                        if (handlerResult.isFirstAiUse) {
-                            setShowFirstAiUseModal(true);
+                    if (isAiAction) setIsAiLoading(true);
+
+                    let handlerResult;
+                    try {
+                        // Delegate to shared handlers for common message types
+                        handlerResult = await handleBridgeMessage(type, data, {
+                            webViewRef: webViewRef as React.RefObject<WebView>,
+                            viewContainerRef: viewContainerRef,
+                            appId: app?.id || null,
+                            callbackName,
+                        });
+                        if (handlerResult.handled) {
+                            success = handlerResult.success;
+                            result = handlerResult.result;
+                            deferredCallback = !!handlerResult.deferredCallback;
+                            if (handlerResult.isFirstAiUse) {
+                                setShowFirstAiUseModal(true);
+                            }
+                        } else {
+                            console.log('Unknown message type:', type);
                         }
-                    } else {
-                        console.log('Unknown message type:', type);
+                    } finally {
+                        if (isAiAction) setIsAiLoading(false);
                     }
 
-                    const isAiAction = [
-                        'AI_GENERATE', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO',
-                        'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
-                        'AUDIO_SPEAK_AI',
-                    ].includes(type);
-                    if (isAiAction && handlerResult.handled && app?.id && callbackName) {
+                    if (isAiAction && handlerResult && handlerResult.handled && app?.id && callbackName) {
                         try {
                             const isMedia = type !== 'AI_GENERATE';
                             cacheResult = result;
@@ -844,6 +850,8 @@ export default function RunnerScreen() {
                             console.warn('[Runner] Failed to cache AI response:', cacheErr);
                         }
                     }
+                    break;
+                }
             }
 
             // Send callback if needed (unless deferred, e.g. for scanner which will call back via overlay)
@@ -1055,6 +1063,7 @@ export default function RunnerScreen() {
 
             {/* WebView wrapped in ScrollView for Pull-to-Refresh */}
             <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
+                <AiLoadingBar visible={isAiLoading} />
                 <ScrollView
                     refreshControl={
                         !isEditMode ? (
@@ -1451,12 +1460,7 @@ export default function RunnerScreen() {
                 </View>
             </Modal>
 
-            {/* AI Loading Indicator */}
-            {isAiLoading && (
-                <View style={styles.aiLoadingBarContainer}>
-                    <View style={styles.aiLoadingBar} />
-                </View>
-            )}
+
 
             {/* First AI Use Modal */}
             <Modal
@@ -2205,21 +2209,5 @@ const styles = StyleSheet.create({
     successCloseText: {
         color: colors.onSurfaceVariant,
         fontSize: 14,
-    },
-    aiLoadingBarContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 3,
-        backgroundColor: 'rgba(0,0,0,0.1)',
-        zIndex: 9999,
-        overflow: 'hidden',
-    },
-    aiLoadingBar: {
-        width: '40%',
-        height: '100%',
-        backgroundColor: colors.primary,
-        borderRadius: borderRadius.full,
     },
 });

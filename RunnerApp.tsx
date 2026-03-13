@@ -26,6 +26,7 @@ import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
 import { t, getWebViewTranslations } from './lib/i18n';
 import { getStorageFromCache, isCacheLoaded, reloadStorageForApp, StorageItem } from './lib/storageCache';
+import AiLoadingBar from './components/AiLoadingBar';
 import QRScannerOverlay from './components/QRScannerOverlay';
 import { useBridgeUIStore } from './lib/bridgeUIStore';
 
@@ -445,6 +446,7 @@ function RunnerContent({ appId }: Props) {
     return (
         <>
             <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
+                <AiLoadingBar visible={isAiLoading} />
                 <ScrollView
                     contentContainerStyle={{ flex: 1 }}
                     refreshControl={
@@ -534,12 +536,7 @@ function RunnerContent({ appId }: Props) {
                 </ScrollView>
             </View>
 
-            {/* AI Loading Indicator */}
-            {isAiLoading && (
-                <View style={styles.aiLoadingBarContainer}>
-                    <View style={styles.aiLoadingBar} />
-                </View>
-            )}
+
 
             <QRScannerOverlay webviewRef={webViewRef} />
 
@@ -683,21 +680,5 @@ const styles = StyleSheet.create({
     successCloseText: {
         color: 'rgba(255,255,255,0.5)',
         fontSize: 14,
-    },
-    aiLoadingBarContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 3,
-        backgroundColor: 'rgba(0,0,0,0.1)',
-        zIndex: 9999,
-        overflow: 'hidden',
-    },
-    aiLoadingBar: {
-        width: '40%',
-        height: '100%',
-        backgroundColor: colors.primary,
-        borderRadius: 20,
     },
 });
