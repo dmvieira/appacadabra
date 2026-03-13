@@ -123,6 +123,7 @@ export default function RunnerScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [isAtTop, setIsAtTop] = useState(true);
     const [webViewError, setWebViewError] = useState(false);
+    const [webViewKey, setWebViewKey] = useState(0);
     const [pendingVersionApp, setPendingVersionApp] = useState<GeneratedApp | null>(null);
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
@@ -1081,7 +1082,7 @@ export default function RunnerScreen() {
                     scrollEnabled={!isEditMode} // Disable outer scroll in Edit Mode to let WebView handle scrolling exclusively
                 >
                     <WebView
-                        key={`${app.id}`}
+                        key={`${app.id}_${webViewKey}`}
                         ref={webViewRef}
                         source={source}
                         style={styles.webview}
@@ -1099,6 +1100,14 @@ export default function RunnerScreen() {
                         injectedJavaScriptBeforeContentLoaded={combinedScript}
                         onLoadEnd={handleLoadEnd}
                         onMessage={handleMessage}
+                        onRenderProcessGone={(e) => {
+                            console.log('RunnerScreen: WebView render process crashed. Recreating...', e.nativeEvent);
+                            setWebViewKey(k => k + 1);
+                        }}
+                        onContentProcessDidTerminate={() => {
+                            console.log('RunnerScreen: WebView content process terminated (iOS). Recreating...');
+                            setWebViewKey(k => k + 1);
+                        }}
                         onError={(e) => {
                             console.error('WebView error:', e.nativeEvent);
                             setWebViewError(true);

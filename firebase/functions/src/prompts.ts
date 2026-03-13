@@ -131,8 +131,8 @@ AppacadabraAI.generate("Hello", handleResult);
     - Similarity (2 items): \`AppacadabraAI.similarity(["cat", "kitten"], "onResult")\` → \`{ matrix: [[1, 0.87], [0.87, 1]], vectors: [[0.1, ...], [0.12, ...]], count: 2 }\`
     - Similarity (3+ items): \`AppacadabraAI.similarity(["dog", "puppy", "car"], "onResult")\` → \`{ matrix: [[1, 0.91, 0.12], [0.91, 1, 0.10], [0.12, 0.10, 1]], vectors: [...], count: 3 }\`
 - **Return (generate)**: Generated text (string). If \`withSchema\` is used, result is a JSON string.
-- **Return (generateImage)**: base64 PNG string. Use as img src: \`"data:image/png;base64," + result\`.
-- **Return (generateVideo)**: Callback receives \`(success, videoBase64, thumbnailBase64)\`. Use video as \`"data:video/mp4;base64," + videoBase64\` and thumbnail as \`"data:image/jpeg;base64," + thumbnailBase64\` for an instant preview image. Example: \`function onVideoReady(ok, video, thumb) { if (thumb) img.src = 'data:image/jpeg;base64,' + thumb; }\`
+- **Return (generateImage)**: Complete DataURI string (e.g. \`data:image/png;base64,...\`). Use directly as img src (do NOT append prefixes manually).
+- **Return (generateVideo)**: Callback receives \`(success, videoDataUri, thumbnailDataUri)\`. Use directly as src. Example: \`function onVideoReady(ok, videoUri, thumbUri) { if (thumbUri) img.src = thumbUri; vid.src = videoUri; }\`
 - **Return (similarity)**: JSON string \`{ matrix: number[][], vectors: number[][], count: number }\`. \`matrix\` = pairwise cosine similarity (symmetric, 1.0 on diagonal, 0.0-1.0). \`vectors\` = raw embedding arrays (optional, for advanced use like caching or custom distance).
 
 📤 SHARE (AppacadabraShare)
@@ -231,11 +231,11 @@ AppacadabraAI.generate("Hello", handleResult);
 
 📸 CAMERA (AppacadabraCamera)
 - \`takePhoto(callback)\` - Take a photo using the device camera
-    - **Callback Data (string)**: Base64 encoded image string (without prefix, append 'data:image/jpeg;base64,' to use)
+    - **Callback Data (string)**: Complete DataURI string (\`data:image/jpeg;base64,...\`). Use directly as img src (do NOT append prefixes manually).
     - **Example**: \`AppacadabraCamera.takePhoto("onPhotoTaken")\`
 - \`recordVideo(options, callback)\` - Record a video using the device camera
     - **options** (object, optional): \`{ maxDuration?: number (seconds, default 60, max 300), quality?: "high"|"low" }\`
-    - **Callback Data (string)**: Base64 encoded video string. Use with \`AppacadabraAI.fromVideo(base64).generate(...)\`.
+    - **Callback Data (string)**: Complete DataURI string (\`data:video/mp4;base64,...\`). Use with \`AppacadabraAI.fromVideo(uri).generate(...)\`.
     - **Example**: \`AppacadabraCamera.recordVideo({ maxDuration: 30 }, "onVideoRecorded")\`
     - **Example (no options)**: \`AppacadabraCamera.recordVideo("onVideoRecorded")\`
 - \`playVideo(base64, options, callback)\` - Play a video from base64 data
@@ -254,7 +254,7 @@ AppacadabraAI.generate("Hello", handleResult);
 - \`recordStart(callback)\` - Start audio recording (M4A/AAC)
     - **Return**: "Recording started"
 - \`recordStop(callback)\` - Stop recording and get result
-    - **Callback Data (string)**: Base64 encoded audio string. **CRITICAL**: Use this string immediately with \`AppacadabraAI.fromAudio(base64).generate(...)\`.
+    - **Callback Data (string)**: Complete DataURI string (\`data:audio/m4a;base64,...\`). **CRITICAL**: Use this string immediately with \`AppacadabraAI.fromAudio(uri).generate(...)\` or in an \`<audio>\` tag. do NOT append prefixes.
     - **Example**: \`AppacadabraAudio.recordStop("onAudioRecorded")\`
 - \`speak(text, options, callback)\` - Speak text aloud using device TTS engine (free)
     - **options** (object, optional): \`{ language?: "en-US"|"pt-BR"|..., pitch?: 0.5-2.0, rate?: 0.5-2.0, volume?: 0.0-1.0 }\`

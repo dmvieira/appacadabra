@@ -99,6 +99,49 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   }
 
 
+  // Helper: fix duplicate data URI prefixes caused by old AI generated code
+  function _cleanDataUri(val) {
+      if (typeof val === 'string' && val.indexOf('data:') === 0 && val.indexOf('data:', 5) !== -1) {
+          return val.replace(/^(data:[^;]+;base64,)+(?=data:)/i, '');
+      }
+      return val;
+  }
+
+  // Guardrail: HTMLImageElement.src
+  var _imgSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+  if (_imgSrc && _imgSrc.set) {
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+          get: function() { return _imgSrc.get.call(this); },
+          set: function(val) { _imgSrc.set.call(this, _cleanDataUri(val)); }
+      });
+  }
+
+  // Guardrail: HTMLVideoElement.src
+  var _vidSrc = Object.getOwnPropertyDescriptor(HTMLVideoElement.prototype, 'src');
+  if (_vidSrc && _vidSrc.set) {
+      Object.defineProperty(HTMLVideoElement.prototype, 'src', {
+          get: function() { return _vidSrc.get.call(this); },
+          set: function(val) { _vidSrc.set.call(this, _cleanDataUri(val)); }
+      });
+  }
+
+  // Guardrail: HTMLAudioElement.src
+  var _AudSrc = Object.getOwnPropertyDescriptor(HTMLAudioElement.prototype, 'src');
+  if (_AudSrc && _AudSrc.set) {
+      Object.defineProperty(HTMLAudioElement.prototype, 'src', {
+          get: function() { return _AudSrc.get.call(this); },
+          set: function(val) { _AudSrc.set.call(this, _cleanDataUri(val)); }
+      });
+  }
+
+  // Guardrail: setAttribute
+  var _setAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function(name, value) {
+      if (name === 'src' || name === 'href') value = _cleanDataUri(value);
+      return _setAttribute.call(this, name, value);
+  };
+
+
   // Helper: wrap a callback to resolve __appblob__: markers to data URIs (backward compat)
   function wrapBlobCallback(callbackName, interceptName) {
     window[interceptName] = function(success, result) {
@@ -1073,6 +1116,8 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       speakAI: function(text, options, callbackName) {
         console.log('[AppacadabraAudio.speakAI] text:', text?.substring(0, 50), 'callback:', callbackName);
         var opts = options || {};
+        var interceptName = '__caits' + Date.now();
+        wrapBlobCallback(callbackName, interceptName);
         sendMessage('AUDIO_SPEAK_AI', {
           text: text,
           voiceName: opts.voice || 'Aoede',

@@ -226,8 +226,13 @@ function RunnerContent({ appId }: Props) {
         const handleAppStateChange = async (nextAppState: AppStateStatus) => {
             if (nextAppState === 'background' || nextAppState === 'inactive') {
                 wasInBackground = true;
-                console.log('RunnerApp: App went to background');
-                cleanupAllMedia();
+                console.log('RunnerApp: App went to background/inactive');
+                // Guard: don't stop media if we're just opening a native picker (camera, image gallery)
+                if (!useBridgeUIStore.getState().isNativeActivityActive) {
+                    cleanupAllMedia();
+                } else {
+                    console.log('RunnerApp: Native activity active, skipping media cleanup');
+                }
             }
 
             if (nextAppState === 'active' && wasInBackground && app) {
@@ -239,40 +244,6 @@ function RunnerContent({ appId }: Props) {
 
                 // Re-fetch app data
                 loadApp();
-
-                // Smart detection: Send heartbeat and wait for response
-                if (webViewRef.current) {
-                    // If we are return from a known native activity (camera, etc), be extra lenient
-                    const isNative = useBridgeUIStore.getState().isNativeActivityActive;
-                    const timeoutMs = isNative ? 5000 : 2500;
-
-                    heartbeatReceivedRef.current = false;
-                    try {
-                        console.log(`RunnerApp: Sending heartbeat to WebView (timeout: ${timeoutMs}ms, isNative: ${isNative})...`);
-                        webViewRef.current.injectJavaScript(`
-                            if (typeof window !== 'undefined' && window.ReactNativeWebView) {
-                                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'HEARTBEAT_RESPONSE' }));
-                            }
-                            true;
-                        `);
-                        setTimeout(() => {
-                            if (!heartbeatReceivedRef.current) {
-                                // If native activity was active, we might have just returned from camera. 
-                                // Don't reload if we just got back, give it one more chance or just log it.
-                                if (isNative) {
-                                    console.log('RunnerApp: No heartbeat response after native activity, but skipping reload to preserve state.');
-                                } else {
-                                    console.log('RunnerApp: No heartbeat response, WebView is dead - forcing reload');
-                                    setWebViewKey(k => k + 1);
-                                }
-                            } else {
-                                console.log('RunnerApp: Heartbeat received, WebView is healthy');
-                            }
-                        }, timeoutMs);
-                    } catch (e) {
-                        if (!isNative) setWebViewKey(k => k + 1);
-                    }
-                }
             }
         };
 
@@ -400,10 +371,12 @@ function RunnerContent({ appId }: Props) {
                 if (handlerResult.success && mediaLocalPath && callbackName && RUNNER_MEDIA_TYPES.has(type)) {
                     try {
                         const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
-                        const b64 = (await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                        const b64Raw = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
                             encoding: FileSystem.EncodingType.Base64,
-                        })).replace(/[\r\n]/g, '');
-                        const dataUri = `data:${mime};base64,${b64}`;
+                        });
+                        const b64 = b64Raw.replace(/[\r\n]/g, '');
+                        // Guardrail: Ensure we don't double-prefix dataURIs
+                        const dataUri = b64.startsWith('data:') ? b64 : `data:${mime};base64,${b64}`;
                         const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
                         const script = createMediaCallbackScript(callbackName, handlerResult.success, marker, dataUri);
                         webViewRef.current.injectJavaScript(script);
@@ -509,6 +482,14 @@ function RunnerContent({ appId }: Props) {
                         geolocationEnabled
                         injectedJavaScriptBeforeContentLoaded={combinedScript}
                         onMessage={handleMessage}
+                        onRenderProcessGone={(e) => {
+                            console.log('RunnerApp: WebView render process crashed. Recreating...', e.nativeEvent);
+                            setWebViewKey(k => k + 1);
+                        }}
+                        onContentProcessDidTerminate={() => {
+                            console.log('RunnerApp: WebView content process terminated (iOS). Recreating...');
+                            setWebViewKey(k => k + 1);
+                        }}
                         onError={(e) => console.error('WebView error:', e.nativeEvent)}
                         onLoadEnd={() => {
                             console.log('RunnerApp: WebView loaded, checking for shared content');

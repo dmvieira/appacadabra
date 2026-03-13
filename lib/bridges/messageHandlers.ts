@@ -1718,6 +1718,7 @@ export async function handleBridgeMessage(
                 // Update mana cost
                 if (ctx.appId && creditsUsed > 0) {
                     try {
+                        const { useAppStore } = require('../appStore');
                         await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
                         debugLog(`App ${ctx.appId} mana cost increased by ${creditsUsed}`);
                     } catch (e) {
@@ -1728,7 +1729,13 @@ export async function handleBridgeMessage(
                 // Track first success
                 isFirstAiUse = await checkAndMarkFirstAiUse();
 
-                result = audioBase64;
+                // Return the permanent path marker if saved, otherwise the raw base64
+                if (permanentPath && ctx.callbackName) {
+                    result = buildBlobMarker('audio/wav', ctx.callbackName, permanentPath);
+                    debugLog(`AUDIO_SPEAK_AI returning blob marker: ${result}`);
+                } else {
+                    result = audioBase64;
+                }
             } catch (e) {
                 const errorMsg = e instanceof Error ? e.message : 'Error';
 
