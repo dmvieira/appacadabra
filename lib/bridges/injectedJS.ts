@@ -1021,21 +1021,17 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       Object.assign(window.AppacadabraSensors, SensorsObj);
   window.AppacadabraCamera = {
       takePhoto: function(callbackName) {
-          var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
-          wrapBlobCallback(callbackName, interceptName);
-          sendMessage('CAMERA_TAKE_PHOTO', {}, interceptName);
+          sendMessage('CAMERA_TAKE_PHOTO', {}, callbackName);
       },
       // Video Recording (opens native camera, returns base64 when done)
       recordVideo: function(options, callbackName) {
           if (typeof options === 'string') { callbackName = options; options = {}; }
           var opts = options || {};
           console.log('[AppacadabraCamera.recordVideo] maxDuration:', opts.maxDuration || 60, 'callback:', callbackName);
-          var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
-          wrapBlobCallback(callbackName, interceptName);
           sendMessage('CAMERA_RECORD_VIDEO', {
               maxDuration: opts.maxDuration || 60,
               quality: opts.quality || 'high'
-          }, interceptName);
+          }, callbackName);
       },
       // Video Playback
       playVideo: function(base64, options, callbackName) {
@@ -1064,9 +1060,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           sendMessage('AUDIO_RECORD_START', {}, callbackName);
       },
       recordStop: function(callbackName) {
-          var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
-          wrapBlobCallback(callbackName, interceptName);
-          sendMessage('AUDIO_RECORD_STOP', {}, interceptName);
+          sendMessage('AUDIO_RECORD_STOP', {}, callbackName);
       },
       // Text-to-Speech
       speak: function(text, options, callbackName) {
@@ -1079,8 +1073,6 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       speakAI: function(text, options, callbackName) {
         console.log('[AppacadabraAudio.speakAI] text:', text?.substring(0, 50), 'callback:', callbackName);
         var opts = options || {};
-        var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
-        wrapBlobCallback(callbackName, interceptName);
         sendMessage('AUDIO_SPEAK_AI', {
           text: text,
           voiceName: opts.voice || 'Aoede',
@@ -1593,12 +1585,14 @@ export function createMediaCallbackScript(
   const escapedCbName = JSON.stringify(callbackName);
   return `(function() {
     window.__APPACADABRA_BLOB_CACHE__ = window.__APPACADABRA_BLOB_CACHE__ || {};
+    window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
     window.__APPACADABRA_BLOB_CACHE__[${escapedCbName}] = ${escapedDataUri};
-    var __d = ${escapedMarker};
-    console.log("[BridgeReturn] ${callbackName} | media marker: " + __d.substring(0, 60));
+    window.__APPACADABRA_MARKER_CACHE__[${escapedCbName}] = ${escapedMarker};
+    var __dataUri = ${escapedDataUri};
+    console.log("[BridgeReturn] ${callbackName} | media dataUri: " + __dataUri.substring(0, 60));
     var _cb = typeof ${callbackName} === 'function' ? ${callbackName} : window['${callbackName}'];
     if (typeof _cb === 'function') {
-        _cb(${success}, __d);
+        _cb(${success}, __dataUri);
     }
   })();`
 }

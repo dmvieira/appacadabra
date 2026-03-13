@@ -28,8 +28,8 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, ExpandedStorageItem } from '../lib/bridges/injectedJS';
-import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles } from '../lib/bridges/messageHandlers';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, ExpandedStorageItem, createMediaCallbackScript } from '../lib/bridges/injectedJS';
+import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, AI_MEDIA_MIME, buildBlobMarker } from '../lib/bridges/messageHandlers';
 import * as gemini from '../lib/api/ai';
 import * as db from '../lib/database/db';
 import { colors, spacing, borderRadius } from '../lib/theme';
@@ -271,8 +271,13 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 case 'AI_SIMILARITY':
                 case 'AI_GENERATE_IMAGE':
                 case 'AI_GENERATE_VIDEO':
-                case 'AUDIO_SPEAK_AI': {
-                    setIsAiLoading(true);
+                case 'AUDIO_SPEAK_AI':
+                case 'CAMERA_TAKE_PHOTO':
+                case 'CAMERA_RECORD_VIDEO':
+                case 'AUDIO_RECORD_STOP':
+                case 'SCANNER_SCAN': {
+                    const isAiAction = ['AI_GENERATE', 'AI_SIMILARITY', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI'].includes(type);
+                    if (isAiAction) setIsAiLoading(true);
                     try {
                         const handlerResult = await handleBridgeMessage(type, data, {
                             webViewRef: webViewRef as React.RefObject<WebView>,
@@ -285,8 +290,55 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                         if (handlerResult.isFirstAiUse) {
                             setShowFirstAiUseModal(true);
                         }
+
+                        // Handle media cache logic for Preview mode (in memory/temp file)
+                        const RUNNER_MEDIA_TYPES = new Set([
+                            'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI',
+                            'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
+                        ]);
+                        if (RUNNER_MEDIA_TYPES.has(type) && success && result) {
+                            let mediaLocalPath: string | undefined;
+                            const isPath = result.startsWith('file://') ||
+                                (result.startsWith('/') && result.length < 1000 && /^\/[\w.]/.test(result));
+                            
+                            if (isPath) {
+                                mediaLocalPath = result.startsWith('file://') ? result.slice(7) : result;
+                            } else if (result.length > 100) {
+                                try {
+                                    const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
+                                    const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
+                                    const dir = `${FileSystem.documentDirectory}appacadabra_media/${app?.id || 'preview'}`;
+                                    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
+                                    const fileUri = `${dir}/${callbackName || Date.now()}.${ext}`;
+                                    await FileSystem.writeAsStringAsync(fileUri, result, { encoding: FileSystem.EncodingType.Base64 });
+                                    mediaLocalPath = fileUri.slice(7);
+                                } catch (fileErr) {
+                                    console.warn('[AppRunner] Failed to save media file:', fileErr);
+                                }
+                            }
+
+                            // Inject via createMediaCallbackScript
+                            if (mediaLocalPath && callbackName && webViewRef.current && !deferredCallback) {
+                                try {
+                                    const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
+                                    const b64 = (await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                                        encoding: FileSystem.EncodingType.Base64,
+                                    })).replace(/[\r\n]/g, '');
+                                    const dataUri = `data:${mime};base64,${b64}`;
+                                    const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
+                                    
+                                    registerPendingMediaBlob(result, callbackName, mime);
+                                    
+                                    const script = createMediaCallbackScript(callbackName, success, marker, dataUri);
+                                    webViewRef.current.injectJavaScript(script);
+                                    deferredCallback = true; // Mark as handled to prevent duplicate callback below
+                                } catch (readErr) {
+                                    console.warn('[AppRunner] Failed to build media callback:', readErr);
+                                }
+                            }
+                        }
                     } finally {
-                        setIsAiLoading(false);
+                        if (isAiAction) setIsAiLoading(false);
                     }
                     break;
                 }

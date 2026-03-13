@@ -1687,7 +1687,7 @@ export async function handleBridgeMessage(
                         const dir = `${docDir}appacadabra_media/${ctx.appId}`;
                         await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
                         permanentPath = `${dir}/${ctx.callbackName}.wav`;
-                        await FileSystem.writeAsStringAsync(`file://${permanentPath}`, audioBase64, {
+                        await FileSystem.writeAsStringAsync(`file://${permanentPath}`, audioBase64.replace(/[\r\n]/g, ''), {
                             encoding: FileSystem.EncodingType.Base64,
                         });
                     } catch (saveErr) {
@@ -1697,7 +1697,7 @@ export async function handleBridgeMessage(
 
                 // Write audio to a temp file and play it
                 const fileUri = FileSystem.cacheDirectory + `tts_${Date.now()}.wav`;
-                await FileSystem.writeAsStringAsync(fileUri, audioBase64, {
+                await FileSystem.writeAsStringAsync(fileUri, audioBase64.replace(/[\r\n]/g, ''), {
                     encoding: FileSystem.EncodingType.Base64,
                 });
 
@@ -1728,7 +1728,7 @@ export async function handleBridgeMessage(
                 // Track first success
                 isFirstAiUse = await checkAndMarkFirstAiUse();
 
-                result = permanentPath ?? 'Speaking';
+                result = audioBase64;
             } catch (e) {
                 const errorMsg = e instanceof Error ? e.message : 'Error';
 
@@ -1812,7 +1812,7 @@ export async function handleBridgeMessage(
                         const dir = `${docDir}appacadabra_media/${ctx.appId}`;
                         await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
                         permanentVideoPath = `${dir}/${ctx.callbackName}.mp4`;
-                        await FileSystem.writeAsStringAsync(`file://${permanentVideoPath}`, videoResult.videoBase64, {
+                        await FileSystem.writeAsStringAsync(`file://${permanentVideoPath}`, videoResult.videoBase64.replace(/[\r\n]/g, ''), {
                             encoding: FileSystem.EncodingType.Base64,
                         });
                     } catch (saveErr) {
@@ -2113,7 +2113,7 @@ export async function handleBridgeMessage(
                     const videoBase64 = await FileSystem.readAsStringAsync(videoUri, {
                         encoding: FileSystem.EncodingType.Base64,
                     });
-                    result = videoBase64;
+                    result = videoBase64.replace(/[\r\n]/g, '');
                 } else {
                     success = false;
                     result = 'Cancelled';

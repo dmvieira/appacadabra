@@ -354,7 +354,10 @@ function RunnerContent({ appId }: Props) {
                         const fileUri = `${dir}/${callbackName}.${ext}`; // dir starts with file://
                         await FileSystem.writeAsStringAsync(fileUri, handlerResult.result, { encoding: FileSystem.EncodingType.Base64 });
                         mediaLocalPath = fileUri.slice(7); // bare path without file://
-                        cacheResult = fileUri;
+                        cacheResult = `file://${mediaLocalPath}`;
+                        if (callbackName) {
+                            registerPendingMediaBlob(handlerResult.result, callbackName, mime);
+                        }
                     } catch (fileErr) {
                         console.warn('[RunnerApp] Failed to save media file:', fileErr);
                     }
@@ -397,9 +400,9 @@ function RunnerContent({ appId }: Props) {
                 if (handlerResult.success && mediaLocalPath && callbackName && RUNNER_MEDIA_TYPES.has(type)) {
                     try {
                         const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
-                        const b64 = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                        const b64 = (await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
                             encoding: FileSystem.EncodingType.Base64,
-                        });
+                        })).replace(/[\r\n]/g, '');
                         const dataUri = `data:${mime};base64,${b64}`;
                         const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
                         const script = createMediaCallbackScript(callbackName, handlerResult.success, marker, dataUri);

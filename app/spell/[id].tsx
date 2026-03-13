@@ -127,8 +127,6 @@ export default function SpellDataScreen() {
     const [textModal, setTextModal] = useState<{ visible: boolean; content: string }>({ visible: false, content: '' });
     const [cleanModal, setCleanModal] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [relicsAtTop, setRelicsAtTop] = useState(true);
-    const [essenceAtTop, setEssenceAtTop] = useState(true);
 
     const loadData = useCallback(async () => {
         setRefreshing(true);
@@ -437,12 +435,11 @@ export default function SpellDataScreen() {
 
             <ScrollView
                 style={styles.scroll}
-                contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={loadData}
-                        enabled={relicsAtTop && essenceAtTop}
                         tintColor={colors.primary}
                         colors={[colors.primary]}
                     />
@@ -477,16 +474,7 @@ export default function SpellDataScreen() {
                         {filteredRelics.length === 0 ? (
                             <Text style={styles.emptyText}>{t('noRelics')}</Text>
                         ) : (
-                            <ScrollView
-                                style={{ maxHeight: screenHeight * 0.35 }}
-                                nestedScrollEnabled
-                                showsVerticalScrollIndicator={false}
-                                onScroll={(e) => {
-                                    const y = e.nativeEvent.contentOffset.y;
-                                    setRelicsAtTop(y <= 0);
-                                }}
-                                scrollEventThrottle={16}
-                            >
+                            <View style={{ width: '100%' }}>
                                 {filteredRelics.map((entry, idx) => {
                                     const mediaType = getMediaType(entry);
                                     const active = isRelicActive(entry, storageItems);
@@ -518,7 +506,7 @@ export default function SpellDataScreen() {
                                         </View>
                                     );
                                 })}
-                            </ScrollView>
+                            </View>
                         )}
                     </View>
                 </View>
@@ -530,18 +518,9 @@ export default function SpellDataScreen() {
                         {storageItems.length === 0 ? (
                             <Text style={styles.emptyText}>{t('noEssence')}</Text>
                         ) : (
-                            <ScrollView
-                                style={{ maxHeight: screenHeight * 0.25 }}
-                                nestedScrollEnabled
-                                showsVerticalScrollIndicator={false}
-                                onScroll={(e) => {
-                                    const y = e.nativeEvent.contentOffset.y;
-                                    setEssenceAtTop(y <= 0);
-                                }}
-                                scrollEventThrottle={16}
-                            >
+                            <View style={{ width: '100%' }}>
                                 {storageItems.map(renderStorageItem)}
-                            </ScrollView>
+                            </View>
                         )}
                     </View>
                 </View>
