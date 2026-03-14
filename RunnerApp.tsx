@@ -19,7 +19,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, ExpandedStorageItem } from './lib/bridges/injectedJS';
+import { Video, ResizeMode } from 'expo-av';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, ExpandedStorageItem } from './lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, AI_MEDIA_MIME, buildBlobMarker } from './lib/bridges/messageHandlers';
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
@@ -63,6 +64,9 @@ function RunnerContent({ appId }: Props) {
     const [isAtTop, setIsAtTop] = useState(true); // Helper to prevent conflicting scrolls
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
+    
+    // Video Playback
+    const { videoPlayback, closeVideoPlayer } = useBridgeUIStore();
 
     // Check drop-box file for pending shared content
     const checkDropBox = useCallback(async () => {
@@ -143,7 +147,7 @@ function RunnerContent({ appId }: Props) {
                 setIsLoading(false);
                 return;
             }
-            
+
             lastCodeRef.current = appData.code;
 
             setApp(appData);
@@ -161,7 +165,7 @@ function RunnerContent({ appId }: Props) {
         if (pendingVersionApp) {
             setApp(pendingVersionApp);
             lastCodeRef.current = pendingVersionApp.code;
-            
+
             // Reload storage for new version
             const storage = await db.getStorageForApp(pendingVersionApp.id);
             const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
@@ -169,7 +173,7 @@ function RunnerContent({ appId }: Props) {
             const expandedItems = await expandStorageBlobMarkers(storageItems);
             savedStorageRef.current = expandedItems;
             setSavedStorage(expandedItems);
-            
+
             setPendingVersionApp(null);
             setWebViewKey(k => k + 1);
         }
@@ -308,26 +312,45 @@ function RunnerContent({ appId }: Props) {
                 'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
             ]);
             let mediaLocalPath: string | undefined;
+            if (callbackName) {
+                console.log(`[RunnerApp] Handling response for: ${callbackName} | type: ${type} | success: ${handlerResult.success}`);
+                if (handlerResult.result && typeof handlerResult.result === 'string') {
+                    console.log(`[RunnerApp] Result preview: ${handlerResult.result.substring(0, 50)}${handlerResult.result.length > 50 ? '...' : ''}`);
+                } else {
+                    console.log(`[RunnerApp] Result type: ${typeof handlerResult.result}`);
+                }
+            }
+
             if (RUNNER_MEDIA_TYPES.has(type) && handlerResult.success && handlerResult.result) {
                 let cacheResult = handlerResult.result;
+                const isMarker = handlerResult.result.startsWith('__appblob__:');
                 // Detect if result is a filesystem path (not base64 — JPEG base64 starts with /9j/ which is NOT a path)
-                const isPath = handlerResult.result.startsWith('file://') ||
-                    (handlerResult.result.startsWith('/') && handlerResult.result.length < 1000 && /^\/[\w.]/.test(handlerResult.result));
-                if (isPath) {
+                const isPath = !isMarker && (handlerResult.result.startsWith('file://') ||
+                    (handlerResult.result.startsWith('/') && handlerResult.result.length < 1000 && /^\/[\w.]/.test(handlerResult.result)));
+
+                if (isMarker) {
+                    // Result is already a marker (e.g. from speakAI)
+                    const parts = handlerResult.result.split('|');
+                    if (parts.length >= 3) mediaLocalPath = parts[2];
+                    cacheResult = handlerResult.result;
+                } else if (isPath) {
                     mediaLocalPath = handlerResult.result.startsWith('file://') ? handlerResult.result.slice(7) : handlerResult.result;
                     cacheResult = `file://${mediaLocalPath}`;
-                } else if (handlerResult.result.length > 100) {
+                } else if (handlerResult.result.length > 20) {
                     try {
                         const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
                         const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
                         const dir = `${FileSystem.documentDirectory}appacadabra_media/${app?.id}`;
                         await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
                         const fileUri = `${dir}/${callbackName}.${ext}`; // dir starts with file://
-                        await FileSystem.writeAsStringAsync(fileUri, handlerResult.result, { encoding: FileSystem.EncodingType.Base64 });
+                        
+                        // Robust base64 cleaning
+                        const cleanB64 = handlerResult.result.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
+                        await FileSystem.writeAsStringAsync(fileUri, cleanB64, { encoding: FileSystem.EncodingType.Base64 });
                         mediaLocalPath = fileUri.slice(7); // bare path without file://
                         cacheResult = `file://${mediaLocalPath}`;
                         if (callbackName) {
-                            registerPendingMediaBlob(handlerResult.result, callbackName, mime);
+                            registerPendingMediaBlob(cleanB64, callbackName, mime);
                         }
                     } catch (fileErr) {
                         console.warn('[RunnerApp] Failed to save media file:', fileErr);
@@ -374,12 +397,34 @@ function RunnerContent({ appId }: Props) {
                         const b64Raw = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
                             encoding: FileSystem.EncodingType.Base64,
                         });
-                        const b64 = b64Raw.replace(/[\r\n]/g, '');
-                        // Guardrail: Ensure we don't double-prefix dataURIs
-                        const dataUri = b64.startsWith('data:') ? b64 : `data:${mime};base64,${b64}`;
-                        const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
-                        const script = createMediaCallbackScript(callbackName, handlerResult.success, marker, dataUri);
+                        const b64 = b64Raw.replace(/\s/g, '');
+                        // Guardrail: Ensure we don't double-prefix dataURIs. Strip any existing prefix first.
+                        const cleanB64 = b64.replace(/^data:.*?;base64,/i, '');
+                        const dataUri = `data:${mime};base64,${cleanB64}`;
+
+                        // If result is already a marker, use it. Otherwise build one.
+                        const isResMarker = handlerResult.result?.startsWith('__appblob__:');
+                        const marker = isResMarker ? handlerResult.result : buildBlobMarker(mime, callbackName, mediaLocalPath);
+
+                        console.log(`[RunnerApp] Delivering media ${type} to ${callbackName} | marker: ${marker.substring(0, 40)}...`);
+                        
+                        // 1. Prepare the callback to wait for media
+                        const script = createMediaCallbackScript(callbackName, handlerResult.success, marker);
                         webViewRef.current.injectJavaScript(script);
+
+                        // 2. Deliver the media in chunks
+                        const CHUNK_SIZE = 64 * 1024; // 64KB chunks
+                        const totalChunks = Math.ceil(cleanB64.length / CHUNK_SIZE);
+                        console.log(`[RunnerApp] Delivering ${marker} in ${totalChunks} chunks`);
+
+                        for (let i = 0; i < totalChunks; i++) {
+                            const start = i * CHUNK_SIZE;
+                            const end = Math.min(start + CHUNK_SIZE, cleanB64.length);
+                            const chunk = cleanB64.substring(start, end);
+                            const chunkScript = createMediaChunkScript(marker, chunk, i, totalChunks);
+                            webViewRef.current.injectJavaScript(chunkScript);
+                        }
+                        
                         handledCallback = true;
                     } catch (readErr) {
                         console.warn('[RunnerApp] Failed to build media callback, falling back:', readErr);
@@ -706,5 +751,32 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontWeight: 'bold',
         fontSize: 14,
+    },
+    videoModalContainer: {
+        flex: 1,
+        backgroundColor: '#000000',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullVideo: {
+        width: '100%',
+        height: '100%',
+    },
+    closeVideoButton: {
+        position: 'absolute',
+        top: 40,
+        right: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
+    },
+    closeVideoText: {
+        color: '#FFFFFF',
+        fontSize: 24,
+        fontWeight: 'bold',
     },
 });

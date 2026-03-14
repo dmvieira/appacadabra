@@ -11,18 +11,26 @@ interface ManaConfirmRequest {
     resolve: (confirmed: boolean) => void;
 }
 
+interface VideoPlayback {
+    uri: string;
+    callback?: string;
+}
+
 interface BridgeUIState {
     isScannerOpen: boolean;
     scannerCallback: string | null;
     webViewRef: React.RefObject<WebView> | null;
     isNativeActivityActive: boolean;
     manaConfirmRequest: ManaConfirmRequest | null;
+    videoPlayback: VideoPlayback | null;
     openScanner: (callback: string) => void;
     closeScanner: (scannedData?: string) => void;
     setWebViewRef: (ref: React.RefObject<WebView>) => void;
     setNativeActivityActive: (active: boolean) => void;
     requestManaConfirmation: (appId: number | null, operationType: ManaOperationType, costEstimate: string) => Promise<boolean>;
     resolveManaConfirmation: (confirmed: boolean) => void;
+    openVideoPlayer: (uri: string, callback?: string) => void;
+    closeVideoPlayer: () => void;
 }
 
 export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
@@ -31,10 +39,13 @@ export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
     webViewRef: null,
     isNativeActivityActive: false,
     manaConfirmRequest: null,
+    videoPlayback: null,
     openScanner: (callback) => set({ isScannerOpen: true, scannerCallback: callback, isNativeActivityActive: true }),
     closeScanner: () => set({ isScannerOpen: false, scannerCallback: null, isNativeActivityActive: false }),
     setWebViewRef: (ref) => set({ webViewRef: ref }),
     setNativeActivityActive: (active: boolean) => set({ isNativeActivityActive: active }),
+    openVideoPlayer: (uri, callback) => set({ videoPlayback: { uri, callback }, isNativeActivityActive: true }),
+    closeVideoPlayer: () => set({ videoPlayback: null, isNativeActivityActive: false }),
     requestManaConfirmation: async (appId, operationType, costEstimate) => {
         if (appId !== null) {
             const key = `mana_confirm_skip_${appId}_${operationType}`;

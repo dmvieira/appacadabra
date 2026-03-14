@@ -33,7 +33,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, ExpandedStorageItem } from '../../lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, ExpandedStorageItem } from '../../lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, saveAiMediaToFile, AI_MEDIA_MIME, buildBlobMarker } from '../../lib/bridges/messageHandlers';
 import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
@@ -859,8 +859,24 @@ export default function RunnerScreen() {
                         })).replace(/[\r\n]/g, '');
                         const dataUri = `data:${mime};base64,${b64}`;
                         const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
-                        const script = createMediaCallbackScript(callbackName, success, marker, dataUri);
+                        
+                        // 1. Prepare the callback to wait for media
+                        const script = createMediaCallbackScript(callbackName, success, marker);
                         webViewRef.current.injectJavaScript(script);
+
+                        // 2. Deliver the media in chunks
+                        const CHUNK_SIZE = 64 * 1024; // 64KB chunks
+                        const totalChunks = Math.ceil(b64.length / CHUNK_SIZE);
+                        console.log(`[Runner] Delivering ${marker} in ${totalChunks} chunks`);
+
+                        for (let i = 0; i < totalChunks; i++) {
+                            const start = i * CHUNK_SIZE;
+                            const end = Math.min(start + CHUNK_SIZE, b64.length);
+                            const chunk = b64.substring(start, end);
+                            const chunkScript = createMediaChunkScript(marker, chunk, i, totalChunks);
+                            webViewRef.current.injectJavaScript(chunkScript);
+                        }
+                        
                         handledCallback = true;
                     } catch (readErr) {
                         console.warn('[Runner] Failed to build media callback, falling back:', readErr);

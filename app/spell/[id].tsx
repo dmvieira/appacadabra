@@ -170,7 +170,10 @@ export default function SpellDataScreen() {
                     createdAt: Date.now(),
                 }));
 
-            setRelics([...(dbRelics as RelicEntry[]), ...fsRelics]);
+            const combined = [...(dbRelics as RelicEntry[]), ...fsRelics]
+                .sort((a, b) => b.createdAt - a.createdAt);
+
+            setRelics(combined);
             setStorageItems(s as StorageEntry[]);
         } catch (err) {
             console.warn('[SpellData] Error loading data:', err);
@@ -433,20 +436,9 @@ export default function SpellDataScreen() {
                 <View style={styles.backBtn} />
             </View>
 
-            <ScrollView
-                style={styles.scroll}
-                contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={loadData}
-                        tintColor={colors.primary}
-                        colors={[colors.primary]}
-                    />
-                }
-            >
+            <View style={styles.mainContainer}>
                 {/* ═══════════ Section 1: Relics ═══════════ */}
-                <View style={styles.sectionWrapper}>
+                <View style={[styles.sectionWrapper, { flex: 1.4 }]}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionLabel}>{t('relicsCreated')}</Text>
                         <TouchableOpacity onPress={() => setCleanModal(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -455,26 +447,39 @@ export default function SpellDataScreen() {
                     </View>
 
                     {/* Filter Pills */}
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingRight: 8 }}>
-                        {filters.map(f => (
-                            <TouchableOpacity
-                                key={f.key}
-                                onPress={() => setFilter(f.key)}
-                                style={[styles.filterPill, filter === f.key && styles.filterPillActive]}
-                            >
-                                <Text style={[styles.filterPillText, filter === f.key && styles.filterPillTextActive]}>
-                                    {f.label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                    <View style={{ height: 44 }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingRight: 8 }}>
+                            {filters.map(f => (
+                                <TouchableOpacity
+                                    key={f.key}
+                                    onPress={() => setFilter(f.key)}
+                                    style={[styles.filterPill, filter === f.key && styles.filterPillActive]}
+                                >
+                                    <Text style={[styles.filterPillText, filter === f.key && styles.filterPillTextActive]}>
+                                        {f.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
 
                     {/* Relics Card */}
-                    <View style={styles.card}>
+                    <View style={[styles.card, { flex: 1 }]}>
                         {filteredRelics.length === 0 ? (
                             <Text style={styles.emptyText}>{t('noRelics')}</Text>
                         ) : (
-                            <View style={{ width: '100%' }}>
+                            <ScrollView
+                                style={{ flex: 1 }}
+                                contentContainerStyle={{ flexGrow: 1 }}
+                                refreshControl={
+                                    <RefreshControl
+                                        refreshing={refreshing}
+                                        onRefresh={loadData}
+                                        tintColor={colors.primary}
+                                        colors={[colors.primary]}
+                                    />
+                                }
+                            >
                                 {filteredRelics.map((entry, idx) => {
                                     const mediaType = getMediaType(entry);
                                     const active = isRelicActive(entry, storageItems);
@@ -506,37 +511,34 @@ export default function SpellDataScreen() {
                                         </View>
                                     );
                                 })}
-                            </View>
+                            </ScrollView>
                         )}
                     </View>
                 </View>
 
                 {/* ═══════════ Section 2: Essence (LocalStorage) ═══════════ */}
-                <View style={styles.sectionWrapper}>
+                <View style={[styles.sectionWrapper, { flex: 1, marginTop: spacing.sm }]}>
                     <Text style={styles.sectionLabel}>{t('spellEssence')}</Text>
-                    <View style={[styles.card, { paddingHorizontal: spacing.sm }]}>
+                    <View style={[styles.card, { flex: 1, paddingHorizontal: spacing.sm }]}>
                         {storageItems.length === 0 ? (
                             <Text style={styles.emptyText}>{t('noEssence')}</Text>
                         ) : (
-                            <View style={{ width: '100%' }}>
+                            <ScrollView style={{ flex: 1 }}>
                                 {storageItems.map(renderStorageItem)}
-                            </View>
+                            </ScrollView>
                         )}
                     </View>
                 </View>
 
                 {/* ═══════════ Purification Ritual ═══════════ */}
-                <View style={styles.sectionWrapper}>
+                <View style={{ paddingVertical: spacing.md, paddingBottom: insets.bottom + spacing.md }}>
                     <TouchableOpacity style={styles.purifyMainBtn} onPress={() => setCleanModal(true)} activeOpacity={0.75}>
                         <Text style={styles.purifyMainIcon}>✦</Text>
                         <Text style={styles.purifyMainText}>{t('purificationRitual')}</Text>
                     </TouchableOpacity>
                     <Text style={styles.purifyHint}>{t('purificationSubtitle')}</Text>
                 </View>
-
-                {/* Extra bottom spacing for better readability */}
-                <View style={{ height: 40 }} />
-            </ScrollView>
+            </View>
 
             {/* ── Cleanup Modal ── */}
             <Modal visible={cleanModal} transparent animationType="fade" onRequestClose={() => setCleanModal(false)}>
@@ -635,15 +637,18 @@ const styles = StyleSheet.create({
         letterSpacing: -0.3,
     },
 
-    // ── Scroll ──
-    scroll: {
+    // ── Layout ──
+    mainContainer: {
         flex: 1,
         paddingHorizontal: spacing.md,
+    },
+    scroll: {
+        flex: 1,
     },
 
     // ── Section ──
     sectionWrapper: {
-        marginBottom: spacing.lg,
+        marginBottom: spacing.md,
     },
     sectionHeader: {
         flexDirection: 'row',

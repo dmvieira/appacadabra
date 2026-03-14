@@ -370,7 +370,8 @@ function calculateCostUsd(
 function extractText(result: any): string {
     const candidate = result.candidates?.[0];
     if (!candidate?.content?.parts) {
-        return result.text ?? "";
+        // Safe fallback: try result.text() if it doesn't throw, but be aware it might contain thoughts
+        try { return result.text(); } catch { return ""; }
     }
 
     let resultText = "";
@@ -388,11 +389,9 @@ function extractText(result: any): string {
         console.log("--- GEMINI REASONING ---\n" + thoughts + "\n--- END ---");
     }
 
-    if (!resultText) {
-        resultText = result.text ?? "";  // SDK-level fallback for edge cases
-    }
-
-    return resultText;
+    // CRITICAL: Do NOT fallback to result.text if we already have parts, 
+    // because result.text includes thoughts in newer SDK versions.
+    return resultText || "";
 }
 
 // Helper to get usage metadata
@@ -419,7 +418,8 @@ function repairJson(text: string): string {
     let result = '';
     let inString = false;
     let escape = false;
-    for (const ch of text) {
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
         if (escape) {
             result += ch;
             escape = false;
@@ -451,36 +451,72 @@ function extractHtml(response: string): string {
     return response.trim();
 }
 
-// Helper to extract JSON from markdown code block
+// Helper to extract JSON from markdown code block or raw text
 function extractJson(response: string): any {
     let text = response.trim();
+    const originalLength = text.length;
 
-    // 1. Remove markdown code blocks if present
-    // Matches ```json or ``` followed by content and then ```
-    const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    // 1. Remove markdown code blocks if present (non-greedy, requires closure)
+    const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (markdownMatch) {
         text = markdownMatch[1].trim();
+    } else {
+        // Fallback for truncated code blocks or raw JSON
+        const openBlock = text.indexOf('```');
+        if (openBlock !== -1) {
+            const start = text.indexOf('\n', openBlock) + 1 || openBlock + 3;
+            text = text.substring(start);
+        }
     }
 
-    // 2. Find the first '{' and last '}' to isolate the JSON object
+    // 2. Find the first '{' and the matching '}' (respecting strings)
     const startObj = text.indexOf('{');
-    const endObj = text.lastIndexOf('}');
-
-    if (startObj !== -1 && endObj !== -1 && endObj > startObj) {
-        text = text.substring(startObj, endObj + 1);
+    if (startObj === -1) {
+        throw new Error(`No JSON object found in response (Length: ${originalLength})`);
     }
 
-    // 3. Repair common AI JSON issues (literal newlines/tabs inside string values)
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let endObj = -1;
+
+    for (let i = startObj; i < text.length; i++) {
+        const ch = text[i];
+        if (escape) {
+            escape = false;
+        } else if (ch === '\\' && inString) {
+            escape = true;
+        } else if (ch === '"') {
+            inString = !inString;
+        } else if (!inString) {
+            if (ch === '{') depth++;
+            else if (ch === '}') {
+                depth--;
+                if (depth === 0) {
+                    endObj = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (endObj !== -1) {
+        text = text.substring(startObj, endObj + 1);
+    } else if (depth > 0) {
+        // TRUNCATED JSON DETECTED
+        throw new Error(`AI response was truncated (depth: ${depth}, inString: ${inString}, originalLength: ${originalLength})`);
+    }
+
+    // 3. Repair common AI JSON issues
     text = repairJson(text);
 
     // 4. Attempt to parse
     try {
         return JSON.parse(text);
-    } catch (e) {
+    } catch (e: any) {
         console.error("JSON Parse Error:", e);
-        console.error("Raw Text:", response);
-        console.error("Repaired Text:", text);
-        throw e; // Re-throw to be caught by caller
+        console.error("Raw Text (last 100 chars):", text.slice(-100));
+        throw new Error(`Failed to parse AI JSON: ${e.message} (at pos ${e.at || 'unknown'})`);
     }
 }
 
@@ -845,6 +881,16 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         };
 
                         resultText = extractText(result);
+                        
+                        // If a schema was requested, ensure the response is clean JSON
+                        if (schema && resultText) {
+                            try {
+                                const parsed = extractJson(resultText);
+                                resultText = JSON.stringify(parsed);
+                            } catch (e: any) {
+                                console.warn(`[WEBVIEW_AI] JSON extraction failed, sending raw text:`, e.message);
+                            }
+                        }
                         if (!resultText) throw new Error("AI returned empty response");
 
                         // Count actual tool calls from grounding metadata
@@ -1364,10 +1410,11 @@ export const processSpellJob = onDocumentCreated(
 
         console.log(`[Job ${jobId}] Starting processing. Action: ${jobData.action}`);
 
-        // Mark as processing
+        const auditLog: any = {};
         await snapshot.ref.update({
             status: 'processing',
             startedAt: FieldValue.serverTimestamp(),
+            auditLog: auditLog  // Initialize empty audit log
         });
 
         const uid = jobData.userId;
@@ -1398,6 +1445,7 @@ export const processSpellJob = onDocumentCreated(
         const requestedModel = payload.model;
         const voiceName = payload.voiceName;
         const items: string[] = payload.items || [];
+
 
         const resolveMedia = async (mediaArray: string[] | undefined): Promise<string[] | undefined> => {
             if (!mediaArray || mediaArray.length === 0) return mediaArray;
@@ -1553,6 +1601,7 @@ export const processSpellJob = onDocumentCreated(
 
                     const normalizedCode = currentCode.replace(/\r\n/g, "\n");
                     const codeLines = normalizedCode.split("\n");
+                    console.log(`[Job ${jobId}] Editing code: ${codeLines.length} lines, ${normalizedCode.length} chars`);
                     const numberedCode = codeLines.map((line: string, i: number) => `${i + 1}| ${line}`).join("\n");
 
                     const historyContext = previousEdits && previousEdits.length > 0
@@ -1602,10 +1651,8 @@ export const processSpellJob = onDocumentCreated(
                     const patchResponse = extractJson(extractText(patchResult));
 
                     // Audit
-                    auditLog = {
-                        planPrompt,
-                        patchPrompt
-                    };
+                    auditLog.planPrompt = planPrompt;
+                    auditLog.patchPrompt = patchPrompt;
 
                     resultText = fixCallbackPatterns(applyPatches(normalizedCode, patchResponse.changes || []));
                     console.log(`[Job ${jobId}] Patching complete. Validating...`);
@@ -1710,6 +1757,26 @@ export const processSpellJob = onDocumentCreated(
                     });
 
                     resultText = extractText(result);
+                    
+                    // AUDIT LOG
+                    auditLog.rawAiResponse = (resultText || "").substring(0, 10000); // Capture more
+                    auditLog.schemaProvided = !!schema;
+                    auditLog.modelUsed = modelId;
+
+                    // If a schema was requested, ensure the response is clean JSON
+                    if (schema && resultText) {
+                        try {
+                            const parsed = extractJson(resultText);
+                            resultText = JSON.stringify(parsed);
+                            auditLog.extractedJson = resultText;
+                        } catch (e: any) {
+                            console.warn(`[Job ${jobId}] [WEBVIEW_AI] JSON extraction failed:`, e.message);
+                            auditLog.extractionError = e.message;
+                            // Add snippet to error for immediate visibility in UI
+                            const snippet = resultText.length > 200 ? resultText.substring(0, 200) + "..." : resultText;
+                            throw new Error(`JSON Extraction Failed: ${e.message} | Raw: ${snippet}`);
+                        }
+                    }
 
                     // Empty AI response is always invalid — fail the job explicitly
                     if (!resultText) {

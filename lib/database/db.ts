@@ -508,7 +508,7 @@ export async function getAllWebviewAiCacheForApp(appId: number): Promise<Array<{
     const database = await getDatabase();
     return await database.getAllAsync(
         `SELECT id, callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt
-         FROM webview_ai_cache WHERE appId = ? ORDER BY createdAt ASC`,
+         FROM webview_ai_cache WHERE appId = ? ORDER BY createdAt DESC`,
         [appId]
     ) as any[];
 }

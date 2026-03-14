@@ -43,6 +43,89 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   const messageQueue = [];
   let isBridgeReady = false;
 
+  // Cache for large media blobs being delivered in chunks
+  const mediaBlobs = {};
+
+  // Global cache for large media blobs (persists until WebView reload)
+  window.__APPACADABRA_BLOB_CACHE__ = window.__APPACADABRA_BLOB_CACHE__ || {};
+
+  // Receives a single chunk of media data
+  window.receiveMediaChunk = function(marker, chunk, index, total) {
+      if (!mediaBlobs[marker]) {
+          mediaBlobs[marker] = new Array(total);
+      }
+      mediaBlobs[marker][index] = chunk;
+      if (index === 0 || index === total - 1 || index % 5 === 0) {
+          console.log("[BridgeBlob] Progress: " + (index+1) + "/" + total + " for " + marker.substring(0, 30) + "...");
+      }
+      
+      // Check if complete
+      var complete = true;
+      for (var i = 0; i < total; i++) {
+          if (mediaBlobs[marker][i] === undefined) {
+              complete = false;
+              break;
+          }
+      }
+      
+      if (complete) {
+          console.log("[BridgeBlob] Media delivery complete for " + marker);
+          var fullBase64 = mediaBlobs[marker].join('');
+          var mime = marker.split('|')[0].replace('__appblob__:', '');
+          var dataUri = "data:" + mime + ";base64," + fullBase64;
+          
+          // Store in global cache for late-arriving callbacks and guardrails
+          window.__APPACADABRA_BLOB_CACHE__[marker] = dataUri;
+          
+          // AUTO-UPDATE DOM: find any elements waiting for this marker
+          try {
+              var elements = document.querySelectorAll('[src="' + marker + '"], [href="' + marker + '"]');
+              for (var i = 0; i < elements.length; i++) {
+                  console.log("[BridgeBlob] Auto-updating pending element: " + elements[i].tagName);
+                  elements[i].src = dataUri; // This triggers the setter guardrail which handles it
+              }
+          } catch(e) {}
+
+          window.dispatchEvent(new CustomEvent('appacadabra:media:ready', {
+              detail: { marker: marker, dataUri: dataUri }
+          }));
+          
+          delete mediaBlobs[marker];
+      }
+  };
+
+  // Helper to wrap a callback to wait for media markers (Chunked Delivery)
+  window.__handleChunkedMediaCallback = function(originalCallbackName, success, result) {
+      if (success && typeof result === 'string' && result.indexOf('__appblob__') !== -1) {
+          var marker = result;
+          
+          // Check if already in cache (race condition fix)
+          if (window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[marker]) {
+              console.log("[BridgeBlob] FOUND IN CACHE: " + marker.substring(0, 30) + "...");
+              if (typeof window[originalCallbackName] === 'function') {
+                  window[originalCallbackName](true, window.__APPACADABRA_BLOB_CACHE__[marker]);
+              }
+              return;
+          }
+
+          console.log("[BridgeBlob] ATTACHING LISTENER for marker: " + marker.substring(0, 30) + "...");
+          var onMediaReady = function(e) {
+              if (e.detail.marker === marker) {
+                  console.log("[BridgeBlob] Delivering late-arriving media to " + originalCallbackName);
+                  if (typeof window[originalCallbackName] === 'function') {
+                      window[originalCallbackName](true, e.detail.dataUri);
+                  }
+                  window.removeEventListener('appacadabra:media:ready', onMediaReady);
+              }
+          };
+          window.addEventListener('appacadabra:media:ready', onMediaReady);
+      } else {
+          if (typeof window[originalCallbackName] === 'function') {
+              window[originalCallbackName](success, result);
+          }
+      }
+  };
+
   function generateCallbackId() {
     return 'cb_' + (callbackId++);
   }
@@ -99,11 +182,26 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   }
 
 
-  // Helper: fix duplicate data URI prefixes caused by old AI generated code
-  function _cleanDataUri(val) {
-      if (typeof val === 'string' && val.indexOf('data:') === 0 && val.indexOf('data:', 5) !== -1) {
+  // Helper: resolve __appblob__: markers to data URIs or clean data URIs
+  function _resolveMediaValue(val) {
+      if (typeof val !== 'string') return val;
+      
+      // Handle markers
+      if (val.indexOf('__appblob__:') === 0) {
+          if (window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[val]) {
+              return window.__APPACADABRA_BLOB_CACHE__[val];
+          }
+          // Fallback: check if it matches a marker in storage cache
+          if (window.__APPACADABRA_MARKER_CACHE__ && window.__APPACADABRA_MARKER_CACHE__[val]) {
+              return window.__APPACADABRA_MARKER_CACHE__[val];
+          }
+      }
+      
+      // Fix duplicate data URI prefixes
+      if (val.indexOf('data:') === 0 && val.indexOf('data:', 5) !== -1) {
           return val.replace(/^(data:[^;]+;base64,)+(?=data:)/i, '');
       }
+      
       return val;
   }
 
@@ -112,7 +210,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   if (_imgSrc && _imgSrc.set) {
       Object.defineProperty(HTMLImageElement.prototype, 'src', {
           get: function() { return _imgSrc.get.call(this); },
-          set: function(val) { _imgSrc.set.call(this, _cleanDataUri(val)); }
+          set: function(val) { _imgSrc.set.call(this, _resolveMediaValue(val)); }
       });
   }
 
@@ -121,7 +219,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   if (_vidSrc && _vidSrc.set) {
       Object.defineProperty(HTMLVideoElement.prototype, 'src', {
           get: function() { return _vidSrc.get.call(this); },
-          set: function(val) { _vidSrc.set.call(this, _cleanDataUri(val)); }
+          set: function(val) { _vidSrc.set.call(this, _resolveMediaValue(val)); }
       });
   }
 
@@ -130,29 +228,47 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
   if (_AudSrc && _AudSrc.set) {
       Object.defineProperty(HTMLAudioElement.prototype, 'src', {
           get: function() { return _AudSrc.get.call(this); },
-          set: function(val) { _AudSrc.set.call(this, _cleanDataUri(val)); }
+          set: function(val) { _AudSrc.set.call(this, _resolveMediaValue(val)); }
       });
   }
 
   // Guardrail: setAttribute
   var _setAttribute = Element.prototype.setAttribute;
   Element.prototype.setAttribute = function(name, value) {
-      if (name === 'src' || name === 'href') value = _cleanDataUri(value);
+      if (name === 'src' || name === 'href') value = _resolveMediaValue(value);
       return _setAttribute.call(this, name, value);
   };
 
 
-  // Helper: wrap a callback to resolve __appblob__: markers to data URIs (backward compat)
-  function wrapBlobCallback(callbackName, interceptName) {
+  // Helper: wrap a callback to resolve __appblob__: markers to data URIs (Legacy/Non-chunked)
+  function __setupLegacyBlobInterceptor(callbackName, interceptName) {
     window[interceptName] = function(success, result) {
       var actual = result;
       if (success && result && typeof result === 'string' && result.indexOf('__appblob__:') === 0) {
-        var parts = result.split('|');
-        var cn = parts.length >= 3 ? parts[1] : '';
-        if (cn && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cn]) {
-          actual = window.__APPACADABRA_BLOB_CACHE__[cn];
-          window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
-          window.__APPACADABRA_MARKER_CACHE__[cn] = result;
+        // First check our global chunk-delivery cache
+        if (window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[result]) {
+          actual = window.__APPACADABRA_BLOB_CACHE__[result];
+        } else {
+             // Fallback for older marker format
+            var parts = result.split('|');
+            var cn = parts.length >= 3 ? parts[1] : '';
+            if (cn && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cn]) {
+                actual = window.__APPACADABRA_BLOB_CACHE__[cn];
+            }
+        }
+        
+        // If still not found, we might need to wait for chunks
+        if (actual === result) {
+            console.log("[BridgeBlob] Legacy interceptor waiting for chunks for " + result);
+            var onReady = function(e) {
+                if (e.detail.marker === result) {
+                    if (window[callbackName]) window[callbackName](true, e.detail.dataUri);
+                    window.removeEventListener('appacadabra:media:ready', onReady);
+                }
+            };
+            window.addEventListener('appacadabra:media:ready', onReady);
+            delete window[interceptName];
+            return;
         }
       }
       if (window[callbackName]) window[callbackName](success, actual);
@@ -224,9 +340,103 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     
     AIBuilder.prototype.generateVideo = function(prompt, callbackName) {
       console.log('[AppacadabraAI.generateVideo] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
-      var interceptName = callbackName + '_bi_' + Math.floor(Math.random()*10000);
-      wrapBlobCallback(callbackName, interceptName);
-      sendMessage('AI_GENERATE_VIDEO', { prompt: prompt, images: this.options.images }, interceptName);
+      var interceptName = callbackName + '_intercept_' + Math.floor(Math.random()*10000);
+      
+      var options = this.options;
+
+      function makeVideoPlaceholder(w, h) {
+        try {
+          var c = document.createElement('canvas');
+          c.width = w || 320; c.height = h || 180;
+          var ctx = c.getContext('2d');
+          ctx.fillStyle = '#1a1a2e';
+          ctx.fillRect(0, 0, c.width, c.height);
+          var cx = c.width / 2, cy = c.height / 2, r = Math.min(c.width, c.height) * 0.18;
+          ctx.fillStyle = 'rgba(255,255,255,0.15)';
+          ctx.beginPath();
+          ctx.arc(cx, cy, r * 1.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.beginPath();
+          ctx.moveTo(cx - r * 0.4, cy - r * 0.7);
+          ctx.lineTo(cx - r * 0.4, cy + r * 0.7);
+          ctx.lineTo(cx + r * 0.9, cy);
+          ctx.closePath();
+          ctx.fill();
+          return c.toDataURL('image/jpeg', 0.8).split(',')[1] || '';
+        } catch(e) { return ''; }
+      }
+
+      function deliverWithThumb(videoInput, isUrl) {
+        var delivered = false;
+        function deliver(thumb) {
+          if (delivered) return;
+          delivered = true;
+          if (window[callbackName]) window[callbackName](true, videoInput, thumb || makeVideoPlaceholder(320, 180));
+        }
+        try {
+          var video  = document.createElement('video');
+          var canvas = document.createElement('canvas');
+          var timer  = setTimeout(function() { deliver(null); }, 4000);
+
+          video.onloadedmetadata = function() {
+            canvas.width  = Math.min(video.videoWidth  || 320, 640);
+            canvas.height = Math.min(video.videoHeight || 180, 360);
+            video.currentTime = 0;
+          };
+          video.onseeked = function() {
+            try {
+              var ctx = canvas.getContext('2d');
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              var dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+              var thumb = dataUrl.split(',')[1] || '';
+              clearTimeout(timer);
+              video.src = '';
+              deliver(thumb || null);
+            } catch(e) { clearTimeout(timer); deliver(null); }
+          };
+          video.onerror = function(err) { 
+            console.error('[BridgeVideo] Thumb error for ' + (isUrl ? 'URL' : 'B64'), err);
+            clearTimeout(timer); deliver(null); 
+          };
+          video.src = isUrl ? videoInput : ('data:video/mp4;base64,' + videoInput);
+          video.load();
+        } catch(e) { deliver(null); }
+      }
+
+      window[interceptName] = function(success, result) {
+          if (!success) {
+              if (window[callbackName]) window[callbackName](false, result);
+              delete window[interceptName];
+              return;
+          }
+          
+          if (typeof result === 'string' && (result.indexOf('http') === 0 || result.indexOf('file://') === 0)) {
+              // It's a URL! Return it directly to avoid 7MB bridge transit
+              deliverWithThumb(result, true);
+          } else if (typeof result === 'string' && result.indexOf('__appblob__:') === 0) {
+              if (window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[result]) {
+                  var dataUri = window.__APPACADABRA_BLOB_CACHE__[result];
+                  var base64 = dataUri.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
+                  deliverWithThumb(base64, false);
+              } else {
+                  // Wait for completion via listener if marker doesn't have data yet
+                  window.addEventListener('appacadabra:media:ready', function handler(e) {
+                      if (e.detail.marker === result) {
+                          var b64 = e.detail.dataUri.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
+                          deliverWithThumb(b64, false);
+                          window.removeEventListener('appacadabra:media:ready', handler);
+                      }
+                  });
+              }
+          } else {
+              // Raw base64
+              deliverWithThumb(result, false);
+          }
+          delete window[interceptName];
+      };
+      
+      sendMessage('AI_GENERATE_VIDEO', { prompt: prompt, images: options.images }, interceptName);
     };
 
     AIBuilder.prototype.generateImage = function(prompt, callbackName) {
@@ -348,104 +558,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         sendMessage('AI_GENERATE_IMAGE', { prompt: prompt }, interceptName);
       },
       generateVideo: function(prompt, callbackName) {
-        console.log('[AppacadabraAI.generateVideo] prompt:', (prompt && prompt.substring ? prompt.substring(0, 80) : prompt), 'callback:', callbackName);
-        var interceptName = callbackName + '_intercept_' + Math.floor(Math.random()*10000);
-
-        function makeVideoPlaceholder(w, h) {
-          try {
-            var c = document.createElement('canvas');
-            c.width = w || 320; c.height = h || 180;
-            var ctx = c.getContext('2d');
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(0, 0, c.width, c.height);
-            var cx = c.width / 2, cy = c.height / 2, r = Math.min(c.width, c.height) * 0.18;
-            ctx.fillStyle = 'rgba(255,255,255,0.15)';
-            ctx.beginPath();
-            ctx.arc(cx, cy, r * 1.4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.9)';
-            ctx.beginPath();
-            ctx.moveTo(cx - r * 0.4, cy - r * 0.7);
-            ctx.lineTo(cx - r * 0.4, cy + r * 0.7);
-            ctx.lineTo(cx + r * 0.9, cy);
-            ctx.closePath();
-            ctx.fill();
-            return c.toDataURL('image/jpeg', 0.8).split(',')[1] || '';
-          } catch(e) { return ''; }
-        }
-
-        function deliverWithThumb(videoBase64) {
-          var delivered = false;
-          function deliver(thumb) {
-            if (delivered) return;
-            delivered = true;
-            if (window[callbackName]) window[callbackName](true, videoBase64, thumb || makeVideoPlaceholder(320, 180));
-          }
-          try {
-            var video  = document.createElement('video');
-            var canvas = document.createElement('canvas');
-            var timer  = setTimeout(function() { deliver(null); }, 3000);
-
-            video.onloadedmetadata = function() {
-              canvas.width  = Math.min(video.videoWidth  || 320, 640);
-              canvas.height = Math.min(video.videoHeight || 180, 360);
-              video.currentTime = 0;
-            };
-            video.onseeked = function() {
-              try {
-                var ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                var dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-                var thumb = dataUrl.split(',')[1] || '';
-                clearTimeout(timer);
-                video.src = '';
-                deliver(thumb || null);
-              } catch(e) { clearTimeout(timer); deliver(null); }
-            };
-            video.onerror = function() { clearTimeout(timer); deliver(null); };
-            video.src = 'data:video/mp4;base64,' + videoBase64;
-            video.load();
-          } catch(e) { deliver(null); }
-        }
-
-        window[interceptName] = function(success, result) {
-            if (!success) {
-                if (window[callbackName]) window[callbackName](false, result);
-                delete window[interceptName];
-                return;
-            }
-            if (typeof result === 'string' && result.indexOf('http') === 0) {
-                fetch(result)
-                    .then(function(res) { return res.blob(); })
-                    .then(function(blob) {
-                        var reader = new FileReader();
-                        reader.onloadend = function() {
-                           var base64 = reader.result.split(',')[1] || reader.result;
-                           deliverWithThumb(base64);
-                        };
-                        reader.readAsDataURL(blob);
-                    })
-                    .catch(function(err) {
-                        if (window[callbackName]) window[callbackName](false, 'Failed to download video from storage: ' + err.message);
-                    });
-            } else if (typeof result === 'string' && result.indexOf('__appblob__:') === 0) {
-                var parts = result.split('|');
-                var cn = parts.length >= 3 ? parts[1] : '';
-                if (cn && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cn]) {
-                    window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
-                    window.__APPACADABRA_MARKER_CACHE__[cn] = result;
-                    var dataUri = window.__APPACADABRA_BLOB_CACHE__[cn];
-                    var base64 = dataUri.replace(/^data:[^;]+;base64,/, '');
-                    deliverWithThumb(base64);
-                } else {
-                    if (window[callbackName]) window[callbackName](true, result);
-                }
-            } else {
-                deliverWithThumb(result);
-            }
-            delete window[interceptName];
-        };
-        sendMessage('AI_GENERATE_VIDEO', { prompt: prompt, images: this.options.images }, interceptName);
+        return new AIBuilder().generateVideo(prompt, callbackName);
       },
       similarity: function(items, callbackName) {
         console.log('[AppacadabraAI.similarity] items:', items ? items.length : 0, 'callback:', callbackName);
@@ -477,6 +590,9 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     showNow: function(title, message, callbackName) {
         console.log('[AppacadabraNotify.showNow] title:', title, 'message:', message, 'callback:', callbackName);
         sendMessage('NOTIFY_SHOW_NOW', { title, message }, callbackName);
+    },
+    alert: function(message, callbackName) {
+        this.showNow("Alert", message, callbackName);
     },
     schedule: function(title, message, delayMinutes, callbackName, id) {
         var timeMs = Date.now() + (delayMinutes * 60 * 1000);
@@ -1077,11 +1193,19 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           }, callbackName);
       },
       // Video Playback
-      playVideo: function(base64, options, callbackName) {
+      playVideo: function(input, options, callbackName) {
           if (typeof options === 'string') { callbackName = options; options = {}; }
           var opts = options || {};
-          console.log('[AppacadabraCamera.playVideo] size:', base64 ? base64.length : 0, 'callback:', callbackName);
-          sendMessage('VIDEO_PLAY', { base64: base64, mimeType: opts.mimeType || 'video/mp4' }, callbackName);
+          var payload = { mimeType: opts.mimeType || 'video/mp4' };
+          
+          if (typeof input === 'string' && (input.indexOf('http') === 0 || input.indexOf('file://') === 0)) {
+              payload.url = input;
+          } else {
+              payload.base64 = input;
+          }
+          
+          console.log('[AppacadabraCamera.playVideo] type:', (payload.url ? 'URL' : 'B64'), 'callback:', callbackName);
+          sendMessage('VIDEO_PLAY', payload, callbackName);
       },
       stopPlaying: function(callbackName) {
           console.log('[AppacadabraCamera.stopPlaying] callback:', callbackName);
@@ -1117,7 +1241,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         console.log('[AppacadabraAudio.speakAI] text:', text?.substring(0, 50), 'callback:', callbackName);
         var opts = options || {};
         var interceptName = '__caits' + Date.now();
-        wrapBlobCallback(callbackName, interceptName);
+        __setupLegacyBlobInterceptor(callbackName, interceptName);
         sendMessage('AUDIO_SPEAK_AI', {
           text: text,
           voiceName: opts.voice || 'Aoede',
@@ -1518,8 +1642,11 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
 }
 
 // Helper to generate callback script for native-to-JS calls
-export function createCallbackScript(callbackName: string, success: boolean, data: string): string {
-  const escapedData = data
+export function createCallbackScript(callbackName: string, success: boolean, data: any): string {
+  // Hardening: if data is already an object, stringify it
+  const dataString = typeof data === 'string' ? data : JSON.stringify(data);
+
+  const escapedData = dataString
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
     .replace(/\n/g, '\\n')
@@ -1534,7 +1661,9 @@ export function createCallbackScript(callbackName: string, success: boolean, dat
       var dataPreview = __d.length > 100 ? __d.substring(0, 100) + "..." : __d;
       if ("${callbackName}" && "${callbackName}" !== "undefined") {
           console.log("[BridgeReturn] ${callbackName} | Success: ${success} | Data: " + dataPreview);
-          if (typeof ${callbackName} === 'function') {
+          if (typeof window["${callbackName}"] === 'function') {
+            window["${callbackName}"](${success}, __d);
+          } else if (typeof ${callbackName} === 'function') {
             ${callbackName}(${success}, __d);
           }
       } else {
@@ -1621,26 +1750,6 @@ export function createStorageRestoreScript(items: ExpandedStorageItem[]): string
     `;
 }
 
-// Generate script to deliver a media callback with blob cache injection (marker-based)
-export function createMediaCallbackScript(
-  callbackName: string, success: boolean, marker: string, dataUri: string
-): string {
-  const escapedMarker = JSON.stringify(marker);
-  const escapedDataUri = JSON.stringify(dataUri);
-  const escapedCbName = JSON.stringify(callbackName);
-  return `(function() {
-    window.__APPACADABRA_BLOB_CACHE__ = window.__APPACADABRA_BLOB_CACHE__ || {};
-    window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
-    window.__APPACADABRA_BLOB_CACHE__[${escapedCbName}] = ${escapedDataUri};
-    window.__APPACADABRA_MARKER_CACHE__[${escapedCbName}] = ${escapedMarker};
-    var __dataUri = ${escapedDataUri};
-    console.log("[BridgeReturn] ${callbackName} | media dataUri: " + __dataUri.substring(0, 60));
-    var _cb = typeof ${callbackName} === 'function' ? ${callbackName} : window['${callbackName}'];
-    if (typeof _cb === 'function') {
-        _cb(${success}, __dataUri);
-    }
-  })();`
-}
 
 
 // Interface for shared content
@@ -1837,4 +1946,42 @@ export function createSharedContentSetupScript(translations?: InjectedTranslatio
     .replace(/__ERROR_EMPTY_CONTENT__/g, t.errorEmptyContent)
     .replace(/__ERROR_EMPTY_FILE__/g, t.errorEmptyFile)
     .replace(/__ERROR_PROCESSING_FILE__/g, t.errorProcessingFile);
+}
+
+/**
+ * Creates a script that wraps a dataURI callback to handle chunked delivery.
+ * This is used for large media like photos or videos.
+ */
+export function createMediaCallbackScript(callbackName: string, success: boolean, marker: string): string {
+  return `
+    (function() {
+      console.log("[BridgeReturn] Media callback prepared for: ${marker}");
+      if ("${callbackName}" && typeof window["${callbackName}"] === 'function') {
+        // Wrap the original callback to wait for media or handle it directly
+        // if it's already a full dataURI (though here we expect a marker)
+        if (window.__handleChunkedMediaCallback) {
+            window.__handleChunkedMediaCallback("${callbackName}", ${success}, "${marker}");
+        } else {
+            console.error("__handleChunkedMediaCallback not found in WebView!");
+            window["${callbackName}"](${success}, "${marker}");
+        }
+      } else {
+        console.warn("[BridgeReturn] Media callback ${callbackName} not found or invalid");
+      }
+    })();
+  `;
+}
+
+/**
+ * Creates a script that delivers a single chunk of media data to the WebView.
+ */
+export function createMediaChunkScript(marker: string, chunk: string, index: number, total: number): string {
+  const escapedChunk = chunk.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `
+    if (window.receiveMediaChunk) {
+      window.receiveMediaChunk("${marker}", "${escapedChunk}", ${index}, ${total});
+    } else {
+      console.error("receiveMediaChunk not found in WebView!");
+    }
+  `;
 }

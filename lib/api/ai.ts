@@ -141,10 +141,11 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
 
     const { prompt, search, schema, images, videos, audios } = options;
 
-    // Clean base64 prefixes
-    const cleanImages = images?.map(img => img.replace(/^data:image\/[^;]+;base64,/, ''));
-    const cleanVideos = videos?.map(v => v.replace(/^data:video\/[^;]+;base64,/, ''));
-    const cleanAudios = audios?.map(a => a.replace(/^data:audio\/[^;]+;base64,/, ''));
+    // Clean base64 prefixes aggressively (handle redundant or double prefixes)
+    const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
+    const cleanImages = images?.map(cleanPrefix);
+    const cleanVideos = videos?.map(cleanPrefix);
+    const cleanAudios = audios?.map(cleanPrefix);
 
     const result = await firebase.generateSpellWebviewAI(prompt, {
         schema,
@@ -178,7 +179,8 @@ export async function aiSimilarity(items: string[]): Promise<{ text: string, cre
 export async function aiGenerateImage(prompt: string, imagesBase64?: string[]): Promise<{ imageBase64: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerateImage (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
-    const cleanImages = imagesBase64?.map(img => img.replace(/^data:image\/[^;]+;base64,/, ''));
+    const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
+    const cleanImages = imagesBase64?.map(cleanPrefix);
     const result = await firebase.generateSpellImageGen(prompt, cleanImages);
     const imageBase64 = await resolveStorageUrlToBase64(result.text);
 
@@ -210,7 +212,8 @@ export async function aiGenerateTTS(text: string, voiceName?: string): Promise<{
 export async function aiGenerateVideo(prompt: string, imagesBase64?: string[]): Promise<{ videoBase64: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerateVideo (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
-    const cleanImages = imagesBase64?.map(img => img.replace(/^data:image\/[^;]+;base64,/, ''));
+    const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
+    const cleanImages = imagesBase64?.map(cleanPrefix);
     const result = await firebase.generateSpellVideoGen(prompt, cleanImages);
     const videoBase64 = await resolveStorageUrlToBase64(result.text);
 

@@ -22,14 +22,16 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Video, ResizeMode } from 'expo-av';
 import * as Sharing from 'expo-sharing';
 import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, ExpandedStorageItem, createMediaCallbackScript } from '../lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, ExpandedStorageItem, createMediaCallbackScript, createMediaChunkScript } from '../lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, AI_MEDIA_MIME, buildBlobMarker } from '../lib/bridges/messageHandlers';
+import { useBridgeUIStore } from '../lib/bridgeUIStore';
 import * as gemini from '../lib/api/ai';
 import * as db from '../lib/database/db';
 import { colors, spacing, borderRadius } from '../lib/theme';
@@ -105,6 +107,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     // First AI Use Modal
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
+    const { videoPlayback, closeVideoPlayer } = useBridgeUIStore();
     const router = useRouter();
 
     // Load app data
@@ -303,14 +306,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                             
                             if (isPath) {
                                 mediaLocalPath = result.startsWith('file://') ? result.slice(7) : result;
-                            } else if (result.length > 100) {
+                            } else if (result.length > 20) {
                                 try {
                                     const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
                                     const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
                                     const dir = `${FileSystem.documentDirectory}appacadabra_media/${app?.id || 'preview'}`;
                                     await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
                                     const fileUri = `${dir}/${callbackName || Date.now()}.${ext}`;
-                                    await FileSystem.writeAsStringAsync(fileUri, result, { encoding: FileSystem.EncodingType.Base64 });
+                                    
+                                    // Robust base64 cleaning
+                                    const cleanB64 = result.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
+                                    await FileSystem.writeAsStringAsync(fileUri, cleanB64, { encoding: FileSystem.EncodingType.Base64 });
                                     mediaLocalPath = fileUri.slice(7);
                                 } catch (fileErr) {
                                     console.warn('[AppRunner] Failed to save media file:', fileErr);
@@ -323,14 +329,30 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                                     const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
                                     const b64 = (await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
                                         encoding: FileSystem.EncodingType.Base64,
-                                    })).replace(/[\r\n]/g, '');
-                                    const dataUri = `data:${mime};base64,${b64}`;
+                                    })).replace(/\s/g, '');
+                                    const cleanB64 = b64.replace(/^data:.*?;base64,/i, '');
+                                    const dataUri = `data:${mime};base64,${cleanB64}`;
                                     const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
                                     
                                     registerPendingMediaBlob(result, callbackName, mime);
                                     
-                                    const script = createMediaCallbackScript(callbackName, success, marker, dataUri);
+                                    // 1. Prepare the callback to wait for media
+                                    const script = createMediaCallbackScript(callbackName, success, marker);
                                     webViewRef.current.injectJavaScript(script);
+
+                                    // 2. Deliver the media in chunks
+                                    const CHUNK_SIZE = 64 * 1024; // 64KB chunks
+                                    const totalChunks = Math.ceil(b64.length / CHUNK_SIZE);
+                                    console.log(`[AppRunner] Delivering ${marker} in ${totalChunks} chunks`);
+
+                                    for (let i = 0; i < totalChunks; i++) {
+                                        const start = i * CHUNK_SIZE;
+                                        const end = Math.min(start + CHUNK_SIZE, b64.length);
+                                        const chunk = b64.substring(start, end);
+                                        const chunkScript = createMediaChunkScript(marker, chunk, i, totalChunks);
+                                        webViewRef.current.injectJavaScript(chunkScript);
+                                    }
+                                    
                                     deferredCallback = true; // Mark as handled to prevent duplicate callback below
                                 } catch (readErr) {
                                     console.warn('[AppRunner] Failed to build media callback:', readErr);
@@ -1097,6 +1119,42 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 </View>
             </Modal>
 
+
+            {/* Video Playback Modal */}
+            {videoPlayback && (
+                <Modal
+                    visible={!!videoPlayback}
+                    transparent={false}
+                    animationType="fade"
+                    onRequestClose={closeVideoPlayer}
+                >
+                    <View style={styles.videoModalContainer}>
+                        <Video
+                            source={{ uri: videoPlayback.uri }}
+                            rate={1.0}
+                            volume={1.0}
+                            isMuted={false}
+                            resizeMode={ResizeMode.CONTAIN}
+                            shouldPlay
+                            useNativeControls
+                            style={styles.fullVideo}
+                            onPlaybackStatusUpdate={(status) => {
+                                if (status.isLoaded && status.didJustFinish) {
+                                    if (videoPlayback.callback && webViewRef.current) {
+                                        webViewRef.current.injectJavaScript(createCallbackScript(videoPlayback.callback, true, 'Finished'));
+                                    }
+                                }
+                            }}
+                        />
+                        <TouchableOpacity 
+                            style={styles.closeVideoButton} 
+                            onPress={closeVideoPlayer}
+                        >
+                            <Text style={styles.closeVideoText}>✕</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Modal>
+            )}
         </SafeAreaView>
     );
 }
@@ -1119,6 +1177,33 @@ const styles = StyleSheet.create({
     toolbarText: { color: colors.onSurface, fontSize: 12, marginTop: 4 },
     sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+    videoModalContainer: {
+        flex: 1,
+        backgroundColor: '#000000',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullVideo: {
+        width: '100%',
+        height: '100%',
+    },
+    closeVideoButton: {
+        position: 'absolute',
+        top: 40,
+        right: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
+    },
+    closeVideoText: {
+        color: '#FFFFFF',
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
     sheet: { backgroundColor: colors.surface, borderTopLeftRadius: borderRadius.xl, borderTopRightRadius: borderRadius.xl, padding: spacing.lg },
     sheetTitle: { fontSize: 20, fontWeight: 'bold', color: colors.onSurface, marginBottom: spacing.md },
     editInput: { backgroundColor: colors.surfaceVariant, borderRadius: borderRadius.md, padding: spacing.md, color: colors.onSurface, fontSize: 16, minHeight: 100, textAlignVertical: 'top' },

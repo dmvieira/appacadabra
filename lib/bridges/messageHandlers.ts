@@ -175,7 +175,7 @@ const MAX_QUEUE = 5;
 
 function pendingMediaKey(base64: string): string {
     // Strip data: prefix and whitespace to match storeBlobToFile normalization
-    const raw = base64.replace(/^data:[^;]+;base64,/, '');
+    const raw = base64.replace(/^data:.*?;base64,/i, '');
     const cleaned = raw.replace(/\s/g, '');
     return `${cleaned.slice(0, 100)}:${cleaned.length}`;
 }
@@ -210,10 +210,10 @@ async function storeBlobToFile(appId: number, key: string, value: string): Promi
     let mimeType = '';
     let ext = 'bin';
 
-    const match = value.match(/^data:([^;]+);base64,(.+)$/s);
-    if (match) {
-        mimeType = match[1];
-        base64Data = match[2];
+    const prefixMatch = value.match(/^data:(.*?);?base64,/i);
+    if (prefixMatch) {
+        mimeType = prefixMatch[1] ? prefixMatch[1].split(';')[0] : '';
+        base64Data = value.replace(/^data:.*?;base64,/i, '');
         ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
     }
     base64Data = base64Data.replace(/\s/g, ''); // Strip whitespace (Android adds \n every 76 chars)
@@ -2073,11 +2073,20 @@ export async function handleBridgeMessage(
                 });
 
                 if (!resultPicker.canceled) {
+                    let b64 = '';
                     if (resultPicker.assets[0].base64) {
-                        result = resultPicker.assets[0].base64.replace(/[\r\n]/g, '');
+                        b64 = resultPicker.assets[0].base64.replace(/[\r\n]/g, '');
                     } else {
-                        const fileB64 = await FileSystem.readAsStringAsync(resultPicker.assets[0].uri, { encoding: FileSystem.EncodingType.Base64 });
-                        result = fileB64.replace(/[\r\n]/g, '');
+                        b64 = await FileSystem.readAsStringAsync(resultPicker.assets[0].uri, { encoding: FileSystem.EncodingType.Base64 });
+                        b64 = b64.replace(/[\r\n]/g, '');
+                    }
+
+                    if (ctx.appId && ctx.callbackName && b64) {
+                        const path = await saveAiMediaToFile(ctx.appId, ctx.callbackName, 'CAMERA_TAKE_PHOTO', b64);
+                        result = buildBlobMarker('image/jpeg', ctx.callbackName, path);
+                        debugLog(`Photo saved to ${path}, returning marker`);
+                    } else {
+                        result = b64;
                     }
                 } else {
                     success = false;
@@ -2120,7 +2129,15 @@ export async function handleBridgeMessage(
                     const videoBase64 = await FileSystem.readAsStringAsync(videoUri, {
                         encoding: FileSystem.EncodingType.Base64,
                     });
-                    result = videoBase64.replace(/[\r\n]/g, '');
+                    const b64 = videoBase64.replace(/[\r\n]/g, '');
+
+                    if (ctx.appId && ctx.callbackName && b64) {
+                        const path = await saveAiMediaToFile(ctx.appId, ctx.callbackName, 'CAMERA_RECORD_VIDEO', b64);
+                        result = buildBlobMarker('video/mp4', ctx.callbackName, path);
+                        debugLog(`Video recorded and saved to ${path}, returning marker`);
+                    } else {
+                        result = b64;
+                    }
                 } else {
                     success = false;
                     result = 'Cancelled';
@@ -2138,15 +2155,24 @@ export async function handleBridgeMessage(
         case 'VIDEO_PLAY': {
             debugLog('Playing video...');
             try {
-                if (!data.base64) throw new Error('No video data provided');
+                if (!data.base64 && !data.url) throw new Error('No video data provided');
 
-                const mimeType = data.mimeType || 'video/mp4';
-                const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
-                const videoFileUri = FileSystem.cacheDirectory + `video_play_${Date.now()}.${ext}`;
+                let videoFileUri = '';
 
-                await FileSystem.writeAsStringAsync(videoFileUri, data.base64, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
+                if (data.url) {
+                    videoFileUri = data.url;
+                } else {
+                    // Strip data URI prefix if present and remove ANY whitespace (important for large files)
+                    const cleanBase64 = data.base64.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
+                    
+                    const mimeType = data.mimeType || 'video/mp4';
+                    const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
+                    videoFileUri = FileSystem.cacheDirectory + `video_play_${Date.now()}.${ext}`;
+
+                    await FileSystem.writeAsStringAsync(videoFileUri, cleanBase64, {
+                        encoding: FileSystem.EncodingType.Base64,
+                    });
+                }
 
                 // Clean up previous playback if any
                 if (currentVideoSound) {
@@ -2154,19 +2180,9 @@ export async function handleBridgeMessage(
                     currentVideoSound = null;
                 }
 
-                const { sound: videoSound } = await Audio.Sound.createAsync(
-                    { uri: videoFileUri },
-                    { shouldPlay: true }
-                );
-                currentVideoSound = videoSound;
-
-                videoSound.setOnPlaybackStatusUpdate(async (status) => {
-                    if (status.isLoaded && status.didJustFinish) {
-                        await videoSound.unloadAsync();
-                        currentVideoSound = null;
-                        try { await FileSystem.deleteAsync(videoFileUri, { idempotent: true }); } catch (_) { }
-                    }
-                });
+                // Use the bridge UI store to show the video player (UI side)
+                const uiStore = useBridgeUIStore.getState();
+                uiStore.openVideoPlayer(videoFileUri, ctx.callbackName);
 
                 result = 'Playing';
             } catch (e) {
@@ -2283,7 +2299,13 @@ export async function handleBridgeMessage(
 
                 if (uri) {
                     const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-                    result = base64;
+                    if (ctx.appId && ctx.callbackName && base64) {
+                        const path = await saveAiMediaToFile(ctx.appId, ctx.callbackName, 'AUDIO_RECORD_STOP', base64);
+                        result = buildBlobMarker('audio/m4a', ctx.callbackName, path);
+                        debugLog(`Audio recorded and saved to ${path}, returning marker`);
+                    } else {
+                        result = base64;
+                    }
                 } else {
                     throw new Error('No recording URI');
                 }
