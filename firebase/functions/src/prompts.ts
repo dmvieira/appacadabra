@@ -394,6 +394,13 @@ Rules:
    - A specific Google Font that matches the app's personality.
    - Micro-interactions (e.g., buttons that scale slightly on tap, list items that fade in).
    - Use of gradients and shadows to create depth and hierarchy.
+9. PROACTIVE FEATURE SUGGESTIONS: Based on the user's intent, think beyond the literal request and suggest 1-3 useful complementary features the user likely needs but didn't explicitly ask for (e.g., if they asked for a task list, suggest due dates or reminders; if they asked for a notes app, suggest search or categories). Include these in \`coreFeatures\` if they add clear value.
+10. END-TO-END FLOW INTEGRITY (CRITICAL): Every feature must be planned with its full lifecycle. If a feature creates something, plan what happens when it is edited, completed, and deleted. No loose ends allowed. Examples:
+    - If you plan a notification for a task → plan canceling/removing that notification when the task is deleted or completed.
+    - If you plan a recurring timer or interval → plan clearing it when no longer needed.
+    - If you plan localStorage data → plan cleanup when the related item is removed.
+    - If you plan a UI element that appears conditionally → plan how it disappears or updates in all states.
+    Every action must have a corresponding reaction. Think: "What happens to everything related to this item when it changes or goes away?"
 `;
 
 // CREATE STEP 2: Unified Code Generator
@@ -439,14 +446,20 @@ Think step-by-step:
 1. Understand the user's intent (what they want to change).
 2. Analyze the impact on existing code (HTML, CSS, JS).
 3. Plan specific, minimal patches to achieve the goal without breaking other features.
-4. SELF-EXPLANATORY UX: Implement the UX clarity from the PLAN:
+4. END-TO-END FLOW INTEGRITY (CRITICAL): Before finalizing patches, verify that every planned change maintains full lifecycle integrity:
+   - If adding a notification → ensure it is also cancelled/removed when the triggering item is deleted or completed.
+   - If adding a timer/interval → ensure it is cleared when no longer needed.
+   - If adding stored data → ensure it is cleaned up when the related entity is removed.
+   - If modifying a create flow → check if the delete/complete/edit flows need corresponding updates.
+   No change is complete if related lifecycle events are left unhandled. List any such dependencies explicitly in \`impactAnalysis\`.
+5. SELF-EXPLANATORY UX: Implement the UX clarity from the PLAN:
    - Every input must have a descriptive placeholder that tells the user what to type.
    - Empty states must show a helpful message with an icon/emoji explaining what to do next.
    - Buttons must have text labels (not just icons). If using an icon, always pair it with a short text label.
    - Add a small subtitle or helper text below the app title briefly explaining what the app does.
    - Use visual affordances: shadows on buttons, underlines on links, clear hover/active states.
    - On first load with no data, the UI should clearly guide the user to the first action.
-5. SIZING & AESTHETICS:
+6. SIZING & AESTHETICS:
    - Base font: 16px; headings: 22px+; interactive targets: min 48px height.
    - Use \`box-sizing: border-box;\` and \`padding: 16px;\` on the main container.
    - **Modern CSS**: Use CSS variables for colors, \`border-radius: 16px\`, \`box-shadow: 0 4px 12px rgba(0,0,0,0.1)\`, and \`transition: all 0.2s ease\`.
