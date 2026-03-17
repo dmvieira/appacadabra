@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -66,8 +66,8 @@ function RunnerContent({ appId }: Props) {
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
     
-    // Video Playback
-    const { videoPlayback, closeVideoPlayer } = useBridgeUIStore();
+    // Video Playback — use selector so store changes in other RunnerContent instances don't cause re-renders here
+    const closeVideoPlayer = useBridgeUIStore(state => state.closeVideoPlayer);
 
     // Check drop-box file for pending shared content
     const checkDropBox = useCallback(async () => {
@@ -118,6 +118,16 @@ function RunnerContent({ appId }: Props) {
         } catch (e) {
             console.warn('Failed to enable WebView debugging', e);
         }
+        return () => {
+            // On unmount: clean up shared store state so sibling RunnerContent instances are not affected
+            const store = useBridgeUIStore.getState();
+            store.closeScanner();
+            store.closeVideoPlayer();
+            store.resolveManaConfirmation(false);
+            if ((store.webViewRef as any) === webViewRef) {
+                store.setWebViewRef(null as any);
+            }
+        };
     }, [webViewRef]);
 
     // Load app data
@@ -453,15 +463,10 @@ function RunnerContent({ appId }: Props) {
         }
     }, [app]);
 
-    if (isLoading || !app || !storageLoaded) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-        );
-    }
-
-    const htmlContent = `
+    // Memoize HTML and scripts so store changes in sibling RunnerContent instances don't reload this WebView
+    const htmlContent = useMemo(() => {
+        if (!app) return '';
+        return `
     <!DOCTYPE html>
     <html>
     <head>
@@ -476,16 +481,30 @@ function RunnerContent({ appId }: Props) {
     </body>
     </html>
   `;
+    }, [app?.code]);
 
-    // Use ref for storage to ensure data is available synchronously
-    console.log(`RunnerApp[${appId}]: Creating combinedScript with ${savedStorageRef.current.length} storage items`);
-    const storageScript = createStorageRestoreScript(savedStorageRef.current);
-    const scrollScript = getScrollDetectionScript();
-    const combinedScript = `
+    const source = useMemo(() => ({
+        html: htmlContent,
+        baseUrl: `https://app-${appId}.appacadabra.local/`,
+    }), [htmlContent, appId]);
+
+    const combinedScript = useMemo(() => {
+        if (!app) return '';
+        console.log(`RunnerApp[${appId}]: Creating combinedScript with ${savedStorage.length} storage items`);
+        return `
         ${getInjectedJavaScript(app.id, getWebViewTranslations(), false)}
-        ${storageScript}
-        ${scrollScript}
+        ${createStorageRestoreScript(savedStorage)}
+        ${getScrollDetectionScript()}
     `;
+    }, [app?.id, savedStorage]);
+
+    if (isLoading || !app || !storageLoaded) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
 
     return (
         <>
@@ -513,7 +532,7 @@ function RunnerContent({ appId }: Props) {
                     <WebView
                         key={webViewKey}
                         ref={webViewRef}
-                        source={{ html: htmlContent, baseUrl: `https://app-${appId}.appacadabra.local/` }}
+                        source={source}
                         style={styles.webview}
                         scalesPageToFit={true}
                         originWhitelist={['*']}

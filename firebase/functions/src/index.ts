@@ -20,7 +20,6 @@ import {
     UNIFIED_CREATE_CODE_PROMPT,
     UNIFIED_EDIT_PLANNER_PROMPT,
     UNIFIED_EDIT_MIGRATE_PROMPT,
-    validateContentRequest,
 } from "./prompts";
 import { validateGeneratedCode, generateFixPrompt } from "./codeValidator";
 import { validateWithExecution } from "./executionValidator";
@@ -191,53 +190,6 @@ interface RateLimitData {
 }
 
 // Check and update rate limits (returns error message if rate limited)
-async function checkRateLimit(
-    userRef: DocumentReference,
-    transaction: Transaction,
-    userData: DocumentData
-): Promise<string | null> {
-    const now = Date.now();
-    const rateLimit: RateLimitData = userData.rateLimit || {
-        callsThisMinute: 0,
-        tokensThisMinute: 0,
-        lastMinuteReset: now,
-    };
-
-    // Check if user is in cooldown
-    if (rateLimit.cooldownUntil && now < rateLimit.cooldownUntil) {
-        const remainingSecs = Math.ceil((rateLimit.cooldownUntil - now) / 1000);
-        return `Rate limited. Try again in ${remainingSecs} seconds.`;
-    }
-
-    // Reset minute counters if a minute has passed
-    if (now - rateLimit.lastMinuteReset > 60000) {
-        rateLimit.callsThisMinute = 0;
-        rateLimit.tokensThisMinute = 0;
-        rateLimit.lastMinuteReset = now;
-    }
-
-    // Check limits
-    if (rateLimit.callsThisMinute >= RATE_LIMITS.CALLS_PER_MINUTE) {
-        rateLimit.cooldownUntil = now + RATE_LIMITS.COOLDOWN_MS;
-        transaction.update(userRef, { rateLimit });
-        return `Too many requests. Wait 1 minute before trying again.`;
-    }
-
-    if (rateLimit.tokensThisMinute >= RATE_LIMITS.TOKENS_PER_MINUTE) {
-        rateLimit.cooldownUntil = now + RATE_LIMITS.COOLDOWN_MS;
-        transaction.update(userRef, { rateLimit });
-        return `Token limit reached. Wait 1 minute before trying again.`;
-    }
-
-    // Increment call counter
-    rateLimit.callsThisMinute++;
-
-    // Update rate limit in transaction (tokens will be added after generation)
-    transaction.update(userRef, { rateLimit });
-
-    return null; // No rate limit hit
-}
-
 // Check and update daily rate limits for suggestSpells
 async function checkDailyRateLimit(
     userRef: DocumentReference,
@@ -269,28 +221,57 @@ async function checkDailyRateLimit(
     return null;
 }
 
+// Check and update per-minute rate limits (returns error message if rate limited)
+async function checkRateLimit(
+    userRef: DocumentReference,
+    transaction: Transaction,
+    userData: DocumentData
+): Promise<string | null> {
+    const now = Date.now();
+    const rateLimit: RateLimitData = userData.rateLimit || {
+        callsThisMinute: 0,
+        tokensThisMinute: 0,
+        lastMinuteReset: now,
+    };
+
+    if (rateLimit.cooldownUntil && now < rateLimit.cooldownUntil) {
+        const remainingSecs = Math.ceil((rateLimit.cooldownUntil - now) / 1000);
+        return `Rate limited. Try again in ${remainingSecs} seconds.`;
+    }
+
+    if (now - rateLimit.lastMinuteReset > 60000) {
+        rateLimit.callsThisMinute = 0;
+        rateLimit.tokensThisMinute = 0;
+        rateLimit.lastMinuteReset = now;
+        delete rateLimit.cooldownUntil;
+    }
+
+    if (rateLimit.callsThisMinute >= RATE_LIMITS.CALLS_PER_MINUTE) {
+        rateLimit.cooldownUntil = now + RATE_LIMITS.COOLDOWN_MS;
+        transaction.update(userRef, { rateLimit });
+        return `Too many requests. Wait 1 minute before trying again.`;
+    }
+
+    if (rateLimit.tokensThisMinute >= RATE_LIMITS.TOKENS_PER_MINUTE) {
+        rateLimit.cooldownUntil = now + RATE_LIMITS.COOLDOWN_MS;
+        transaction.update(userRef, { rateLimit });
+        return `Token limit reached. Wait 1 minute before trying again.`;
+    }
+
+    rateLimit.callsThisMinute++;
+    transaction.update(userRef, { rateLimit });
+    return null;
+}
+
 
 interface PreviousEdit {
     version: number;
     instruction: string;
 }
 
-interface GenerateSpellResponse {
-    text: string;
-    usage: {
-        promptTokens: number;
-        responseTokens: number;
-        thoughtsTokens: number;
-        totalTokens: number;
-        cachedTokens: number;
-    };
-    creditsUsed: number;
-    creditsRemaining: number;
-}
-
 // Pricing Constants
 const FIXED_COST_CREATE_EDIT = 1.0;
-const MANA_VALUE_USD = 0.060; // 1 mana ≡ $0.060 AI compute (based on mana_50 pricing)
+const MANA_VALUE_USD = 0.06; // 1 mana ≡ $0.06 AI compute (~45% margem sobre mana_50)
 
 // ============= USD COST CALCULATION =============
 const USD_PRICING: Record<string, {
@@ -331,8 +312,8 @@ const USD_PRICING: Record<string, {
 };
 
 const USD_IMAGE_PER_UNIT = 0.04;           // gemini-2.5-flash-image (Imagen 4 standard)
-const USD_VIDEO_PER_SECOND_FAST = 0.538;   // veo-3.1-fast-generate-preview (Veo 3.1 Fast Audio, confirmed Mar 2026 billing)
-const USD_VIDEO_PER_SECOND_STD = 0.40;    // veo-3.1-generate-preview (Veo 3.1 Standard, with images)
+const USD_VIDEO_PER_SECOND_FAST = 0.25;    // veo-3.1-fast-generate-preview ($0.15 vídeo + $0.10 áudio/s)
+const USD_VIDEO_PER_SECOND_STD = 0.65;    // veo-3.1-generate-preview ($0.40 vídeo + $0.25 áudio/s)
 const MANA_PER_INPUT_IMAGE = 0.1; // extra mana per inspiration image sent to AI_GENERATE_IMAGE
 
 function calculateCostUsd(
@@ -667,29 +648,6 @@ function applyPatches(sourceCode: string, patches: Patch[]): string {
     return lines.join("\n");
 }
 
-interface GenerateSpellRequest {
-    action: "create" | "edit" | "convert" | "webview_ai" | "webview_ai_image" | "webview_ai_similarity" | "webview_ai_video" | "webview_ai_tts";
-    prompt?: string;
-    currentCode?: string;
-    instruction?: string;
-    previousEdits?: PreviousEdit[];
-    selectedContext?: string;
-    sourceCode?: string;
-    frameworkHint?: string;
-    // WebView AI
-    schema?: object;
-    imagesBase64?: string[];   // Images (array)
-    videosBase64?: string[];   // Videos (array)
-    audiosBase64?: string[];   // Audios (array)
-    model?: string;         // 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'
-    tools?: string[];       // ['googleSearch', 'googleMaps']
-    useSearch?: boolean;    // Legacy support
-    // Embeddings / Similarity
-    items?: string[];       // Array of texts (or image base64) to compare
-    // TTS
-    voiceName?: string;     // 'Aoede' | 'Charon' | 'Fenrir' | 'Kore' | 'Puck' | 'Orbit' | 'Zephyr'
-}
-
 /** Retries transient Gemini/network errors with exponential backoff. */
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
     let lastError: any;
@@ -716,499 +674,6 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
     }
     throw lastError;
 }
-
-export const generateSpell = onCall<GenerateSpellRequest>(
-    {
-        region: "southamerica-east1",
-        memory: "512MiB",
-        timeoutSeconds: 300,
-        secrets: ["GEMINI_API_KEY"],
-        enforceAppCheck: false,
-    },
-    async (request): Promise<GenerateSpellResponse> => {
-        if (!request.auth) {
-            throw new HttpsError("unauthenticated", "User must be authenticated");
-        }
-
-        const uid = request.auth.uid;
-        const { action, model: requestedModel, tools: requestedTools, useSearch } = request.data;
-        const prompt = decompressContent(request.data.prompt || "");
-        const sourceCode = decompressContent(request.data.sourceCode || "");
-        const { schema, imagesBase64, videosBase64, audiosBase64 } = request.data;
-
-        if (!action) throw new HttpsError("invalid-argument", "Action required");
-        console.log(`[generateSpell] Action: ${action}, uid: ${uid}`);
-
-        // Content moderation
-        const textToValidate = prompt || sourceCode || "";
-        if (textToValidate) {
-            const validation = validateContentRequest(textToValidate);
-            if (!validation.allowed) {
-                throw new HttpsError("permission-denied", validation.reason || "Request blocked");
-            }
-        }
-
-        const userRef = db.collection("users").doc(uid);
-
-        return await db.runTransaction(async (transaction) => {
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists) throw new HttpsError("failed-precondition", "No user data");
-
-            const userData = userDoc.data()!;
-            const currentCredits = userData.credits || 0;
-
-            if (currentCredits < 0.1 && action !== 'convert') { // Convert might be free? No logic says otherwise.
-                throw new HttpsError("failed-precondition", "Insufficient credits");
-            }
-
-            const limitError = await checkRateLimit(userRef, transaction, userData);
-            if (limitError) throw new HttpsError("resource-exhausted", limitError);
-
-            let resultText = "";
-            let usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, cachedTokens: 0, totalTokens: 0 };
-            let creditsUsed = 0;
-            let logModelId = 'gemini-3-flash-preview';
-            let logExtras: Record<string, any> = {};
-
-            try {
-                switch (action) {
-                    case "create":
-                    case "edit":
-                        throw new HttpsError("failed-precondition", "Use async jobs for create/edit");
-
-                    case "convert": {
-                        console.log(`[CONVERT] Starting spell conversion`);
-                        // Fixed cost for Convert (Import) same as Create/Edit
-                        // User confirmed: criação, edição e importação = 1 mana fixo
-
-                        const framework = request.data.frameworkHint || "web project";
-                        const convertPrompt = `${CONVERT_PROJECT_PROMPT}\n\nFramework: ${framework}\n\nSOURCE:\n${sourceCode}`;
-
-                        let result: any;
-                        let sysCacheName: string | null = null;
-                        try { sysCacheName = await getOrCreateSysCache(); }
-                        catch (cacheErr) { console.warn('[CACHE] Falling back for convert:', cacheErr); }
-
-                        if (sysCacheName) {
-                            result = await withRetry(() => getAI().models.generateContent({
-                                model: 'models/gemini-3-flash-preview',
-                                contents: convertPrompt,
-                                config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
-                            }));
-                        } else {
-                            result = await withRetry(() => getAI().models.generateContent({
-                                model: 'models/gemini-3-flash-preview',
-                                contents: `${SYSTEM_INSTRUCTIONS}\n\n${convertPrompt}`,
-                                config: MAIN_MODEL_CONFIG,
-                            }));
-                        }
-
-                        const u = getUsage(result);
-                        usage = { ...u, cachedTokens: result.usageMetadata?.cachedContentTokenCount || 0 };
-                        resultText = fixCallbackPatterns(extractHtml(extractText(result)));
-                        if (!resultText) throw new Error("AI returned empty response");
-
-                        // Price as Fixed Cost
-                        creditsUsed = FIXED_COST_CREATE_EDIT;
-                        logModelId = 'gemini-3-flash-preview';
-                        break;
-                    }
-
-                    case "webview_ai": {
-                        if (!prompt) throw new HttpsError("invalid-argument", "Prompt required");
-
-                        // normalize tools
-                        let tools = requestedTools || [];
-                        if (useSearch && !tools.includes('googleSearch')) tools.push('googleSearch');
-
-                        const modelId = requestedModel || 'gemini-3-flash-preview';
-
-                        console.log(`[WEBVIEW_AI] Model: ${modelId}, Tools: ${tools}`);
-
-                        // Build tools config
-                        const toolConfig: any[] = [];
-                        if (tools.includes('googleSearch')) toolConfig.push({ googleSearch: {} });
-                        if (tools.includes('googleMaps')) toolConfig.push({ googleMaps: {} });
-
-                        // Build Parts
-                        const parts: any[] = [prompt];
-                        if (imagesBase64?.length) {
-                            for (const img of imagesBase64) {
-                                parts.push({ inlineData: { mimeType: "image/jpeg", data: img } });
-                            }
-                        }
-                        if (videosBase64?.length) {
-                            for (const vid of videosBase64) {
-                                parts.push({ inlineData: { mimeType: "video/mp4", data: vid } });
-                            }
-                        }
-                        if (audiosBase64?.length) {
-                            for (const aud of audiosBase64) {
-                                parts.push({ inlineData: { mimeType: "audio/wav", data: aud } });
-                            }
-                        }
-
-                        // Model Config
-                        const genConfig: any = {};
-                        if (schema) {
-                            genConfig.responseMimeType = "application/json";
-                            if (!(schema as any).type) {
-                                genConfig.responseSchema = inferSchema(schema);
-                            } else {
-                                genConfig.responseSchema = schema;
-                            }
-                        }
-
-                        const result = await withRetry(() => getAI().models.generateContent({
-                            model: modelId,
-                            contents: parts,
-                            config: {
-                                ...genConfig,
-                                thinkingConfig: modelId.includes('gemini-3')
-                                    ? { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH }
-                                    : { includeThoughts: true, thinkingBudget: modelId.includes('2.5-flash-lite') ? 24576 : 32768 },
-                                tools: toolConfig.length > 0 ? toolConfig : undefined,
-                            },
-                        }));
-
-                        const u = getUsage(result);
-                        usage = {
-                            promptTokens: u.promptTokens,
-                            responseTokens: u.responseTokens,
-                            thoughtsTokens: u.thoughtsTokens,
-                            totalTokens: u.totalTokens,
-                            cachedTokens: result.usageMetadata?.cachedContentTokenCount || 0,
-                        };
-
-                        resultText = extractText(result);
-
-                        // If a schema was requested, ensure the response is clean JSON
-                        if (schema && resultText) {
-                            try {
-                                const parsed = extractJson(resultText);
-                                resultText = JSON.stringify(parsed);
-                            } catch (e: any) {
-                                console.warn(`[WEBVIEW_AI] JSON extraction failed, sending raw text:`, e.message);
-                            }
-                        }
-                        if (!resultText) throw new Error("AI returned empty response");
-
-                        // Count actual tool calls from grounding metadata
-                        const groundingMeta = result.candidates?.[0]?.groundingMetadata;
-                        const actualSearchQueries = (groundingMeta as any)?.webSearchQueries?.length ?? 0;
-                        const groundingChunks = (groundingMeta as any)?.groundingChunks ?? [];
-                        const actualMapsQueries = groundingChunks.some(
-                            (c: any) => c?.retrievedContext?.uri?.includes('maps.googleapis') ||
-                                c?.web?.uri?.includes('maps.google')
-                        ) ? 1 : 0;
-
-                        // Resolve model ID for pricing lookup (strip to base model key)
-                        const pricingModelId = modelId.includes('gemini-2.5-flash-lite') ? 'gemini-2.5-flash-lite'
-                            : modelId.includes('gemini-2.5-flash') ? 'gemini-2.5-flash'
-                                : 'gemini-3-flash-preview';
-
-                        const costUsd = calculateCostUsd(pricingModelId, usage, {
-                            searchQueries: actualSearchQueries,
-                            mapsQueries: actualMapsQueries,
-                        });
-                        creditsUsed = costUsd / MANA_VALUE_USD;
-
-                        logModelId = modelId;
-                        logExtras.searchQueries = actualSearchQueries;
-                        if (actualMapsQueries > 0) logExtras.mapsQueries = actualMapsQueries;
-                        break;
-                    }
-
-                    case "webview_ai_image": {
-                        if (!prompt) throw new HttpsError("invalid-argument", "Prompt required for image generation");
-
-                        console.log(`[WEBVIEW_AI_IMAGE] Generating image for: ${prompt.substring(0, 80)}...`);
-
-                        const detectMimeTypeImg = (base64: string): string => {
-                            if (base64.startsWith('/9j/')) return 'image/jpeg';
-                            if (base64.startsWith('iVBOR')) return 'image/png';
-                            return 'image/jpeg';
-                        };
-
-                        const imagePartsFromInput = (imagesBase64 ?? []).slice(0, 14).map((b64: string) => ({
-                            inlineData: { mimeType: detectMimeTypeImg(b64), data: b64 },
-                        }));
-
-                        const imgResult = await withRetry(() => getAI().models.generateContent({
-                            model: 'gemini-3.1-flash-image-preview',
-                            contents: [{ role: 'user', parts: [{ text: prompt }, ...imagePartsFromInput] }],
-                            config: {
-                                responseModalities: ['TEXT', 'IMAGE'],
-                                imageConfig: { imageSize: '512' },
-                            },
-                        }));
-
-                        usage = {
-                            promptTokens: imgResult.usageMetadata?.promptTokenCount || 0,
-                            responseTokens: imgResult.usageMetadata?.candidatesTokenCount || 0,
-                            thoughtsTokens: 0,
-                            totalTokens: imgResult.usageMetadata?.totalTokenCount || 0,
-                            cachedTokens: 0
-                        };
-
-                        // Extract image from response parts
-                        const parts = imgResult.candidates?.[0]?.content?.parts || [];
-                        let imageBase64 = '';
-                        for (const part of parts) {
-                            if ((part as any).inlineData) {
-                                imageBase64 = (part as any).inlineData.data;
-                                break;
-                            }
-                        }
-
-                        if (!imageBase64) {
-                            throw new Error('No image generated by model');
-                        }
-
-                        resultText = imageBase64;
-
-                        // Base cost + extra per inspiration image
-                        creditsUsed = 0.5 + imagePartsFromInput.length * MANA_PER_INPUT_IMAGE;
-                        logModelId = 'gemini-3.1-flash-image-preview';
-                        logExtras.imageCount = 1;
-                        break;
-                    }
-
-                    case 'webview_ai_video': {
-                        console.log(`[WEBVIEW_AI_VIDEO] Generating video for: ${prompt.substring(0, 80)}...`);
-
-                        const detectMimeType = (base64: string): string => {
-                            if (base64.startsWith('/9j/')) return 'image/jpeg';
-                            if (base64.startsWith('iVBOR')) return 'image/png';
-                            return 'image/jpeg';
-                        };
-
-                        const firstImageB64 = imagesBase64?.[0];
-                        const extraImageB64s = imagesBase64?.slice(1, 3) ?? [];
-                        const hasImages = !!firstImageB64;
-                        const hasReferenceImages = extraImageB64s.length > 0;
-
-                        // 1 image → starting frame via top-level `image` field (no aspectRatio)
-                        // 2+ images → all go into referenceImages (no starting frame)
-                        const startingFrame = (hasImages && !hasReferenceImages)
-                            ? { imageBytes: firstImageB64!, mimeType: detectMimeType(firstImageB64!) }
-                            : undefined;
-
-                        const referenceImages = hasReferenceImages
-                            ? [
-                                { image: { imageBytes: firstImageB64!, mimeType: detectMimeType(firstImageB64!) }, referenceType: VideoGenerationReferenceType.ASSET },
-                                ...extraImageB64s.map(img => ({
-                                    image: { imageBytes: img, mimeType: detectMimeType(img) },
-                                    referenceType: VideoGenerationReferenceType.ASSET,
-                                })),
-                            ]
-                            : undefined;
-
-                        let operation = await withRetry(() => getAI().models.generateVideos({
-                            model: hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview',
-                            prompt: prompt,
-                            ...(startingFrame ? { image: startingFrame } : {}),
-                            config: {
-                                numberOfVideos: 1,
-                                ...(!hasImages
-                                    ? { resolution: "720p" }
-                                    : hasReferenceImages
-                                        ? { aspectRatio: "16:9" }
-                                        : {}),
-                                ...(referenceImages ? { referenceImages } : {}),
-                            },
-                        }));
-
-                        while (!operation.done) {
-                            console.log(`[WEBVIEW_AI_VIDEO] Waiting for video...`);
-                            await new Promise(resolve => setTimeout(resolve, 8000));
-                            operation = await getAI().operations.getVideosOperation({ operation });
-                        }
-
-                        const videoFile = operation.response?.generatedVideos?.[0]?.video;
-                        if (!videoFile?.uri) throw new Error('No video generated by model');
-                        const videoUri = videoFile.uri;
-
-                        console.log(`[WEBVIEW_AI_VIDEO] Downloading from: ${videoUri}`);
-                        const videoResponse = await withRetry(() => fetch(videoUri, {
-                            headers: { 'x-goog-api-key': API_KEY }
-                        }));
-                        if (!videoResponse.ok) throw new Error(`Video download failed: ${videoResponse.status}`);
-
-                        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-                        if (!videoBuffer.length) throw new Error('Video generation returned empty data');
-                        resultText = videoBuffer.toString('base64');
-
-                        const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 8;
-                        console.log(`[WEBVIEW_AI_VIDEO] videoFile metadata:`, JSON.stringify((videoFile as any).videoMetadata));
-                        // creditsUsed derived from real cost to cover 100% (Fast confirmed $0.538/s Mar 2026)
-                        const videoCostUsd1 = durationSeconds * (hasImages ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
-                        creditsUsed = videoCostUsd1 / MANA_VALUE_USD;
-                        logModelId = hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview';
-                        logExtras.durationSec = durationSeconds;
-                        break;
-                    }
-
-                    case "webview_ai_similarity": {
-                        // Similarity endpoint: accepts an array of items, returns pairwise similarity matrix
-                        const items: string[] = request.data.items || [];
-                        console.log(`[WEBVIEW_AI_SIMILARITY] items: ${items?.length ?? 0}`);
-                        if (items.length < 2) throw new HttpsError("invalid-argument", "At least 2 items required for similarity");
-
-                        // Compute embeddings for all items
-                        const embeddings = await Promise.all(
-                            items.map((item: string) => withRetry(() => getAI().models.embedContent({
-                                model: "gemini-embedding-001",
-                                contents: item,
-                            })))
-                        );
-                        console.log(`[WEBVIEW_AI_SIMILARITY] Embeddings computed, building matrix...`);
-                        const vectors = embeddings.map(e => e.embeddings![0].values!);
-                        if (vectors.some(v => !v?.length)) throw new Error('Similarity model returned empty embeddings');
-
-                        // Cosine similarity helper
-                        function cosine(a: number[], b: number[]): number {
-                            let dot = 0, magA = 0, magB = 0;
-                            for (let i = 0; i < a.length; i++) {
-                                dot += a[i] * b[i];
-                                magA += a[i] * a[i];
-                                magB += b[i] * b[i];
-                            }
-                            return dot / (Math.sqrt(magA) * Math.sqrt(magB));
-                        }
-
-                        // Build pairwise similarity matrix
-                        const matrix: number[][] = [];
-                        for (let i = 0; i < vectors.length; i++) {
-                            const row: number[] = [];
-                            for (let j = 0; j < vectors.length; j++) {
-                                if (i === j) {
-                                    row.push(1.0);
-                                } else if (j < i) {
-                                    row.push(matrix[j][i]); // symmetric
-                                } else {
-                                    row.push(Math.round(cosine(vectors[i], vectors[j]) * 10000) / 10000);
-                                }
-                            }
-                            matrix.push(row);
-                        }
-
-                        resultText = JSON.stringify({ matrix, vectors, count: items.length });
-                        creditsUsed = items.length * 0.01;
-                        usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
-                        logModelId = 'gemini-embedding-001';
-                        logExtras.itemCount = items.length;
-                        break;
-                    }
-
-                    case 'webview_ai_tts': {
-                        if (!prompt) throw new HttpsError('invalid-argument', 'Text required for TTS');
-                        const voiceName = request.data.voiceName;
-
-                        const selectedVoice = voiceName || 'Aoede';
-
-                        console.log(`[WEBVIEW_AI_TTS] voice=${selectedVoice}, text="${prompt.substring(0, 60)}..."`);
-
-                        const ttsResult = await withRetry(() => getAI().models.generateContent({
-                            model: 'gemini-2.5-flash-preview-tts',
-                            contents: prompt,
-                            config: {
-                                responseModalities: ['AUDIO'],
-                                speechConfig: {
-                                    voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
-                                },
-                            },
-                        }));
-
-                        const ttsParts = ttsResult.candidates?.[0]?.content?.parts || [];
-                        let audioBase64 = '';
-                        for (const part of ttsParts as any[]) {
-                            if (part.inlineData) {
-                                audioBase64 = part.inlineData.data;
-                                break;
-                            }
-                        }
-
-                        if (!audioBase64) throw new Error('TTS returned no audio');
-
-                        const u = getUsage(ttsResult);
-                        usage = { promptTokens: u.promptTokens, responseTokens: u.responseTokens, thoughtsTokens: u.thoughtsTokens, totalTokens: u.totalTokens, cachedTokens: 0 };
-                        const ttsCostUsd = calculateCostUsd('gemini-2.5-flash-preview-tts', usage);
-                        creditsUsed = ttsCostUsd / MANA_VALUE_USD;
-
-                        // Gemini TTS returns raw PCM (24kHz, 16-bit, mono) — wrap in WAV container
-                        const pcmBuffer = Buffer.from(audioBase64, 'base64');
-                        resultText = pcmToWav(pcmBuffer).toString('base64');
-                        logModelId = 'gemini-2.5-flash-preview-tts';
-                        break;
-                    }
-                }
-            } catch (error: any) {
-                console.error("AI Error", error);
-                throw new HttpsError("internal", error.message);
-            }
-
-            const newCredits = Math.max(0, currentCredits - creditsUsed);
-
-            // Update rate limit stats with generated tokens
-            const now = Date.now();
-            const currentStats: RateLimitData = userData.rateLimit || {
-                callsThisMinute: 0,
-                tokensThisMinute: 0,
-                lastMinuteReset: now,
-            };
-            // Reset counters if a minute has passed since last reset
-            if (now - (currentStats.lastMinuteReset || 0) > 60000) {
-                currentStats.callsThisMinute = 0;
-                currentStats.tokensThisMinute = 0;
-                currentStats.lastMinuteReset = now;
-                delete currentStats.cooldownUntil;
-            }
-            currentStats.tokensThisMinute = (currentStats.tokensThisMinute || 0) + (usage.totalTokens || 0);
-
-            transaction.update(userRef, {
-                credits: newCredits,
-                creditsUsed: FieldValue.increment(creditsUsed),
-                rateLimit: currentStats,
-                lastActive: FieldValue.serverTimestamp()
-            });
-
-            // Compute USD cost and write usage log
-            let costUsd: number;
-            if (action === 'webview_ai_image') {
-                costUsd = USD_IMAGE_PER_UNIT;
-            } else if (action === 'webview_ai_video') {
-                costUsd = (logExtras.durationSec ?? 0) * (logModelId === 'veo-3.1-generate-preview' ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
-            } else {
-                costUsd = calculateCostUsd(logModelId, usage, {
-                    searchQueries: logExtras.searchQueries,
-                });
-            }
-
-            const logRef = db.collection('users').doc(uid).collection('usageLogs').doc();
-            transaction.set(logRef, {
-                action,
-                modelId: logModelId,
-                promptTokens: usage.promptTokens,
-                responseTokens: usage.responseTokens,
-                thoughtsTokens: usage.thoughtsTokens,
-                totalTokens: usage.totalTokens,
-                cachedTokens: usage.cachedTokens,
-                costUsd,
-                creditsUsed,
-                timestamp: FieldValue.serverTimestamp(),
-                ...logExtras,
-            });
-
-            return {
-                text: compressContent(resultText),
-                usage,
-                creditsUsed,
-                creditsRemaining: newCredits
-            };
-        });
-    }
-);
 
 // Function to add credits (for purchases/ad rewards)
 export const addCredits = onCall<{ amount: number; source: string }>(
@@ -1355,7 +820,7 @@ For each suggestion:
 interface Job {
     id: string;
     userId: string;
-    action: 'create' | 'edit' | 'webview_ai' | 'webview_ai_tts' | 'webview_ai_image' | 'webview_ai_similarity' | 'webview_ai_video';
+    action: 'create' | 'edit' | 'convert' | 'app_icon' | 'webview_ai' | 'webview_ai_tts' | 'webview_ai_image' | 'webview_ai_similarity' | 'webview_ai_video';
     status: 'queued' | 'processing' | 'completed' | 'failed';
     createdAt: any;
     updatedAt: any;
@@ -1365,6 +830,8 @@ interface Job {
         instruction?: string;
         selectedContext?: string;
         previousEdits?: PreviousEdit[];
+        sourceCode?: string; // GZIP:base64 — for convert
+        frameworkHint?: string; // for convert
         storageStructure?: Array<{
             key: string;
             schema: object;
@@ -1435,6 +902,9 @@ export const processSpellJob = onDocumentCreated(
             const last10NoFirst = last10.filter(e => e.version !== first.version);
             previousEdits = [first, ...last10NoFirst];
         }
+
+        const sourceCode = decompressContent(payload.sourceCode || "");
+        const frameworkHint = payload.frameworkHint;
 
         const schema = payload.schema;
         const imagesBase64 = payload.imagesBase64;
@@ -1691,6 +1161,101 @@ export const processSpellJob = onDocumentCreated(
                     // For edits, we don't strictly need appName, client knows it.
                     break;
                 }
+
+                case "convert": {
+                    if (!sourceCode) throw new Error("sourceCode required for convert");
+                    console.log(`[Job ${jobId}] [CONVERT] Starting spell conversion`);
+
+                    const framework = frameworkHint || "web project";
+                    const convertPrompt = `${CONVERT_PROJECT_PROMPT}\n\nFramework: ${framework}\n\nSOURCE:\n${sourceCode}`;
+
+                    let convertResult: any;
+                    let convCacheName: string | null = null;
+                    try { convCacheName = await getOrCreateSysCache(); }
+                    catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back for convert:`, cacheErr); }
+
+                    if (convCacheName) {
+                        convertResult = await withRetry(() => getAI().models.generateContent({
+                            model: 'models/gemini-3-flash-preview',
+                            contents: convertPrompt,
+                            config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: convCacheName },
+                        }));
+                    } else {
+                        convertResult = await withRetry(() => getAI().models.generateContent({
+                            model: 'models/gemini-3-flash-preview',
+                            contents: `${SYSTEM_INSTRUCTIONS}\n\n${convertPrompt}`,
+                            config: MAIN_MODEL_CONFIG,
+                        }));
+                    }
+
+                    const convU = getUsage(convertResult);
+                    usage = { ...convU, cachedTokens: convertResult.usageMetadata?.cachedContentTokenCount || 0 };
+                    resultText = fixCallbackPatterns(extractHtml(extractText(convertResult)));
+                    if (!resultText) throw new Error("AI returned empty response");
+
+                    creditsUsed = FIXED_COST_CREATE_EDIT;
+                    logModelId = 'gemini-3-flash-preview';
+                    break;
+                }
+
+                case "app_icon": {
+                    if (!prompt) throw new Error("Prompt required for app icon generation");
+                    console.log(`[Job ${jobId}] [APP_ICON] Generating icon for: ${prompt.substring(0, 80)}...`);
+
+                    const iconResult = await withRetry(() => getAI().models.generateContent({
+                        model: 'gemini-3.1-flash-image-preview',
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        config: {
+                            responseModalities: ['TEXT', 'IMAGE'],
+                            imageConfig: { imageSize: '512' },
+                        },
+                    }));
+
+                    usage = sanitizeForFirestore({
+                        promptTokens: Math.max(0, Number(iconResult.usageMetadata?.promptTokenCount) || 0),
+                        responseTokens: Math.max(0, Number(iconResult.usageMetadata?.candidatesTokenCount) || 0),
+                        thoughtsTokens: 0,
+                        totalTokens: Math.max(0, Number(iconResult.usageMetadata?.totalTokenCount) || 0),
+                        cachedTokens: 0
+                    });
+
+                    const iconParts = iconResult.candidates?.[0]?.content?.parts || [];
+                    let iconBase64 = '';
+                    for (const part of iconParts) {
+                        if ((part as any).inlineData) {
+                            iconBase64 = (part as any).inlineData.data;
+                            break;
+                        }
+                    }
+
+                    if (!iconBase64) throw new Error('No image generated by model');
+
+                    const iconBucket = getStorage().bucket();
+                    const iconFileName = `generated_images/${uid}/${jobId}.jpeg`;
+                    const iconFile = iconBucket.file(iconFileName);
+
+                    const iconToken = require('crypto').randomUUID();
+                    await iconFile.save(Buffer.from(iconBase64, 'base64'), {
+                        contentType: 'image/jpeg',
+                        metadata: {
+                            metadata: {
+                                firebaseStorageDownloadTokens: iconToken,
+                                userId: uid,
+                                jobId: jobId,
+                            }
+                        }
+                    });
+
+                    const iconDownloadUrl = `https://firebasestorage.googleapis.com/v0/b/${iconBucket.name}/o/${encodeURIComponent(iconFileName)}?alt=media&token=${iconToken}`;
+
+                    resultText = iconDownloadUrl;
+                    creditsUsed = 0.5; // Fixed cost for app icon, independent of base image price
+                    logModelId = 'gemini-3.1-flash-image-preview';
+                    logExtras.imageCount = 1;
+                    logExtras.imageUrl = iconDownloadUrl;
+                    break;
+                }
+
                 case "webview_ai": {
                     if (!prompt) throw new Error("Prompt required");
 
@@ -1876,7 +1441,7 @@ export const processSpellJob = onDocumentCreated(
 
                     resultText = downloadUrl;
                     // Base cost + extra per inspiration image
-                    creditsUsed = 0.5 + jobImagePartsFromInput.length * MANA_PER_INPUT_IMAGE;
+                    creditsUsed = USD_IMAGE_PER_UNIT / MANA_VALUE_USD + jobImagePartsFromInput.length * MANA_PER_INPUT_IMAGE;
                     logModelId = 'gemini-3.1-flash-image-preview';
                     logExtras.imageCount = 1;
                     logExtras.imageUrl = downloadUrl;
@@ -2136,10 +1701,16 @@ export const processSpellJob = onDocumentCreated(
                 const doc = await t.get(ref);
                 if (doc.exists) {
                     const data = doc.data()!;
+
+                    // Rate limit check
+                    const limitError = await checkRateLimit(ref, t, data);
+                    if (limitError) throw new Error(`RATE_LIMITED: ${limitError}`);
+
                     const newCredits = Math.max(0, (data.credits || 0) - creditsUsed);
                     t.update(ref, {
                         credits: newCredits,
                         creditsUsed: FieldValue.increment(creditsUsed),
+                        'rateLimit.tokensThisMinute': FieldValue.increment(usage.totalTokens || 0),
                         lastActive: FieldValue.serverTimestamp(),
                     });
 
@@ -2356,7 +1927,7 @@ export const estimateManaCost = onCall({
 
         case 'image': {
             const numInputImages = data.images?.length || 0;
-            const mana = 0.5 + numInputImages * MANA_PER_INPUT_IMAGE;
+            const mana = USD_IMAGE_PER_UNIT / MANA_VALUE_USD + numInputImages * MANA_PER_INPUT_IMAGE;
             return { mana: `~${mana.toFixed(1)}`, value: mana };
         }
 

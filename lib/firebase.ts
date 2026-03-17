@@ -76,7 +76,7 @@ export interface AddCreditsResult {
 export interface Job {
     id: string;
     userId: string;
-    action: 'create' | 'edit' | 'webview_ai' | 'webview_ai_tts' | 'webview_ai_image' | 'webview_ai_similarity' | 'webview_ai_video';
+    action: 'create' | 'edit' | 'convert' | 'app_icon' | 'webview_ai' | 'webview_ai_tts' | 'webview_ai_image' | 'webview_ai_similarity' | 'webview_ai_video';
     status: 'queued' | 'processing' | 'completed' | 'failed';
     createdAt: any;
     payload?: any; // Added payload so we can retrieve appId from it
@@ -367,20 +367,19 @@ export async function generateSpellConvert(
     sourceCode: string,
     frameworkHint?: string
 ): Promise<GenerationResult> {
-    await ensureAuthenticated();
-
-    const generateSpell = httpsCallable<any, GenerationResult>(getFunctionsInstance(), 'generateSpell');
-    const result = await generateSpell({
-        action: 'convert',
-        sourceCode: compressContent(sourceCode), // Compress source (zip base64 or huge text)
+    return submitJobAndWait('convert', {
+        sourceCode: compressContent(sourceCode),
         frameworkHint,
-        appVersion: APP_VERSION,
     });
+}
 
-    if (result.data && result.data.text) {
-        result.data.text = decompressContent(result.data.text);
-    }
-    return result.data;
+// App Icon / Logo Generation (fixed cost: 0.5 mana)
+export async function generateSpellLogoGen(
+    prompt: string
+): Promise<GenerationResult> {
+    return submitJobAndWait('app_icon', {
+        prompt: compressContent(prompt),
+    });
 }
 
 // WebView AI

@@ -13,8 +13,8 @@ interface QRScannerOverlayProps {
 export default function QRScannerOverlay({ webviewRef: propWebviewRef }: QRScannerOverlayProps) {
     const { isScannerOpen, scannerCallback, closeScanner, webViewRef: storeWebViewRef } = useBridgeUIStore();
 
-    // Prefer store ref, fall back to prop ref (though prop ref might be stale in some nav scenarios)
-    const webviewRef = storeWebViewRef || propWebviewRef;
+    // Prefer prop ref (scoped to this RunnerContent), fall back to store ref
+    const webviewRef = propWebviewRef || storeWebViewRef;
 
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);

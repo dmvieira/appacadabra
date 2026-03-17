@@ -701,7 +701,7 @@ export default function HomeScreen() {
                 creationPrompt = first?.instruction || '';
             }
             const prompt = `App icon for "${setupTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} REALLY simple, colorful, minimalist icon for a mobile app. No text. No border. No frame. No outline. No padding. No drop shadow. No background ring. No decorative edge. The icon fills the entire canvas edge to edge.`;
-            const result = await firebase.generateSpellImageGen(prompt);
+            const result = await firebase.generateSpellLogoGen(prompt);
             const base64Image = result.text;
             const creditsUsed = result.creditsUsed || 0;
             if (base64Image) {
