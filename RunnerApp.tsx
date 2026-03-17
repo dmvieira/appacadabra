@@ -30,6 +30,7 @@ import { getStorageFromCache, isCacheLoaded, reloadStorageForApp, StorageItem } 
 import AiLoadingBar from './components/AiLoadingBar';
 import QRScannerOverlay from './components/QRScannerOverlay';
 import { useBridgeUIStore } from './lib/bridgeUIStore';
+import { ManaConfirmModal } from './components/ManaConfirmModal';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -668,6 +669,7 @@ export default function RunnerApp(props: RunnerAppProps) {
             <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
                 <RunnerContent key={appId} appId={appId} />
             </SafeAreaView>
+            <ManaConfirmModal />
         </SafeAreaProvider>
     );
 }

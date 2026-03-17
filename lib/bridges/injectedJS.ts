@@ -76,6 +76,12 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           
           // Store in global cache for late-arriving callbacks and guardrails
           window.__APPACADABRA_BLOB_CACHE__[marker] = dataUri;
+          var cbPart = marker.split('|')[1];
+          if (cbPart) {
+              window.__APPACADABRA_BLOB_CACHE__[cbPart] = dataUri;
+              window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
+              window.__APPACADABRA_MARKER_CACHE__[cbPart] = marker;
+          }
           
           // AUTO-UPDATE DOM: find any elements waiting for this marker
           try {
@@ -1304,8 +1310,9 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       if (value && typeof value === 'string' && value.indexOf('__appblob__:') === 0) {
           var parts = value.split('|');
           var cbName = parts.length >= 3 ? parts[1] : '';
-          if (cbName && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[cbName]) {
-              return window.__APPACADABRA_BLOB_CACHE__[cbName];
+          var lookupKey = cbName || key;   // fallback para o próprio key do localStorage
+          if (lookupKey && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[lookupKey]) {
+              return window.__APPACADABRA_BLOB_CACHE__[lookupKey];
           }
           // Old format (2 parts) or cache miss: return as-is (restore script expanded it or file was deleted)
       }
@@ -1714,7 +1721,8 @@ export function createStorageRestoreScript(items: ExpandedStorageItem[]): string
     .map(i => {
       const k = JSON.stringify(i.blobCallbackName!);
       const v = JSON.stringify(i.blobDataUri!);
-      return `try { window.__APPACADABRA_BLOB_CACHE__[${k}] = ${v}; } catch(e) {}`;
+      const fullMarker = JSON.stringify(i.value);
+      return `try { window.__APPACADABRA_BLOB_CACHE__[${k}] = ${v}; window.__APPACADABRA_BLOB_CACHE__[${fullMarker}] = ${v}; window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {}; window.__APPACADABRA_MARKER_CACHE__[${k}] = ${fullMarker}; } catch(e) {}`;
     }).join('\n        ');
 
   const restoreStatements = items.map(item => {

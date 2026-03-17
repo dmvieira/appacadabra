@@ -410,11 +410,32 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                 const existing = existingApps.find(a => a.name === app.name);
                 if (existing && app.lastUpdated > existing.lastUpdated) {
                     console.log('[Backup] App exists but backup is newer, updating:', app.name);
+
+                    // Restore icon from base64 if backup has one and existing app has none
+                    let updatedIconPath = existing.iconPath ?? null;
+                    if (app.iconBase64 && !existing.iconPath) {
+                        try {
+                            const iconFilename = `icon_${Date.now()}_${existing.id}.png`;
+                            const iconsDir = new Directory(Paths.document, 'icons');
+                            const iconsFileCheck = new File(Paths.document, 'icons');
+                            if (iconsFileCheck.exists) {
+                                try { await iconsFileCheck.delete(); } catch (e) { /* already a directory */ }
+                            }
+                            if (!iconsDir.exists) iconsDir.create();
+                            const iconFile = new File(iconsDir, iconFilename);
+                            await iconFile.write(app.iconBase64, { encoding: 'base64' });
+                            updatedIconPath = iconFile.uri;
+                        } catch (e) {
+                            console.warn('[Backup] Failed to restore icon for updated app:', e);
+                        }
+                    }
+
                     await db.updateApp({
                         ...existing,
                         code: app.code,
                         currentVersion: app.currentVersion,
                         lastUpdated: app.lastUpdated,
+                        iconPath: updatedIconPath,
                         consoleLogs: app.consoleLogs ?? existing.consoleLogs,
                         totalManaCost: app.totalManaCost ?? existing.totalManaCost,
                         shortDescription: app.shortDescription ?? existing.shortDescription,

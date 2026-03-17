@@ -331,7 +331,7 @@ const USD_PRICING: Record<string, {
 };
 
 const USD_IMAGE_PER_UNIT = 0.04;           // gemini-2.5-flash-image (Imagen 4 standard)
-const USD_VIDEO_PER_SECOND_FAST = 0.15;    // veo-3.1-fast-generate-preview (Veo 3.1 Fast, no images)
+const USD_VIDEO_PER_SECOND_FAST = 0.538;   // veo-3.1-fast-generate-preview (Veo 3.1 Fast Audio, confirmed Mar 2026 billing)
 const USD_VIDEO_PER_SECOND_STD = 0.40;    // veo-3.1-generate-preview (Veo 3.1 Standard, with images)
 const MANA_PER_INPUT_IMAGE = 0.1; // extra mana per inspiration image sent to AI_GENERATE_IMAGE
 
@@ -881,7 +881,7 @@ export const generateSpell = onCall<GenerateSpellRequest>(
                         };
 
                         resultText = extractText(result);
-                        
+
                         // If a schema was requested, ensure the response is clean JSON
                         if (schema && resultText) {
                             try {
@@ -1041,9 +1041,9 @@ export const generateSpell = onCall<GenerateSpellRequest>(
 
                         const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 8;
                         console.log(`[WEBVIEW_AI_VIDEO] videoFile metadata:`, JSON.stringify((videoFile as any).videoMetadata));
-                        // Mana cost: ~1 mana ≈ $0.075 USD
-                        // Fast ($0.15/s) → 2.0 mana/s | Standard ($0.40/s) → 5.0 mana/s
-                        creditsUsed = durationSeconds * (hasImages ? 5.0 : 2.0);
+                        // creditsUsed derived from real cost to cover 100% (Fast confirmed $0.538/s Mar 2026)
+                        const videoCostUsd1 = durationSeconds * (hasImages ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
+                        creditsUsed = videoCostUsd1 / MANA_VALUE_USD;
                         logModelId = hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview';
                         logExtras.durationSec = durationSeconds;
                         break;
@@ -1757,7 +1757,7 @@ export const processSpellJob = onDocumentCreated(
                     });
 
                     resultText = extractText(result);
-                    
+
                     // AUDIT LOG
                     auditLog.rawAiResponse = (resultText || "").substring(0, 10000); // Capture more
                     auditLog.schemaProvided = !!schema;
@@ -1982,7 +1982,8 @@ export const processSpellJob = onDocumentCreated(
 
                     const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 8;
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] videoFile metadata:`, JSON.stringify((videoFile as any).videoMetadata));
-                    creditsUsed = durationSeconds * (hasImages ? 5.0 : 2.0);
+                    const videoCostUsd2 = durationSeconds * (hasImages ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
+                    creditsUsed = videoCostUsd2 / MANA_VALUE_USD;
                     logModelId = hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview';
                     logExtras.durationSec = durationSeconds;
                     logExtras.videoUrl = downloadUrl;
@@ -2275,6 +2276,7 @@ export const uploadMedia = onCall({
 
 export const claimInstallBonus = onCall({ region: 'southamerica-east1' }, async (request) => {
     const uid = request.auth?.uid;
+    const bonus = 0;
     if (!uid) throw new HttpsError('unauthenticated', 'Not authenticated');
 
     const hardwareId: string | undefined = request.data?.hardwareId;
@@ -2304,10 +2306,10 @@ export const claimInstallBonus = onCall({ region: 'southamerica-east1' }, async 
 
         tx.set(deviceRef, { claimedAt: now, userId: uid, googleUid, hardwareId });
         tx.set(googleRef, { claimedAt: now, userId: uid, googleUid, hardwareId });
-        tx.set(userRef, { credits: current + 2 }, { merge: true });
-        tx.set(userRef.collection('creditLogs').doc(), { amount: 2, source: 'install_bonus', timestamp: now });
+        tx.set(userRef, { credits: current + bonus }, { merge: true });
+        tx.set(userRef.collection('creditLogs').doc(), { amount: bonus, source: 'install_bonus', timestamp: now });
 
-        return { granted: true, newBalance: current + 2 };
+        return { granted: true, newBalance: current + bonus };
     });
 
     return result;

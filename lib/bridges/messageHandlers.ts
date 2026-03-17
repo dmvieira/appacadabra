@@ -253,7 +253,8 @@ async function storeBlobToFile(appId: number, key: string, value: string): Promi
 
     const barePath = fileUri.startsWith('file://') ? fileUri.slice(7) : fileUri;
     // Format: __appblob__:mimeType|callbackName|barePath  (cbName may be empty for backward compat)
-    return `${STORAGE_BLOB_MARKER}${mimeType}|${cbName}|${barePath}`;
+    const effectiveCbName = cbName || safeKey;
+    return `${STORAGE_BLOB_MARKER}${mimeType}|${effectiveCbName}|${barePath}`;
 }
 
 export async function expandStorageBlobMarkers(
@@ -283,7 +284,7 @@ export async function expandStorageBlobMarkers(
                     key: item.key,
                     value: item.value, // Keep marker as value for WebView localStorage
                     blobDataUri,
-                    blobCallbackName: callbackName || undefined,
+                    blobCallbackName: callbackName || item.key || undefined,
                 };
             } catch {
                 return { key: item.key, value: '' };

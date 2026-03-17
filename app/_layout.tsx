@@ -147,7 +147,18 @@ export default function RootLayout() {
         // Cold start: app opened by tapping a notification while fully closed
         Notifications.getLastNotificationResponseAsync()
             .then((response) => {
-                openSpellFromNotification(response);
+                if (!response) return;
+                // Apps may not be loaded yet on cold start — wait until isLoading becomes false
+                if (!useAppStore.getState().isLoading) {
+                    openSpellFromNotification(response);
+                } else {
+                    const unsubscribe = useAppStore.subscribe((state) => {
+                        if (!state.isLoading) {
+                            unsubscribe();
+                            openSpellFromNotification(response);
+                        }
+                    });
+                }
             })
             .catch(() => {});
 

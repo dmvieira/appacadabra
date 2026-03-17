@@ -88,8 +88,22 @@ function mergeBackups(local: BackupData, remote: BackupData): BackupData {
     // Remote first, then local overwrites if local is newer (or equal)
     for (const app of [...remote.apps, ...local.apps]) {
         const existing = map.get(app.name);
-        if (!existing || app.lastUpdated >= existing.lastUpdated) {
+        if (!existing) {
             map.set(app.name, app);
+        } else if (app.lastUpdated >= existing.lastUpdated) {
+            // Winner takes code/version; preserve description & icon from whichever has them
+            map.set(app.name, {
+                ...app,
+                shortDescription: app.shortDescription ?? existing.shortDescription,
+                iconBase64: app.iconBase64 ?? existing.iconBase64,
+            });
+        } else {
+            // Existing keeps code/version; still inherit description & icon from incoming if missing
+            map.set(app.name, {
+                ...existing,
+                shortDescription: existing.shortDescription ?? app.shortDescription,
+                iconBase64: existing.iconBase64 ?? app.iconBase64,
+            });
         }
     }
     return { ...local, apps: Array.from(map.values()) };
@@ -344,7 +358,14 @@ export async function performBackup(): Promise<boolean> {
             }
             success = await uploadToDrive(token, backupJson);
         } else if (backupMode === 'local_folder' && localFolderUri) {
-            success = await writeToLocalFolder(localFolderUri, backupJson);
+            let dataToWrite = backupJson;
+            const existingData = await readFromLocalFolder(localFolderUri);
+            if (existingData && existingData.apps && existingData.apps.length > 0) {
+                const merged = mergeBackups(backupData, existingData);
+                dataToWrite = JSON.stringify(merged);
+                console.log(`[BackupSync] Merged local ${backupData.apps.length} + folder ${existingData.apps.length} apps → ${merged.apps.length} unique`);
+            }
+            success = await writeToLocalFolder(localFolderUri, dataToWrite);
         }
 
         if (success) {
