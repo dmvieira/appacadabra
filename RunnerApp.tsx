@@ -68,6 +68,7 @@ function RunnerContent({ appId }: Props) {
     
     // Video Playback — use selector so store changes in other RunnerContent instances don't cause re-renders here
     const closeVideoPlayer = useBridgeUIStore(state => state.closeVideoPlayer);
+    const videoPlayback = useBridgeUIStore(state => state.videoPlayback);
 
     // Check drop-box file for pending shared content
     const checkDropBox = useCallback(async () => {
@@ -232,9 +233,6 @@ function RunnerContent({ appId }: Props) {
     }, [loadApp]);
 
 
-    // Detect when app comes to foreground and check if WebView is still alive
-    const heartbeatReceivedRef = useRef(false);
-
     useEffect(() => {
         let wasInBackground = false;
 
@@ -253,18 +251,30 @@ function RunnerContent({ appId }: Props) {
             if (nextAppState === 'active' && wasInBackground && app) {
                 console.log('RunnerApp: App came to foreground after being in background');
                 wasInBackground = false;
-
-                // Check for shared content delivered while in background
                 checkDropBox();
-
-                // Re-fetch app data
                 loadApp();
             }
         };
 
         const subscription = AppState.addEventListener('change', handleAppStateChange);
-        return () => subscription?.remove();
+        return () => {
+            subscription?.remove();
+        };
     }, [app, appId, loadApp, checkDropBox]);
+
+    // Detect when THIS specific Activity resumes (covers Runner→Runner transitions
+    // where the global AppState never fires since the process stays in foreground).
+    useEffect(() => {
+        const subscription = DeviceEventEmitter.addListener(
+            'RUNNER_ACTIVITY_RESUMED',
+            (event: { appId: number }) => {
+                if (event.appId !== appId) return;
+                console.log('RunnerApp: Activity resumed, recreating WebView surface');
+                setWebViewKey(k => k + 1);
+            }
+        );
+        return () => subscription.remove();
+    }, [appId]);
 
     // Back button is handled natively in RunnerActivity.kt using moveTaskToBack
 
@@ -279,12 +289,6 @@ function RunnerContent({ appId }: Props) {
             // Skip logging for frequent message types
             if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG') {
                 console.log('WebView Message received:', type);
-            }
-
-            // Handle heartbeat response for white screen detection
-            if (type === 'HEARTBEAT_RESPONSE') {
-                heartbeatReceivedRef.current = true;
-                return;
             }
 
             // Handle Scroll Status for Smart Refresh
@@ -322,6 +326,8 @@ function RunnerContent({ appId }: Props) {
                 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI',
                 'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
             ]);
+            // Only AI-generated content should be cached for recovery — device captures should not
+            const AI_CACHE_TYPES = new Set(['AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI']);
             let mediaLocalPath: string | undefined;
             if (callbackName) {
                 console.log(`[RunnerApp] Handling response for: ${callbackName} | type: ${type} | success: ${handlerResult.success}`);
@@ -367,7 +373,7 @@ function RunnerContent({ appId }: Props) {
                         console.warn('[RunnerApp] Failed to save media file:', fileErr);
                     }
                 }
-                if (app?.id && callbackName) {
+                if (app?.id && callbackName && AI_CACHE_TYPES.has(type)) {
                     try {
                         await db.saveWebviewAiCache({
                             appId: app.id, callbackName, action: type,
@@ -405,38 +411,48 @@ function RunnerContent({ appId }: Props) {
                 if (handlerResult.success && mediaLocalPath && callbackName && RUNNER_MEDIA_TYPES.has(type)) {
                     try {
                         const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
-                        const b64Raw = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
-                            encoding: FileSystem.EncodingType.Base64,
-                        });
-                        const b64 = b64Raw.replace(/\s/g, '');
-                        // Guardrail: Ensure we don't double-prefix dataURIs. Strip any existing prefix first.
-                        const cleanB64 = b64.replace(/^data:.*?;base64,/i, '');
-                        const dataUri = `data:${mime};base64,${cleanB64}`;
 
-                        // If result is already a marker, use it. Otherwise build one.
-                        const isResMarker = handlerResult.result?.startsWith('__appblob__:');
-                        const marker = isResMarker ? handlerResult.result : buildBlobMarker(mime, callbackName, mediaLocalPath);
+                        // Video: deliver as file:// URL — data: URIs for video are not supported on iOS WKWebView
+                        // and the base64 payload is too large (100MB+) to pass through the JS bridge
+                        if (type === 'AI_GENERATE_VIDEO' || type === 'CAMERA_RECORD_VIDEO') {
+                            const fileUrl = `file://${mediaLocalPath}`;
+                            console.log(`[RunnerApp] Delivering video ${type} as file:// URL to ${callbackName}`);
+                            const script = createCallbackScript(callbackName, handlerResult.success, fileUrl);
+                            webViewRef.current.injectJavaScript(script);
+                            handledCallback = true;
+                        } else {
+                            const b64Raw = await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                                encoding: FileSystem.EncodingType.Base64,
+                            });
+                            const b64 = b64Raw.replace(/\s/g, '');
+                            // Guardrail: Ensure we don't double-prefix dataURIs. Strip any existing prefix first.
+                            const cleanB64 = b64.replace(/^data:.*?;base64,/i, '');
 
-                        console.log(`[RunnerApp] Delivering media ${type} to ${callbackName} | marker: ${marker.substring(0, 40)}...`);
-                        
-                        // 1. Prepare the callback to wait for media
-                        const script = createMediaCallbackScript(callbackName, handlerResult.success, marker);
-                        webViewRef.current.injectJavaScript(script);
+                            // If result is already a marker, use it. Otherwise build one.
+                            const isResMarker = handlerResult.result?.startsWith('__appblob__:');
+                            const marker = isResMarker ? handlerResult.result : buildBlobMarker(mime, callbackName, mediaLocalPath);
 
-                        // 2. Deliver the media in chunks
-                        const CHUNK_SIZE = 64 * 1024; // 64KB chunks
-                        const totalChunks = Math.ceil(cleanB64.length / CHUNK_SIZE);
-                        console.log(`[RunnerApp] Delivering ${marker} in ${totalChunks} chunks`);
+                            console.log(`[RunnerApp] Delivering media ${type} to ${callbackName} | marker: ${marker.substring(0, 40)}...`);
 
-                        for (let i = 0; i < totalChunks; i++) {
-                            const start = i * CHUNK_SIZE;
-                            const end = Math.min(start + CHUNK_SIZE, cleanB64.length);
-                            const chunk = cleanB64.substring(start, end);
-                            const chunkScript = createMediaChunkScript(marker, chunk, i, totalChunks);
-                            webViewRef.current.injectJavaScript(chunkScript);
+                            // 1. Prepare the callback to wait for media
+                            const script = createMediaCallbackScript(callbackName, handlerResult.success, marker);
+                            webViewRef.current.injectJavaScript(script);
+
+                            // 2. Deliver the media in chunks
+                            const CHUNK_SIZE = 64 * 1024; // 64KB chunks
+                            const totalChunks = Math.ceil(cleanB64.length / CHUNK_SIZE);
+                            console.log(`[RunnerApp] Delivering ${marker} in ${totalChunks} chunks`);
+
+                            for (let i = 0; i < totalChunks; i++) {
+                                const start = i * CHUNK_SIZE;
+                                const end = Math.min(start + CHUNK_SIZE, cleanB64.length);
+                                const chunk = cleanB64.substring(start, end);
+                                const chunkScript = createMediaChunkScript(marker, chunk, i, totalChunks);
+                                webViewRef.current.injectJavaScript(chunkScript);
+                            }
+
+                            handledCallback = true;
                         }
-                        
-                        handledCallback = true;
                     } catch (readErr) {
                         console.warn('[RunnerApp] Failed to build media callback, falling back:', readErr);
                     }
@@ -619,6 +635,59 @@ function RunnerContent({ appId }: Props) {
 
 
             <QRScannerOverlay webviewRef={webViewRef} />
+
+            {/* Video Playback Modal */}
+            {videoPlayback && (
+                <Modal
+                    visible={!!videoPlayback}
+                    transparent={false}
+                    animationType="fade"
+                    onRequestClose={() => {
+                        if (videoPlayback.callback && webViewRef.current) {
+                            webViewRef.current.injectJavaScript(
+                                createCallbackScript(videoPlayback.callback, true, 'Dismissed')
+                            );
+                        }
+                        closeVideoPlayer();
+                    }}
+                >
+                    <View style={styles.videoModalContainer}>
+                        <Video
+                            source={{ uri: videoPlayback.uri }}
+                            rate={1.0}
+                            volume={1.0}
+                            isMuted={false}
+                            resizeMode={ResizeMode.CONTAIN}
+                            shouldPlay
+                            useNativeControls
+                            style={styles.fullVideo}
+                            onPlaybackStatusUpdate={(status) => {
+                                if (status.isLoaded && status.didJustFinish) {
+                                    if (videoPlayback.callback && webViewRef.current) {
+                                        webViewRef.current.injectJavaScript(
+                                            createCallbackScript(videoPlayback.callback, true, 'Finished')
+                                        );
+                                    }
+                                    closeVideoPlayer();
+                                }
+                            }}
+                        />
+                        <TouchableOpacity
+                            style={styles.closeVideoButton}
+                            onPress={() => {
+                                if (videoPlayback.callback && webViewRef.current) {
+                                    webViewRef.current.injectJavaScript(
+                                        createCallbackScript(videoPlayback.callback, true, 'Dismissed')
+                                    );
+                                }
+                                closeVideoPlayer();
+                            }}
+                        >
+                            <Text style={styles.closeVideoText}>✕</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Modal>
+            )}
 
             {/* First AI Use Modal */}
             <Modal

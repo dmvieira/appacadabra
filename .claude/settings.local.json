@@ -27,7 +27,12 @@
       "Bash(npx expo:*)",
       "mcp__plugin_firebase_firebase__firebase_get_project",
       "mcp__plugin_firebase_firebase__firestore_query_collection",
-      "mcp__plugin_firebase_firebase__firestore_get_document"
+      "mcp__plugin_firebase_firebase__firestore_get_document",
+      "Bash(wait bgxp8fe50:*)",
+      "Bash(adb:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(\"$ADB\" devices:*)",
+      "Bash(\"$ADB\" logcat:*)"
     ]
   }
 }

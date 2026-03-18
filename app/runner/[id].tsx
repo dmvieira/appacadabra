@@ -333,6 +333,13 @@ export default function RunnerScreen() {
         }
     }, [isEditMode]);
 
+    // Clear AI loading bar when entering edit mode (dismiss any in-flight play mode calls)
+    useEffect(() => {
+        if (isEditMode) {
+            setIsAiLoading(false);
+        }
+    }, [isEditMode]);
+
     useEffect(() => {
         if (lastCompletedEditAppId && lastCompletedEditAppId === Number(id) && isEditMode) {
             console.log('RunnerScreen: Edit completed, navigating back to app list');
@@ -616,18 +623,26 @@ export default function RunnerScreen() {
             const script = createStorageRestoreScript(expandedToRestore);
             webViewRef.current.injectJavaScript(script);
 
-            // Recover undelivered AI responses
-            try {
+            // Recover undelivered AI responses (skip in edit mode — would re-trigger AI callbacks)
+            if (!isEditMode) try {
                 const pending = await db.getUndeliveredWebviewAiCache(app.id);
                 if (pending.length > 0 && webViewRef.current) {
                     const recoveries = await Promise.all(pending.map(async (entry) => {
                         let recoveryResult = entry.result;
                         if (entry.mediaLocalPath) {
-                            try {
-                                recoveryResult = await FileSystem.readAsStringAsync(
-                                    `file://${entry.mediaLocalPath}`, { encoding: FileSystem.EncodingType.Base64 }
-                                );
-                            } catch { /* keep DB result (file URI or URL) */ }
+                            // Video: deliver as file:// URL to avoid huge data URI on iOS WKWebView
+                            if (entry.action === 'AI_GENERATE_VIDEO') {
+                                recoveryResult = `file://${entry.mediaLocalPath}`;
+                            } else {
+                                try {
+                                    const rawB64 = await FileSystem.readAsStringAsync(
+                                        `file://${entry.mediaLocalPath}`, { encoding: FileSystem.EncodingType.Base64 }
+                                    );
+                                    const mime = AI_MEDIA_MIME[entry.action] ?? 'application/octet-stream';
+                                    // Always include data URI prefix so WebView can render directly
+                                    recoveryResult = `data:${mime};base64,${rawB64.replace(/\s/g, '')}`;
+                                } catch { /* keep DB result (file URI or URL) */ }
+                            }
                         }
                         await db.markWebviewAiCacheDelivered(entry.id);
                         return {
@@ -675,7 +690,7 @@ export default function RunnerScreen() {
                 }, 500);
             }
         }
-    }, [localSharedContent, sharedContent, clearSharedContent, isFocused, app]);
+    }, [localSharedContent, sharedContent, clearSharedContent, isFocused, app, isEditMode]);
 
     // Handle incoming share when already loaded (hot update)
     useEffect(() => {
@@ -782,7 +797,7 @@ export default function RunnerScreen() {
                         'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
                     ].includes(type);
 
-                    if (isAiAction) setIsAiLoading(true);
+                    if (isAiAction && !isEditMode) setIsAiLoading(true);
 
                     let handlerResult;
                     try {
@@ -804,10 +819,10 @@ export default function RunnerScreen() {
                             console.log('Unknown message type:', type);
                         }
                     } finally {
-                        if (isAiAction) setIsAiLoading(false);
+                        if (isAiAction && !isEditMode) setIsAiLoading(false);
                     }
 
-                    if ((isAiAction || isDeviceMediaAction) && handlerResult && handlerResult.handled && app?.id && callbackName && success) {
+                    if (isAiAction && !isEditMode && handlerResult && handlerResult.handled && app?.id && callbackName && success) {
                         try {
                             const isMedia = type !== 'AI_GENERATE';
                             cacheResult = result;
@@ -854,30 +869,40 @@ export default function RunnerScreen() {
                 if (success && mediaLocalPath && type !== 'AI_GENERATE' && type !== 'AI_SIMILARITY') {
                     try {
                         const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
-                        const b64 = (await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
-                            encoding: FileSystem.EncodingType.Base64,
-                        })).replace(/[\r\n]/g, '');
-                        const dataUri = `data:${mime};base64,${b64}`;
-                        const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
-                        
-                        // 1. Prepare the callback to wait for media
-                        const script = createMediaCallbackScript(callbackName, success, marker);
-                        webViewRef.current.injectJavaScript(script);
 
-                        // 2. Deliver the media in chunks
-                        const CHUNK_SIZE = 64 * 1024; // 64KB chunks
-                        const totalChunks = Math.ceil(b64.length / CHUNK_SIZE);
-                        console.log(`[Runner] Delivering ${marker} in ${totalChunks} chunks`);
+                        // Video: deliver as file:// URL — data: URIs for video are not supported on iOS WKWebView
+                        // and the base64 payload is too large (100MB+) to pass through the JS bridge
+                        if (type === 'AI_GENERATE_VIDEO' || type === 'CAMERA_RECORD_VIDEO') {
+                            const fileUrl = `file://${mediaLocalPath}`;
+                            console.log(`[Runner] Delivering video ${type} as file:// URL to ${callbackName}`);
+                            const script = createCallbackScript(callbackName, success, fileUrl);
+                            webViewRef.current.injectJavaScript(script);
+                            handledCallback = true;
+                        } else {
+                            const b64 = (await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                                encoding: FileSystem.EncodingType.Base64,
+                            })).replace(/[\r\n]/g, '');
+                            const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
 
-                        for (let i = 0; i < totalChunks; i++) {
-                            const start = i * CHUNK_SIZE;
-                            const end = Math.min(start + CHUNK_SIZE, b64.length);
-                            const chunk = b64.substring(start, end);
-                            const chunkScript = createMediaChunkScript(marker, chunk, i, totalChunks);
-                            webViewRef.current.injectJavaScript(chunkScript);
+                            // 1. Prepare the callback to wait for media
+                            const script = createMediaCallbackScript(callbackName, success, marker);
+                            webViewRef.current.injectJavaScript(script);
+
+                            // 2. Deliver the media in chunks
+                            const CHUNK_SIZE = 64 * 1024; // 64KB chunks
+                            const totalChunks = Math.ceil(b64.length / CHUNK_SIZE);
+                            console.log(`[Runner] Delivering ${marker} in ${totalChunks} chunks`);
+
+                            for (let i = 0; i < totalChunks; i++) {
+                                const start = i * CHUNK_SIZE;
+                                const end = Math.min(start + CHUNK_SIZE, b64.length);
+                                const chunk = b64.substring(start, end);
+                                const chunkScript = createMediaChunkScript(marker, chunk, i, totalChunks);
+                                webViewRef.current.injectJavaScript(chunkScript);
+                            }
+
+                            handledCallback = true;
                         }
-                        
-                        handledCallback = true;
                     } catch (readErr) {
                         console.warn('[Runner] Failed to build media callback, falling back:', readErr);
                     }

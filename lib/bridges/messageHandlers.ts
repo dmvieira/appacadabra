@@ -1032,9 +1032,25 @@ export async function handleBridgeMessage(
             debugLog(`Share file: ${data.filename}`);
             try {
                 if (await Sharing.isAvailableAsync()) {
-                    const tempPath = FileSystem.cacheDirectory + (data.filename || 'shared_file');
-                    await FileSystem.writeAsStringAsync(tempPath, data.base64, { encoding: FileSystem.EncodingType.Base64 });
-                    await Sharing.shareAsync(tempPath, { mimeType: data.mimeType || 'application/octet-stream' });
+                    let sharePath: string;
+                    const input: string = data.base64 ?? '';
+
+                    if (input.startsWith('file://') || (input.startsWith('/') && input.length < 500)) {
+                        // Already a file path — share directly without re-writing
+                        sharePath = input.startsWith('/') ? `file://${input}` : input;
+                    } else {
+                        // Real base64 — sanitize filename and write to cache
+                        const safeFilename = (data.filename || 'shared_file')
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')   // Remove diacritics: ê→e, á→a
+                            .replace(/[^a-zA-Z0-9._-]/g, '_'); // Spaces and specials → _
+                        sharePath = FileSystem.cacheDirectory + safeFilename;
+                        await FileSystem.writeAsStringAsync(sharePath, input, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+                    }
+
+                    await Sharing.shareAsync(sharePath, { mimeType: data.mimeType || 'application/octet-stream' });
                     result = 'File shared';
                 } else {
                     success = false;
@@ -2186,6 +2202,7 @@ export async function handleBridgeMessage(
                 uiStore.openVideoPlayer(videoFileUri, ctx.callbackName);
 
                 result = 'Playing';
+                deferredCallback = true; // callback will be fired by the video player modal
             } catch (e) {
                 console.error('Video play error:', e);
                 success = false;

@@ -594,6 +594,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
 
   window.AppacadabraNotify = {
     showNow: function(title, message, callbackName) {
+        if (window.__IS_EDIT_MODE__) return;
         console.log('[AppacadabraNotify.showNow] title:', title, 'message:', message, 'callback:', callbackName);
         sendMessage('NOTIFY_SHOW_NOW', { title, message }, callbackName);
     },
@@ -601,23 +602,28 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         this.showNow("Alert", message, callbackName);
     },
     schedule: function(title, message, delayMinutes, callbackName, id) {
+        if (window.__IS_EDIT_MODE__) return;
         var timeMs = Date.now() + (delayMinutes * 60 * 1000);
         console.log('[AppacadabraNotify.schedule] title:', title, 'delay:', delayMinutes, 'min (converted to:', new Date(timeMs).toISOString(), '), id:', id, 'callback:', callbackName);
         sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id }, callbackName);
     },
     scheduleAt: function(title, message, timeMs, callbackName, id) {
+        if (window.__IS_EDIT_MODE__) return;
         console.log('[AppacadabraNotify.scheduleAt] title:', title, 'time:', new Date(timeMs).toISOString(), 'id:', id, 'callback:', callbackName);
         sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id }, callbackName);
     },
     getScheduled: function(callbackName) {
+        if (window.__IS_EDIT_MODE__) return;
         console.log('[AppacadabraNotify.getScheduled] callback:', callbackName);
         sendMessage('NOTIFY_GET_SCHEDULED', {}, callbackName);
     },
     cancel: function(id, callbackName) {
+        if (window.__IS_EDIT_MODE__) return;
         console.log('[AppacadabraNotify.cancel] id:', id, 'callback:', callbackName);
         sendMessage('NOTIFY_CANCEL', { id }, callbackName);
     },
     cancelAll: function(callbackName) {
+        if (window.__IS_EDIT_MODE__) return;
         console.log('[AppacadabraNotify.cancelAll] callback:', callbackName);
         sendMessage('NOTIFY_CANCEL_ALL', {}, callbackName);
     },
@@ -1964,9 +1970,16 @@ export function createMediaCallbackScript(callbackName: string, success: boolean
   return `
     (function() {
       console.log("[BridgeReturn] Media callback prepared for: ${marker}");
+      // Invalidate stale cache entries — prevents off-by-one when same callbackName
+      // is reused across multiple recordings (all save to the same marker/file path)
+      if (window.__APPACADABRA_BLOB_CACHE__) {
+          delete window.__APPACADABRA_BLOB_CACHE__["${marker}"];
+          delete window.__APPACADABRA_BLOB_CACHE__["${callbackName}"];
+      }
+      if (window.__APPACADABRA_MARKER_CACHE__) {
+          delete window.__APPACADABRA_MARKER_CACHE__["${callbackName}"];
+      }
       if ("${callbackName}" && typeof window["${callbackName}"] === 'function') {
-        // Wrap the original callback to wait for media or handle it directly
-        // if it's already a full dataURI (though here we expect a marker)
         if (window.__handleChunkedMediaCallback) {
             window.__handleChunkedMediaCallback("${callbackName}", ${success}, "${marker}");
         } else {

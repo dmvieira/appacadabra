@@ -8,14 +8,18 @@ import android.os.Build
 import android.os.Bundle
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
+import com.facebook.react.ReactApplication
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.bridge.Arguments
 import expo.modules.ReactActivityDelegateWrapper
 import expo.modules.splashscreen.SplashScreenManager
 
 class RunnerActivity : ReactActivity() {
 
     private var myAppId: Int = -1
+    private var isFirstResume = true
 
     private val finishReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, broadcastIntent: Intent?) {
@@ -77,6 +81,29 @@ class RunnerActivity : ReactActivity() {
             registerReceiver(finishReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(finishReceiver, filter)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isFirstResume) {
+            isFirstResume = false
+            return  // Skip initial mount — WebView is already being created
+        }
+        if (myAppId == -1) return
+        try {
+            val reactContext = (application as? ReactApplication)
+                ?.reactNativeHost?.reactInstanceManager?.currentReactContext
+            if (reactContext?.hasActiveReactInstance() == true) {
+                val params = Arguments.createMap()
+                params.putInt("appId", myAppId)
+                reactContext
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                    .emit("RUNNER_ACTIVITY_RESUMED", params)
+                android.util.Log.d("RunnerActivity", "Emitted RUNNER_ACTIVITY_RESUMED for appId=$myAppId")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RunnerActivity", "Failed to emit RUNNER_ACTIVITY_RESUMED", e)
         }
     }
 
