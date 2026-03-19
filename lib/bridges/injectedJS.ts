@@ -72,6 +72,12 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           console.log("[BridgeBlob] Media delivery complete for " + marker);
           var fullBase64 = mediaBlobs[marker].join('');
           var mime = marker.split('|')[0].replace('__appblob__:', '');
+          // Auto-detect actual image format from magic bytes (fixes JPEG-labeled PNG images)
+          if (mime.indexOf('image/') === 0) {
+              if (fullBase64.substring(0, 8) === 'iVBORw0K') mime = 'image/png';
+              else if (fullBase64.substring(0, 4) === '/9j/') mime = 'image/jpeg';
+              else if (fullBase64.substring(0, 6) === 'R0lGOD') mime = 'image/gif';
+          }
           var dataUri = "data:" + mime + ";base64," + fullBase64;
           
           // Store in global cache for late-arriving callbacks and guardrails
@@ -100,35 +106,48 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       }
   };
 
+  // Helper: invoke a callback by name, supporting both window properties and const/let globals
+  function __invokeCallback(name, success, data) {
+      if (typeof window[name] === 'function') {
+          window[name](success, data);
+      } else {
+          // Fallback: try eval for const/let declared globals (not on window object)
+          try { eval(name + '(success, data)'); } catch(e) {}
+      }
+  }
+
   // Helper to wrap a callback to wait for media markers (Chunked Delivery)
   window.__handleChunkedMediaCallback = function(originalCallbackName, success, result) {
       if (success && typeof result === 'string' && result.indexOf('__appblob__') !== -1) {
           var marker = result;
-          
+
           // Check if already in cache (race condition fix)
           if (window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[marker]) {
               console.log("[BridgeBlob] FOUND IN CACHE: " + marker.substring(0, 30) + "...");
-              if (typeof window[originalCallbackName] === 'function') {
-                  window[originalCallbackName](true, window.__APPACADABRA_BLOB_CACHE__[marker]);
-              }
+              __invokeCallback(originalCallbackName, true, window.__APPACADABRA_BLOB_CACHE__[marker]);
               return;
           }
 
           console.log("[BridgeBlob] ATTACHING LISTENER for marker: " + marker.substring(0, 30) + "...");
+          var resolved = false;
           var onMediaReady = function(e) {
               if (e.detail.marker === marker) {
+                  resolved = true;
                   console.log("[BridgeBlob] Delivering late-arriving media to " + originalCallbackName);
-                  if (typeof window[originalCallbackName] === 'function') {
-                      window[originalCallbackName](true, e.detail.dataUri);
-                  }
+                  __invokeCallback(originalCallbackName, true, e.detail.dataUri);
                   window.removeEventListener('appacadabra:media:ready', onMediaReady);
               }
           };
           window.addEventListener('appacadabra:media:ready', onMediaReady);
-      } else {
-          if (typeof window[originalCallbackName] === 'function') {
-              window[originalCallbackName](success, result);
+
+          // Double-check: chunks may have completed between the first cache check and listener registration
+          if (!resolved && window.__APPACADABRA_BLOB_CACHE__ && window.__APPACADABRA_BLOB_CACHE__[marker]) {
+              console.log("[BridgeBlob] DOUBLE-CHECK HIT for marker: " + marker.substring(0, 30) + "...");
+              window.removeEventListener('appacadabra:media:ready', onMediaReady);
+              __invokeCallback(originalCallbackName, true, window.__APPACADABRA_BLOB_CACHE__[marker]);
           }
+      } else {
+          __invokeCallback(originalCallbackName, success, result);
       }
   };
 
@@ -245,6 +264,44 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       return _setAttribute.call(this, name, value);
   };
 
+  // Guardrail: Element.prototype.innerHTML — fix double data URI prefix and __appblob__: markers
+  var _setInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+  if (_setInnerHTML && _setInnerHTML.set) {
+      Object.defineProperty(Element.prototype, 'innerHTML', {
+          get: function() { return _setInnerHTML.get.call(this); },
+          set: function(html) {
+              if (typeof html === 'string' && html.length > 20 &&
+                  (html.indexOf('data:') !== -1 || html.indexOf('__appblob__:') !== -1)) {
+                  html = html.replace(/(src|href)="([^"]*)"/gi, function(match, attr, val) {
+                      var fixed = _resolveMediaValue(val);
+                      return fixed === val ? match : (attr + '="' + fixed + '"');
+                  });
+                  html = html.replace(/(src|href)='([^']*)'/gi, function(match, attr, val) {
+                      var fixed = _resolveMediaValue(val);
+                      return fixed === val ? match : (attr + "='" + fixed + "'");
+                  });
+              }
+              _setInnerHTML.set.call(this, html);
+          }
+      });
+  }
+
+  // Guardrail: Element.prototype.insertAdjacentHTML — same fix
+  var _insertAdjHTML = Element.prototype.insertAdjacentHTML;
+  Element.prototype.insertAdjacentHTML = function(position, html) {
+      if (typeof html === 'string' && html.length > 20 &&
+          (html.indexOf('data:') !== -1 || html.indexOf('__appblob__:') !== -1)) {
+          html = html.replace(/(src|href)="([^"]*)"/gi, function(match, attr, val) {
+              var fixed = _resolveMediaValue(val);
+              return fixed === val ? match : (attr + '="' + fixed + '"');
+          });
+          html = html.replace(/(src|href)='([^']*)'/gi, function(match, attr, val) {
+              var fixed = _resolveMediaValue(val);
+              return fixed === val ? match : (attr + "='" + fixed + "'");
+          });
+      }
+      _insertAdjHTML.call(this, position, html);
+  };
 
   // Helper: wrap a callback to resolve __appblob__: markers to data URIs (Legacy/Non-chunked)
   function __setupLegacyBlobInterceptor(callbackName, interceptName) {
@@ -355,6 +412,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           var c = document.createElement('canvas');
           c.width = w || 320; c.height = h || 180;
           var ctx = c.getContext('2d');
+          if (!ctx) throw new Error('No canvas context');
           ctx.fillStyle = '#1a1a2e';
           ctx.fillRect(0, 0, c.width, c.height);
           var cx = c.width / 2, cy = c.height / 2, r = Math.min(c.width, c.height) * 0.18;
@@ -369,8 +427,12 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           ctx.lineTo(cx + r * 0.9, cy);
           ctx.closePath();
           ctx.fill();
-          return c.toDataURL('image/jpeg', 0.8).split(',')[1] || '';
-        } catch(e) { return ''; }
+          var result = c.toDataURL('image/jpeg', 0.8).split(',')[1];
+          return result || '';
+        } catch(e) {
+          // Hardcoded 1x1 transparent GIF as last resort (avoids broken image icon)
+          return 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        }
       }
 
       function deliverWithThumb(videoInput, isUrl) {
@@ -378,7 +440,15 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         function deliver(thumb) {
           if (delivered) return;
           delivered = true;
-          if (window[callbackName]) window[callbackName](true, videoInput, thumb || makeVideoPlaceholder(320, 180));
+          var thumbBase64 = thumb || makeVideoPlaceholder(320, 180);
+          // If placeholder also failed (empty string), use minimal valid GIF
+          if (!thumbBase64) thumbBase64 = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+          var thumbDataUri = thumbBase64.indexOf('data:') === 0
+              ? thumbBase64
+              : (thumbBase64.substring(0, 6) === 'R0lGOD'
+                  ? 'data:image/gif;base64,' + thumbBase64
+                  : 'data:image/jpeg;base64,' + thumbBase64);
+          if (window[callbackName]) window[callbackName](true, videoInput, thumbDataUri);
         }
         try {
           var video  = document.createElement('video');
@@ -471,7 +541,13 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
                   window.__APPACADABRA_MARKER_CACHE__[cn] = result;
                   if (window[callbackName]) window[callbackName](true, window.__APPACADABRA_BLOB_CACHE__[cn]);
               } else {
-                  if (window[callbackName]) window[callbackName](success, result);
+                  // Chunks not yet delivered — wait for the media:ready event
+                  window.addEventListener('appacadabra:media:ready', function handler(e) {
+                      if (e.detail.marker === result || (cn && e.detail.marker.indexOf('|' + cn + '|') !== -1)) {
+                          if (window[callbackName]) window[callbackName](true, e.detail.dataUri);
+                          window.removeEventListener('appacadabra:media:ready', handler);
+                      }
+                  });
               }
               delete window[interceptName];
           } else {
@@ -553,7 +629,13 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
                     window.__APPACADABRA_MARKER_CACHE__[cn] = result;
                     if (window[callbackName]) window[callbackName](true, window.__APPACADABRA_BLOB_CACHE__[cn]);
                 } else {
-                    if (window[callbackName]) window[callbackName](success, result);
+                    // Chunks not yet delivered — wait for the media:ready event
+                    window.addEventListener('appacadabra:media:ready', function handler(e) {
+                        if (e.detail.marker === result || (cn && e.detail.marker.indexOf('|' + cn + '|') !== -1)) {
+                            if (window[callbackName]) window[callbackName](true, e.detail.dataUri);
+                            window.removeEventListener('appacadabra:media:ready', handler);
+                        }
+                    });
                 }
                 delete window[interceptName];
             } else {
@@ -1719,7 +1801,15 @@ export function getScrollDetectionScript(): string {
 
 // Generate script to restore localStorage from saved database items
 export function createStorageRestoreScript(items: ExpandedStorageItem[]): string {
-  // if (items.length === 0) return ''; // Removed to ensure clearing happens even if empty
+  if (!items || items.length === 0) {
+    // Storage hasn't loaded yet — preserve existing localStorage intact.
+    // handleLoadEnd will inject the real restore once data is available.
+    return `(function() {
+      window.__APPACADABRA_BLOB_CACHE__ = window.__APPACADABRA_BLOB_CACHE__ || {};
+      window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
+      console.log('[Storage] Early injection skipped (no items yet)');
+    })();`;
+  }
 
   // Inject blob data URIs into __APPACADABRA_BLOB_CACHE__ for marker resolution
   const cacheEntries = items
@@ -1760,6 +1850,18 @@ export function createStorageRestoreScript(items: ExpandedStorageItem[]): string
         } finally {
             window.__APPACADABRA_RESTORING__ = false;
         }
+        try {
+            var allBlobKeys = Object.keys(window.__APPACADABRA_BLOB_CACHE__ || {});
+            for (var ki = 0; ki < allBlobKeys.length; ki++) {
+                var mk = allBlobKeys[ki];
+                if (mk.indexOf('__appblob__:') !== 0) continue;
+                var uri = window.__APPACADABRA_BLOB_CACHE__[mk];
+                var pendingEls = document.querySelectorAll('[src="' + mk + '"], [href="' + mk + '"]');
+                for (var ei = 0; ei < pendingEls.length; ei++) {
+                    pendingEls[ei].src = uri;
+                }
+            }
+        } catch(e) {}
     })();
     `;
 }
@@ -1979,15 +2081,13 @@ export function createMediaCallbackScript(callbackName: string, success: boolean
       if (window.__APPACADABRA_MARKER_CACHE__) {
           delete window.__APPACADABRA_MARKER_CACHE__["${callbackName}"];
       }
-      if ("${callbackName}" && typeof window["${callbackName}"] === 'function') {
-        if (window.__handleChunkedMediaCallback) {
-            window.__handleChunkedMediaCallback("${callbackName}", ${success}, "${marker}");
-        } else {
-            console.error("__handleChunkedMediaCallback not found in WebView!");
-            window["${callbackName}"](${success}, "${marker}");
-        }
+      if (window.__handleChunkedMediaCallback) {
+          window.__handleChunkedMediaCallback("${callbackName}", ${success}, "${marker}");
       } else {
-        console.warn("[BridgeReturn] Media callback ${callbackName} not found or invalid");
+          console.error("__handleChunkedMediaCallback not found in WebView!");
+          if (typeof window["${callbackName}"] === 'function') {
+              window["${callbackName}"](${success}, "${marker}");
+          }
       }
     })();
   `;

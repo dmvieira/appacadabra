@@ -26,12 +26,12 @@
     <link rel="stylesheet" href="css/style.css">
 
     <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NLGQ04059B"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
-        gtag('config', 'G-XXXXXXXXXX');
+        gtag('config', 'G-NLGQ04059B');
     </script>
 </head>
 
@@ -68,6 +68,7 @@
             </p>
             <p class="hero-subtitle" data-i18n="subtitle">Turn your ideas into working tools in seconds. No coding
                 required.</p>
+            <div class="poc-badge" data-i18n="pocBadge">⚡ Idea → working tool in ~30 seconds</div>
 
             <div class="cta-buttons">
                 <a href="#" id="play-store-btn" class="cta-btn cta-android" onclick="trackDownload('android')">
@@ -89,49 +90,70 @@
         <div class="hero-glow"></div>
     </section>
 
-    <!-- Features Section -->
-    <section class="features">
-        <h2 class="section-title" data-i18n="featuresTitle">✨ What can you create?</h2>
-        <p class="section-subtitle" data-i18n="featuresSubtitle">Need a habit tracker? A workout timer? A budget
-            calculator? A study planner? A game? Just describe it!</p>
-
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">🎯</div>
-                <h3 data-i18n="feature1Title">Describe & Create</h3>
-                <p data-i18n="feature1Desc">Just type "A Pomodoro timer with a space theme" and get a fully functional
-                    tool in seconds.</p>
+    <!-- App Screenshots Section -->
+    <section class="app-screens" id="how-it-works-screens">
+        <h2 class="section-title" data-i18n="screensTitle">📱 See It in Action</h2>
+        <div class="screens-carousel">
+            <div class="screen-card">
+                <div class="screen-img-wrap">
+                    <img src="img/screens/screen-01-home.png" alt="Tool list screen" loading="lazy">
+                </div>
+                <h3 data-i18n="screen1Title">Your tools, all in one place</h3>
+                <p data-i18n="screen1Desc">Each spell is a personalized tool created by you — from daily organizer to
+                    fitness tracker.</p>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">📱</div>
-                <h3 data-i18n="feature2Title">Native Device Powers</h3>
-                <p data-i18n="feature2Desc">Calendar, Notifications, Location, Contacts, Health, Sensors, and more!</p>
+            <div class="screen-card">
+                <div class="screen-img-wrap">
+                    <img src="img/screens/screen-02-create.png" alt="Create new tool modal" loading="lazy">
+                </div>
+                <h3 data-i18n="screen2Title">Describe. The AI builds.</h3>
+                <p data-i18n="screen2Desc">Type or speak your idea. Appacadabra understands and generates your tool in
+                    seconds.</p>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔗</div>
-                <h3 data-i18n="feature3Title">Open Other Apps</h3>
-                <p data-i18n="feature3Desc">Launch WhatsApp, Telegram, Notion, Spotify—any app that supports deep links!
-                </p>
+            <div class="screen-card">
+                <div class="screen-img-wrap">
+                    <img src="img/screens/screen-03-tool.png" alt="Open tool screen" loading="lazy">
+                </div>
+                <h3 data-i18n="screen3Title">Use it immediately</h3>
+                <p data-i18n="screen3Desc">Functional tools from the first use. Your data stays on your phone.</p>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">✏️</div>
-                <h3 data-i18n="feature4Title">Edit with AI</h3>
-                <p data-i18n="feature4Desc">Say "Make the background blue" or "Add a reset button" and the AI updates it
-                    instantly.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔒</div>
-                <h3 data-i18n="feature5Title">Private & Offline</h3>
-                <p data-i18n="feature5Desc">Your spells are stored locally. They work offline and are completely yours.
-                </p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">📤</div>
-                <h3 data-i18n="feature6Title">Share Your Spells</h3>
-                <p data-i18n="feature6Desc">Export your creations to share with friends—your data stays private.</p>
+            <div class="screen-card">
+                <div class="screen-img-wrap">
+                    <img src="img/screens/screen-04-personalize.png" alt="Personal toolset" loading="lazy">
+                </div>
+                <h3 data-i18n="screen4Title">Just for you</h3>
+                <p data-i18n="screen4Desc">Each tool is created for your specific need — not generic, not shared.</p>
             </div>
         </div>
     </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <h2 class="section-title" data-i18n="howTitle">🪄 How It Works</h2>
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-icon">💬</div>
+                <h3 data-i18n="step1Title">Describe</h3>
+                <p data-i18n="step1Desc">Tell the AI what you need help with</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-icon">🤖</div>
+                <h3 data-i18n="step2Title">AI Creates</h3>
+                <p data-i18n="step2Desc">The AI builds your tool instantly</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-icon">🚀</div>
+                <h3 data-i18n="step3Title">Use It</h3>
+                <p data-i18n="step3Desc">Your tool is ready to use!</p>
+            </div>
+        </div>
+    </section>
+
 
     <!-- Showcase Section -->
     <section class="showcase">
@@ -288,32 +310,71 @@
         </div>
     </section>
 
-    <!-- How It Works -->
-    <section class="how-it-works">
-        <h2 class="section-title" data-i18n="howTitle">🪄 How It Works</h2>
-        <div class="steps">
-            <div class="step">
-                <div class="step-number">1</div>
-                <div class="step-icon">💬</div>
-                <h3 data-i18n="step1Title">Describe</h3>
-                <p data-i18n="step1Desc">Tell the AI what you need help with</p>
+    <!-- Features Section -->
+    <section class="features">
+        <h2 class="section-title" data-i18n="featuresTitle">✨ What can you create?</h2>
+        <p class="section-subtitle" data-i18n="featuresSubtitle">Need a habit tracker? A workout timer? A budget
+            calculator? A study planner? A game? Just describe it!</p>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3 data-i18n="feature1Title">Describe & Create</h3>
+                <p data-i18n="feature1Desc">Just type "A Pomodoro timer with a space theme" and get a fully functional
+                    tool in seconds.</p>
             </div>
-            <div class="step-arrow">→</div>
-            <div class="step">
-                <div class="step-number">2</div>
-                <div class="step-icon">🤖</div>
-                <h3 data-i18n="step2Title">AI Creates</h3>
-                <p data-i18n="step2Desc">The AI builds your tool instantly</p>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3 data-i18n="feature2Title">Native Device Powers</h3>
+                <p data-i18n="feature2Desc">Calendar, Notifications, Location, Contacts, Health, Sensors, Camera, QR
+                    Scanner, Video, and more!</p>
             </div>
-            <div class="step-arrow">→</div>
-            <div class="step">
-                <div class="step-number">3</div>
-                <div class="step-icon">🚀</div>
-                <h3 data-i18n="step3Title">Use It</h3>
-                <p data-i18n="step3Desc">Your tool is ready to use!</p>
+            <div class="feature-card">
+                <div class="feature-icon">🔗</div>
+                <h3 data-i18n="feature3Title">Open Other Apps</h3>
+                <p data-i18n="feature3Desc">Launch WhatsApp, Telegram, Notion, Spotify—any app that supports deep links!
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📥</div>
+                <h3 data-i18n="feature10Title">Receive Files & Shared Content</h3>
+                <p data-i18n="feature10Desc">Share text, images, videos, or files from any app directly into your tool —
+                    process, store, or transform content on the fly.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📤</div>
+                <h3 data-i18n="feature6Title">Share Your Spells</h3>
+                <p data-i18n="feature6Desc">Export your creations to share with friends—your data stays private.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 data-i18n="feature5Title">Private & Offline</h3>
+                <p data-i18n="feature5Desc">Your spells are stored locally. They work offline and are completely yours.
+                    Optionally sync with Google Drive to back up all your tools and data.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📷</div>
+                <h3 data-i18n="feature7Title">Camera, Video & QR</h3>
+                <p data-i18n="feature7Desc">Take photos, record videos and scan QR codes and barcodes — right in your
+                    tools, no setup required.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <h3 data-i18n="feature8Title">AI Vision & Images</h3>
+                <p data-i18n="feature8Desc">Generate images from scratch, edit photos with prompts, analyze images and
+                    create videos — with AI that also searches the web in real time.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎙️</div>
+                <h3 data-i18n="feature9Title">Voice & Audio</h3>
+                <p data-i18n="feature9Desc">Record audio, transcribe speech to text, and use 7 different AI voices —
+                    create voice assistants in seconds.</p>
             </div>
         </div>
     </section>
+
+
+
 
     <!-- Integrations -->
     <section class="integrations">
@@ -333,12 +394,124 @@
         <p class="integrations-more" data-i18n="intMore">...and more coming!</p>
     </section>
 
+    <!-- Mana Section -->
+    <section class="mana-section" id="mana">
+        <h2 class="section-title" data-i18n="manaTitle">⚡ How Mana Works</h2>
+        <p class="section-subtitle" data-i18n="manaDesc">Mana ⚡ is the credit used to create and edit tools with AI.
+            Each spell costs a small amount of Mana.</p>
+        <div class="mana-grid">
+            <div class="mana-card">
+                <div class="mana-icon">📺</div>
+                <h3 data-i18n="mana1Title">Earn Mana for free</h3>
+                <p data-i18n="mana1Desc">Watch a quick ad and recharge your Mana. No card, no commitment.</p>
+            </div>
+            <div class="mana-card">
+                <div class="mana-icon">⚡</div>
+                <h3 data-i18n="mana2Title">Buy Mana packs</h3>
+                <p data-i18n="mana2Desc">Create without interruption by buying extra Mana whenever you want.</p>
+            </div>
+        </div>
+    </section>
+
     <!-- Privacy Section -->
     <section class="privacy">
         <div class="privacy-content">
             <h2 class="section-title" data-i18n="privacyTitle">🔒 Privacy First</h2>
             <p data-i18n="privacyText">Your spells live on your device. We don't resell your data or claim ownership of
                 your creations.</p>
+        </div>
+    </section>
+
+
+    <!-- FAQ Section -->
+    <section class="faq-section" id="faq">
+        <h2 class="section-title" data-i18n="faqTitle">❓ Frequently Asked Questions</h2>
+        <div class="faq-list">
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq1Q">What is a "spell"?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq1A">A spell is a personalized tool you create with AI. From task organizers to
+                        expense trackers — every tool you create is called a spell.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq2Q">Do I need internet to use the tools I create?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq2A">Most tools work completely offline. Internet is only needed when creating with
+                        AI — and if the tool uses AI internally (e.g., image generation, web search).</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq3Q">Does my data stay on my phone?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq3A">Yes. Both the tools and the data you enter are stored locally. Only the
+                        creation prompt goes to the AI. Optionally, you can fully back up — tools and data — to your
+                        Google Drive.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq4Q">What is Mana and how do I get more?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq4A">Mana ⚡ is the credit used to create tools with AI. You can earn it by watching
+                        quick ads or buy packs to create without limits.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq5Q">Does it work on iOS?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq5A">Android is available now. iOS is coming soon — join the waitlist above.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq6Q">What kind of tool can I create?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq6A">Any personal tool: organizers, calculators, trackers, camera tools, QR
+                        scanners, voice assistants, games, and much more. If you can describe it, the AI creates it.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <div class="final-cta-content">
+            <h2 data-i18n="finalCtaTitle">Ready to build your first tool?</h2>
+            <p data-i18n="finalCtaSubtitle">Free to start. Your tools, your data, your phone.</p>
+            <div class="cta-buttons">
+                <a href="#" id="play-store-btn-bottom" class="cta-btn cta-android"
+                    onclick="trackDownload('android_bottom')">
+                    <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.5,12.92 20.16,13.19L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z" />
+                    </svg>
+                    <span data-i18n="getAndroid">Get it on Google Play</span>
+                </a>
+                <button class="cta-btn cta-ios" onclick="showIOSModal()">
+                    <svg class="store-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z" />
+                    </svg>
+                    <span data-i18n="notifyIOS">Notify me for iOS</span>
+                </button>
+            </div>
         </div>
     </section>
 

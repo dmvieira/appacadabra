@@ -51,6 +51,7 @@ function RunnerContent({ appId }: Props) {
     const viewContainerRef = useRef<View>(null);
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [pendingVersionApp, setPendingVersionApp] = useState<GeneratedApp | null>(null);
+    const [storageClearedPending, setStorageClearedPending] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [savedStorage, setSavedStorage] = useState<ExpandedStorageItem[]>([]);
     const [storageLoaded, setStorageLoaded] = useState(false);
@@ -173,6 +174,16 @@ function RunnerContent({ appId }: Props) {
         }
     }, [appId]);
 
+    const applyStorageReload = useCallback(async () => {
+        setStorageClearedPending(false);
+        const items = await db.getStorageForApp(appId);
+        const storageItems = items.map((s: { key: string; value: string }) => ({ key: s.key, value: s.value }));
+        const expandedItems = await expandStorageBlobMarkers(storageItems);
+        savedStorageRef.current = expandedItems;
+        setSavedStorage(expandedItems);
+        setWebViewKey(prev => prev + 1);
+    }, [appId]);
+
     const applyPendingUpdate = useCallback(async () => {
         if (pendingVersionApp) {
             setApp(pendingVersionApp);
@@ -207,6 +218,14 @@ function RunnerContent({ appId }: Props) {
         });
         return () => subscription.remove();
     }, [appId, loadApp]);
+
+    // Storage Cleared Listener
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('STORAGE_CLEARED', ({ appId: clearedId }: { appId: number }) => {
+            if (clearedId === appId) setStorageClearedPending(true);
+        });
+        return () => sub.remove();
+    }, [appId]);
 
     // Force Initial Reload to guarantee LocalStorage injection (Safety Fix)
     // Sometimes imported apps miss the first injection, this ensures it works.
@@ -264,17 +283,23 @@ function RunnerContent({ appId }: Props) {
 
     // Detect when THIS specific Activity resumes (covers Runner→Runner transitions
     // where the global AppState never fires since the process stays in foreground).
+    // isRunnerToRunner is determined natively via companion object + isFinishing in onPause.
     useEffect(() => {
         const subscription = DeviceEventEmitter.addListener(
             'RUNNER_ACTIVITY_RESUMED',
-            (event: { appId: number }) => {
+            async (event: { appId: number; isRunnerToRunner?: boolean }) => {
                 if (event.appId !== appId) return;
-                console.log('RunnerApp: Activity resumed, recreating WebView surface');
-                setWebViewKey(k => k + 1);
+                console.log('RunnerApp: Activity resumed, isRunnerToRunner:', event.isRunnerToRunner);
+                await loadApp();
+                // Recreate WebView only for Runner→Runner transitions (not HOME key returns).
+                if (event.isRunnerToRunner && !useBridgeUIStore.getState().isNativeActivityActive) {
+                    console.log('RunnerApp: setWebViewKey → recreating WebView');
+                    setWebViewKey(k => k + 1);
+                }
             }
         );
         return () => subscription.remove();
-    }, [appId]);
+    }, [appId, loadApp]);
 
     // Back button is handled natively in RunnerActivity.kt using moveTaskToBack
 
@@ -534,6 +559,15 @@ function RunnerContent({ appId }: Props) {
                         <Text style={styles.updateBannerText}>✨ {t('newVersionAvailable')}</Text>
                     </TouchableOpacity>
                 )}
+                {storageClearedPending && (
+                    <TouchableOpacity
+                        style={styles.updateBanner}
+                        onPress={applyStorageReload}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.updateBannerText}>🗑️ {t('dataCleared')}</Text>
+                    </TouchableOpacity>
+                )}
                 <AiLoadingBar visible={isAiLoading} />
                 <ScrollView
                     contentContainerStyle={{ flex: 1 }}
@@ -575,6 +609,13 @@ function RunnerContent({ appId }: Props) {
                         onLoadEnd={() => {
                             console.log('RunnerApp: WebView loaded, checking for shared content');
                             setWebViewReady(true);
+
+                            // Safety net: re-inject restore with DOM scan (corrects images set to raw markers)
+                            if (savedStorageRef.current.length > 0 && webViewRef.current) {
+                                webViewRef.current.injectJavaScript(
+                                    createStorageRestoreScript(savedStorageRef.current)
+                                );
+                            }
 
                             // Inject shared content if available
                             if (sharedContent && webViewRef.current) {
@@ -661,6 +702,7 @@ function RunnerContent({ appId }: Props) {
                             shouldPlay
                             useNativeControls
                             style={styles.fullVideo}
+                            onError={(error) => console.error('[VideoPlayer] Playback error:', error)}
                             onPlaybackStatusUpdate={(status) => {
                                 if (status.isLoaded && status.didJustFinish) {
                                     if (videoPlayback.callback && webViewRef.current) {

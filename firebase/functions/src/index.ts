@@ -1422,12 +1422,17 @@ export const processSpellJob = onDocumentCreated(
                     // UPLOAD TO FIREBASE STORAGE (Bypass 1MB Firestore limit)
                     // ====================================================
                     const bucket = getStorage().bucket();
-                    const fileName = `generated_images/${uid}/${jobId}.jpeg`;
+                    // Detect actual MIME from magic bytes of generated image
+                    const imageMime = imageBase64.startsWith('/9j/') ? 'image/jpeg'
+                        : imageBase64.startsWith('iVBOR') ? 'image/png'
+                        : 'image/jpeg';
+                    const imageExt = imageMime === 'image/png' ? 'png' : 'jpeg';
+                    const fileName = `generated_images/${uid}/${jobId}.${imageExt}`;
                     const file = bucket.file(fileName);
 
                     const token = require('crypto').randomUUID();
                     await file.save(Buffer.from(imageBase64, 'base64'), {
-                        contentType: 'image/jpeg',
+                        contentType: imageMime,
                         metadata: {
                             metadata: {
                                 firebaseStorageDownloadTokens: token,

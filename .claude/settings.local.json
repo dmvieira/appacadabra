@@ -32,7 +32,9 @@
       "Bash(adb:*)",
       "Bash(cmd.exe:*)",
       "Bash(\"$ADB\" devices:*)",
-      "Bash(\"$ADB\" logcat:*)"
+      "Bash(\"$ADB\" logcat:*)",
+      "Bash(where adb)",
+      "Read(//mnt/c/Users/**)"
     ]
   }
 }

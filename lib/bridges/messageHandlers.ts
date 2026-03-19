@@ -1039,13 +1039,18 @@ export async function handleBridgeMessage(
                         // Already a file path — share directly without re-writing
                         sharePath = input.startsWith('/') ? `file://${input}` : input;
                     } else {
-                        // Real base64 — sanitize filename and write to cache
+                        // Real base64 (or data URI) — sanitize filename and write to cache
+                        let base64Data = input;
+                        const commaIdx = input.indexOf(',');
+                        if (input.startsWith('data:') && commaIdx !== -1) {
+                            base64Data = input.slice(commaIdx + 1);
+                        }
                         const safeFilename = (data.filename || 'shared_file')
                             .normalize('NFD')
                             .replace(/[\u0300-\u036f]/g, '')   // Remove diacritics: ê→e, á→a
                             .replace(/[^a-zA-Z0-9._-]/g, '_'); // Spaces and specials → _
                         sharePath = FileSystem.cacheDirectory + safeFilename;
-                        await FileSystem.writeAsStringAsync(sharePath, input, {
+                        await FileSystem.writeAsStringAsync(sharePath, base64Data, {
                             encoding: FileSystem.EncodingType.Base64,
                         });
                     }
@@ -2084,7 +2089,7 @@ export async function handleBridgeMessage(
                 if (!permission.granted) throw new Error('Camera permission denied');
 
                 const resultPicker = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    mediaTypes: ['images'] as any,
                     base64: true,
                     quality: 0.5,
                 });
@@ -2136,7 +2141,7 @@ export async function handleBridgeMessage(
                 const quality = data.quality === 'low' ? 0 : 1; // 0 = low, 1 = high
 
                 const videoPicker = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                    mediaTypes: ['videos'] as any,
                     videoMaxDuration: maxDuration,
                     videoQuality: quality,
                 });
@@ -2172,6 +2177,13 @@ export async function handleBridgeMessage(
         case 'VIDEO_PLAY': {
             debugLog('Playing video...');
             try {
+                // Reset audio mode so video can play after any recording session
+                await Audio.setAudioModeAsync({
+                    allowsRecordingIOS: false,
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: false,
+                });
+
                 if (!data.base64 && !data.url) throw new Error('No video data provided');
 
                 let videoFileUri = '';

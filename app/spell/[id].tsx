@@ -260,6 +260,7 @@ export default function SpellDataScreen() {
                     onPress: async () => {
                         await deleteStorageBlobFiles(storageItems);
                         await db.clearStorageForApp(appId);
+                        DeviceEventEmitter.emit('STORAGE_CLEARED', { appId });
                         await loadData();
                     },
                 },
@@ -303,7 +304,8 @@ export default function SpellDataScreen() {
                     onPress: async () => {
                         await deleteStorageBlobFiles(storageItems);
                         await db.clearStorageForApp(appId);
-                        
+                        DeviceEventEmitter.emit('STORAGE_CLEARED', { appId });
+
                         // Delete entire media directory for this spell
                         const docDir = (FileSystem.documentDirectory ?? '').replace(/\/$/, '');
                         const mediaDir = `${docDir}/appacadabra_media/${appId}`;

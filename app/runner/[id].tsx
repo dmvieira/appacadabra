@@ -13,6 +13,7 @@ import {
     KeyboardAvoidingView,
     RefreshControl,
     AppState,
+    DeviceEventEmitter,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
@@ -125,6 +126,7 @@ export default function RunnerScreen() {
     const [webViewError, setWebViewError] = useState(false);
     const [webViewKey, setWebViewKey] = useState(0);
     const [pendingVersionApp, setPendingVersionApp] = useState<GeneratedApp | null>(null);
+    const [storageClearedPending, setStorageClearedPending] = useState(false);
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
 
@@ -288,6 +290,17 @@ export default function RunnerScreen() {
         }
     }, [pendingVersionApp]);
 
+    const applyStorageReload = useCallback(async () => {
+        const appId = Number(id);
+        setStorageClearedPending(false);
+        const items = await db.getStorageForApp(appId);
+        const storageItems = items.map((s: { key: string; value: string }) => ({ key: s.key, value: s.value }));
+        const expandedItems = await expandStorageBlobMarkers(storageItems);
+        savedStorageRef.current = expandedItems;
+        setSavedStorage(expandedItems);
+        setWebViewKey(prev => prev + 1);
+    }, [id]);
+
     const onRefresh = useCallback(async () => {
         if (!app) return;
         setRefreshing(true);
@@ -307,6 +320,15 @@ export default function RunnerScreen() {
             setRefreshing(false);
         }
     }, [app]);
+
+    // Storage Cleared Listener
+    useEffect(() => {
+        const appId = Number(id);
+        const sub = DeviceEventEmitter.addListener('STORAGE_CLEARED', ({ appId: clearedId }: { appId: number }) => {
+            if (clearedId === appId) setStorageClearedPending(true);
+        });
+        return () => sub.remove();
+    }, [id]);
 
     // React to store updates (e.g. async job finished)
     useEffect(() => {
@@ -827,10 +849,16 @@ export default function RunnerScreen() {
                             const isMedia = type !== 'AI_GENERATE';
                             cacheResult = result;
                             if (isMedia && success && result && !result.startsWith('http')) {
+                                const isMarker = result.startsWith('__appblob__:');
                                 // Detect real filesystem paths (not base64 — JPEG base64 starts with /9j/)
-                                const looksLikePath = result.startsWith('file://') ||
-                                    (result.startsWith('/') && result.length < 1000 && /^\/[\w.]/.test(result));
-                                if (looksLikePath) {
+                                const looksLikePath = !isMarker && (result.startsWith('file://') ||
+                                    (result.startsWith('/') && result.length < 1000 && /^\/[\w.]/.test(result)));
+                                if (isMarker) {
+                                    // Already a blob marker (e.g. CAMERA_TAKE_PHOTO) — extract path directly
+                                    const parts = result.split('|');
+                                    if (parts.length >= 3) mediaLocalPath = parts[2];
+                                    cacheResult = result;
+                                } else if (looksLikePath) {
                                     mediaLocalPath = result.startsWith('file://') ? result.slice(7) : result;
                                     cacheResult = `file://${mediaLocalPath}`;
                                 } else {
@@ -857,6 +885,24 @@ export default function RunnerScreen() {
                             console.warn('[Runner] Failed to cache AI response:', cacheErr);
                         }
                     }
+
+                    // For device media actions (AUDIO_RECORD_STOP, CAMERA_TAKE_PHOTO, etc.):
+                    // extract mediaLocalPath from the marker result so createMediaCallbackScript
+                    // can deliver a proper dataUri instead of the raw marker. This must work in
+                    // both play and edit mode (separate concern from AI response caching above).
+                    if (isDeviceMediaAction && handlerResult && handlerResult.handled && success && handlerResult.result) {
+                        const res = handlerResult.result;
+                        const isMarker = res.startsWith('__appblob__:');
+                        if (isMarker) {
+                            const parts = res.split('|');
+                            if (parts.length >= 3) mediaLocalPath = parts[2]; // bare path
+                        } else if (res.startsWith('file://')) {
+                            mediaLocalPath = res.slice(7);
+                        } else if (res.startsWith('/') && res.length < 1000 && /^\/[\w.]/.test(res)) {
+                            mediaLocalPath = res;
+                        }
+                    }
+
                     break;
                 }
             }
@@ -1101,6 +1147,15 @@ export default function RunnerScreen() {
                     activeOpacity={0.85}
                 >
                     <Text style={styles.updateBannerText}>✨ {t('newVersionAvailable')}</Text>
+                </TouchableOpacity>
+            )}
+            {storageClearedPending && (
+                <TouchableOpacity
+                    style={styles.updateBanner}
+                    onPress={applyStorageReload}
+                    activeOpacity={0.85}
+                >
+                    <Text style={styles.updateBannerText}>🗑️ {t('dataCleared')}</Text>
                 </TouchableOpacity>
             )}
 

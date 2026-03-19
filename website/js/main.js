@@ -217,15 +217,44 @@ const observer = new IntersectionObserver((entries) => {
     });
 }, observerOptions);
 
-// Animate feature cards and steps on scroll
+// Animate feature cards, steps, screen cards and mana cards on scroll
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.feature-card, .step').forEach(el => {
+    document.querySelectorAll('.feature-card, .step, .screen-card, .mana-card').forEach(el => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(20px)';
         el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
         observer.observe(el);
     });
 });
+
+// ============================================
+// FAQ Accordion
+// ============================================
+
+function toggleFaq(btn) {
+    const isOpen = btn.getAttribute('aria-expanded') === 'true';
+    const answer = btn.nextElementSibling;
+
+    btn.setAttribute('aria-expanded', String(!isOpen));
+
+    if (isOpen) {
+        answer.hidden = true;
+    } else {
+        answer.hidden = false;
+
+        // Track FAQ expand event
+        const questionText = btn.querySelector('[data-i18n]')
+            ? btn.querySelector('[data-i18n]').textContent.trim()
+            : btn.textContent.trim();
+
+        if (typeof gtag === 'function') {
+            gtag('event', 'faq_expand', {
+                'question': questionText,
+                'language': currentLang
+            });
+        }
+    }
+}
 
 // ============================================
 // Email Obfuscation
