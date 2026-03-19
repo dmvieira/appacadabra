@@ -952,6 +952,8 @@ export async function handleBridgeMessage(
                 // Keep cache in sync so returning from background doesn't overwrite new data
                 updateStorageCache(ctx.appId, data.key, storedValue);
                 markBackupDirty();
+                const { DeviceEventEmitter } = require('react-native');
+                DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: ctx.appId });
             }
             break;
 
@@ -962,6 +964,19 @@ export async function handleBridgeMessage(
                 // Keep cache in sync so returning from background doesn't overwrite new data
                 removeFromStorageCache(ctx.appId, data.key);
                 markBackupDirty();
+                const { DeviceEventEmitter } = require('react-native');
+                DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: ctx.appId });
+            }
+            break;
+
+        case 'STORAGE_CLEAR':
+            debugLog('Storage clear');
+            if (ctx.appId) {
+                await db.clearStorageForApp(ctx.appId);
+                markBackupDirty();
+                const { DeviceEventEmitter } = require('react-native');
+                DeviceEventEmitter.emit('STORAGE_CLEARED', { appId: ctx.appId });
+                DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: ctx.appId });
             }
             break;
 

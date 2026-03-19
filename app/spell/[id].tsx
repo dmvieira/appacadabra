@@ -187,10 +187,20 @@ export default function SpellDataScreen() {
     }, [loadData]));
 
     useEffect(() => {
-        const sub = DeviceEventEmitter.addListener('APP_UPDATED', ({ appId: updId }: { appId: number }) => {
+        const sub1 = DeviceEventEmitter.addListener('APP_UPDATED', ({ appId: updId }: { appId: number }) => {
             if (updId === appId) loadData();
         });
-        return () => sub.remove();
+        const sub2 = DeviceEventEmitter.addListener('STORAGE_UPDATED', ({ appId: updId }: { appId: number }) => {
+            if (updId === appId) loadData();
+        });
+        const sub3 = DeviceEventEmitter.addListener('STORAGE_CLEARED', ({ appId: updId }: { appId: number }) => {
+            if (updId === appId) loadData();
+        });
+        return () => {
+            sub1.remove();
+            sub2.remove();
+            sub3.remove();
+        };
     }, [appId, loadData]);
 
     const filteredRelics = filter === 'all'
@@ -449,8 +459,8 @@ export default function SpellDataScreen() {
                     </View>
 
                     {/* Filter Pills */}
-                    <View style={{ height: 44 }}>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingRight: 8 }}>
+                    <View style={{ height: 44, justifyContent: 'center' }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingRight: 8, alignItems: 'center' }}>
                             {filters.map(f => (
                                 <TouchableOpacity
                                     key={f.key}
@@ -684,6 +694,8 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.08)',
         marginRight: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     filterPillActive: {
         backgroundColor: colors.primary,
@@ -693,6 +705,7 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '600',
         color: colors.onSurfaceVariant,
+        textAlignVertical: 'center',
     },
     filterPillTextActive: {
         color: '#fff',

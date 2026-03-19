@@ -11,6 +11,7 @@ import {
     DeviceEventEmitter,
     TouchableOpacity,
     Modal,
+    Platform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -51,7 +52,6 @@ function RunnerContent({ appId }: Props) {
     const viewContainerRef = useRef<View>(null);
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [pendingVersionApp, setPendingVersionApp] = useState<GeneratedApp | null>(null);
-    const [storageClearedPending, setStorageClearedPending] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [savedStorage, setSavedStorage] = useState<ExpandedStorageItem[]>([]);
     const [storageLoaded, setStorageLoaded] = useState(false);
@@ -60,6 +60,7 @@ function RunnerContent({ appId }: Props) {
     const [sharedContent, setSharedContent] = useState<any>(null);
     const [webViewReady, setWebViewReady] = useState(false);
     const [webViewKey, setWebViewKey] = useState(0); // Key to force WebView recreation
+    const [webViewOpacity, setWebViewOpacity] = useState(1); // Opacity toggle for Android white screen fix
     const lastCodeRef = useRef<string | null>(null); // Track code changes
     const [refreshing, setRefreshing] = useState(false);
     const [initialReloadDone, setInitialReloadDone] = useState(false);
@@ -175,13 +176,17 @@ function RunnerContent({ appId }: Props) {
     }, [appId]);
 
     const applyStorageReload = useCallback(async () => {
-        setStorageClearedPending(false);
         const items = await db.getStorageForApp(appId);
         const storageItems = items.map((s: { key: string; value: string }) => ({ key: s.key, value: s.value }));
         const expandedItems = await expandStorageBlobMarkers(storageItems);
         savedStorageRef.current = expandedItems;
         setSavedStorage(expandedItems);
-        setWebViewKey(prev => prev + 1);
+        // SMOOTH SYNC: Instead of setWebViewKey (which causes a flash), 
+        // inject a script to update localStorage in-place.
+        if (webViewRef.current) {
+            const script = createStorageRestoreScript(expandedItems);
+            webViewRef.current.injectJavaScript(script);
+        }
     }, [appId]);
 
     const applyPendingUpdate = useCallback(async () => {
@@ -222,10 +227,13 @@ function RunnerContent({ appId }: Props) {
     // Storage Cleared Listener
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener('STORAGE_CLEARED', ({ appId: clearedId }: { appId: number }) => {
-            if (clearedId === appId) setStorageClearedPending(true);
+            if (clearedId === appId) {
+                console.log('RunnerApp: Storage cleared externally, applying immediately');
+                applyStorageReload();
+            }
         });
         return () => sub.remove();
-    }, [appId]);
+    }, [appId, applyStorageReload]);
 
     // Force Initial Reload to guarantee LocalStorage injection (Safety Fix)
     // Sometimes imported apps miss the first injection, this ensures it works.
@@ -239,6 +247,33 @@ function RunnerContent({ appId }: Props) {
             return () => clearTimeout(timer);
         }
     }, [storageLoaded, initialReloadDone]);
+
+    const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Verify if the Android WebView survived a background process trim (zombie state check)
+    const checkWebViewAlive = useCallback(() => {
+        if (Platform.OS === 'android') {
+            console.log('RunnerApp: Pinging WebView to check if JS engine is still executing...');
+            
+            // Clear any old timeout just in case
+            if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
+            
+            // Set timeout for death detection
+            pingTimeoutRef.current = setTimeout(() => {
+                console.log('RunnerApp: 💥 WebView is DEAD (No PONG received). Recreating...');
+                setWebViewKey(k => k + 1);
+                pingTimeoutRef.current = null;
+            }, 600); // 600ms is generous for a simple IPC message
+
+            // Inject Ping script
+            webViewRef.current?.injectJavaScript(`
+                setTimeout(function() {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'PONG' }));
+                }, 10);
+                true;
+            `);
+        }
+    }, []);
 
     // Pull-to-Refresh Handler
     const onRefresh = useCallback(async () => {
@@ -272,6 +307,7 @@ function RunnerContent({ appId }: Props) {
                 wasInBackground = false;
                 checkDropBox();
                 loadApp();
+                checkWebViewAlive();
             }
         };
 
@@ -295,6 +331,9 @@ function RunnerContent({ appId }: Props) {
                 if (event.isRunnerToRunner && !useBridgeUIStore.getState().isNativeActivityActive) {
                     console.log('RunnerApp: setWebViewKey → recreating WebView');
                     setWebViewKey(k => k + 1);
+                } else {
+                    console.log('RunnerApp: checkWebViewAlive → testing Android WebView renderer');
+                    checkWebViewAlive();
                 }
             }
         );
@@ -312,8 +351,17 @@ function RunnerContent({ appId }: Props) {
             callbackName = cbName;
 
             // Skip logging for frequent message types
-            if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG') {
+            if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG' && type !== 'PONG') {
                 console.log('WebView Message received:', type);
+            }
+
+            if (type === 'PONG') {
+                if (pingTimeoutRef.current) {
+                    clearTimeout(pingTimeoutRef.current);
+                    pingTimeoutRef.current = null;
+                    console.log('RunnerApp: 🟢 PONG received, WebView is healthy');
+                }
+                return;
             }
 
             // Handle Scroll Status for Smart Refresh
@@ -505,8 +553,20 @@ function RunnerContent({ appId }: Props) {
     }, [app]);
 
     // Memoize HTML and scripts so store changes in sibling RunnerContent instances don't reload this WebView
+    const combinedScript = useMemo(() => {
+        if (!app) return '';
+        console.log(`RunnerApp[${appId}]: Creating combinedScript with ${savedStorage.length} storage items`);
+        return `
+        ${getInjectedJavaScript(app.id, getWebViewTranslations(), false)}
+        ${createStorageRestoreScript(savedStorage)}
+        ${getScrollDetectionScript()}
+    `;
+    }, [app?.id, appId, savedStorage]);
+
     const htmlContent = useMemo(() => {
         if (!app) return '';
+        // Safely escape any script closing tags to prevent XSS breakout in the injected string
+        const safeScript = combinedScript.replace(/<\/script>/gi, '<\\/script>');
         return `
     <!DOCTYPE html>
     <html>
@@ -516,28 +576,21 @@ function RunnerContent({ appId }: Props) {
         * { box-sizing: border-box; }
         body { margin: 0; padding: 0; }
       </style>
+      <script>
+        ${safeScript}
+      </script>
     </head>
     <body>
       ${app.code}
     </body>
     </html>
   `;
-    }, [app?.code]);
+    }, [app?.code, combinedScript]);
 
     const source = useMemo(() => ({
         html: htmlContent,
         baseUrl: `https://app-${appId}.appacadabra.local/`,
     }), [htmlContent, appId]);
-
-    const combinedScript = useMemo(() => {
-        if (!app) return '';
-        console.log(`RunnerApp[${appId}]: Creating combinedScript with ${savedStorage.length} storage items`);
-        return `
-        ${getInjectedJavaScript(app.id, getWebViewTranslations(), false)}
-        ${createStorageRestoreScript(savedStorage)}
-        ${getScrollDetectionScript()}
-    `;
-    }, [app?.id, savedStorage]);
 
     if (isLoading || !app || !storageLoaded) {
         return (
@@ -559,15 +612,6 @@ function RunnerContent({ appId }: Props) {
                         <Text style={styles.updateBannerText}>✨ {t('newVersionAvailable')}</Text>
                     </TouchableOpacity>
                 )}
-                {storageClearedPending && (
-                    <TouchableOpacity
-                        style={styles.updateBanner}
-                        onPress={applyStorageReload}
-                        activeOpacity={0.85}
-                    >
-                        <Text style={styles.updateBannerText}>🗑️ {t('dataCleared')}</Text>
-                    </TouchableOpacity>
-                )}
                 <AiLoadingBar visible={isAiLoading} />
                 <ScrollView
                     contentContainerStyle={{ flex: 1 }}
@@ -583,7 +627,7 @@ function RunnerContent({ appId }: Props) {
                         key={webViewKey}
                         ref={webViewRef}
                         source={source}
-                        style={styles.webview}
+                        style={[styles.webview, { opacity: webViewOpacity }]}
                         scalesPageToFit={true}
                         originWhitelist={['*']}
                         javaScriptEnabled
@@ -595,7 +639,6 @@ function RunnerContent({ appId }: Props) {
                         allowUniversalAccessFromFileURLs
                         mixedContentMode="always"
                         geolocationEnabled
-                        injectedJavaScriptBeforeContentLoaded={combinedScript}
                         onMessage={handleMessage}
                         onRenderProcessGone={(e) => {
                             console.log('RunnerApp: WebView render process crashed. Recreating...', e.nativeEvent);

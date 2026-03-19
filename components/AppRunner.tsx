@@ -487,13 +487,23 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
 
                 // ============= Storage Handlers =============
                 case 'STORAGE_SET':
-                    if (app) await db.setStorageItem(app.id, data.key, data.value);
+                    if (app) {
+                        await db.setStorageItem(app.id, data.key, data.value);
+                        DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: app.id });
+                    }
                     break;
                 case 'STORAGE_REMOVE':
-                    if (app) await db.removeStorageItem(app.id, data.key);
+                    if (app) {
+                        await db.removeStorageItem(app.id, data.key);
+                        DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: app.id });
+                    }
                     break;
                 case 'STORAGE_CLEAR':
-                    if (app) await db.clearStorageForApp(app.id);
+                    if (app) {
+                        await db.clearStorageForApp(app.id);
+                        DeviceEventEmitter.emit('STORAGE_CLEARED', { appId: app.id }); // SpellDataScreen listens for both UPDATED and CLEARED
+                        DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: app.id });
+                    }
                     break;
 
                 // ============= Console Log =============
@@ -855,21 +865,6 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         return null;
     }
 
-    const htmlContent = useMemo(() => {
-        if (!app) return '';
-        const safeCode = ensureViewportMeta(app.code);
-        return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-      <style>* { box-sizing: border-box; } body { margin: 0; padding: 0; }</style>
-    </head>
-    <body>${safeCode}</body>
-    </html>
-    `;
-    }, [app?.id, app?.code]);
-
     const combinedScript = useMemo(() => {
         if (!app) return '';
         const storageScript = createStorageRestoreScript(savedStorage);
@@ -878,6 +873,25 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             ${storageScript}
         `;
     }, [app?.id, mode, savedStorage]);
+
+    const htmlContent = useMemo(() => {
+        if (!app) return '';
+        const safeCode = ensureViewportMeta(app.code);
+        const safeScript = combinedScript.replace(/<\/script>/gi, '<\\/script>');
+        return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <style>* { box-sizing: border-box; } body { margin: 0; padding: 0; }</style>
+      <script>
+        ${safeScript}
+      </script>
+    </head>
+    <body>${safeCode}</body>
+    </html>
+    `;
+    }, [app?.id, app?.code, combinedScript]);
 
     const source = useMemo(() => {
         if (!app) return { html: '' };
@@ -932,7 +946,6 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 allowUniversalAccessFromFileURLs
                 mixedContentMode="always"
                 geolocationEnabled
-                injectedJavaScriptBeforeContentLoaded={combinedScript}
                 onMessage={handleMessage}
                 onNavigationStateChange={(navState) => {
                     canGoBackRef.current = navState.canGoBack;

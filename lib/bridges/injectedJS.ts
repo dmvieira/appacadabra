@@ -1802,12 +1802,17 @@ export function getScrollDetectionScript(): string {
 // Generate script to restore localStorage from saved database items
 export function createStorageRestoreScript(items: ExpandedStorageItem[]): string {
   if (!items || items.length === 0) {
-    // Storage hasn't loaded yet — preserve existing localStorage intact.
-    // handleLoadEnd will inject the real restore once data is available.
+    // If we have 0 items, it means the database for this app is empty.
+    // We MUST clear the WebView's native localStorage so the user's 'Clear Data' action works.
     return `(function() {
       window.__APPACADABRA_BLOB_CACHE__ = window.__APPACADABRA_BLOB_CACHE__ || {};
       window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {};
-      console.log('[Storage] Early injection skipped (no items yet)');
+      window.__APPACADABRA_RESTORING__ = true;
+      try { 
+          localStorage.clear(); 
+          console.log('[Storage] Local storage cleared to match empty DB state'); 
+      } catch(e) {}
+      window.__APPACADABRA_RESTORING__ = false;
     })();`;
   }
 

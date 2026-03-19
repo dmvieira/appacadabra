@@ -298,7 +298,12 @@ export default function RunnerScreen() {
         const expandedItems = await expandStorageBlobMarkers(storageItems);
         savedStorageRef.current = expandedItems;
         setSavedStorage(expandedItems);
-        setWebViewKey(prev => prev + 1);
+        
+        // Smooth sync: inject update instead of full reload
+        if (webViewRef.current) {
+            const script = createStorageRestoreScript(expandedItems);
+            webViewRef.current.injectJavaScript(script);
+        }
     }, [id]);
 
     const onRefresh = useCallback(async () => {
@@ -321,14 +326,26 @@ export default function RunnerScreen() {
         }
     }, [app]);
 
-    // Storage Cleared Listener
+    // Storage Update/Cleared Listener
     useEffect(() => {
         const appId = Number(id);
-        const sub = DeviceEventEmitter.addListener('STORAGE_CLEARED', ({ appId: clearedId }: { appId: number }) => {
-            if (clearedId === appId) setStorageClearedPending(true);
+        const sub1 = DeviceEventEmitter.addListener('STORAGE_CLEARED', ({ appId: clearedId }: { appId: number }) => {
+            if (clearedId === appId) {
+                // For clear, we show a banner to be safe as it's a major state change
+                setStorageClearedPending(true);
+            }
         });
-        return () => sub.remove();
-    }, [id]);
+        const sub2 = DeviceEventEmitter.addListener('STORAGE_UPDATED', ({ appId: updId }: { appId: number }) => {
+            if (updId === appId) {
+                // For individual updates, we can sync silently and smoothly
+                applyStorageReload();
+            }
+        });
+        return () => {
+            sub1.remove();
+            sub2.remove();
+        };
+    }, [id, applyStorageReload]);
 
     // React to store updates (e.g. async job finished)
     useEffect(() => {
