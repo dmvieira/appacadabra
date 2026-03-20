@@ -1,203 +1,251 @@
 <en-US>
-✨ Improved sharing, UX and onboarding!
-📤 Enhanced Share Receiver: share files from any app
-📂 Google Files "Open with" support
-🎵 Audio file icon and type detection (.opus, .m4a, .wma)
-📱 Phased onboarding for new users
-🎨 UX improvements and interface refinements
-📐 Apps now respect the Android navigation bar
-🌍 File type translations for all 17 languages
-+ Bug fixes and performance improvements.
+• More proactive AI with improved reasoning
+• Image and video generation now shows cost estimate before confirming
+• Fixed crashes in edit mode when using AI
+• Fixed image and video preview issues
+• Fixed duplicate audio and video sharing
+• Fixed blank screen issues across multiple screens
+• More reliable data sync and backup
+• Fixed notification redirect behavior
+• General stability and performance improvements
 </en-US>
 
-<pt-BR>
-✨ Compartilhamento, UX e onboarding melhorados!
-📤 Receptor de Compartilhamento aprimorado: compartilhe de qualquer app
-📂 Suporte a "Abrir com" do Google Files
-🎵 Ícone e detecção de tipo para áudio (.opus, .m4a, .wma)
-📱 Onboarding faseado para novos usuários
-🎨 Melhorias de UX e refinamentos de interface
-📐 Apps agora respeitam a barra de navegação do Android
-🌍 Traduções de tipos de arquivo para os 17 idiomas
-+ Correções de bugs e melhorias de desempenho.
-</pt-BR>
-
-<es-ES>
-✨ ¡Compartir, UX e incorporación mejorados!
-📤 Receptor de archivos compartidos mejorado
-📂 Soporte para "Abrir con" de Google Files
-🎵 Icono y detección de tipo para audio (.opus, .m4a, .wma)
-📱 Incorporación por fases para nuevos usuarios
-🎨 Mejoras de UX y refinamientos de interfaz
-📐 Las apps ahora respetan la barra de navegación de Android
-🌍 Traducciones de tipos de archivo para los 17 idiomas
-+ Corrección de errores y mejoras de rendimiento.
-</es-ES>
-
-<fr-FR>
-✨ Partage, UX et intégration améliorés !
-📤 Récepteur de partage amélioré
-📂 Support de « Ouvrir avec » Google Files
-🎵 Icône et détection de type audio (.opus, .m4a, .wma)
-📱 Intégration progressive pour les nouveaux utilisateurs
-🎨 Améliorations UX et raffinements d'interface
-📐 Les apps respectent désormais la barre de navigation Android
-🌍 Traductions des types de fichiers pour les 17 langues
-+ Corrections de bugs et améliorations des performances.
-</fr-FR>
+<ar>
+• ذكاء اصطناعي أكثر نشاطاً مع تحسين التفكير
+• توليد الصور والفيديو يعرض الآن تقدير التكلفة قبل التأكيد
+• إصلاح الأعطال في وضع التحرير عند استخدام الذكاء الاصطناعي
+• إصلاح مشاكل معاينة الصور والفيديو
+• إصلاح الصوت المكرر ومشاركة الفيديو
+• إصلاح مشاكل الشاشة البيضاء في شاشات متعددة
+• مزامنة البيانات والنسخ الاحتياطي أكثر موثوقية
+• إصلاح سلوك إعادة توجيه الإشعارات
+• تحسينات عامة في الاستقرار والأداء
+</ar>
 
 <de-DE>
-✨ Verbesserte Freigabe, UX und Onboarding!
-📤 Verbesserter Empfänger für geteilte Inhalte
-📂 Unterstützung für „Öffnen mit" von Google Files
-🎵 Audio-Icon und Typerkennung (.opus, .m4a, .wma)
-📱 Schrittweises Onboarding für neue Nutzer
-🎨 UX-Verbesserungen und Interface-Optimierungen
-📐 Apps respektieren jetzt die Android-Navigationsleiste
-🌍 Dateityp-Übersetzungen für alle 17 Sprachen
-+ Fehlerbehebungen und Leistungsverbesserungen.
+• Proaktivere KI mit verbessertem Reasoning
+• Bild- und Videogenerierung zeigt jetzt Kostenschätzung vor der Bestätigung
+• Abstürze im Bearbeitungsmodus bei KI-Nutzung behoben
+• Probleme mit Bild- und Videovorschau behoben
+• Doppeltes Audio und Videoteilen behoben
+• Probleme mit leerem Bildschirm auf verschiedenen Screens behoben
+• Zuverlässigere Datensynchronisation und Backup
+• Weiterleitungsverhalten bei Benachrichtigungen behoben
+• Allgemeine Stabilitäts- und Leistungsverbesserungen
 </de-DE>
 
+<es-419>
+• IA más proactiva con razonamiento mejorado
+• La generación de imágenes y videos ahora muestra estimación de costo antes de confirmar
+• Corrección de bloqueos en modo edición al usar IA
+• Corrección de problemas de vista previa de imágenes y videos
+• Corrección de audio duplicado y compartir videos
+• Corrección de pantalla en blanco en varias pantallas
+• Sincronización de datos y respaldo más confiable
+• Corrección de redirección al abrir notificaciones
+• Mejoras generales de estabilidad y rendimiento
+</es-419>
+
+<es-ES>
+• IA más proactiva con razonamiento mejorado
+• La generación de imágenes y vídeos ahora muestra estimación de coste antes de confirmar
+• Corrección de bloqueos en modo edición al usar IA
+• Corrección de problemas de vista previa de imágenes y vídeos
+• Corrección de audio duplicado y compartir vídeos
+• Corrección de pantalla en blanco en varias pantallas
+• Sincronización de datos y copia de seguridad más fiable
+• Corrección de redirección al abrir notificaciones
+• Mejoras generales de estabilidad y rendimiento
+</es-ES>
+
+<es-US>
+• IA más proactiva con razonamiento mejorado
+• La generación de imágenes y videos ahora muestra estimación de costo antes de confirmar
+• Corrección de bloqueos en modo edición al usar IA
+• Corrección de problemas de vista previa de imágenes y videos
+• Corrección de audio duplicado y compartir videos
+• Corrección de pantalla en blanco en varias pantallas
+• Sincronización de datos y respaldo más confiable
+• Corrección de redirección al abrir notificaciones
+• Mejoras generales de estabilidad y rendimiento
+</es-US>
+
+<fr-CA>
+• IA plus proactive avec un raisonnement amélioré
+• La génération d'images et de vidéos affiche maintenant une estimation du coût avant confirmation
+• Correction des plantages en mode édition lors de l'utilisation de l'IA
+• Correction des problèmes d'aperçu d'images et de vidéos
+• Correction de l'audio dupliqué et du partage de vidéos
+• Correction des problèmes d'écran blanc sur plusieurs écrans
+• Synchronisation des données et sauvegarde plus fiables
+• Correction du comportement de redirection des notifications
+• Améliorations générales de stabilité et de performance
+</fr-CA>
+
+<fr-FR>
+• IA plus proactive avec un raisonnement amélioré
+• La génération d'images et de vidéos affiche désormais une estimation du coût avant confirmation
+• Correction des plantages en mode édition lors de l'utilisation de l'IA
+• Correction des problèmes d'aperçu d'images et de vidéos
+• Correction de l'audio dupliqué et du partage de vidéos
+• Correction des problèmes d'écran blanc sur plusieurs écrans
+• Synchronisation des données et sauvegarde plus fiables
+• Correction du comportement de redirection des notifications
+• Améliorations générales de stabilité et de performance
+</fr-FR>
+
+<hi-IN>
+• बेहतर तर्क के साथ अधिक सक्रिय AI
+• छवि और वीडियो जनरेशन अब पुष्टि से पहले लागत अनुमान दिखाता है
+• AI का उपयोग करते समय संपादन मोड में क्रैश ठीक किए
+• छवि और वीडियो पूर्वावलोकन समस्याएं ठीक की
+• डुप्लीकेट ऑडियो और वीडियो शेयरिंग ठीक की
+• कई स्क्रीन पर खाली स्क्रीन समस्याएं ठीक की
+• अधिक विश्वसनीय डेटा सिंक और बैकअप
+• नोटिफिकेशन रीडायरेक्ट व्यवहार ठीक किया
+• सामान्य स्थिरता और प्रदर्शन सुधार
+</hi-IN>
+
 <it-IT>
-✨ Condivisione, UX e onboarding migliorati!
-📤 Ricevitore condivisioni migliorato
-📂 Supporto per "Apri con" di Google Files
-🎵 Icona e rilevamento tipo audio (.opus, .m4a, .wma)
-📱 Onboarding graduale per nuovi utenti
-🎨 Miglioramenti UX e perfezionamenti interfaccia
-📐 Le app ora rispettano la barra di navigazione Android
-🌍 Traduzioni dei tipi di file per tutte le 17 lingue
-+ Correzioni di bug e miglioramenti delle prestazioni.
+• IA più proattiva con ragionamento migliorato
+• La generazione di immagini e video ora mostra una stima dei costi prima di confermare
+• Corretti i crash nella modalità di modifica con l'IA
+• Corretti i problemi di anteprima di immagini e video
+• Corretto l'audio duplicato e la condivisione video
+• Corretti i problemi di schermata vuota su varie schermate
+• Sincronizzazione dati e backup più affidabili
+• Corretto il comportamento di reindirizzamento delle notifiche
+• Miglioramenti generali di stabilità e prestazioni
 </it-IT>
 
 <ja-JP>
-✨ 共有、UX、オンボーディングが向上！
-📤 共有レシーバーの改善
-📂 Google Files「で開く」対応
-🎵 音声ファイルアイコンと種類検出（.opus, .m4a, .wma）
-📱 新規ユーザー向け段階的オンボーディング
-🎨 UX改善とインターフェース最適化
-📐 アプリがAndroidナビゲーションバーに対応
-🌍 17言語のファイルタイプ翻訳
-+ バグ修正とパフォーマンス向上
+• より積極的なAIと改善された推論
+• 画像・動画生成で確認前にコスト見積もりを表示
+• AI使用時の編集モードのクラッシュを修正
+• 画像・動画プレビューの問題を修正
+• 音声の重複と動画共有の問題を修正
+• 複数の画面での白い画面の問題を修正
+• より信頼性の高いデータ同期とバックアップ
+• 通知のリダイレクト動作を修正
+• 全般的な安定性とパフォーマンスの改善
 </ja-JP>
 
-<zh-CN>
-✨ 分享、用户体验和引导流程改进！
-📤 增强的分享接收器
-📂 支持 Google 文件「使用...打开」
-🎵 音频文件图标和类型检测（.opus, .m4a, .wma）
-📱 新用户分阶段引导
-🎨 用户体验改进和界面优化
-📐 应用现已适配 Android 导航栏
-🌍 17种语言的文件类型翻译
-+ 错误修复和性能改进
-</zh-CN>
-
 <ko-KR>
-✨ 공유, UX 및 온보딩 개선!
-📤 향상된 공유 수신기
-📂 Google 파일 "다음으로 열기" 지원
-🎵 오디오 파일 아이콘 및 유형 감지 (.opus, .m4a, .wma)
-📱 신규 사용자를 위한 단계별 온보딩
-🎨 UX 개선 및 인터페이스 최적화
-📐 앱이 Android 내비게이션 바를 준수
-🌍 17개 언어 파일 유형 번역
-+ 버그 수정 및 성능 개선
+• 향상된 추론 능력으로 더 능동적인 AI
+• 이미지 및 동영상 생성 시 확인 전 비용 추정 표시
+• AI 사용 시 편집 모드 충돌 수정
+• 이미지 및 동영상 미리보기 문제 수정
+• 중복 오디오 및 동영상 공유 문제 수정
+• 여러 화면에서의 빈 화면 문제 수정
+• 더 안정적인 데이터 동기화 및 백업
+• 알림 리디렉션 동작 수정
+• 전반적인 안정성 및 성능 개선
 </ko-KR>
 
 <nl-NL>
-✨ Verbeterd delen, UX en onboarding!
-📤 Verbeterde deelontvanger
-📂 Google Files "Openen met" ondersteuning
-🎵 Audio bestandsicoon en typedetectie (.opus, .m4a, .wma)
-📱 Gefaseerde onboarding voor nieuwe gebruikers
-🎨 UX-verbeteringen en interface-optimalisaties
-📐 Apps respecteren nu de Android-navigatiebalk
-🌍 Bestandstype-vertalingen voor alle 17 talen
-+ Bugfixes en prestatieverbeteringen.
+• Proactievere AI met verbeterd redeneren
+• Beeld- en videogeneratie toont nu kostenraming voor bevestiging
+• Crashes in bewerkmodus bij AI-gebruik opgelost
+• Problemen met beeld- en videovoorbeelden opgelost
+• Dubbele audio en videodelen opgelost
+• Problemen met leeg scherm op meerdere schermen opgelost
+• Betrouwbaardere gegevenssynchronisatie en back-up
+• Gedrag van meldingsomleiding opgelost
+• Algemene verbeteringen in stabiliteit en prestaties
 </nl-NL>
 
 <pl-PL>
-✨ Ulepszone udostępnianie, UX i onboarding!
-📤 Ulepszony odbiornik udostępniania
-📂 Obsługa „Otwórz za pomocą" w Google Pliki
-🎵 Ikona i wykrywanie typu audio (.opus, .m4a, .wma)
-📱 Stopniowy onboarding dla nowych użytkowników
-🎨 Ulepszenia UX i optymalizacja interfejsu
-📐 Aplikacje respektują teraz pasek nawigacji Androida
-🌍 Tłumaczenia typów plików dla wszystkich 17 języków
-+ Poprawki błędów i ulepszenia wydajności.
+• Bardziej proaktywna AI z ulepszonym rozumowaniem
+• Generowanie obrazów i filmów pokazuje teraz szacunek kosztów przed potwierdzeniem
+• Naprawiono awarie w trybie edycji przy użyciu AI
+• Naprawiono problemy z podglądem obrazów i filmów
+• Naprawiono zduplikowany dźwięk i udostępnianie filmów
+• Naprawiono problemy z pustym ekranem na wielu ekranach
+• Bardziej niezawodna synchronizacja danych i kopia zapasowa
+• Naprawiono przekierowania powiadomień
+• Ogólne ulepszenia stabilności i wydajności
 </pl-PL>
 
-<vi>
-✨ Cải thiện chia sẻ, UX và giới thiệu!
-📤 Bộ nhận chia sẻ được cải tiến
-📂 Hỗ trợ "Mở bằng" Google Files
-🎵 Biểu tượng và nhận diện file âm thanh (.opus, .m4a, .wma)
-📱 Giới thiệu theo giai đoạn cho người dùng mới
-🎨 Cải thiện UX và tối ưu giao diện
-📐 Ứng dụng giờ đây tôn trọng thanh điều hướng Android
-🌍 Bản dịch loại tệp cho tất cả 17 ngôn ngữ
-+ Sửa lỗi và cải thiện hiệu suất.
-</vi>
+<pt-BR>
+• IA mais proativa e com raciocínio aprimorado
+• Geração de imagens e vídeos com estimativa de custo antes de confirmar
+• Correções de travamento no modo de edição ao usar IA
+• Correção de pré-visualização de imagem e vídeo
+• Correção de áudio duplicado e compartilhamento de vídeo
+• Correção de tela em branco em diversas telas
+• Sincronização de dados e backup mais confiável
+• Redirecionamento correto ao abrir notificações
+• Melhorias gerais de estabilidade e desempenho
+</pt-BR>
 
-<th>
-✨ การแชร์ UX และการแนะนำที่ปรับปรุง!
-📤 ตัวรับการแชร์ที่ปรับปรุงแล้ว
-📂 รองรับ "เปิดด้วย" จาก Google Files
-🎵 ไอคอนและการตรวจจับไฟล์เสียง (.opus, .m4a, .wma)
-📱 การแนะนำแบบเป็นขั้นตอนสำหรับผู้ใช้ใหม่
-🎨 การปรับปรุง UX และอินเทอร์เฟซ
-📐 แอปเคารพแถบนำทาง Android แล้ว
-🌍 การแปลประเภทไฟล์ทั้ง 17 ภาษา
-+ แก้ไขข้อบกพร่องและปรับปรุงประสิทธิภาพ
-</th>
-
-<ar>
-✨ تحسينات في المشاركة وتجربة المستخدم والتأهيل!
-📤 مستقبل مشاركة محسّن
-📂 دعم "فتح باستخدام" في Google Files
-🎵 أيقونة واكتشاف نوع الملفات الصوتية (.opus, .m4a, .wma)
-📱 تأهيل تدريجي للمستخدمين الجدد
-🎨 تحسينات في تجربة المستخدم وتحسين الواجهة
-📐 التطبيقات تحترم الآن شريط التنقل في أندرويد
-🌍 ترجمات أنواع الملفات لجميع اللغات الـ17
-+ إصلاحات للأخطاء وتحسينات في الأداء.
-</ar>
-
-<hi-IN>
-✨ बेहतर शेयरिंग, UX और ऑनबोर्डिंग!
-📤 उन्नत शेयर रिसीवर
-📂 Google Files "इससे खोलें" का समर्थन
-🎵 ऑडियो फ़ाइल आइकन और प्रकार पहचान (.opus, .m4a, .wma)
-📱 नए उपयोगकर्ताओं के लिए चरणबद्ध ऑनबोर्डिंग
-🎨 UX सुधार और इंटरफ़ेस अनुकूलन
-📐 ऐप्स अब Android नेविगेशन बार का सम्मान करती हैं
-🌍 सभी 17 भाषाओं में फ़ाइल प्रकार अनुवाद
-+ बग फिक्स और प्रदर्शन में सुधार।
-</hi-IN>
+<pt-PT>
+• IA mais proativa e com raciocínio melhorado
+• Geração de imagens e vídeos apresenta agora estimativa de custo antes de confirmar
+• Correção de falhas no modo de edição ao usar IA
+• Correção de pré-visualização de imagens e vídeos
+• Correção de áudio duplicado e partilha de vídeos
+• Correção de ecrã em branco em vários ecrãs
+• Sincronização de dados e cópia de segurança mais fiáveis
+• Correção do comportamento de reencaminhamento de notificações
+• Melhorias gerais de estabilidade e desempenho
+</pt-PT>
 
 <ru-RU>
-✨ Улучшенный обмен, UX и онбординг!
-📤 Улучшенный приёмник обмена файлами
-📂 Поддержка «Открыть с помощью» Google Files
-🎵 Иконка и определение типа аудиофайлов (.opus, .m4a, .wma)
-📱 Поэтапный онбординг для новых пользователей
-🎨 Улучшения UX и интерфейса
-📐 Приложения теперь учитывают панель навигации Android
-🌍 Переводы типов файлов на все 17 языков
-+ Исправление ошибок и улучшение производительности.
+• Более проактивный ИИ с улучшенным рассуждением
+• Генерация изображений и видео теперь показывает оценку стоимости перед подтверждением
+• Исправлены сбои в режиме редактирования при использовании ИИ
+• Исправлены проблемы с предварительным просмотром изображений и видео
+• Исправлено дублирование аудио и публикация видео
+• Исправлены проблемы с пустым экраном на разных экранах
+• Более надёжная синхронизация данных и резервное копирование
+• Исправлено поведение перенаправления уведомлений
+• Общие улучшения стабильности и производительности
 </ru-RU>
 
+<th>
+• AI เชิงรุกมากขึ้นพร้อมการคิดวิเคราะห์ที่ดีขึ้น
+• การสร้างภาพและวิดีโอแสดงการประมาณค่าใช้จ่ายก่อนยืนยัน
+• แก้ไขการขัดข้องในโหมดแก้ไขเมื่อใช้ AI
+• แก้ไขปัญหาการแสดงตัวอย่างภาพและวิดีโอ
+• แก้ไขเสียงซ้ำและการแชร์วิดีโอ
+• แก้ไขปัญหาหน้าจอว่างบนหลายหน้าจอ
+• การซิงค์ข้อมูลและการสำรองข้อมูลที่เชื่อถือได้มากขึ้น
+• แก้ไขพฤติกรรมการเปลี่ยนเส้นทางการแจ้งเตือน
+• การปรับปรุงความเสถียรและประสิทธิภาพโดยทั่วไป
+</th>
+
 <tr-TR>
-✨ Geliştirilmiş paylaşım, UX ve tanıtım!
-📤 Geliştirilmiş paylaşım alıcısı
-📂 Google Dosyalar "ile aç" desteği
-🎵 Ses dosyası simgesi ve tür algılama (.opus, .m4a, .wma)
-📱 Yeni kullanıcılar için aşamalı tanıtım
-🎨 UX iyileştirmeleri ve arayüz optimizasyonları
-📐 Uygulamalar artık Android gezinme çubuğuna uyuyor
-🌍 17 dil için dosya türü çevirileri
-+ Hata düzeltmeleri ve performans iyileştirmeleri.
+• Geliştirilmiş akıl yürütme ile daha proaktif yapay zeka
+• Görüntü ve video oluşturma artık onaylamadan önce maliyet tahmini gösteriyor
+• Yapay zeka kullanılırken düzenleme modundaki çökmeler düzeltildi
+• Görüntü ve video önizleme sorunları düzeltildi
+• Tekrar eden ses ve video paylaşımı düzeltildi
+• Birden fazla ekranda boş ekran sorunları düzeltildi
+• Daha güvenilir veri senkronizasyonu ve yedekleme
+• Bildirim yönlendirme davranışı düzeltildi
+• Genel kararlılık ve performans iyileştirmeleri
 </tr-TR>
+
+<vi>
+• AI chủ động hơn với khả năng lý luận được cải thiện
+• Tạo ảnh và video giờ hiển thị ước tính chi phí trước khi xác nhận
+• Sửa lỗi crash trong chế độ chỉnh sửa khi dùng AI
+• Sửa lỗi xem trước ảnh và video
+• Sửa lỗi âm thanh bị trùng lặp và chia sẻ video
+• Sửa lỗi màn hình trắng trên nhiều màn hình
+• Đồng bộ dữ liệu và sao lưu đáng tin cậy hơn
+• Sửa hành vi chuyển hướng thông báo
+• Cải thiện chung về ổn định và hiệu suất
+</vi>
+
+<zh-CN>
+• AI 更加主动，推理能力更强
+• 生成图片和视频时，确认前显示费用估算
+• 修复使用 AI 时编辑模式崩溃问题
+• 修复图片和视频预览问题
+• 修复音频重复和视频分享问题
+• 修复多个页面的空白屏幕问题
+• 数据同步和备份更加可靠
+• 修复通知重定向行为
+• 整体稳定性和性能改善
+</zh-CN>
