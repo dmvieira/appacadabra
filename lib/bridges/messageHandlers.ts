@@ -954,6 +954,7 @@ export async function handleBridgeMessage(
                 markBackupDirty();
                 const { DeviceEventEmitter } = require('react-native');
                 DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: ctx.appId });
+                result = 'OK';
             }
             break;
 

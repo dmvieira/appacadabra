@@ -348,7 +348,6 @@ body {
 
 .how-it-works {
     padding: var(--section-padding);
-    padding-top: 0;
 }
 
 .steps {
@@ -412,7 +411,6 @@ body {
    ============================================ */
 .integrations {
     padding: var(--section-padding);
-    padding-top: 0;
     background: var(--bg-secondary);
 }
 

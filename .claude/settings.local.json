@@ -34,7 +34,8 @@
       "Bash(\"$ADB\" devices:*)",
       "Bash(\"$ADB\" logcat:*)",
       "Bash(where adb)",
-      "Read(//mnt/c/Users/**)"
+      "Read(//mnt/c/Users/**)",
+      "Bash(python:*)"
     ]
   }
 }
