@@ -129,6 +129,7 @@ export default function RunnerScreen() {
     const [storageClearedPending, setStorageClearedPending] = useState(false);
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
+    const [lastUrl, setLastUrl] = useState<string | null>(null);
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
@@ -196,6 +197,17 @@ export default function RunnerScreen() {
 
                 if (loadedApp) {
                     setApp(loadedApp);
+
+                    // Load last saved URL
+                    try {
+                        const savedUrl = await AsyncStorage.getItem(`appacadabra_last_url_${loadedApp.id}`);
+                        if (savedUrl) {
+                            console.log(`[Runner] Loaded saved URL for app ${loadedApp.id}: ${savedUrl}`);
+                            setLastUrl(savedUrl);
+                        }
+                    } catch (e) {
+                        console.warn('[Runner] Failed to load last URL:', e);
+                    }
 
                     // Load storage immediately - CRITICAL for injection
                     try {
@@ -648,11 +660,21 @@ export default function RunnerScreen() {
     // REDUNDANT LOAD REMOVED - merged into primary load effect above
 
 
-    // Inject saved localStorage and shared content (File or Store)
     const handleLoadEnd = useCallback(async () => {
         console.log('Runner: handleLoadEnd called');
 
         if (webViewRef.current && app) {
+            // Restore URL/Hash if it's different from base
+            if (lastUrl && (lastUrl.includes('#') || lastUrl.includes('?'))) {
+                console.log(`[Runner] Restoring last URL: ${lastUrl}`);
+                if (lastUrl.includes('#')) {
+                    const hash = lastUrl.split('#')[1];
+                    webViewRef.current.injectJavaScript(`window.location.hash = "${hash}"; true;`);
+                } else {
+                    webViewRef.current.injectJavaScript(`window.location.replace("${lastUrl}"); true;`);
+                }
+            }
+
             // Use fresh cache to include runtime writes made since mount
             const storageToRestore = getStorageFromCache(app.id);
             // Expand blob markers back to base64 for WebView injection
@@ -1213,6 +1235,13 @@ export default function RunnerScreen() {
                         injectedJavaScriptBeforeContentLoaded={combinedScript}
                         onLoadEnd={handleLoadEnd}
                         onMessage={handleMessage}
+                        onNavigationStateChange={(navState) => {
+                            if (navState.url && app?.id) {
+                                // Save current URL/Hash to AsyncStorage
+                                AsyncStorage.setItem(`appacadabra_last_url_${app.id}`, navState.url)
+                                    .catch(e => console.warn('[Runner] Failed to save URL:', e));
+                            }
+                        }}
                         onRenderProcessGone={(e) => {
                             console.log('RunnerScreen: WebView render process crashed. Recreating...', e.nativeEvent);
                             setWebViewKey(k => k + 1);

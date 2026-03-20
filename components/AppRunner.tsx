@@ -28,6 +28,7 @@ import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppStore } from '../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, ExpandedStorageItem, createMediaCallbackScript, createMediaChunkScript } from '../lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, AI_MEDIA_MIME, buildBlobMarker } from '../lib/bridges/messageHandlers';
@@ -108,9 +109,9 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
     const { videoPlayback, closeVideoPlayer } = useBridgeUIStore();
+    const [lastUrl, setLastUrl] = useState<string | null>(null);
     const router = useRouter();
 
-    // Load app data
     useEffect(() => {
         async function loadApp() {
             const appData = await db.getAppById(appId);
@@ -124,6 +125,17 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 // Expand blob markers back to base64 for WebView injection
                 const expandedItems = await expandStorageBlobMarkers(storageItems);
                 setSavedStorage(expandedItems);
+
+                // Load last saved URL
+                try {
+                    const savedUrl = await AsyncStorage.getItem(`appacadabra_last_url_${appId}`);
+                    if (savedUrl) {
+                        console.log(`[AppRunner] Loaded saved URL for app ${appId}: ${savedUrl}`);
+                        setLastUrl(savedUrl);
+                    }
+                } catch (e) {
+                    console.warn('[AppRunner] Failed to load last URL:', e);
+                }
             }
             setIsLoading(false);
         }
@@ -151,14 +163,31 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
         }
     }, [pendingVersionApp]);
 
-    // Inject saved localStorage when WebView loads
+    // Inject saved localStorage and restore URL when WebView loads
     const handleLoadEnd = useCallback(async () => {
-        if (webViewRef.current && savedStorage.length > 0) {
+        if (!webViewRef.current) return;
+
+        // Restore storage
+        if (savedStorage.length > 0) {
             const expandedStorage = await expandStorageBlobMarkers(savedStorage);
             const script = createStorageRestoreScript(expandedStorage);
             webViewRef.current.injectJavaScript(script);
         }
-    }, [savedStorage]);
+
+        // Restore URL/Hash if it's different from base
+        if (lastUrl && (lastUrl.includes('#') || lastUrl.includes('?'))) {
+            console.log(`[AppRunner] Restoring last URL: ${lastUrl}`);
+            // If it's a hash, we can often just set window.location.hash
+            if (lastUrl.includes('#')) {
+                const hash = lastUrl.split('#')[1];
+                webViewRef.current.injectJavaScript(`window.location.hash = "${hash}"; true;`);
+            } else {
+                // For other query params etc, might need a full replace
+                // But usually Spells use hashes.
+                webViewRef.current.injectJavaScript(`window.location.replace("${lastUrl}"); true;`);
+            }
+        }
+    }, [savedStorage, lastUrl]);
 
     // Load version history
     const loadVersions = useCallback(async () => {
@@ -949,6 +978,11 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 onMessage={handleMessage}
                 onNavigationStateChange={(navState) => {
                     canGoBackRef.current = navState.canGoBack;
+                    // Persist internal URL changes (including hashes if detected)
+                    if (navState.url && navState.url !== 'about:blank') {
+                        // Debounce saving to avoid excessive writes
+                        AsyncStorage.setItem(`appacadabra_last_url_${appId}`, navState.url).catch(() => { });
+                    }
                 }}
                 onError={(e) => console.error('WebView error:', e.nativeEvent)}
                 onShouldStartLoadWithRequest={(request) => {
