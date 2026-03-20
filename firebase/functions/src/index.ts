@@ -1920,7 +1920,7 @@ export const estimateManaCost = onCall({
                 + (numVideos * 15_000);
 
             const thinkingTk = 3_000;
-            const outputTk = hasSchema ? 500 : 300;
+            const outputTk = hasSchema ? 250 : 150;
 
             const costUsd = calculateCostUsd('gemini-3-flash-preview', {
                 promptTokens,
