@@ -350,6 +350,14 @@ function calculateCostUsd(
     return inputCost + outputCost + searchCost + mapsCost + audioCost;
 }
 
+function calcImageMana(numInputImages: number): number {
+    return USD_IMAGE_PER_UNIT / MANA_VALUE_USD + numInputImages * MANA_PER_INPUT_IMAGE;
+}
+
+function calcVideoMana(durationSeconds: number, hasImages: boolean): number {
+    const costUsd = durationSeconds * (hasImages ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
+    return costUsd / MANA_VALUE_USD;
+}
 
 // Helper to get text from response, filtering out thinking tokens and logging them
 function extractText(result: any): string {
@@ -1450,7 +1458,7 @@ export const processSpellJob = onDocumentCreated(
 
                     resultText = downloadUrl;
                     // Base cost + extra per inspiration image
-                    creditsUsed = USD_IMAGE_PER_UNIT / MANA_VALUE_USD + jobImagePartsFromInput.length * MANA_PER_INPUT_IMAGE;
+                    creditsUsed = calcImageMana(jobImagePartsFromInput.length);
                     logModelId = 'gemini-3.1-flash-image-preview';
                     logExtras.imageCount = 1;
                     logExtras.imageUrl = downloadUrl;
@@ -1556,8 +1564,7 @@ export const processSpellJob = onDocumentCreated(
 
                     const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 8;
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] videoFile metadata:`, JSON.stringify((videoFile as any).videoMetadata));
-                    const videoCostUsd2 = durationSeconds * (hasImages ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
-                    creditsUsed = videoCostUsd2 / MANA_VALUE_USD;
+                    creditsUsed = calcVideoMana(durationSeconds, hasImages);
                     logModelId = hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview';
                     logExtras.durationSec = durationSeconds;
                     logExtras.videoUrl = downloadUrl;
@@ -1694,10 +1701,8 @@ export const processSpellJob = onDocumentCreated(
             // Deduct Credits
             // creditsUsed is set inside the switch per action type
             let costUsd: number;
-            if (action === 'webview_ai_image') {
-                costUsd = USD_IMAGE_PER_UNIT;
-            } else if (action === 'webview_ai_video') {
-                costUsd = (logExtras.durationSec ?? 0) * (logModelId === 'veo-3.1-generate-preview' ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
+            if (action === 'webview_ai_image' || action === 'webview_ai_video') {
+                costUsd = creditsUsed * MANA_VALUE_USD;
             } else {
                 costUsd = calculateCostUsd(logModelId, usage, {
                     searchQueries: logExtras.searchQueries,
@@ -1919,8 +1924,8 @@ export const estimateManaCost = onCall({
                 + (numImages * 500)
                 + (numVideos * 15_000);
 
-            const thinkingTk = 3_000;
-            const outputTk = hasSchema ? 250 : 250;
+            const thinkingTk = Math.min(32768, Math.max(1000, Math.floor(promptTokens)));
+            const outputTk = hasSchema ? 400 : 200;
 
             const costUsd = calculateCostUsd('gemini-3-flash-preview', {
                 promptTokens,
@@ -1936,16 +1941,12 @@ export const estimateManaCost = onCall({
         }
 
         case 'image': {
-            const numInputImages = data.images?.length || 0;
-            const mana = USD_IMAGE_PER_UNIT / MANA_VALUE_USD + numInputImages * MANA_PER_INPUT_IMAGE;
+            const mana = calcImageMana(data.images?.length || 0);
             return { mana: `~${mana.toFixed(1)}`, value: mana };
         }
 
         case 'video': {
-            const hasImages = (data.images?.length || 0) > 0;
-            const durationSeconds = 8;
-            const costUsd = durationSeconds * (hasImages ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
-            const mana = costUsd / MANA_VALUE_USD;
+            const mana = calcVideoMana(8, (data.images?.length || 0) > 0);
             return { mana: `~${mana.toFixed(1)}`, value: mana };
         }
 
