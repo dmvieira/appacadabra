@@ -319,7 +319,7 @@ const MANA_PER_INPUT_IMAGE = 0.1; // extra mana per inspiration image sent to AI
 function calculateCostUsd(
     modelId: string,
     usage: { promptTokens: number; responseTokens: number; thoughtsTokens?: number; cachedTokens?: number },
-    extras?: { searchQueries?: number; mapsQueries?: number }
+    extras?: { searchQueries?: number; mapsQueries?: number; audioTokens?: number }
 ): number {
     const pricing = USD_PRICING[modelId];
     if (!pricing) return 0;
@@ -343,7 +343,11 @@ function calculateCostUsd(
         ? extras.mapsQueries * pricing.mapsPerQuery
         : 0;
 
-    return inputCost + outputCost + searchCost + mapsCost;
+    const audioCost = extras?.audioTokens && pricing.audioInputPerMToken
+        ? (extras.audioTokens / 1_000_000) * pricing.audioInputPerMToken
+        : 0;
+
+    return inputCost + outputCost + searchCost + mapsCost + audioCost;
 }
 
 
@@ -1425,7 +1429,7 @@ export const processSpellJob = onDocumentCreated(
                     // Detect actual MIME from magic bytes of generated image
                     const imageMime = imageBase64.startsWith('/9j/') ? 'image/jpeg'
                         : imageBase64.startsWith('iVBOR') ? 'image/png'
-                        : 'image/jpeg';
+                            : 'image/jpeg';
                     const imageExt = imageMime === 'image/png' ? 'png' : 'jpeg';
                     const fileName = `generated_images/${uid}/${jobId}.${imageExt}`;
                     const file = bucket.file(fileName);
@@ -1900,8 +1904,6 @@ export const estimateManaCost = onCall({
     const { type, data } = request.data;
     if (!type || !data) throw new HttpsError('invalid-argument', 'Type and data required');
 
-    // These should match the constants used in the actual generation logic
-    const MANA_VAL = MANA_VALUE_USD;
 
     switch (type) {
         case 'generate': {
@@ -1913,20 +1915,23 @@ export const estimateManaCost = onCall({
             const hasSchema = !!data.schema;
 
             const audioTokens = numAudios * 5_000;
-            const nonAudioInputTk = (promptLen / 4)
+            const promptTokens = (promptLen / 4)
                 + (numImages * 500)
                 + (numVideos * 15_000);
 
-            const inputCostUsd = (nonAudioInputTk / 1_000_000) * 0.50
-                + (audioTokens / 1_000_000) * 1.00;
-
             const thinkingTk = 3_000;
             const outputTk = hasSchema ? 500 : 300;
-            const outputCostUsd = ((thinkingTk + outputTk) / 1_000_000) * 3.00;
 
-            const searchCostUsd = hasSearch ? 0.014 : 0;
+            const costUsd = calculateCostUsd('gemini-3-flash-preview', {
+                promptTokens,
+                responseTokens: outputTk,
+                thoughtsTokens: thinkingTk
+            }, {
+                searchQueries: hasSearch ? 1 : 0,
+                audioTokens
+            });
 
-            const mana = (inputCostUsd + outputCostUsd + searchCostUsd) / MANA_VAL;
+            const mana = costUsd / MANA_VALUE_USD;
             return { mana: `~${mana.toFixed(1)}`, value: mana };
         }
 
@@ -1938,17 +1943,21 @@ export const estimateManaCost = onCall({
 
         case 'video': {
             const hasImages = (data.images?.length || 0) > 0;
-            const mana = 8 * (hasImages ? 5.0 : 2.0);
-            return { mana: `~${mana}`, value: mana };
+            const durationSeconds = 8;
+            const costUsd = durationSeconds * (hasImages ? USD_VIDEO_PER_SECOND_STD : USD_VIDEO_PER_SECOND_FAST);
+            const mana = costUsd / MANA_VALUE_USD;
+            return { mana: `~${mana.toFixed(1)}`, value: mana };
         }
 
         case 'audio': {
             const chars = (data.text || '').length;
             const inputTk = chars / 4;
             const outputTk = inputTk * 8;
-            const costUsd = (inputTk / 1_000_000) * 0.50
-                + (outputTk / 1_000_000) * 10.00;
-            const mana = Math.max(0.01, costUsd / MANA_VAL);
+            const costUsd = calculateCostUsd('gemini-2.5-flash-preview-tts', {
+                promptTokens: inputTk,
+                responseTokens: outputTk
+            });
+            const mana = Math.max(0.01, costUsd / MANA_VALUE_USD);
             return { mana: `~${mana.toFixed(2)}`, value: mana };
         }
 
@@ -1957,7 +1966,11 @@ export const estimateManaCost = onCall({
             const totalChars = items.reduce((s: number, x: string) =>
                 s + (typeof x === 'string' ? x.length : 0), 0);
             const totalTk = totalChars / 4;
-            const mana = Math.max(0.01, (totalTk / 1_000_000) * 0.15 / MANA_VAL);
+            const costUsd = calculateCostUsd('gemini-embedding-001', {
+                promptTokens: totalTk,
+                responseTokens: 0
+            });
+            const mana = Math.max(0.01, costUsd / MANA_VALUE_USD);
             return { mana: `~${mana.toFixed(3)}`, value: mana };
         }
 
