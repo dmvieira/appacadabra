@@ -110,18 +110,15 @@ document.addEventListener('keydown', (e) => {
 
 function trackDownload(platform) {
     if (typeof gtag === 'function') {
-        gtag('event', 'download_click', {
-            'platform': platform,
-            'language': currentLang
-        });
+        gtag('event', 'download_click', { platform, language: currentLang });
     }
-
-    // For now, show alert since Play Store URL is not ready
-    // TODO: Replace with actual Play Store URL
-    alert('Coming soon to Google Play! 🚀');
-
-    // When ready, uncomment this and add the real URL:
-    // window.open('https://play.google.com/store/apps/details?id=com.appacadabra', '_blank');
+    const isAndroid = /android/i.test(navigator.userAgent);
+    if (isAndroid) {
+        window.location.href = 'market://details?id=ai.appacadabra.app';
+    } else {
+        window.open('https://play.google.com/apps/testing/ai.appacadabra.app', '_blank');
+    }
+    return false; // prevent default href
 }
 
 // Handle iOS Waitlist Form (AJAX)
