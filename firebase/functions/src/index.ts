@@ -437,11 +437,50 @@ function repairJson(text: string): string {
 
 // Helper to extract HTML from markdown code block
 function extractHtml(response: string): string {
-    const match = response.match(/```html\s*([\s\S]*?)```/);
-    if (match) {
-        return match[1].trim();
+    const openMatch = response.match(/^\s*```html\s*/);
+    if (openMatch && openMatch.index !== undefined) {
+        const contentStart = openMatch.index + openMatch[0].length;
+        const lastClose = response.lastIndexOf('```');
+        if (lastClose > contentStart) {
+            return response.substring(contentStart, lastClose).trim();
+        }
+        return response.substring(contentStart).trim();
     }
     return response.trim();
+}
+
+function attemptPartialJsonRecovery(text: string): string | null {
+    // Find the last position where depth was 1 and we just closed a `}`
+    // i.e., the last complete item inside a top-level array/object
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let lastDepth1Close = -1;
+
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\' && inString) { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{' || ch === '[') depth++;
+        else if (ch === '}' || ch === ']') {
+            depth--;
+            if (depth === 1) lastDepth1Close = i;
+        }
+    }
+
+    if (lastDepth1Close === -1) return null;
+
+    // Close any open structure after the last complete child
+    // Find what the top-level opener was
+    const opener = text[0];
+    const closer = opener === '{' ? '}' : ']';
+    // Strip everything after last complete item and close
+    const partial = text.substring(0, lastDepth1Close + 1).trimEnd();
+    // Remove trailing comma if present
+    const trimmed = partial.replace(/,\s*$/, '');
+    return trimmed + closer;
 }
 
 // Helper to extract JSON from markdown code block or raw text
@@ -449,18 +488,20 @@ function extractJson(response: string): any {
     let text = response.trim();
     const originalLength = text.length;
 
-    // 1. Remove markdown code blocks if present (non-greedy, requires closure)
-    const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (markdownMatch) {
-        text = markdownMatch[1].trim();
-    } else {
-        // Fallback for truncated code blocks or raw JSON
-        const openBlock = text.indexOf('```');
-        if (openBlock !== -1) {
-            const start = text.indexOf('\n', openBlock) + 1 || openBlock + 3;
-            text = text.substring(start);
+    // 1. Remove markdown code blocks if present
+    // Use lastIndexOf for the closing ``` so that backticks inside JSON string values don't truncate early
+    const openMatch = text.match(/^\s*```(?:json)?\s*/);
+    if (openMatch && openMatch.index !== undefined) {
+        const contentStart = openMatch.index + openMatch[0].length;
+        const lastClose = text.lastIndexOf('```');
+        if (lastClose > contentStart + 2) {
+            text = text.substring(contentStart, lastClose).trim();
+        } else {
+            // No distinct closing found (truly truncated code block), take rest
+            text = text.substring(contentStart).trim();
         }
     }
+    // If no ``` at all, text is used as-is (raw JSON)
 
     // 2. Find the first '{' and the matching '}' (respecting strings)
     const startObj = text.indexOf('{');
@@ -496,7 +537,17 @@ function extractJson(response: string): any {
     if (endObj !== -1) {
         text = text.substring(startObj, endObj + 1);
     } else if (depth > 0) {
-        // TRUNCATED JSON DETECTED
+        // Attempt partial recovery: find last complete top-level item
+        let recovered = attemptPartialJsonRecovery(text.substring(startObj));
+        if (recovered !== null) {
+            try {
+                const parsed = JSON.parse(recovered);
+                console.warn(`[extractJson] Truncated response recovered partially (originalLength: ${originalLength})`);
+                return parsed;
+            } catch (_) {
+                // fall through to throw
+            }
+        }
         throw new Error(`AI response was truncated (depth: ${depth}, inString: ${inString}, originalLength: ${originalLength})`);
     }
 
@@ -1303,7 +1354,7 @@ export const processSpellJob = onDocumentCreated(
                     }
 
                     // Model Config
-                    const genConfig: any = {};
+                    const genConfig: any = { maxOutputTokens: 65536 };
                     if (schema) {
                         genConfig.responseMimeType = "application/json";
                         if (!(schema as any).type) {
@@ -1319,7 +1370,7 @@ export const processSpellJob = onDocumentCreated(
                         config: {
                             ...genConfig,
                             thinkingConfig: modelId.includes('gemini-3')
-                                ? { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH }
+                                ? { includeThoughts: true, thinkingLevel: toolConfig.length > 0 ? ThinkingLevel.MINIMAL : ThinkingLevel.HIGH }
                                 : { includeThoughts: true, thinkingBudget: modelId.includes('2.5-flash-lite') ? 24576 : 32768 },
                             tools: toolConfig.length > 0 ? toolConfig : undefined,
                         },
@@ -1801,6 +1852,8 @@ export const processSpellJob = onDocumentCreated(
             console.error(`Job ${jobId} failed:`, error);
             const errorMsg = typeof error?.message === 'string' ? error.message : String(error || 'Unknown error');
             try {
+                const currentDoc = await snapshot.ref.get();
+                if (currentDoc.data()?.status === 'completed') return; // transaction already committed, don't overwrite
                 await snapshot.ref.update({
                     status: 'failed',
                     error: errorMsg,
