@@ -532,7 +532,7 @@ export async function handleBridgeMessage(
                 success = false; result = t('manaDepletedMessage'); break;
             }
             if (generateCostValue > useManaStore.getState().balance) {
-                useManaStore.getState().openShop();
+                useManaStore.getState().openShop(generateCostValue);
                 success = false; result = t('manaDepletedMessage'); break;
             }
             const manaConfirmedGenerate = await useBridgeUIStore.getState()
@@ -598,7 +598,7 @@ export async function handleBridgeMessage(
                 success = false; result = t('manaDepletedMessage'); break;
             }
             if (similarityCostValue > useManaStore.getState().balance) {
-                useManaStore.getState().openShop();
+                useManaStore.getState().openShop(similarityCostValue);
                 success = false; result = t('manaDepletedMessage'); break;
             }
             const manaConfirmedSimilarity = await useBridgeUIStore.getState()
@@ -1733,7 +1733,7 @@ export async function handleBridgeMessage(
                 success = false; result = t('manaDepletedMessage'); break;
             }
             if (audioCostValue > useManaStore.getState().balance) {
-                useManaStore.getState().openShop();
+                useManaStore.getState().openShop(audioCostValue);
                 success = false; result = t('manaDepletedMessage'); break;
             }
             const manaConfirmedAudio = await useBridgeUIStore.getState()
@@ -1839,7 +1839,7 @@ export async function handleBridgeMessage(
                 success = false; result = t('manaDepletedMessage'); break;
             }
             if (imageCostValue > useManaStore.getState().balance) {
-                useManaStore.getState().openShop();
+                useManaStore.getState().openShop(imageCostValue);
                 success = false; result = t('manaDepletedMessage'); break;
             }
             const manaConfirmedImage = await useBridgeUIStore.getState()
@@ -1894,7 +1894,7 @@ export async function handleBridgeMessage(
                 success = false; result = t('manaDepletedMessage'); break;
             }
             if (videoCostValue > useManaStore.getState().balance) {
-                useManaStore.getState().openShop();
+                useManaStore.getState().openShop(videoCostValue);
                 success = false; result = t('manaDepletedMessage'); break;
             }
             const manaConfirmedVideo = await useBridgeUIStore.getState()

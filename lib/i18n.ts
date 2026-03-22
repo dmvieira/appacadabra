@@ -329,6 +329,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Out of Mana!',
         manaDepletedMessage: 'Your Mana is depleted. Recharge to continue using AI features.',
+        manaInsufficientTitle: 'Not enough Mana',
+        manaInsufficientMessage: 'This spell requires ~%{required} Mana (you have %{balance})',
         manaShopTitle: 'Mana Shop',
         manaPackage1: '10 Mana (Meditation)',
         manaPackage2: '50 Mana (Short Rest)',
@@ -885,6 +887,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Mana Acabou!',
         manaDepletedMessage: 'Sua Mana acabou. Recarregue para continuar usando recursos de IA.',
+        manaInsufficientTitle: 'Mana insuficiente',
+        manaInsufficientMessage: 'Este feitiço requer ~%{required} Mana (você tem %{balance})',
         manaShopTitle: 'Loja de Mana',
         manaPackage1: '10 Mana (Meditação)',
         manaPackage2: '50 Mana (Descanso Curto)',
@@ -1389,6 +1393,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ ¡Sin Mana!',
         manaDepletedMessage: 'Tu Mana se agotó. Recarga para seguir usando funciones de IA.',
+        manaInsufficientTitle: 'Maná insuficiente',
+        manaInsufficientMessage: 'Este hechizo requiere ~%{required} Maná (tienes %{balance})',
         manaShopTitle: 'Tienda de Mana',
         manaPackage1: '10 Mana (Meditación)',
         manaPackage2: '50 Mana (Descanso Corto)',
@@ -1904,6 +1910,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Plus de Mana !',
         manaDepletedMessage: 'Votre Mana est épuisé. Rechargez pour continuer à utiliser les fonctions IA.',
+        manaInsufficientTitle: 'Mana insuffisant',
+        manaInsufficientMessage: 'Ce sort nécessite ~%{required} Mana (vous en avez %{balance})',
         manaShopTitle: 'Boutique Mana',
         manaPackage1: '10 Mana (Méditation)',
         manaPackage2: '50 Mana (Repos Court)',
@@ -2382,6 +2390,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Kein Mana Mehr!',
         manaDepletedMessage: 'Dein Mana ist aufgebraucht. Lade auf, um KI-Funktionen weiter zu nutzen.',
+        manaInsufficientTitle: 'Nicht genug Mana',
+        manaInsufficientMessage: 'Dieser Zauber erfordert ~%{required} Mana (du hast %{balance})',
         manaShopTitle: 'Mana Shop',
         manaPackage1: '10 Mana (Meditation)',
         manaPackage2: '50 Mana (Kurze Rast)',
@@ -2829,6 +2839,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Mana Esaurito!',
         manaDepletedMessage: 'Il tuo Mana è finito. Ricarica per continuare a usare le funzioni IA.',
+        manaInsufficientTitle: 'Mana insufficiente',
+        manaInsufficientMessage: 'Questo incantesimo richiede ~%{required} Mana (ne hai %{balance})',
         manaShopTitle: 'Negozio Mana',
         manaPackage1: '10 Mana (Meditazione)',
         manaPackage2: '50 Mana (Riposo Breve)',
@@ -3278,6 +3290,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ マナ切れ！',
         manaDepletedMessage: 'マナが尽きました。AI機能を使い続けるにはチャージしてください。',
+        manaInsufficientTitle: 'マナが不足しています',
+        manaInsufficientMessage: 'この呪文には約%{required}マナが必要です（現在%{balance}）',
         manaShopTitle: 'マナショップ',
         manaPackage1: '10 マナ (瞑想)',
         manaPackage2: '50 マナ (小休憩)',
@@ -3703,6 +3717,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ 魔力耗尽！',
         manaDepletedMessage: '你的魔力已用完。充值以继续使用 AI 功能。',
+        manaInsufficientTitle: '魔力不足',
+        manaInsufficientMessage: '此咒语需要约 %{required} 魔力（你有 %{balance}）',
         manaShopTitle: '魔力商店',
         manaPackage1: '10 魔力 (冥想)',
         manaPackage2: '50 魔力 (小憩)',
@@ -4141,6 +4157,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ 마나 소진!',
         manaDepletedMessage: '마나가 다 떨어졌습니다. AI 기능을 계속 사용하려면 충전하세요.',
+        manaInsufficientTitle: '마나 부족',
+        manaInsufficientMessage: '이 주문에는 약 %{required} 마나가 필요합니다 (현재 %{balance})',
         manaShopTitle: '마나 상점',
         manaPackage1: '10 마나 (명상)',
         manaPackage2: '50 마나 (짧은 휴식)',
@@ -4573,6 +4591,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ نفدت المانا!',
         manaDepletedMessage: 'لقد نفدت المانا لديك. قم بالشحن لمواصلة استخدام ميزات الذكاء الاصطناعي.',
+        manaInsufficientTitle: 'مانا غير كافية',
+        manaInsufficientMessage: 'تتطلب هذه التعويذة ~%{required} مانا (لديك %{balance})',
         manaShopTitle: 'متجر المانا',
         manaPackage1: '10 مانا (تأمل)',
         manaPackage2: '50 مانا (راحة قصيرة)',
@@ -5005,6 +5025,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ माना खत्म!',
         manaDepletedMessage: 'आपका माना खत्म हो गया है। AI सुविधाओं का उपयोग जारी रखने के लिए रिचार्ज करें।',
+        manaInsufficientTitle: 'पर्याप्त माना नहीं',
+        manaInsufficientMessage: 'इस मंत्र के लिए ~%{required} माना चाहिए (आपके पास %{balance} है)',
         manaShopTitle: 'माना दुकान',
         manaPackage1: '10 माना (ध्यान)',
         manaPackage2: '50 माना (छोटा आराम)',
@@ -5437,6 +5459,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Мана закончилась!',
         manaDepletedMessage: 'Ваша мана исчерпана. Пополните баланс, чтобы продолжить использование функций ИИ.',
+        manaInsufficientTitle: 'Недостаточно маны',
+        manaInsufficientMessage: 'Для этого заклинания требуется ~%{required} маны (у вас %{balance})',
         manaShopTitle: 'Магазин маны',
         manaPackage1: '10 маны (Медитация)',
         manaPackage2: '50 маны (Короткий отдых)',
@@ -5872,6 +5896,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Mana Tükendi!',
         manaDepletedMessage: 'Mananız bitti. AI özelliklerini kullanmaya devam etmek için yükleme yapın.',
+        manaInsufficientTitle: 'Yeterli Mana Yok',
+        manaInsufficientMessage: 'Bu büyü ~%{required} Mana gerektiriyor (%{balance} sahipsiniz)',
         manaShopTitle: 'Mana Mağazası',
         manaPackage1: '10 Mana (Meditasyon)',
         manaPackage2: '50 Mana (Kısa Dinlenme)',
@@ -6304,6 +6330,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Mana is op!',
         manaDepletedMessage: 'Je mana is op. Waardeer op om AI-functies te blijven gebruiken.',
+        manaInsufficientTitle: 'Niet genoeg Mana',
+        manaInsufficientMessage: 'Deze spreuk vereist ~%{required} Mana (je hebt %{balance})',
         manaShopTitle: 'Mana Winkel',
         manaPackage1: '10 Mana (Meditatie)',
         manaPackage2: '50 Mana (Korte Rust)',
@@ -6737,6 +6765,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Mana się skończyła!',
         manaDepletedMessage: 'Twoja mana się wyczerpała. Doładuj, aby nadal korzystać z funkcji AI.',
+        manaInsufficientTitle: 'Niewystarczająca mana',
+        manaInsufficientMessage: 'To zaklęcie wymaga ~%{required} many (masz %{balance})',
         manaShopTitle: 'Sklep Many',
         manaPackage1: '10 Many (Medytacja)',
         manaPackage2: '50 Many (Krótki Odpoczynek)',
@@ -7172,6 +7202,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ Hết Mana!',
         manaDepletedMessage: 'Mana của bạn đã hết. Hãy nạp thêm để tiếp tục sử dụng các tính năng AI.',
+        manaInsufficientTitle: 'Không đủ Mana',
+        manaInsufficientMessage: 'Bùa chú này cần ~%{required} Mana (bạn có %{balance})',
         manaShopTitle: 'Cửa Hàng Mana',
         manaPackage1: '10 Mana (Thiền định)',
         manaPackage2: '50 Mana (Nghỉ ngơi ngắn)',
@@ -7607,6 +7639,8 @@ const translations = {
 
         manaDepletedTitle: '⚡ มานาหมดแล้ว!',
         manaDepletedMessage: 'มานาของคุณหมดแล้ว โปรดเติมเงินเพื่อใช้งานฟีเจอร์ AI ต่อไป',
+        manaInsufficientTitle: 'มานาไม่เพียงพอ',
+        manaInsufficientMessage: 'คาถานี้ต้องการ ~%{required} มานา (คุณมี %{balance})',
         manaShopTitle: 'ร้านค้ามานา',
         manaPackage1: '10 มานา (ทำสมาธิ)',
         manaPackage2: '50 มานา (พักผ่อนสั้นๆ)',

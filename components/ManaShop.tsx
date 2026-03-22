@@ -33,7 +33,7 @@ interface IAPProduct {
 
 
 export function ManaShop() {
-    const { addMana, balance, isShopOpen, closeShop, isAnonymous, userEmail, refreshUser } = useManaStore();
+    const { addMana, balance, isShopOpen, requiredMana, closeShop, isAnonymous, userEmail, refreshUser } = useManaStore();
     const [isAdLoading, setIsAdLoading] = useState(false);
     const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
 
@@ -416,7 +416,20 @@ export function ManaShop() {
                                     )}
                                 </View>
 
-                                {balance <= 0 && (
+                                {(requiredMana !== null && requiredMana > balance) ? (
+                                    <View style={styles.manaWarningBanner}>
+                                        <Text style={styles.manaWarningEmoji}>⚡</Text>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.manaWarningTitle}>{t('manaInsufficientTitle')}</Text>
+                                            <Text style={styles.manaWarningText}>
+                                                {t('manaInsufficientMessage', {
+                                                    required: requiredMana.toFixed(1),
+                                                    balance: balance.toFixed(1)
+                                                })}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ) : balance <= 0 ? (
                                     <View style={styles.manaWarningBanner}>
                                         <Text style={styles.manaWarningEmoji}>⚡</Text>
                                         <View style={{ flex: 1 }}>
@@ -424,7 +437,7 @@ export function ManaShop() {
                                             <Text style={styles.manaWarningText}>{t('manaDepletedMessage')}</Text>
                                         </View>
                                     </View>
-                                )}
+                                ) : null}
 
                                 {/* Free Mana Section */}
                                 <Text style={styles.sectionLabel}>{t('freeMana')}</Text>

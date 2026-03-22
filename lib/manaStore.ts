@@ -6,6 +6,7 @@ import * as firebase from './firebase';
 interface ManaState {
     balance: number;
     isShopOpen: boolean;
+    requiredMana: number | null;
     userEmail: string | null;
     isAnonymous: boolean;
 
@@ -13,7 +14,7 @@ interface ManaState {
     init: () => void; // Start listening
     setBalance: (amount: number) => void;
     refreshUser: () => Promise<void>;
-    openShop: () => void;
+    openShop: (requiredMana?: number) => void;
     closeShop: () => void;
 
     // Legacy support (redirects to firebase logging)
@@ -27,6 +28,7 @@ export const useManaStore = create<ManaState>()(
         (set, get) => ({
             balance: 0,
             isShopOpen: false,
+            requiredMana: null,
             userEmail: null,
             isAnonymous: true,
 
@@ -85,8 +87,8 @@ export const useManaStore = create<ManaState>()(
                 });
             },
 
-            openShop: () => set({ isShopOpen: true }),
-            closeShop: () => set({ isShopOpen: false }),
+            openShop: (requiredMana?: number) => set({ isShopOpen: true, requiredMana: requiredMana ?? null }),
+            closeShop: () => set({ isShopOpen: false, requiredMana: null }),
         }),
         {
             name: 'appacadabra-mana-storage',
