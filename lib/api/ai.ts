@@ -133,13 +133,14 @@ export interface AIGenerateOptions {
     images?: string[]; // base64 array
     videos?: string[]; // base64 array
     audios?: string[]; // base64 array
+    onJobCreated?: (jobId: string) => void;
 }
 
 // Used by WebView Bridge
 export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerate (via Firebase)', JSON.stringify({ ...options, images: options.images?.length || 0, videos: options.videos?.length || 0, audios: options.audios?.length || 0 }));
 
-    const { prompt, search, schema, images, videos, audios } = options;
+    const { prompt, search, schema, images, videos, audios, onJobCreated } = options;
 
     // Clean base64 prefixes aggressively (handle redundant or double prefixes)
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
@@ -152,7 +153,8 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
         imagesBase64: cleanImages,
         videosBase64: cleanVideos,
         audiosBase64: cleanAudios,
-        useSearch: search
+        useSearch: search,
+        onJobCreated,
     });
 
     const creditsUsed = result.creditsUsed || 0;
@@ -165,10 +167,10 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
 }
 
 // Used by WebView Bridge - Similarity
-export async function aiSimilarity(items: string[]): Promise<{ text: string, creditsUsed: number }> {
+export async function aiSimilarity(items: string[], onJobCreated?: (jobId: string) => void): Promise<{ text: string, creditsUsed: number }> {
     console.log('[AI] aiSimilarity (via Firebase)', items.length, 'items');
 
-    const result = await firebase.generateSpellSimilarity(items);
+    const result = await firebase.generateSpellSimilarity(items, onJobCreated);
     return {
         text: result.text,
         creditsUsed: result.creditsUsed || 0,
@@ -176,12 +178,12 @@ export async function aiSimilarity(items: string[]): Promise<{ text: string, cre
 }
 
 // Used by WebView Bridge - Generate Image
-export async function aiGenerateImage(prompt: string, imagesBase64?: string[]): Promise<{ imageBase64: string, usage: any, creditsUsed: number }> {
+export async function aiGenerateImage(prompt: string, imagesBase64?: string[], onJobCreated?: (jobId: string) => void): Promise<{ imageBase64: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerateImage (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
     const cleanImages = imagesBase64?.map(cleanPrefix);
-    const result = await firebase.generateSpellImageGen(prompt, cleanImages);
+    const result = await firebase.generateSpellImageGen(prompt, cleanImages, onJobCreated);
     const imageBase64 = await resolveStorageUrlToBase64(result.text);
 
     const creditsUsed = result.creditsUsed || 0;
@@ -194,10 +196,10 @@ export async function aiGenerateImage(prompt: string, imagesBase64?: string[]): 
 }
 
 // Used by WebView Bridge - Generate TTS Audio
-export async function aiGenerateTTS(text: string, voiceName?: string): Promise<{ audioBase64: string, usage: any, creditsUsed: number }> {
+export async function aiGenerateTTS(text: string, voiceName?: string, onJobCreated?: (jobId: string) => void): Promise<{ audioBase64: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerateTTS (via Firebase)', text?.substring(0, 80), 'voice:', voiceName);
 
-    const result = await firebase.generateSpellTTS(text, voiceName);
+    const result = await firebase.generateSpellTTS(text, voiceName, onJobCreated);
     const audioBase64 = await resolveStorageUrlToBase64(result.text);
 
     const creditsUsed = result.creditsUsed || 0;
@@ -209,12 +211,12 @@ export async function aiGenerateTTS(text: string, voiceName?: string): Promise<{
 }
 
 // Used by WebView Bridge - Generate Video
-export async function aiGenerateVideo(prompt: string, imagesBase64?: string[]): Promise<{ videoBase64: string, usage: any, creditsUsed: number }> {
+export async function aiGenerateVideo(prompt: string, imagesBase64?: string[], onJobCreated?: (jobId: string) => void): Promise<{ videoBase64: string, usage: any, creditsUsed: number }> {
     console.log('[AI] aiGenerateVideo (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
     const cleanImages = imagesBase64?.map(cleanPrefix);
-    const result = await firebase.generateSpellVideoGen(prompt, cleanImages);
+    const result = await firebase.generateSpellVideoGen(prompt, cleanImages, onJobCreated);
     const videoBase64 = await resolveStorageUrlToBase64(result.text);
 
     const creditsUsed = result.creditsUsed || 0;

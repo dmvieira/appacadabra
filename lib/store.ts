@@ -16,6 +16,7 @@ import { t } from './i18n';
 import { useManaStore } from './manaStore';
 import { getStorageFromCache } from './storageCache';
 import { cancelSpellNotifications } from './bridges/messageHandlers';
+import { markBackupDirty } from './backupSync';
 
 const DISMISSED_URI_TTL_MS = 15000;
 
@@ -325,6 +326,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                     // Mark as processed in history to prevent zombies
                     await db.markJobAsProcessed(job.id, job.action);
+                    markBackupDirty();
                 }
             } else if (job.action === 'edit') {
                 const appId = job.payload?.appId;
@@ -376,7 +378,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                         // Mark as processed in history to prevent zombies
                         await db.markJobAsProcessed(job.id, job.action);
-
+                        markBackupDirty();
 
                         // Signal RunnerScreen to exit edit mode via router
                         set({ lastCompletedEditAppId: appId });
@@ -616,6 +618,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     deleteApp: async (id: number) => {
         try {
+            const appToDelete = get().apps.find(a => a.id === id);
+
             // Cancel all scheduled notifications before removing the channel
             try {
                 await cancelSpellNotifications(id);
@@ -642,6 +646,12 @@ export const useAppStore = create<AppState>((set, get) => ({
                 apps: state.apps.filter(a => a.id !== id),
             }));
 
+            // Record tombstone so backup sync knows this app was intentionally deleted
+            if (appToDelete) {
+                await db.addDeletedAppName(appToDelete.name, Date.now());
+                markBackupDirty();
+            }
+
             // Remove from Direct Share shortcuts
             SharingShortcuts.removeShortcut(id.toString());
         } catch (error) {
@@ -661,6 +671,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             set(state => ({
                 apps: state.apps.map(a => a.id === id ? updatedApp : a),
             }));
+            markBackupDirty();
         } catch (error) {
             console.error('Failed to rename app:', error);
             set({ error: t('errorRenamingApp') });
@@ -678,6 +689,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             set(state => ({
                 apps: state.apps.map(a => a.id === id ? updatedApp : a),
             }));
+            markBackupDirty();
         } catch (error) {
             console.error('Failed to update app description:', error);
             set({ error: t('errorUpdatingApp') });
@@ -695,6 +707,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             set(state => ({
                 apps: state.apps.map(a => a.id === id ? updatedApp : a),
             }));
+            markBackupDirty();
         } catch (error) {
             console.error('Failed to update app icon:', error);
             set({ error: t('errorUpdatingIcon') });
@@ -749,6 +762,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 apps: state.apps.map(a => a.id === id ? updatedApp : a),
                 isGenerating: false,
             }));
+            markBackupDirty();
 
             // Notify Listeners (RunnerApp)
             DeviceEventEmitter.emit('APP_UPDATED', { appId: id });
@@ -761,6 +775,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     clearAppStorage: async (id: number) => {
         try {
             await db.clearStorageForApp(id);
+            markBackupDirty();
             set({ statusMessage: t('clearDataSuccess') });
         } catch (error) {
             console.error('Failed to clear app storage:', error);
@@ -843,6 +858,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             // Refresh the app list
             const apps = await db.getAllApps();
             set({ apps });
+            markBackupDirty();
             return newId;
         } catch (error) {
             console.error('Failed to import onboarding spell:', error);
@@ -896,6 +912,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             }));
 
             SharingShortcuts.publishShortcut(id.toString(), createdApp.name, createdApp.iconPath);
+            markBackupDirty();
 
             return createdApp;
         } catch (error) {
@@ -985,6 +1002,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         try {
             await db.updateSortOrders(updates);
+            markBackupDirty();
 
             // Update local state immediately
             const updatedApps = [...apps];

@@ -36,6 +36,7 @@ import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, ExpandedStorageItem } from '../../lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, saveAiMediaToFile, AI_MEDIA_MIME, buildBlobMarker } from '../../lib/bridges/messageHandlers';
+import { waitForExistingJob } from '../../lib/firebase';
 import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -63,6 +64,138 @@ Notifications.setNotificationHandler({
         shouldShowList: true,
     }),
 });
+
+// ============= AI Recovery Helpers =============
+
+/** Escapes a string to be embedded safely as a JSON value inside an injected JS template literal. */
+function escapeForJsInject(str: string): string {
+    return str
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t')
+        .replace(/\u2028/g, '\\u2028')
+        .replace(/\u2029/g, '\\u2029');
+}
+
+/**
+ * Delivers a cached AI result to the webview.
+ * Text results use an ACK postMessage so we only mark delivered after confirmation.
+ * Media results are delivered via the existing chunked mechanism and marked delivered immediately.
+ */
+async function deliverCachedAiResult(
+    entry: db.WebviewAiCacheEntry,
+    webView: WebView
+): Promise<void> {
+    let { id: cacheId, callbackName, result, mediaLocalPath, resultMediaMime, action, success } = entry;
+
+    // Remove any dynamic suffix from previous execution session (used by generateVideo/generateImage)
+    if (callbackName.includes('_intercept_')) {
+        callbackName = callbackName.split('_intercept_')[0];
+    }
+
+    const ackScript = `window.ReactNativeWebView?.postMessage(JSON.stringify({type:'AI_CALLBACK_ACK',cacheId:${cacheId}}));`;
+
+    if (!success) {
+        // Failure — fire callback with false and send ACK
+        // Give the web app 300ms to fully mount its DOM components before firing the callback
+        const script = `(function(){
+            setTimeout(function() {
+                try { if(typeof window["${callbackName}"]==='function') window["${callbackName}"](false,null); } catch(e){}
+                finally { ${ackScript} }
+            }, 300);
+        })(); true;`;
+        webView.injectJavaScript(script);
+        return;
+    }
+
+    if (mediaLocalPath) {
+        const mime = resultMediaMime ?? AI_MEDIA_MIME[action] ?? 'application/octet-stream';
+        try {
+            if (action === 'AI_GENERATE_VIDEO') {
+                // Video delivered as file:// URL — mark delivered immediately (no ACK path for video)
+                const fileUrl = `file://${mediaLocalPath}`;
+                const script = createCallbackScript(callbackName, true, fileUrl);
+                // Delay to ensure the video node exists
+                webView.injectJavaScript(`setTimeout(function(){ ${script} }, 300); true;`);
+                await db.markWebviewAiCacheDelivered(cacheId);
+            } else {
+                const rawB64 = (await FileSystem.readAsStringAsync(`file://${mediaLocalPath}`, {
+                    encoding: FileSystem.EncodingType.Base64,
+                })).replace(/[\r\n]/g, '');
+                const marker = buildBlobMarker(mime, callbackName, mediaLocalPath);
+                webView.injectJavaScript(`setTimeout(function(){ ${createMediaCallbackScript(callbackName, true, marker)} }, 300); true;`);
+                const CHUNK_SIZE = 64 * 1024;
+                const totalChunks = Math.ceil(rawB64.length / CHUNK_SIZE);
+                for (let i = 0; i < totalChunks; i++) {
+                    const chunk = rawB64.substring(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, rawB64.length));
+                    webView.injectJavaScript(createMediaChunkScript(marker, chunk, i, totalChunks));
+                }
+                // Mark delivered immediately — chunk delivery is fire-and-forget
+                await db.markWebviewAiCacheDelivered(cacheId);
+            }
+        } catch (e) {
+            console.warn('[Runner] Recovery: media delivery failed, cleaning up entry', cacheId, e);
+            await db.markWebviewAiCacheDelivered(cacheId);
+        }
+        return;
+    }
+
+    // Text result — wrap with try/finally ACK, with a short delay for UI initialization
+    const escaped = escapeForJsInject(result);
+    const script = `(function(){
+        console.log('[AppacadabraAI Recovery] Scheduling delivery for callback: ${callbackName}');
+        setTimeout(function() {
+            console.log('[AppacadabraAI Recovery] Firing callback: ${callbackName}');
+            try {
+                if(typeof window["${callbackName}"]==='function') {
+                    console.log('[AppacadabraAI Recovery] Found on window object');
+                    window["${callbackName}"](true,"${escaped}");
+                } else { 
+                    console.log('[AppacadabraAI Recovery] Not on window, attempting eval fallback');
+                    try { 
+                        eval('${callbackName}(true,"${escaped}")'); 
+                        console.log('[AppacadabraAI Recovery] Eval fallback succeeded');
+                    } catch(e) {
+                         console.error('[AppacadabraAI Recovery] Eval fallback failed:', e);
+                    } 
+                }
+            } catch(e){ console.error('[AppacadabraAI Recovery] Callback threw:',e); }
+            finally { 
+                console.log('[AppacadabraAI Recovery] Sending ACK to native bridge');
+                ${ackScript} 
+            }
+        }, 1500); // 1.5s delay to ensure robust framework mounting
+    })(); true;`;
+    webView.injectJavaScript(script);
+}
+
+/**
+ * Re-attaches a Firestore listener for a job that was still processing when the webview reloaded.
+ * Uses listeningJobIds to prevent duplicate listeners on repeated pull-to-refresh.
+ */
+function reattachJobListener(
+    entry: db.WebviewAiCacheEntry,
+    webViewRef: React.RefObject<WebView | null>,
+    appId: number,
+    listeningJobIds: React.MutableRefObject<Set<string>>
+): void {
+    if (listeningJobIds.current.has(entry.jobId!)) return;
+    listeningJobIds.current.add(entry.jobId!);
+
+    waitForExistingJob(entry.jobId!).then(async (genResult) => {
+        listeningJobIds.current.delete(entry.jobId!);
+        await db.updateWebviewAiCacheResult(entry.id, genResult.text, null, null, true);
+        if (webViewRef.current) {
+            await deliverCachedAiResult({ ...entry, result: genResult.text, success: 1 }, webViewRef.current);
+        }
+    }).catch(async (err) => {
+        console.warn('[Runner] reattachJobListener: job failed or timed out', entry.jobId, err);
+        listeningJobIds.current.delete(entry.jobId!);
+        await db.markWebviewAiCacheDelivered(entry.id);
+    });
+}
 
 export default function RunnerScreen() {
     const { id, edit, share, payload } = useLocalSearchParams<{ id: string; edit?: string; share?: string; payload?: string }>();
@@ -130,6 +263,7 @@ export default function RunnerScreen() {
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [lastUrl, setLastUrl] = useState<string | null>(null);
+    const isRestoring = useRef(true); // Prevent infinite reload loops from window.location.replace
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
@@ -143,6 +277,8 @@ export default function RunnerScreen() {
     const [storageLoaded, setStorageLoaded] = useState(false);
     // Use ref to ensure storage is available synchronously for script creation
     const savedStorageRef = useRef<ExpandedStorageItem[]>([]);
+    // Tracks jobIds already being re-listened to — prevents duplicate listeners on repeated pull-to-refresh
+    const listeningJobIds = useRef<Set<string>>(new Set());
 
     const htmlContent = useMemo(() => {
         if (!app) return '';
@@ -664,8 +800,9 @@ export default function RunnerScreen() {
         console.log('Runner: handleLoadEnd called');
 
         if (webViewRef.current && app) {
-            // Restore URL/Hash if it's different from base
-            if (lastUrl && (lastUrl.includes('#') || lastUrl.includes('?'))) {
+            // Restore URL/Hash if it's different from base, securely wrapped with isRestoring
+            if (isRestoring.current && lastUrl && (lastUrl.includes('#') || lastUrl.includes('?'))) {
+                isRestoring.current = false; // consume the restore ticket
                 console.log(`[Runner] Restoring last URL: ${lastUrl}`);
                 if (lastUrl.includes('#')) {
                     const hash = lastUrl.split('#')[1];
@@ -687,39 +824,19 @@ export default function RunnerScreen() {
             // Recover undelivered AI responses (skip in edit mode — would re-trigger AI callbacks)
             if (!isEditMode) try {
                 const pending = await db.getUndeliveredWebviewAiCache(app.id);
-                if (pending.length > 0 && webViewRef.current) {
-                    const recoveries = await Promise.all(pending.map(async (entry) => {
-                        let recoveryResult = entry.result;
-                        if (entry.mediaLocalPath) {
-                            // Video: deliver as file:// URL to avoid huge data URI on iOS WKWebView
-                            if (entry.action === 'AI_GENERATE_VIDEO') {
-                                recoveryResult = `file://${entry.mediaLocalPath}`;
-                            } else {
-                                try {
-                                    const rawB64 = await FileSystem.readAsStringAsync(
-                                        `file://${entry.mediaLocalPath}`, { encoding: FileSystem.EncodingType.Base64 }
-                                    );
-                                    const mime = AI_MEDIA_MIME[entry.action] ?? 'application/octet-stream';
-                                    // Always include data URI prefix so WebView can render directly
-                                    recoveryResult = `data:${mime};base64,${rawB64.replace(/\s/g, '')}`;
-                                } catch { /* keep DB result (file URI or URL) */ }
-                            }
-                        }
+                for (const entry of pending) {
+                    if (!webViewRef.current) break;
+                    const hasResult = entry.result !== '' || entry.mediaLocalPath !== null;
+                    if (hasResult) {
+                        // Result already cached — deliver directly to webview
+                        await deliverCachedAiResult(entry, webViewRef.current);
+                    } else if (entry.jobId) {
+                        // Job still processing — re-attach Firestore listener
+                        reattachJobListener(entry, webViewRef, app.id, listeningJobIds);
+                    } else {
+                        // No jobId and no result — job died before doc was created; clean up
                         await db.markWebviewAiCacheDelivered(entry.id);
-                        return {
-                            callbackName: entry.callbackName,
-                            action: entry.action,
-                            requestData: entry.requestData,
-                            result: recoveryResult,
-                            success: entry.success === 1,
-                        };
-                    }));
-                    webViewRef.current.injectJavaScript(`(function(){
-                        window.__appacadabra_ai_pending = ${JSON.stringify(recoveries)};
-                        document.dispatchEvent(new CustomEvent('appacadabra:ai:recovered', {
-                            detail: window.__appacadabra_ai_pending
-                        }));
-                    })(); true;`);
+                    }
                 }
             } catch (e) {
                 console.warn('[Runner] AI cache recovery failed:', e);
@@ -849,6 +966,17 @@ export default function RunnerScreen() {
                         responseBody: data.responseBody || data.error,
                     }]);
                     break;
+
+                case 'AI_CALLBACK_ACK': {
+                    // Webview confirms it received and invoked the recovered AI callback
+                    const { cacheId } = data;
+                    if (cacheId != null) {
+                        await db.markWebviewAiCacheDelivered(cacheId);
+                        console.log(`[Runner] AI callback ACK received for cacheId=${cacheId}`);
+                    }
+                    return; // No callback to webview needed
+                }
+
                 default: {
                     const isAiAction = [
                         'AI_GENERATE', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI', 'AI_SIMILARITY',
@@ -860,6 +988,21 @@ export default function RunnerScreen() {
 
                     if (isAiAction && !isEditMode) setIsAiLoading(true);
 
+                    // Pre-save pending cache entry BEFORE job starts so recovery works on reload
+                    let cacheId: number | null = null;
+                    if (isAiAction && !isEditMode && app?.id && callbackName) {
+                        try {
+                            cacheId = await db.saveWebviewAiCachePending(app.id, callbackName, type);
+                        } catch (e) {
+                            console.warn('[Runner] Failed to pre-save AI cache:', e);
+                        }
+                    }
+
+                    // Callback fired once Firestore job doc is created — records jobId for recovery
+                    const onJobCreated = cacheId != null ? async (jobId: string) => {
+                        try { await db.updateWebviewAiCacheJobId(cacheId!, jobId); } catch {}
+                    } : undefined;
+
                     let handlerResult;
                     try {
                         // Delegate to shared handlers for common message types
@@ -868,6 +1011,7 @@ export default function RunnerScreen() {
                             viewContainerRef: viewContainerRef,
                             appId: app?.id || null,
                             callbackName,
+                            onJobCreated,
                         });
                         if (handlerResult.handled) {
                             success = handlerResult.success;
@@ -883,45 +1027,45 @@ export default function RunnerScreen() {
                         if (isAiAction && !isEditMode) setIsAiLoading(false);
                     }
 
-                    if (isAiAction && !isEditMode && handlerResult && handlerResult.handled && app?.id && callbackName && success) {
+                    if (isAiAction && !isEditMode && handlerResult && handlerResult.handled && app?.id && callbackName) {
                         try {
-                            const isMedia = type !== 'AI_GENERATE';
-                            cacheResult = result;
-                            if (isMedia && success && result && !result.startsWith('http')) {
-                                const isMarker = result.startsWith('__appblob__:');
-                                // Detect real filesystem paths (not base64 — JPEG base64 starts with /9j/)
-                                const looksLikePath = !isMarker && (result.startsWith('file://') ||
-                                    (result.startsWith('/') && result.length < 1000 && /^\/[\w.]/.test(result)));
-                                if (isMarker) {
-                                    // Already a blob marker (e.g. CAMERA_TAKE_PHOTO) — extract path directly
-                                    const parts = result.split('|');
-                                    if (parts.length >= 3) mediaLocalPath = parts[2];
-                                    cacheResult = result;
-                                } else if (looksLikePath) {
-                                    mediaLocalPath = result.startsWith('file://') ? result.slice(7) : result;
-                                    cacheResult = `file://${mediaLocalPath}`;
-                                } else {
-                                    try {
-                                        mediaLocalPath = await saveAiMediaToFile(app.id, callbackName, type, result);
+                            if (success) {
+                                const isMedia = type !== 'AI_GENERATE' && type !== 'AI_SIMILARITY';
+                                cacheResult = result;
+                                if (isMedia && result && !result.startsWith('http')) {
+                                    const isMarker = result.startsWith('__appblob__:');
+                                    // Detect real filesystem paths (not base64 — JPEG base64 starts with /9j/)
+                                    const looksLikePath = !isMarker && (result.startsWith('file://') ||
+                                        (result.startsWith('/') && result.length < 1000 && /^\/[\w.]/.test(result)));
+                                    if (isMarker) {
+                                        // Already a blob marker — extract path directly
+                                        const parts = result.split('|');
+                                        if (parts.length >= 3) mediaLocalPath = parts[2];
+                                        cacheResult = result;
+                                    } else if (looksLikePath) {
+                                        mediaLocalPath = result.startsWith('file://') ? result.slice(7) : result;
                                         cacheResult = `file://${mediaLocalPath}`;
-                                        registerPendingMediaBlob(result, callbackName, AI_MEDIA_MIME[type]);
-                                    } catch (fileErr) {
-                                        console.warn('[Runner] Failed to save media file:', fileErr);
+                                    } else {
+                                        try {
+                                            mediaLocalPath = await saveAiMediaToFile(app.id, callbackName, type, result);
+                                            cacheResult = `file://${mediaLocalPath}`;
+                                            registerPendingMediaBlob(result, callbackName, AI_MEDIA_MIME[type]);
+                                        } catch (fileErr) {
+                                            console.warn('[Runner] Failed to save media file:', fileErr);
+                                        }
                                     }
                                 }
+                                if (cacheId != null) {
+                                    const mime = mediaLocalPath ? (AI_MEDIA_MIME[type] ?? null) : null;
+                                    await db.updateWebviewAiCacheResult(cacheId, cacheResult, mediaLocalPath ?? null, mime, true);
+                                }
+                            } else if (cacheId != null) {
+                                // Error: record the error text and mark delivered immediately — no recovery needed
+                                await db.updateWebviewAiCacheResult(cacheId, result, null, null, false);
+                                await db.markWebviewAiCacheDelivered(cacheId);
                             }
-                            await db.saveWebviewAiCache({
-                                appId: app.id,
-                                callbackName,
-                                action: type,
-                                requestData: JSON.stringify(data),
-                                result: cacheResult,
-                                mediaLocalPath,
-                                creditsUsed: handlerResult.creditsUsed ?? 0,
-                                success: success ? 1 : 0,
-                            });
                         } catch (cacheErr) {
-                            console.warn('[Runner] Failed to cache AI response:', cacheErr);
+                            console.warn('[Runner] Failed to update AI cache:', cacheErr);
                         }
                     }
 
@@ -1021,6 +1165,12 @@ export default function RunnerScreen() {
     // Apply AI edit
     const handleApplyEdit = async () => {
         if (!app || !editPrompt.trim()) return;
+
+        const { balance, openShop } = useManaStore.getState();
+        if (balance <= 0) {
+            openShop();
+            return;
+        }
 
         setIsEditing(true);
         try {

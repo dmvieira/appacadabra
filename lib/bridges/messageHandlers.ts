@@ -445,6 +445,7 @@ export interface HandlerContext {
     viewContainerRef?: React.RefObject<any>; // Useful for screen capture
     appId: number | null;
     callbackName?: string; // Callback name from the message wrapper
+    onJobCreated?: (jobId: string) => void; // Called when Firestore job doc is created
 }
 
 export interface HandlerResult {
@@ -488,23 +489,10 @@ const mapSleepStage = (stage: number): string => {
 };
 
 // ============= Mana Cost Estimator =============
-async function estimateManaCost(type: string, data: any): Promise<string> {
+async function estimateManaCost(type: string, data: any): Promise<{ display: string; value: number }> {
     const manaLabel = t('mana');
-    try {
-        const result = await ai.estimateManaCost(type, data);
-        return `${result.mana} ${manaLabel}`;
-    } catch (e) {
-        console.warn('[Bridge] Remote mana estimation failed, using local fallback:', e);
-        // Minimal local fallback
-        switch (type) {
-            case 'generate': return `~2-5 ${manaLabel}`;
-            case 'image': return `~0.5 ${manaLabel}`;
-            case 'video': return `~20-40 ${manaLabel}`;
-            case 'audio': return `~0.1 ${manaLabel}`;
-            case 'similarity': return `~0.01 ${manaLabel}`;
-            default: return `~1 ${manaLabel}`;
-        }
-    }
+    const result = await ai.estimateManaCost(type, data); // throws if fails — no local fallback
+    return { display: `${result.mana} ${manaLabel}`, value: result.value };
 }
 
 export async function handleBridgeMessage(
@@ -534,8 +522,21 @@ export async function handleBridgeMessage(
 
     switch (type) {
         case 'AI_GENERATE': {
+            let generateCostDisplay: string;
+            let generateCostValue: number;
+            try {
+                ({ display: generateCostDisplay, value: generateCostValue } = await estimateManaCost('generate', data));
+            } catch (e) {
+                console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
+            if (generateCostValue > useManaStore.getState().balance) {
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
             const manaConfirmedGenerate = await useBridgeUIStore.getState()
-                .requestManaConfirmation(ctx.appId, 'generate', await estimateManaCost('generate', data));
+                .requestManaConfirmation(ctx.appId, 'generate', generateCostDisplay);
             if (!manaConfirmedGenerate) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI Generate request: ${data.prompt?.substring(0, 50)}...`);
             try {
@@ -546,6 +547,7 @@ export async function handleBridgeMessage(
                     images: data.images,
                     videos: data.videos,
                     audios: data.audios,
+                    onJobCreated: ctx.onJobCreated,
                 });
                 result = genResult.text;
 
@@ -586,12 +588,25 @@ export async function handleBridgeMessage(
         }
 
         case 'AI_SIMILARITY': {
+            let similarityCostDisplay: string;
+            let similarityCostValue: number;
+            try {
+                ({ display: similarityCostDisplay, value: similarityCostValue } = await estimateManaCost('similarity', data));
+            } catch (e) {
+                console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
+            if (similarityCostValue > useManaStore.getState().balance) {
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
             const manaConfirmedSimilarity = await useBridgeUIStore.getState()
-                .requestManaConfirmation(ctx.appId, 'similarity', await estimateManaCost('similarity', data));
+                .requestManaConfirmation(ctx.appId, 'similarity', similarityCostDisplay);
             if (!manaConfirmedSimilarity) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI Similarity request: ${data.items?.length || 0} items`);
             try {
-                const simResult = await ai.aiSimilarity(data.items || []);
+                const simResult = await ai.aiSimilarity(data.items || [], ctx.onJobCreated);
                 result = simResult.text;
 
                 const creditsUsed = simResult.creditsUsed || 0;
@@ -1708,12 +1723,25 @@ export async function handleBridgeMessage(
 
         // ============= AI TTS Handler (Gemini TTS) =============
         case 'AUDIO_SPEAK_AI': {
+            let audioCostDisplay: string;
+            let audioCostValue: number;
+            try {
+                ({ display: audioCostDisplay, value: audioCostValue } = await estimateManaCost('audio', data));
+            } catch (e) {
+                console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
+            if (audioCostValue > useManaStore.getState().balance) {
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
             const manaConfirmedAudio = await useBridgeUIStore.getState()
-                .requestManaConfirmation(ctx.appId, 'audio', await estimateManaCost('audio', data));
+                .requestManaConfirmation(ctx.appId, 'audio', audioCostDisplay);
             if (!manaConfirmedAudio) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI TTS request: "${data.text?.substring(0, 50)}..." voice=${data.voiceName || 'Aoede'}`);
             try {
-                const ttsResult = await ai.aiGenerateTTS(data.text, data.voiceName);
+                const ttsResult = await ai.aiGenerateTTS(data.text, data.voiceName, ctx.onJobCreated);
                 const { audioBase64, creditsUsed } = ttsResult;
                 creditsUsedResult = creditsUsed;
 
@@ -1801,12 +1829,25 @@ export async function handleBridgeMessage(
 
         // ============= AI Image Generation Handler =============
         case 'AI_GENERATE_IMAGE': {
+            let imageCostDisplay: string;
+            let imageCostValue: number;
+            try {
+                ({ display: imageCostDisplay, value: imageCostValue } = await estimateManaCost('image', data));
+            } catch (e) {
+                console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
+            if (imageCostValue > useManaStore.getState().balance) {
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
             const manaConfirmedImage = await useBridgeUIStore.getState()
-                .requestManaConfirmation(ctx.appId, 'image', await estimateManaCost('image', data));
+                .requestManaConfirmation(ctx.appId, 'image', imageCostDisplay);
             if (!manaConfirmedImage) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI Image Gen request: ${data.prompt?.substring(0, 50)}...`);
             try {
-                const imgResult = await ai.aiGenerateImage(data.prompt, data.images ?? undefined);
+                const imgResult = await ai.aiGenerateImage(data.prompt, data.images ?? undefined, ctx.onJobCreated);
                 result = imgResult.imageBase64;
 
                 // Log cost and update mana
@@ -1843,12 +1884,25 @@ export async function handleBridgeMessage(
         }
 
         case 'AI_GENERATE_VIDEO': {
+            let videoCostDisplay: string;
+            let videoCostValue: number;
+            try {
+                ({ display: videoCostDisplay, value: videoCostValue } = await estimateManaCost('video', data));
+            } catch (e) {
+                console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
+            if (videoCostValue > useManaStore.getState().balance) {
+                useManaStore.getState().openShop();
+                success = false; result = t('manaDepletedMessage'); break;
+            }
             const manaConfirmedVideo = await useBridgeUIStore.getState()
-                .requestManaConfirmation(ctx.appId, 'video', await estimateManaCost('video', data));
+                .requestManaConfirmation(ctx.appId, 'video', videoCostDisplay);
             if (!manaConfirmedVideo) { success = false; result = t('manaConfirmCancelled'); break; }
             debugLog(`AI Video Gen request: ${data.prompt?.substring(0, 50)}...`);
             try {
-                const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined);
+                const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined, ctx.onJobCreated);
                 // Save to permanent storage (base64 too large for JS injection)
                 let permanentVideoPath: string | undefined;
                 if (ctx.appId && ctx.callbackName) {

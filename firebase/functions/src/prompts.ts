@@ -33,13 +33,30 @@ The generated app should use AI and other Appacadabra APIs when makes sense:
 ⚠️ CRITICAL: CALLBACK PATTERN (READ CAREFULLY)
 All Appacadabra API callbacks MUST be global functions on \`window\`.
 
+⚠️ SUPER CRITICAL: BACKGROUND CALLBACK RECOVERY
+Because AI generation can take a long time, the user might close the app and reopen it later. When they reopen the app, your callback might be executed *out of nowhere* while the app is completely reset on its default "Home" screen!
+YOUR CALLBACK MUST BE BULLETPROOF:
+1. It must independently force the UI to switch to the correct "Result" screen or state, regardless of where the user currently is. (e.g., hide home screen, show result container).
+2. It must save the result to \`localStorage\` IMMEDIATELY inside the callback so it isn't lost if they refresh again.
+3. Never assume the UI is still on a "Loading" screen when the callback fires. Assume the app might be completely fresh.
+4. Ensure target DOM elements exist or handle updates safely.
+
 ✅ CORRECT PATTERN:
 \`\`\`javascript
 // 1. Define callback as global function FIRST always with 2 parameters: success (boolean) and resultString (string)
 window.handleAIResult = function(success, resultString) {
-    if (!success) { console.error("Error:", resultString); return; }
+    if (!success) { alert("Error: " + resultString); return; }
+    
+    // A. Save to localStorage immediately
+    localStorage.setItem('my_app_latest_result', resultString);
+    
+    // B. Force UI state to show the result (even if user is on Home screen)
+    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'block';
+    
+    // C. Render the result safely
     const data = JSON.parse(resultString);
-    console.log("Result:", data);
+    document.getElementById('output').innerText = data.text;
 };
 
 // 2. Pass the FUNCTION NAME (string) to the API
@@ -400,6 +417,7 @@ Rules:
     - If you plan a recurring timer or interval → plan clearing it when no longer needed.
     - If you plan localStorage data → plan cleanup when the related item is removed.
     - If you plan a UI element that appears conditionally → plan how it disappears or updates in all states.
+    - If you plan an AI generation feature → plan the exact UI behavior when the callback returns unexpectedly after an app restart. The callback must be able to force the app into the correct "Result" view from any base state, and save the result locally immediately.
     Every action must have a corresponding reaction. Think: "What happens to everything related to this item when it changes or goes away?"
 `;
 

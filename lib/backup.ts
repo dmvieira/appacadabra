@@ -18,7 +18,7 @@ export interface BackupData {
     // New format (React Native)
     versions?: Record<number, AppVersion[]>;
     storage?: Record<number, { key: string; value: string }[]>;
-
+    deletedApps?: { name: string; deletedAt: number }[];
 }
 
 // Android format has versions and localStorage inside each app
@@ -208,11 +208,13 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
         });
     }
 
+    const deletedApps = await db.getDeletedAppNames();
     return {
         version: 2,
         exportedAt: Date.now(),
         createdAt: Date.now(),
         apps: backupApps,
+        deletedApps: deletedApps.length > 0 ? deletedApps : undefined,
     };
 }
 
@@ -401,11 +403,31 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
         const existingNames = new Set(existingApps.map(a => a.name));
         console.log('[Backup] Existing apps count:', existingApps.length, 'Existing names:', Array.from(existingNames));
 
+        // Build tombstone map: combine backup's deletedApps with local tombstones
+        const tombstoneMap = new Map<string, number>(
+            (backup.deletedApps ?? []).map(d => [d.name, d.deletedAt])
+        );
+        const localTombstones = await db.getDeletedAppNames();
+        for (const t of localTombstones) {
+            const existing = tombstoneMap.get(t.name);
+            if (existing === undefined || t.deletedAt > existing) {
+                tombstoneMap.set(t.name, t.deletedAt);
+            }
+        }
+
         let importedCount = 0;
         let skippedCount = 0;
         const importedIds: number[] = [];
 
         for (const app of validApps) {
+            // Skip tombstoned apps (deleted at or after last update)
+            const deletedAt = tombstoneMap.get(app.name);
+            if (deletedAt !== undefined && deletedAt >= app.lastUpdated) {
+                console.log('[Backup] Skipping tombstoned app:', app.name);
+                skippedCount++;
+                continue;
+            }
+
             if (existingNames.has(app.name)) {
                 const existing = existingApps.find(a => a.name === app.name);
                 if (existing && app.lastUpdated > existing.lastUpdated) {

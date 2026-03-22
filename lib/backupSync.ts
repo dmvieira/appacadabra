@@ -84,6 +84,15 @@ async function deleteDriveFile(accessToken: string, fileId: string): Promise<voi
 
 /** Merge two BackupData objects, keeping the more recently updated version of each app */
 function mergeBackups(local: BackupData, remote: BackupData): BackupData {
+    // Merge tombstones: per name, keep the most recent deletedAt
+    const tombstoneMap = new Map<string, number>();
+    for (const d of [...(local.deletedApps ?? []), ...(remote.deletedApps ?? [])]) {
+        const existing = tombstoneMap.get(d.name);
+        if (existing === undefined || d.deletedAt > existing) {
+            tombstoneMap.set(d.name, d.deletedAt);
+        }
+    }
+
     const map = new Map<string, BackupApp>();
     // Remote first, then local overwrites if local is newer (or equal)
     for (const app of [...remote.apps, ...local.apps]) {
@@ -106,7 +115,18 @@ function mergeBackups(local: BackupData, remote: BackupData): BackupData {
             });
         }
     }
-    return { ...local, apps: Array.from(map.values()) };
+
+    // Filter out tombstoned apps
+    const mergedApps = Array.from(map.values()).filter(app => {
+        const deletedAt = tombstoneMap.get(app.name);
+        return deletedAt === undefined || app.lastUpdated > deletedAt;
+    });
+
+    const deletedApps = tombstoneMap.size > 0
+        ? Array.from(tombstoneMap.entries()).map(([name, deletedAt]) => ({ name, deletedAt }))
+        : undefined;
+
+    return { ...local, apps: mergedApps, deletedApps };
 }
 
 /** Upload (create or update) backup to Google Drive appDataFolder.

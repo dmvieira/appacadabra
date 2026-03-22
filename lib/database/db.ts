@@ -91,6 +91,11 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS deleted_app_names (
+      name TEXT PRIMARY KEY NOT NULL,
+      deletedAt INTEGER NOT NULL
+    );
   `);
 
     // Helper to safely add column if missing
@@ -113,6 +118,25 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await addColumn('generated_apps', 'createdAt', 'INTEGER NOT NULL DEFAULT 0');
     await addColumn('generated_apps', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
     await addColumn('app_versions', 'jobId', 'TEXT');
+
+    // webview_ai_cache: new columns for job tracking and recovery
+    await addColumn('webview_ai_cache', 'jobId', 'TEXT');
+    await addColumn('webview_ai_cache', 'resultMediaMime', 'TEXT');
+
+    // Dedup + add unique index on (appId, callbackName) for INSERT OR REPLACE behavior
+    try {
+        await database.execAsync(`
+            DELETE FROM webview_ai_cache
+            WHERE id NOT IN (
+                SELECT MAX(id) FROM webview_ai_cache GROUP BY appId, callbackName
+            );
+        `);
+        await database.execAsync(
+            `CREATE UNIQUE INDEX IF NOT EXISTS idx_wac_appId_callbackName ON webview_ai_cache(appId, callbackName);`
+        );
+    } catch (e) {
+        console.log('[DB] Migration error (webview_ai_cache unique index):', e);
+    }
 
     await database.execAsync(`
     CREATE TABLE IF NOT EXISTS processed_jobs (
@@ -162,6 +186,15 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     `);
     } catch (e) {
         // Ignore backfill errors
+    }
+
+    // Clean up tombstones older than 90 days
+    try {
+        await database.execAsync(
+            `DELETE FROM deleted_app_names WHERE deletedAt < (strftime('%s','now') * 1000 - 7776000000);`
+        );
+    } catch (e) {
+        console.log('[DB] Tombstone cleanup error:', e);
     }
 }
 
@@ -456,6 +489,21 @@ export async function clearStorageForApp(appId: number): Promise<void> {
 
 // ============= WebView AI Cache =============
 
+export interface WebviewAiCacheEntry {
+    id: number;
+    appId: number;
+    jobId: string | null;
+    callbackName: string;
+    action: string;
+    result: string;             // '' = pending; text or file:// path when complete
+    mediaLocalPath: string | null;
+    resultMediaMime: string | null;
+    delivered: number;
+    success: number;
+    createdAt: number;
+}
+
+/** Save a completed AI result (used by backup restore & RunnerApp legacy path). */
 export async function saveWebviewAiCache(entry: {
     appId: number; callbackName: string; action: string;
     requestData?: string; result: string; mediaLocalPath?: string;
@@ -473,14 +521,50 @@ export async function saveWebviewAiCache(entry: {
     );
 }
 
-export async function getUndeliveredWebviewAiCache(appId: number): Promise<Array<{
-    id: number; callbackName: string; action: string;
-    requestData: string | null; result: string;
-    mediaLocalPath: string | null; success: number; creditsUsed: number;
-}>> {
+/** Save a pending entry BEFORE the AI job starts. Returns the new row id. */
+export async function saveWebviewAiCachePending(
+    appId: number,
+    callbackName: string,
+    action: string
+): Promise<number> {
+    const database = await getDatabase();
+    const r = await database.runAsync(
+        `INSERT OR REPLACE INTO webview_ai_cache
+         (appId, callbackName, action, result, delivered, success, createdAt)
+         VALUES (?, ?, ?, '', 0, 0, ?)`,
+        [appId, callbackName, action, Date.now()]
+    );
+    return r.lastInsertRowId;
+}
+
+/** Store the Firestore jobId once the job document has been created. */
+export async function updateWebviewAiCacheJobId(id: number, jobId: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        `UPDATE webview_ai_cache SET jobId = ? WHERE id = ?`,
+        [jobId, id]
+    );
+}
+
+/** Update the cache entry with the final result once the job completes. */
+export async function updateWebviewAiCacheResult(
+    id: number,
+    result: string,
+    mediaLocalPath: string | null,
+    resultMediaMime: string | null,
+    success: boolean
+): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        `UPDATE webview_ai_cache SET result = ?, mediaLocalPath = ?, resultMediaMime = ?, success = ? WHERE id = ?`,
+        [result, mediaLocalPath, resultMediaMime, success ? 1 : 0, id]
+    );
+}
+
+export async function getUndeliveredWebviewAiCache(appId: number): Promise<WebviewAiCacheEntry[]> {
     const database = await getDatabase();
     return await database.getAllAsync(
-        `SELECT id, callbackName, action, requestData, result, mediaLocalPath, success, creditsUsed
+        `SELECT id, appId, jobId, callbackName, action, result, mediaLocalPath, resultMediaMime, success, delivered, createdAt
          FROM webview_ai_cache WHERE appId = ? AND delivered = 0 ORDER BY createdAt ASC`,
         [appId]
     ) as any[];
@@ -574,6 +658,23 @@ export async function deleteSetting(key: string): Promise<void> {
     await database.runAsync('DELETE FROM app_settings WHERE key = ?', [key]);
 }
 
+// ============= Deleted App Tombstones =============
+
+export async function addDeletedAppName(name: string, deletedAt: number): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'INSERT OR REPLACE INTO deleted_app_names (name, deletedAt) VALUES (?, ?)',
+        [name, deletedAt]
+    );
+}
+
+export async function getDeletedAppNames(): Promise<{ name: string; deletedAt: number }[]> {
+    const database = await getDatabase();
+    return database.getAllAsync<{ name: string; deletedAt: number }>(
+        'SELECT name, deletedAt FROM deleted_app_names'
+    );
+}
+
 export async function wipeAllData(): Promise<void> {
     const database = await getDatabase();
     await database.execAsync(`
@@ -581,6 +682,7 @@ export async function wipeAllData(): Promise<void> {
         DELETE FROM dismissed_uris;
         DELETE FROM processed_jobs;
         DELETE FROM app_settings;
+        DELETE FROM deleted_app_names;
     `);
     // Note: app_versions, app_storage, and mana_events are deleted via CASCADE from generated_apps
 }

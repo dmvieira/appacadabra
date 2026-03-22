@@ -208,7 +208,11 @@ function sanitizePayload(payload: any): any {
 }
 
 // Helper to submit a job and wait for it
-async function submitJobAndWait(action: Job['action'], payload: any): Promise<GenerationResult> {
+async function submitJobAndWait(
+    action: Job['action'],
+    payload: any,
+    options?: { onJobCreated?: (jobId: string) => void }
+): Promise<GenerationResult> {
     console.log(`[DEBUG] submitJobAndWait called. Action: ${action}`);
     try {
         const userId = await ensureAuthenticated();
@@ -251,6 +255,7 @@ async function submitJobAndWait(action: Job['action'], payload: any): Promise<Ge
         });
 
         console.log(`[DEBUG] Job submitted. ID: ${jobDoc.id}. Listening...`);
+        options?.onJobCreated?.(jobDoc.id);
 
         // Poll/Listen for completion
         return new Promise<GenerationResult>((resolve, reject) => {
@@ -391,6 +396,7 @@ export async function generateSpellWebviewAI(
         videosBase64?: string[];
         audiosBase64?: string[];
         useSearch?: boolean;
+        onJobCreated?: (jobId: string) => void;
     }
 ): Promise<GenerationResult> {
     return submitJobAndWait('webview_ai', {
@@ -400,46 +406,119 @@ export async function generateSpellWebviewAI(
         videosBase64: options?.videosBase64,
         audiosBase64: options?.audiosBase64,
         useSearch: options?.useSearch,
-    });
+    }, { onJobCreated: options?.onJobCreated });
 }
 
 // Similarity (embedding-based)
 export async function generateSpellSimilarity(
-    items: string[]
+    items: string[],
+    onJobCreated?: (jobId: string) => void
 ): Promise<GenerationResult> {
-    return submitJobAndWait('webview_ai_similarity', { items });
+    return submitJobAndWait('webview_ai_similarity', { items }, { onJobCreated });
 }
 
 // Image Generation via Gemini
 export async function generateSpellImageGen(
     prompt: string,
-    imagesBase64?: string[]
+    imagesBase64?: string[],
+    onJobCreated?: (jobId: string) => void
 ): Promise<GenerationResult> {
     return submitJobAndWait('webview_ai_image', {
         prompt: compressContent(prompt),
         imagesBase64,
-    });
+    }, { onJobCreated });
 }
 
 // TTS Generation via Gemini TTS
 export async function generateSpellTTS(
     text: string,
-    voiceName?: string
+    voiceName?: string,
+    onJobCreated?: (jobId: string) => void
 ): Promise<GenerationResult> {
     return submitJobAndWait('webview_ai_tts', {
         prompt: compressContent(text),
         voiceName: voiceName || 'Aoede',
-    });
+    }, { onJobCreated });
 }
 
 // Video Generation via Veo
 export async function generateSpellVideoGen(
     prompt: string,
-    imagesBase64?: string[]
+    imagesBase64?: string[],
+    onJobCreated?: (jobId: string) => void
 ): Promise<GenerationResult> {
     return submitJobAndWait('webview_ai_video', {
         prompt: compressContent(prompt),
         imagesBase64,
+    }, { onJobCreated });
+}
+
+// Attach to an existing job and wait for its completion (used for recovery after reload)
+export async function waitForExistingJob(jobId: string): Promise<GenerationResult> {
+    await ensureAuthenticated();
+    const firestoreDb = getFirestore();
+    const jobDocRef = doc(firestoreDb, 'jobs', jobId);
+
+    return new Promise<GenerationResult>((resolve, reject) => {
+        let retryCount = 0;
+        const BACKOFF_CAP_MS = 30_000;
+        const TOTAL_TIMEOUT_MS = 15 * 60 * 1000;
+        const startedAt = Date.now();
+        let unsubscribe: (() => void) | null = null;
+
+        const listen = () => {
+            if (unsubscribe) unsubscribe();
+            unsubscribe = onSnapshot(jobDocRef, (snapshot) => {
+                const data = snapshot.data() as Job | undefined;
+                if (!data) return;
+
+                if (data.status === 'completed' && data.result) {
+                    unsubscribe?.();
+                    const finalText = decompressContent(data.result.text);
+                    resolve({
+                        text: finalText,
+                        usage: data.result.usage || { promptTokens: 0, responseTokens: 0, totalTokens: 0 },
+                        creditsUsed: data.result.creditsUsed || 0,
+                        creditsRemaining: data.result.creditsRemaining || 0,
+                    });
+                } else if (data.status === 'failed') {
+                    unsubscribe?.();
+                    reject(new Error(data.error || 'Job failed'));
+                }
+            }, async (error) => {
+                if ((error as any).code !== 'unavailable') {
+                    reject(error);
+                    return;
+                }
+                const elapsed = Date.now() - startedAt;
+                if (elapsed >= TOTAL_TIMEOUT_MS) {
+                    try {
+                        const snap = await getDoc(jobDocRef);
+                        const d = snap.data() as Job | undefined;
+                        if (d?.status === 'completed' && d.result) {
+                            const finalText = decompressContent(d.result.text);
+                            resolve({
+                                text: finalText,
+                                usage: d.result.usage || { promptTokens: 0, responseTokens: 0, totalTokens: 0 },
+                                creditsUsed: d.result.creditsUsed || 0,
+                                creditsRemaining: d.result.creditsRemaining || 0,
+                            });
+                            return;
+                        } else if (d?.status === 'failed') {
+                            reject(new Error(d?.error || 'Job failed'));
+                            return;
+                        }
+                    } catch {}
+                    reject(error);
+                    return;
+                }
+                retryCount++;
+                const delay = Math.min(Math.pow(2, retryCount) * 1000, BACKOFF_CAP_MS);
+                setTimeout(listen, delay);
+            });
+        };
+
+        listen();
     });
 }
 

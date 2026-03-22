@@ -1007,8 +1007,35 @@ export const processSpellJob = onDocumentCreated(
             if (!userDoc.exists) throw new Error("User not found");
 
             const userData = userDoc.data()!;
-            if ((userData.credits || 0) < 0.1) {
+            const currentBalance = userData.credits || 0;
+            if (currentBalance < 0.1) {
                 throw new Error("Insufficient credits");
+            }
+
+            // Estimate cost before executing — block if balance is insufficient
+            const actionTypeMap: Record<string, string> = {
+                webview_ai_generate: 'generate',
+                webview_ai_image: 'image',
+                webview_ai_video: 'video',
+                webview_ai_tts: 'audio',
+                webview_ai_similarity: 'similarity',
+            };
+            const estimateType = actionTypeMap[action];
+            const estimatedCost = estimateType
+                ? computeManaCost(estimateType, {
+                    prompt,
+                    text: prompt,
+                    images: imagesBase64,
+                    videos: videosBase64,
+                    audios: audiosBase64,
+                    search: useSearch,
+                    schema,
+                    items,
+                }).value
+                : FIXED_COST_CREATE_EDIT;
+
+            if (estimatedCost > currentBalance) {
+                throw new Error(`Insufficient credits: operation requires ~${estimatedCost.toFixed(2)} mana but balance is ${currentBalance.toFixed(2)}`);
             }
 
             let resultText = "";
@@ -1953,16 +1980,7 @@ export const claimInstallBonus = onCall({ region: 'southamerica-east1' }, async 
     return result;
 });
 
-export const estimateManaCost = onCall({
-    region: 'southamerica-east1',
-    enforceAppCheck: false,
-}, async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
-
-    const { type, data } = request.data;
-    if (!type || !data) throw new HttpsError('invalid-argument', 'Type and data required');
-
-
+function computeManaCost(type: string, data: any): { mana: string; value: number } {
     switch (type) {
         case 'generate': {
             const promptLen = (data.prompt || '').length;
@@ -2031,4 +2049,16 @@ export const estimateManaCost = onCall({
         default:
             return { mana: '~1', value: 1.0 };
     }
+}
+
+export const estimateManaCost = onCall({
+    region: 'southamerica-east1',
+    enforceAppCheck: false,
+}, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
+
+    const { type, data } = request.data;
+    if (!type || !data) throw new HttpsError('invalid-argument', 'Type and data required');
+
+    return computeManaCost(type, data);
 });
