@@ -330,25 +330,36 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                         ]);
                         if (RUNNER_MEDIA_TYPES.has(type) && success && result) {
                             let mediaLocalPath: string | undefined;
-                            const isPath = result.startsWith('file://') ||
-                                (result.startsWith('/') && result.length < 1000 && /^\/[\w.]/.test(result));
-                            
-                            if (isPath) {
-                                mediaLocalPath = result.startsWith('file://') ? result.slice(7) : result;
-                            } else if (result.length > 20) {
-                                try {
-                                    const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
-                                    const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
-                                    const dir = `${FileSystem.documentDirectory}appacadabra_media/${app?.id || 'preview'}`;
-                                    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
-                                    const fileUri = `${dir}/${callbackName || Date.now()}.${ext}`;
-                                    
-                                    // Robust base64 cleaning
-                                    const cleanB64 = result.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
-                                    await FileSystem.writeAsStringAsync(fileUri, cleanB64, { encoding: FileSystem.EncodingType.Base64 });
-                                    mediaLocalPath = fileUri.slice(7);
-                                } catch (fileErr) {
-                                    console.warn('[AppRunner] Failed to save media file:', fileErr);
+
+                            // Handle __appblob__: markers returned by handlers that already saved to disk
+                            if (result.startsWith('__appblob__:')) {
+                                const payload = result.slice('__appblob__:'.length); // "mime|callbackName|/path"
+                                const parts = payload.split('|');
+                                if (parts.length >= 3 && parts[2]) {
+                                    const rawPath = parts[2];
+                                    mediaLocalPath = rawPath.startsWith('file://') ? rawPath.slice(7) : rawPath;
+                                }
+                            } else {
+                                const isPath = result.startsWith('file://') ||
+                                    (result.startsWith('/') && result.length < 1000 && /^\/[\w.]/.test(result));
+
+                                if (isPath) {
+                                    mediaLocalPath = result.startsWith('file://') ? result.slice(7) : result;
+                                } else if (result.length > 20) {
+                                    try {
+                                        const mime = AI_MEDIA_MIME[type] ?? 'application/octet-stream';
+                                        const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
+                                        const dir = `${FileSystem.documentDirectory}appacadabra_media/${app?.id || 'preview'}`;
+                                        await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
+                                        const fileUri = `${dir}/${callbackName || Date.now()}.${ext}`;
+
+                                        // Robust base64 cleaning
+                                        const cleanB64 = result.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
+                                        await FileSystem.writeAsStringAsync(fileUri, cleanB64, { encoding: FileSystem.EncodingType.Base64 });
+                                        mediaLocalPath = fileUri.slice(7);
+                                    } catch (fileErr) {
+                                        console.warn('[AppRunner] Failed to save media file:', fileErr);
+                                    }
                                 }
                             }
 

@@ -154,7 +154,7 @@ export async function saveAiMediaToFile(
     const ext = AI_MEDIA_EXT[action] ?? 'bin';
     const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
     const dir = `${docDir}appacadabra_media/${appId}`;
-    await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => {});
+    await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
     const path = `${dir}/${callbackName}.${ext}`;
     await FileSystem.writeAsStringAsync(`file://${path}`, base64, { encoding: FileSystem.EncodingType.Base64 });
     return path; // bare path (no file://)
@@ -245,7 +245,7 @@ async function storeBlobToFile(appId: number, key: string, value: string): Promi
 
     const safeKey = key.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
     const dir = `${FileSystem.documentDirectory}appacadabra_media/${appId}`;
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
     const fileUri = `${dir}/ls_${safeKey}.${ext}`;
     await FileSystem.writeAsStringAsync(fileUri, base64Data, {
         encoding: FileSystem.EncodingType.Base64,
@@ -2263,7 +2263,7 @@ export async function handleBridgeMessage(
                 } else {
                     // Strip data URI prefix if present and remove ANY whitespace (important for large files)
                     const cleanBase64 = data.base64.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
-                    
+
                     const mimeType = data.mimeType || 'video/mp4';
                     const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
                     videoFileUri = FileSystem.cacheDirectory + `video_play_${Date.now()}.${ext}`;
