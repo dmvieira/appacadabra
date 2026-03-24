@@ -410,7 +410,6 @@ async function ensureHealthAccess(): Promise<{ ok: boolean; error?: string }> {
                 { accessType: 'read', recordType: 'HeartRate' },
                 { accessType: 'read', recordType: 'ExerciseSession' },
                 { accessType: 'read', recordType: 'SleepSession' },
-                { accessType: 'read', recordType: 'Distance' },
                 { accessType: 'read', recordType: 'TotalCaloriesBurned' },
             ];
 
