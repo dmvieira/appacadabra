@@ -134,6 +134,7 @@ import { t } from '../i18n';
 import { useManaStore } from '../manaStore';
 import { useAppStore } from '../store';
 import { updateStorageCache, removeFromStorageCache } from '../storageCache';
+import { marked } from 'marked';
 
 // ============= Storage Blob Helpers =============
 const STORAGE_BLOB_MARKER = '__appblob__:';
@@ -2282,6 +2283,55 @@ export async function handleBridgeMessage(
                 console.error('Print error:', e);
                 success = false;
                 result = e instanceof Error ? e.message : 'Print failed';
+            }
+            break;
+        }
+
+        // ============= PDF Generation Handler =============
+        case 'GENERATE_PDF': {
+            debugLog('Generating PDF...');
+            try {
+                const { content, type } = data;
+                if (!content) {
+                    success = false;
+                    result = 'No content provided';
+                    break;
+                }
+                const bodyHtml = type === 'html' ? null : await marked(String(content));
+                const html = type === 'html'
+                    ? content
+                    : `<!DOCTYPE html><html><head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: -apple-system, system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.7; }
+                h1, h2, h3, h4 { color: #111; margin-top: 1.5em; }
+                h1 { font-size: 2em; border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+                h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.2em; }
+                p { margin: 0.8em 0; }
+                pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; font-size: 0.9em; }
+                code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+                pre code { background: none; padding: 0; }
+                blockquote { border-left: 4px solid #d0d7de; margin: 0; padding: 0 1em; color: #636c76; }
+                table { border-collapse: collapse; width: 100%; }
+                th, td { border: 1px solid #d0d7de; padding: 8px 12px; }
+                th { background: #f6f8fa; }
+                img { max-width: 100%; }
+                a { color: #0969da; }
+                ul, ol { padding-left: 1.5em; }
+                hr { border: none; border-top: 1px solid #eee; }
+            </style>
+        </head><body>${bodyHtml}</body></html>`;
+                const { uri } = await Print.printToFileAsync({ html });
+                const base64 = await FileSystem.readAsStringAsync(uri, {
+                    encoding: FileSystem.EncodingType.Base64
+                });
+                await FileSystem.deleteAsync(uri, { idempotent: true });
+                result = base64;
+            } catch (e) {
+                console.error('PDF generation error:', e);
+                success = false;
+                result = e instanceof Error ? e.message : 'PDF generation failed';
             }
             break;
         }

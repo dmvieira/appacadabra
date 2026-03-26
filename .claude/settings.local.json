@@ -36,7 +36,11 @@
       "Bash(where adb)",
       "Read(//mnt/c/Users/**)",
       "Bash(python:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl:*)",
+      "Bash(find /c -name \"newTrack.toml\" 2>/dev/null; find /c -name \"implement.toml\" 2>/dev/null)",
+      "Bash(grep \"\"marked\"\":*)"
     ]
   }
 }

@@ -651,6 +651,20 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       similarity: function(items, callbackName) {
         console.log('[AppacadabraAI.similarity] items:', items ? items.length : 0, 'callback:', callbackName);
         sendMessage('AI_SIMILARITY', { items: items }, callbackName);
+      },
+      parseJSON: function(str) {
+        if (!str || typeof str !== 'string') return null;
+        try {
+            var clean = str.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+            var fi = clean.indexOf('['), fb = clean.indexOf('{');
+            var start = -1, end = -1;
+            if (fi !== -1 && (fb === -1 || fi < fb)) {
+                start = fi; end = clean.lastIndexOf(']') + 1;
+            } else if (fb !== -1) {
+                start = fb; end = clean.lastIndexOf('}') + 1;
+            }
+            return JSON.parse((start !== -1 && end > start) ? clean.slice(start, end) : clean);
+        } catch (e) { return null; }
       }
     };
   })();
@@ -944,6 +958,73 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
           sendMessage('SCREEN_CAPTURE', {}, callbackName);
       }
   };
+
+  // ============= PDF Generation =============
+  window.AppacadabraFiles = {
+      // Converts markdown or HTML to a PDF and returns base64 via callback
+      // type: 'markdown' (default) | 'html'
+      generatePDF: function(content, type, callbackName) {
+          sendMessage('GENERATE_PDF', { content: content, type: type || 'markdown' }, callbackName);
+      }
+  };
+
+  // ============= UI Helpers =============
+  window.AppacadabraUI = (function() {
+      var LOADER_ID = '__aa_loader';
+      var STYLE_ID  = '__aa_styles';
+
+      function getPrimaryColor() {
+          var c = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+          return c || '#6366f1';
+      }
+
+      function ensureStyles() {
+          if (document.getElementById(STYLE_ID)) return;
+          var s = document.createElement('style');
+          s.id = STYLE_ID;
+          s.textContent =
+              '@keyframes __aaSpin{to{transform:rotate(360deg)}}' +
+              '@keyframes __aaToastIn{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}';
+          document.head.appendChild(s);
+      }
+
+      return {
+          showLoader: function(message, options) {
+              ensureStyles();
+              var opts = options || {};
+              var color = opts.color || getPrimaryColor();
+              var bg    = opts.bg    || 'rgba(255,255,255,0.92)';
+              var el = document.getElementById(LOADER_ID);
+              if (!el) {
+                  el = document.createElement('div');
+                  el.id = LOADER_ID;
+                  document.body.appendChild(el);
+              }
+              el.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9998;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);background:' + bg;
+              el.innerHTML =
+                  '<div style="width:48px;height:48px;border:4px solid rgba(128,128,128,0.2);border-top-color:' + color + ';border-radius:50%;animation:__aaSpin 0.8s linear infinite"></div>' +
+                  '<p style="margin:16px 0 0;font-weight:600;color:' + color + ';font-family:system-ui,sans-serif;font-size:15px;text-align:center;padding:0 24px">' + (message || '') + '</p>';
+          },
+
+          hideLoader: function() {
+              var el = document.getElementById(LOADER_ID);
+              if (el) el.style.display = 'none';
+          },
+
+          toast: function(message, type, options) {
+              ensureStyles();
+              var opts = options || {};
+              var typeColors = { success: '#10b981', error: '#ef4444' };
+              var bg = opts.color || typeColors[type] || getPrimaryColor();
+              var duration = opts.duration != null ? opts.duration : 3000;
+              var el = document.createElement('div');
+              el.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:' + bg + ';color:#fff;padding:12px 20px;border-radius:14px;font-family:system-ui,sans-serif;font-size:15px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.18);animation:__aaToastIn 0.3s ease-out;max-width:88%;text-align:center;pointer-events:none';
+              el.textContent = message;
+              document.body.appendChild(el);
+              setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, duration);
+          }
+      };
+  })();
 
   // ============= Camera (Photo & Scan) =============
   
