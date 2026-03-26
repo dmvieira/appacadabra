@@ -96,6 +96,18 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       name TEXT PRIMARY KEY NOT NULL,
       deletedAt INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS app_alarms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      appId INTEGER NOT NULL,
+      alarmId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      timeMs INTEGER NOT NULL,
+      UNIQUE(appId, alarmId),
+      FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_app_alarms_appId ON app_alarms(appId);
   `);
 
     // Helper to safely add column if missing
@@ -685,4 +697,50 @@ export async function wipeAllData(): Promise<void> {
         DELETE FROM deleted_app_names;
     `);
     // Note: app_versions, app_storage, and mana_events are deleted via CASCADE from generated_apps
+}
+
+// ============= Alarm Operations =============
+
+export interface AlarmRow {
+    alarmId: string;
+    title: string;
+    body: string;
+    timeMs: number;
+}
+
+export async function saveAlarm(appId: number, alarmId: string, title: string, body: string, timeMs: number): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        `INSERT OR REPLACE INTO app_alarms (appId, alarmId, title, body, timeMs) VALUES (?, ?, ?, ?, ?)`,
+        [appId, alarmId, title, body, timeMs]
+    );
+}
+
+export async function deleteAlarm(appId: number, alarmId: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'DELETE FROM app_alarms WHERE appId = ? AND alarmId = ?',
+        [appId, alarmId]
+    );
+}
+
+export async function deleteAllAlarmsForApp(appId: number): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync('DELETE FROM app_alarms WHERE appId = ?', [appId]);
+}
+
+export async function getAlarmsForApp(appId: number): Promise<AlarmRow[]> {
+    const database = await getDatabase();
+    return database.getAllAsync<AlarmRow>(
+        'SELECT alarmId, title, body, timeMs FROM app_alarms WHERE appId = ?',
+        [appId]
+    );
+}
+
+export async function getAllFutureAlarms(): Promise<(AlarmRow & { appId: number })[]> {
+    const database = await getDatabase();
+    return database.getAllAsync<AlarmRow & { appId: number }>(
+        'SELECT appId, alarmId, title, body, timeMs FROM app_alarms WHERE timeMs > ?',
+        [Date.now()]
+    );
 }

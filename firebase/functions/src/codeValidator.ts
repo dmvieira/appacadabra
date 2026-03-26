@@ -175,6 +175,27 @@ function validateCss(css: string): ValidationError[] {
     return errors;
 }
 
+function checkSolidColorScreen(html: string): string | null {
+    // Signal 1: very little visible content
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const bodyContent = bodyMatch ? bodyMatch[1] : html;
+    const strippedText = bodyContent.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    const interactiveElements = (bodyContent.match(/<(button|input|select|textarea|a\s)[^>]*>/gi) || []).length;
+    const hasMinimalContent = strippedText.length < 20 && interactiveElements === 0;
+
+    if (!hasMinimalContent) return null;
+
+    // Signal 2: solid background on a top-level selector
+    const styleBlocks = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+    for (const block of styleBlocks) {
+        const css = block.replace(/<\/?style[^>]*>/gi, '');
+        if (/(?:body|html|:root|\*)\s*\{[^}]*background(?:-color)?/i.test(css)) {
+            return 'Generated HTML appears to be a solid-color screen with no interactive content';
+        }
+    }
+    return null;
+}
+
 /**
  * Main validation function - validates entire HTML file
  */
@@ -198,6 +219,12 @@ export function validateGeneratedCode(html: string): ValidationResult {
         if (match[1] && match[1].trim().length > 0) {
             errors.push(...validateCss(match[1]));
         }
+    }
+
+    // 4. Check for solid-color screen (broken generation)
+    const solidColorError = checkSolidColorScreen(html);
+    if (solidColorError) {
+        errors.push({ type: 'html', message: solidColorError, fixable: true });
     }
 
     // Determine if we can retry

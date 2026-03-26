@@ -14,6 +14,7 @@ import { Toast } from '../components/Toast';
 import { useAppStore } from '../lib/store';
 import * as Notifications from 'expo-notifications';
 import { preloadAllStorage } from '../lib/storageCache';
+import { restoreScheduledAlarms } from '../lib/bridges/messageHandlers';
 
 import * as SplashScreen from 'expo-splash-screen';
 import { Toast as ToastComponent } from '../components/Toast';
@@ -123,6 +124,11 @@ export default function RootLayout() {
         // Preload all app localStorage for faster runner startup
         preloadAllStorage().catch(err => {
             console.error('Failed to preload storage:', err);
+        });
+
+        // Restore AlarmManager entries lost during process restart
+        restoreScheduledAlarms().catch(err => {
+            console.warn('Failed to restore scheduled alarms:', err);
         });
 
         // Initialize Mana Store (Firebase Sync)

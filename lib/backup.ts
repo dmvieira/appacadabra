@@ -7,6 +7,7 @@ import { GeneratedApp, AppVersion, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import { reloadStorageForApp } from './storageCache';
 import { cancelSpellNotifications } from './bridges/messageHandlers';
+import { NativeModules } from 'react-native';
 import { t } from './i18n';
 
 
@@ -40,7 +41,7 @@ export interface BackupApp {
     // Individual mana charge events with original timestamps
     manaEvents?: { amount: number; timestamp: number }[];
     // Scheduled notifications (absolute fire timestamps)
-    notifications?: { identifier: string; title: string; body: string; fireDate: number }[];
+    notifications?: { identifier: string; title: string; body: string; fireDate: number; isAlarm?: boolean }[];
     // Android nested format
     versions?: { version: number; code: string; instruction: string; selectedContext: string; createdAt: number; jobId?: string }[];
     localStorage?: Record<string, string>;
@@ -114,6 +115,21 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
                 });
             } catch (e) {
                 console.warn('Failed to read notifications for backup:', e);
+            }
+
+            try {
+                const alarms = await db.getAlarmsForApp(app.id);
+                alarms.filter(a => a.timeMs > now).forEach(a => {
+                    notifications.push({
+                        identifier: a.alarmId,
+                        title: a.title,
+                        body: a.body,
+                        fireDate: a.timeMs,
+                        isAlarm: true,
+                    });
+                });
+            } catch (e) {
+                console.warn('Failed to read alarms for backup:', e);
             }
 
             try {
@@ -491,19 +507,24 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                             for (const notif of app.notifications) {
                                 const secondsUntilFire = Math.round((notif.fireDate - now) / 1000);
                                 if (secondsUntilFire < 10) continue;
-                                await Notifications.scheduleNotificationAsync({
-                                    content: {
-                                        title: notif.title,
-                                        body: notif.body,
-                                        channelId: `spell-${existing.id}`,
-                                        badge: existing.id,
-                                    } as any,
-                                    trigger: {
-                                        type: 'timeInterval',
-                                        seconds: secondsUntilFire,
-                                        repeats: false,
-                                    } as any,
-                                });
+                                if (notif.isAlarm) {
+                                    await NativeModules.AlarmModule.scheduleAlarm(notif.identifier, notif.title, notif.body, notif.fireDate);
+                                    await db.saveAlarm(existing.id, notif.identifier, notif.title, notif.body, notif.fireDate);
+                                } else {
+                                    await Notifications.scheduleNotificationAsync({
+                                        content: {
+                                            title: notif.title,
+                                            body: notif.body,
+                                            channelId: `spell-${existing.id}`,
+                                            badge: existing.id,
+                                        } as any,
+                                        trigger: {
+                                            type: 'timeInterval',
+                                            seconds: secondsUntilFire,
+                                            repeats: false,
+                                        } as any,
+                                    });
+                                }
                             }
                         }
                     } catch (e) {
@@ -698,19 +719,24 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                     const secondsUntilFire = Math.round((notif.fireDate - now) / 1000);
                     if (secondsUntilFire < 10) continue; // skip already-past or imminent
                     try {
-                        await Notifications.scheduleNotificationAsync({
-                            content: {
-                                title: notif.title,
-                                body: notif.body,
-                                channelId: `spell-${newId}`,
-                                badge: newId,
-                            } as any,
-                            trigger: {
-                                type: 'timeInterval',
-                                seconds: secondsUntilFire,
-                                repeats: false,
-                            } as any,
-                        });
+                        if (notif.isAlarm) {
+                            await NativeModules.AlarmModule.scheduleAlarm(notif.identifier, notif.title, notif.body, notif.fireDate);
+                            await db.saveAlarm(newId, notif.identifier, notif.title, notif.body, notif.fireDate);
+                        } else {
+                            await Notifications.scheduleNotificationAsync({
+                                content: {
+                                    title: notif.title,
+                                    body: notif.body,
+                                    channelId: `spell-${newId}`,
+                                    badge: newId,
+                                } as any,
+                                trigger: {
+                                    type: 'timeInterval',
+                                    seconds: secondsUntilFire,
+                                    repeats: false,
+                                } as any,
+                            });
+                        }
                     } catch (e) {
                         console.warn('Failed to restore notification:', e);
                     }

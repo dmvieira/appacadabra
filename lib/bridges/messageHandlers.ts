@@ -20,7 +20,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { useBridgeUIStore } from '../bridgeUIStore';
 import { markBackupDirty } from '../backupSync';
-import { Vibration } from 'react-native';
+import { Vibration, NativeModules } from 'react-native';
+import * as db from '../database/db';
 import { Accelerometer, Gyroscope, Magnetometer, Pedometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import * as Battery from 'expo-battery';
@@ -315,6 +316,36 @@ export async function migrateStorageBlobsToFiles(appId: number): Promise<void> {
     }
 }
 
+// ============= Alarm Registry (in-memory, AlarmManager not queryable) =============
+interface AlarmEntry {
+    id: string;
+    title: string;
+    body: string;
+    timeMs: number;
+    isAlarm: true;
+}
+// Map<appId, Map<id, AlarmEntry>>
+const alarmRegistry = new Map<number, Map<string, AlarmEntry>>();
+// Track which appIds have been loaded from DB to avoid repeated DB reads
+const alarmRegistryLoaded = new Set<number>();
+
+async function getAlarmRegistry(appId: number): Promise<Map<string, AlarmEntry>> {
+    if (!alarmRegistry.has(appId)) alarmRegistry.set(appId, new Map());
+    const reg = alarmRegistry.get(appId)!;
+    if (!alarmRegistryLoaded.has(appId)) {
+        alarmRegistryLoaded.add(appId);
+        try {
+            const rows = await db.getAlarmsForApp(appId);
+            for (const row of rows) {
+                if (!reg.has(row.alarmId)) {
+                    reg.set(row.alarmId, { id: row.alarmId, title: row.title, body: row.body, timeMs: row.timeMs, isAlarm: true });
+                }
+            }
+        } catch { }
+    }
+    return reg;
+}
+
 // ============= Notification Limits (Native Protection) =============
 const MAX_NOTIFICATIONS_PER_SPELL = 10;
 
@@ -359,10 +390,44 @@ export async function cancelSpellNotifications(appId: number): Promise<void> {
     for (const n of toCancel) {
         await Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => { });
     }
+    const reg = await getAlarmRegistry(appId);
+    for (const alarmId of reg.keys()) {
+        await NativeModules.AlarmModule.cancelAlarm(alarmId).catch(() => { });
+    }
+    reg.clear();
+    alarmRegistryLoaded.delete(appId);
+    await db.deleteAllAlarmsForApp(appId).catch(() => { });
 }
 
 /**
- * Cancel duplicate notification (same title + body) for a spell
+ * Restore all future alarms from SQLite after a process restart.
+ * AlarmManager entries are lost when the RN process dies; this re-registers them.
+ */
+export async function restoreScheduledAlarms(): Promise<void> {
+    const now = Date.now();
+    try {
+        const future = (await db.getAllFutureAlarms()).filter(a => a.timeMs > now);
+        for (const alarm of future) {
+            try {
+                await NativeModules.AlarmModule.scheduleAlarm(
+                    alarm.alarmId, alarm.title, alarm.body, alarm.timeMs
+                );
+                // Update in-memory registry
+                if (!alarmRegistry.has(alarm.appId)) alarmRegistry.set(alarm.appId, new Map());
+                alarmRegistry.get(alarm.appId)!.set(alarm.alarmId, {
+                    id: alarm.alarmId, title: alarm.title, body: alarm.body, timeMs: alarm.timeMs, isAlarm: true
+                });
+                alarmRegistryLoaded.add(alarm.appId);
+            } catch { }
+        }
+        console.log(`[Bridge] restoreScheduledAlarms: restored ${future.length} alarm(s)`);
+    } catch (e) {
+        console.warn('[Bridge] restoreScheduledAlarms failed:', e);
+    }
+}
+
+/**
+ * Cancel duplicate notification or alarm (same title + body) for a spell
  */
 async function cancelDuplicateNotification(appId: number | null, title: string, body: string) {
     console.log(`[Bridge] cancelDuplicateNotification: appId=${appId}, title=${title}`);
@@ -371,17 +436,29 @@ async function cancelDuplicateNotification(appId: number | null, title: string, 
         if (n.content.title === title && n.content.body === body) {
             console.log(`[Bridge] Cancelling duplicate notification: ${n.identifier}`);
             await Notifications.cancelScheduledNotificationAsync(n.identifier);
-            // Don't return true immediately, let's cancel ALL duplicates just in case
+        }
+    }
+    // Also dedup in alarm registry
+    if (appId) {
+        const reg = await getAlarmRegistry(appId);
+        for (const [alarmId, entry] of reg.entries()) {
+            if (entry.title === title && entry.body === body) {
+                console.log(`[Bridge] Cancelling duplicate alarm: ${alarmId}`);
+                await NativeModules.AlarmModule.cancelAlarm(alarmId).catch(() => { });
+                reg.delete(alarmId);
+                await db.deleteAlarm(appId, alarmId).catch(() => { });
+            }
         }
     }
 }
 
 /**
- * Check if spell has reached notification limit
+ * Check if spell has reached notification limit (notifications + alarms combined)
  */
 async function isAtNotificationLimit(appId: number | null): Promise<boolean> {
     const existing = await getSpellNotifications(appId);
-    return existing.length >= MAX_NOTIFICATIONS_PER_SPELL;
+    const alarmCount = appId ? (await getAlarmRegistry(appId)).size : 0;
+    return (existing.length + alarmCount) >= MAX_NOTIFICATIONS_PER_SPELL;
 }
 
 // Singleton promise to prevent parallel permission requests
@@ -826,66 +903,91 @@ export async function handleBridgeMessage(
                     break;
                 }
 
-                // Cancel existing if id provided (upsert behavior)
-                if (data.id) {
-                    try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
-                }
-
                 const titleStr = typeof data.title === 'string' ? data.title : String(data.title || '');
                 const bodyStr = typeof data.message === 'string' ? data.message : String(data.message || t('appName'));
                 const appIdStr = ctx.appId ? String(ctx.appId) : '0';
 
-                // Use minimal delay logic
-                const rawDelay = Math.floor((scheduleDate.getTime() - Date.now()) / 1000);
-                const secondsDelay = Math.max(1, rawDelay);
-
-                // CHEMICALLY PURE OBJECT RECONSTRUCTION
-
-                const safeTrigger: any = {
-                    type: 'timeInterval',
-                    seconds: Number(secondsDelay),
-                    repeats: false,
-                };
-
-                const safeContent: any = {
-                    title: String(titleStr),
-                    body: String(bodyStr),
-                };
-
-                // CRITICAL FIX: The Android scheduler fails to serialize the 'data' JSON object
-                // with "NotSerializableException: org.json.JSONObject".
-                // We will rely ONLY on channelId to identify the spell.
-                if (appIdStr && appIdStr !== '0') {
-                    const channelId = 'spell-' + String(appIdStr);
-
-                    // Create the channel first to ensure it exists and persists
-                    await Notifications.setNotificationChannelAsync(channelId, {
-                        name: data.title || `App ${appIdStr}`,
-                        importance: Notifications.AndroidImportance.DEFAULT,
-                    });
-
-                    safeContent.channelId = channelId;
-
-                    // FALLBACK STRATEGY: Use 'badge' to store the App ID.
-                    // Since 'channelId' is not returning in getAllScheduledNotificationsAsync on Android
-                    // and 'data' causes crashes, 'badge' (a primitive number) is our best bet for identification.
-                    safeContent.badge = Number(appIdStr);
-                }
-
-                const request: any = {
-                    content: safeContent,
-                    trigger: safeTrigger,
-                };
-
+                // Cancel existing if id provided (upsert behavior)
                 if (data.id) {
-                    request.identifier = String(data.id);
+                    try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
+                    // Also cancel from alarm registry if it was an alarm
+                    if (ctx.appId) {
+                        const reg = await getAlarmRegistry(ctx.appId);
+                        if (reg.has(String(data.id))) {
+                            await NativeModules.AlarmModule.cancelAlarm(String(data.id));
+                            reg.delete(String(data.id));
+                            await db.deleteAlarm(ctx.appId, String(data.id)).catch(() => { });
+                        }
+                    }
                 }
 
-                debugLog(`[Bridge] CLEAN OBJECT ATTEMPT: ${JSON.stringify(request)}`);
+                if (data.isAlarm) {
+                    // Route to AlarmManager (fires even on silent/Doze)
+                    const alarmId = data.id ? String(data.id) : `alarm-${ctx.appId}-${Date.now()}`;
+                    await NativeModules.AlarmModule.scheduleAlarm(alarmId, titleStr, bodyStr, scheduleDate.getTime());
 
-                const identifier = await Notifications.scheduleNotificationAsync(request);
-                result = identifier;
-                markBackupDirty();
+                    // Track in memory registry and persist to DB
+                    if (ctx.appId) {
+                        const reg = await getAlarmRegistry(ctx.appId);
+                        reg.set(alarmId, { id: alarmId, title: titleStr, body: bodyStr, timeMs: scheduleDate.getTime(), isAlarm: true });
+                        await db.saveAlarm(ctx.appId, alarmId, titleStr, bodyStr, scheduleDate.getTime()).catch(() => { });
+                    }
+
+                    result = alarmId;
+                    markBackupDirty();
+                } else {
+                    // Use minimal delay logic
+                    const rawDelay = Math.floor((scheduleDate.getTime() - Date.now()) / 1000);
+                    const secondsDelay = Math.max(1, rawDelay);
+
+                    // CHEMICALLY PURE OBJECT RECONSTRUCTION
+
+                    const safeTrigger: any = {
+                        type: 'timeInterval',
+                        seconds: Number(secondsDelay),
+                        repeats: false,
+                    };
+
+                    const safeContent: any = {
+                        title: String(titleStr),
+                        body: String(bodyStr),
+                    };
+
+                    // CRITICAL FIX: The Android scheduler fails to serialize the 'data' JSON object
+                    // with "NotSerializableException: org.json.JSONObject".
+                    // We will rely ONLY on channelId to identify the spell.
+                    if (appIdStr && appIdStr !== '0') {
+                        const channelId = 'spell-' + String(appIdStr);
+
+                        // Create the channel first to ensure it exists and persists
+                        await Notifications.setNotificationChannelAsync(channelId, {
+                            name: data.title || `App ${appIdStr}`,
+                            importance: Notifications.AndroidImportance.DEFAULT,
+                        });
+
+                        safeContent.channelId = channelId;
+
+                        // FALLBACK STRATEGY: Use 'badge' to store the App ID.
+                        // Since 'channelId' is not returning in getAllScheduledNotificationsAsync on Android
+                        // and 'data' causes crashes, 'badge' (a primitive number) is our best bet for identification.
+                        safeContent.badge = Number(appIdStr);
+                    }
+
+                    const request: any = {
+                        content: safeContent,
+                        trigger: safeTrigger,
+                    };
+
+                    if (data.id) {
+                        request.identifier = String(data.id);
+                    }
+
+                    debugLog(`[Bridge] CLEAN OBJECT ATTEMPT: ${JSON.stringify(request)}`);
+
+                    const identifier = await Notifications.scheduleNotificationAsync(request);
+                    result = identifier;
+                    markBackupDirty();
+                }
             } catch (e) {
                 console.error('[Bridge] NOTIFY_SCHEDULE Error:', e);
                 const errorMessage = e instanceof Error ? e.message : String(e);
@@ -906,16 +1008,27 @@ export async function handleBridgeMessage(
 
         case 'NOTIFY_GET_SCHEDULED':
             debugLog(`Notify get scheduled request`);
-            // Get all scheduled notifications for this spell
+            // Get all scheduled notifications + alarms for this spell
             try {
                 const spellNotifications = await getSpellNotifications(ctx.appId);
-                result = JSON.stringify(spellNotifications.map(n => ({
+                const notifItems = spellNotifications.map(n => ({
                     id: n.identifier,
                     title: n.content.title,
                     body: n.content.body,
-                    trigger: n.trigger
-                })));
-                debugLog(`Found ${spellNotifications.length} scheduled notifications`);
+                    trigger: n.trigger,
+                    isAlarm: false,
+                }));
+                const alarmItems = ctx.appId
+                    ? Array.from((await getAlarmRegistry(ctx.appId)).values()).map(a => ({
+                        id: a.id,
+                        title: a.title,
+                        body: a.body,
+                        trigger: { type: 'date', value: a.timeMs },
+                        isAlarm: true,
+                    }))
+                    : [];
+                result = JSON.stringify([...notifItems, ...alarmItems]);
+                debugLog(`Found ${notifItems.length} notifications + ${alarmItems.length} alarms`);
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Error';
@@ -924,8 +1037,21 @@ export async function handleBridgeMessage(
 
         case 'NOTIFY_CANCEL':
             debugLog(`Notify cancel: ${data.id}`);
-            // Cancel a specific notification by ID
+            // Cancel a specific notification or alarm by ID
             try {
+                const idStr = String(data.id);
+                // Check alarm registry first
+                if (ctx.appId) {
+                    const reg = await getAlarmRegistry(ctx.appId);
+                    if (reg.has(idStr)) {
+                        await NativeModules.AlarmModule.cancelAlarm(idStr);
+                        reg.delete(idStr);
+                        await db.deleteAlarm(ctx.appId, idStr).catch(() => { });
+                        result = 'Alarm cancelled';
+                        markBackupDirty();
+                        break;
+                    }
+                }
                 await Notifications.cancelScheduledNotificationAsync(data.id);
                 result = 'Notification cancelled';
                 markBackupDirty();
@@ -937,14 +1063,26 @@ export async function handleBridgeMessage(
 
         case 'NOTIFY_CANCEL_ALL':
             debugLog(`Notify cancel all for spell ${ctx.appId}`);
-            // Cancel all notifications for this spell
+            // Cancel all notifications + alarms for this spell
             try {
                 const spellToCancel = await getSpellNotifications(ctx.appId);
                 debugLog(`Found ${spellToCancel.length} notifications to cancel`);
                 for (const n of spellToCancel) {
                     await Notifications.cancelScheduledNotificationAsync(n.identifier);
                 }
-                result = `Cancelled ${spellToCancel.length} notifications`;
+                // Cancel all alarms for this spell
+                let alarmCancelCount = 0;
+                if (ctx.appId) {
+                    const reg = await getAlarmRegistry(ctx.appId);
+                    for (const alarmId of reg.keys()) {
+                        try { await NativeModules.AlarmModule.cancelAlarm(alarmId); } catch { }
+                        alarmCancelCount++;
+                    }
+                    reg.clear();
+                    alarmRegistryLoaded.delete(ctx.appId);
+                    await db.deleteAllAlarmsForApp(ctx.appId).catch(() => { });
+                }
+                result = `Cancelled ${spellToCancel.length} notifications and ${alarmCancelCount} alarms`;
                 markBackupDirty();
             } catch (e) {
                 success = false;

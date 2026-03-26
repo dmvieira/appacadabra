@@ -86,18 +86,22 @@ AppacadabraAI.generate("Hello", handleResult);
     - **Return**: "Event deleted" (string)
 - **Return for create**: "Calendar opened" (string)
 
-🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app. Use \`id\` to update existing notification.
+🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app (notifications + alarms combined). Use \`id\` to update existing notification.
 - \`showNow(title, msg, callback)\` - Show notification immediately
     - **Return**: Notification ID (string)
 - \`schedule(title, msg, delayMinutes, callback, id?)\` - Schedule after delay
     - **Return**: Notification ID (string)
 - \`scheduleAt(title, msg, timeMs, callback, id?)\` - Schedule at specific time
     - **Return**: Notification ID (string)
-- \`getScheduled(callback)\` - List pending notifications
-    - **Return**: JSON \`[{id, title, body, trigger: { type: "timeInterval"|"date", value: number }}]\` (value is seconds for interval, or timestamp for date)
-- \`cancel(id, callback)\` - Cancel notification by ID
+- \`alarm(title, msg, delayMinutes, callback, id?)\` - Schedule alarm after delay (rings even on silent)
+    - **Return**: Alarm ID (string)
+- \`alarmAt(title, msg, timeMs, callback, id?)\` - Schedule alarm at specific time (rings even on silent)
+    - **Return**: Alarm ID (string)
+- \`getScheduled(callback)\` - List pending notifications and alarms
+    - **Return**: JSON \`[{id, title, body, trigger: { type: "timeInterval"|"date", value: number }, isAlarm: boolean}]\` (value is seconds for interval, or timestamp for date)
+- \`cancel(id, callback)\` - Cancel notification or alarm by ID
     - **Return**: "Cancelled" (string)
-- \`cancelAll(callback)\` - Cancel all notifications from this app
+- \`cancelAll(callback)\` - Cancel all notifications and alarms from this app
     - **Return**: "All cancelled" (string)
 - \`alert(message)\` - Show custom alert dialog (Promise<void>)
 - \`confirm(message)\` - Show custom confirm dialog (Promise<boolean>)

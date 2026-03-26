@@ -36,13 +36,13 @@ function getAI(): GoogleGenAI { return _ai ?? (_ai = new GoogleGenAI({ apiKey: A
 // Main model config (reused for all create/edit/convert calls)
 const MAIN_MODEL_CONFIG = {
     tools: [{ googleSearch: {} }],
-    thinkingConfig: { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH },
+    thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
 };
 
 
 // Config for cached calls — tools must not be repeated here (they live in the cache)
 const CACHED_MAIN_MODEL_CONFIG = {
-    thinkingConfig: { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH },
+    thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
 };
 
 // Context Caching for SYSTEM_INSTRUCTIONS (~1,800 tokens)
@@ -359,32 +359,9 @@ function calcVideoMana(durationSeconds: number, hasImages: boolean): number {
     return costUsd / MANA_VALUE_USD;
 }
 
-// Helper to get text from response, filtering out thinking tokens and logging them
+// Helper to get text from response
 function extractText(result: any): string {
-    const candidate = result.candidates?.[0];
-    if (!candidate?.content?.parts) {
-        // Safe fallback: try result.text() if it doesn't throw, but be aware it might contain thoughts
-        try { return result.text(); } catch { return ""; }
-    }
-
-    let resultText = "";
-    let thoughts = "";
-
-    for (const part of candidate.content.parts) {
-        if (part.thought) {
-            thoughts += part.text || "";
-        } else if (part.text) {
-            resultText += part.text;
-        }
-    }
-
-    if (thoughts) {
-        console.log("--- GEMINI REASONING ---\n" + thoughts + "\n--- END ---");
-    }
-
-    // CRITICAL: Do NOT fallback to result.text if we already have parts, 
-    // because result.text includes thoughts in newer SDK versions.
-    return resultText || "";
+    try { return result.text() || ""; } catch { return ""; }
 }
 
 // Helper to get usage metadata
@@ -1397,8 +1374,8 @@ export const processSpellJob = onDocumentCreated(
                         config: {
                             ...genConfig,
                             thinkingConfig: modelId.includes('gemini-3')
-                                ? { includeThoughts: true, thinkingLevel: toolConfig.length > 0 ? ThinkingLevel.MINIMAL : ThinkingLevel.HIGH }
-                                : { includeThoughts: true, thinkingBudget: modelId.includes('2.5-flash-lite') ? 24576 : 32768 },
+                                ? { thinkingLevel: toolConfig.length > 0 ? ThinkingLevel.MINIMAL : ThinkingLevel.HIGH }
+                                : { thinkingBudget: modelId.includes('2.5-flash-lite') ? 24576 : 32768 },
                             tools: toolConfig.length > 0 ? toolConfig : undefined,
                         },
                     }));

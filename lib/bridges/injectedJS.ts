@@ -687,12 +687,23 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         if (window.__IS_EDIT_MODE__) return;
         var timeMs = Date.now() + (delayMinutes * 60 * 1000);
         console.log('[AppacadabraNotify.schedule] title:', title, 'delay:', delayMinutes, 'min (converted to:', new Date(timeMs).toISOString(), '), id:', id, 'callback:', callbackName);
-        sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id }, callbackName);
+        sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id: id || null }, callbackName);
     },
     scheduleAt: function(title, message, timeMs, callbackName, id) {
         if (window.__IS_EDIT_MODE__) return;
         console.log('[AppacadabraNotify.scheduleAt] title:', title, 'time:', new Date(timeMs).toISOString(), 'id:', id, 'callback:', callbackName);
-        sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id }, callbackName);
+        sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id: id || null }, callbackName);
+    },
+    alarm: function(title, message, delayMinutes, callbackName, id) {
+        if (window.__IS_EDIT_MODE__) return;
+        var timeMs = Date.now() + (delayMinutes * 60 * 1000);
+        console.log('[AppacadabraNotify.alarm] title:', title, 'delay:', delayMinutes, 'min (converted to:', new Date(timeMs).toISOString(), '), id:', id, 'callback:', callbackName);
+        sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id: id || null, isAlarm: true }, callbackName);
+    },
+    alarmAt: function(title, message, timeMs, callbackName, id) {
+        if (window.__IS_EDIT_MODE__) return;
+        console.log('[AppacadabraNotify.alarmAt] title:', title, 'time:', new Date(timeMs).toISOString(), 'id:', id, 'callback:', callbackName);
+        sendMessage('NOTIFY_SCHEDULE', { title, message, timeMs, id: id || null, isAlarm: true }, callbackName);
     },
     getScheduled: function(callbackName) {
         if (window.__IS_EDIT_MODE__) return;
