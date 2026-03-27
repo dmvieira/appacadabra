@@ -684,6 +684,48 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     }
   };
 
+  window.AppacadabraDocs = {
+    createDoc: function(title, content, callbackName) {
+      console.log('[AppacadabraDocs.createDoc] title:', title, 'callback:', callbackName);
+      sendMessage('DOCS_CREATE', { title, content }, callbackName);
+    },
+    getDoc: function(docId, callbackName) {
+      console.log('[AppacadabraDocs.getDoc] docId:', docId, 'callback:', callbackName);
+      sendMessage('DOCS_GET', { docId }, callbackName);
+    },
+    appendText: function(docId, text, callbackName) {
+      console.log('[AppacadabraDocs.appendText] docId:', docId, 'callback:', callbackName);
+      sendMessage('DOCS_APPEND_TEXT', { docId, text }, callbackName);
+    },
+    generatePDF: function(content, type, callbackName) {
+      console.log('[AppacadabraDocs.generatePDF] type:', type, 'callback:', callbackName);
+      sendMessage('GENERATE_PDF', { content, type: type || 'markdown' }, callbackName);
+    }
+  };
+
+  window.AppacadabraSheets = {
+    createSheet: function(title, headers, callbackName) {
+      console.log('[AppacadabraSheets.createSheet] title:', title, 'callback:', callbackName);
+      sendMessage('SHEETS_CREATE', { title, headers: headers || [] }, callbackName);
+    },
+    appendRows: function(sheetId, rows, callbackName) {
+      console.log('[AppacadabraSheets.appendRows] sheetId:', sheetId, 'rows:', rows.length, 'callback:', callbackName);
+      sendMessage('SHEETS_APPEND_ROWS', { sheetId, rows }, callbackName);
+    },
+    getRows: function(sheetId, callbackName) {
+      console.log('[AppacadabraSheets.getRows] sheetId:', sheetId, 'callback:', callbackName);
+      sendMessage('SHEETS_GET_ROWS', { sheetId }, callbackName);
+    },
+    clearRows: function(sheetId, callbackName) {
+      console.log('[AppacadabraSheets.clearRows] sheetId:', sheetId, 'callback:', callbackName);
+      sendMessage('SHEETS_CLEAR_ROWS', { sheetId }, callbackName);
+    },
+    updateCell: function(sheetId, cell, value, callbackName) {
+      console.log('[AppacadabraSheets.updateCell] sheetId:', sheetId, 'cell:', cell, 'callback:', callbackName);
+      sendMessage('SHEETS_UPDATE_CELL', { sheetId, cell, value }, callbackName);
+    }
+  };
+
   window.AppacadabraCalendar = {
     createEvent: function(title, description, startTimeMs, endTimeMs, callbackName) {
         console.log('[AppacadabraCalendar.createEvent] title:', title, 'start:', new Date(startTimeMs).toISOString(), 'end:', new Date(endTimeMs).toISOString(), 'callback:', callbackName);
@@ -971,15 +1013,6 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       },
       capture: function(callbackName) {
           sendMessage('SCREEN_CAPTURE', {}, callbackName);
-      }
-  };
-
-  // ============= PDF Generation =============
-  window.AppacadabraFiles = {
-      // Converts markdown or HTML to a PDF and returns base64 via callback
-      // type: 'markdown' (default) | 'html'
-      generatePDF: function(content, type, callbackName) {
-          sendMessage('GENERATE_PDF', { content: content, type: type || 'markdown' }, callbackName);
       }
   };
 

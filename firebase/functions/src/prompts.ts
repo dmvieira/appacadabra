@@ -133,6 +133,73 @@ const result = await callAI(prompt); // NEVER works after background recovery
   };
   \`\`\`
 
+📄 DOCS (AppacadabraDocs) — Google Sign-In required (consent shown on first use only)
+- \`createDoc(title, content, callback)\` — Creates a Google Doc with optional markdown content
+  - \`content\`: optional markdown string. Supported: \`# H1\`, \`## H2\`, \`### H3\`, \`- bullet\`, \`**bold**\`, \`*italic*\`, plain paragraphs
+  - **Callback data**: \`{ docId, url }\`
+- \`getDoc(docId, callback)\` — Reads document content as markdown (round-trip with \`createDoc\`)
+  - **Callback data**: \`{ title, content }\` (content is markdown string — headings, bullets, bold, italic preserved)
+- \`appendText(docId, text, callback)\` — Appends markdown text to the end of the document
+  - **Callback data**: \`{ docId }\`
+- \`generatePDF(content, type, callback)\` — Converts markdown or HTML to a styled PDF (base64)
+  - \`content\`: markdown string or full HTML document
+  - \`type\`: \`'markdown'\` (default, auto-styled) | \`'html'\` (used as-is)
+  - **Callback data (string)**: Base64-encoded PDF — use with \`AppacadabraShare.shareFile(base64, 'application/pdf', 'doc.pdf', cb)\`
+- **Usage**:
+  \`\`\`js
+  AppacadabraDocs.createDoc("Patient Report",
+    \`# Maria Silva
+## Personal Info
+**Date:** 2026-03-26
+**Diagnosis:** Flu
+
+## Symptoms
+- Fever
+- Cough
+- Fatigue\`,
+    "onDocReady");
+  window.onDocReady = function(ok, data) {
+    if (!ok) return;
+    localStorage.setItem('reportDocId', data.docId);
+    showLink(data.url);
+  };
+  AppacadabraDocs.appendText(localStorage.getItem('reportDocId'),
+    "\\n## Follow-up\\nScheduled for **2026-04-01**", "onAppended");
+  \`\`\`
+
+📊 SHEETS (AppacadabraSheets) — Google Sign-In required (consent shown on first use only)
+- \`createSheet(title, headers[], callback)\` — Creates a Google Spreadsheet
+  - \`headers\`: optional column headers written to row 1 (e.g. \`["Name", "Date", "Status"]\`)
+  - **Callback data**: \`{ sheetId, url }\`
+- \`appendRows(sheetId, rows[][], callback)\` — Appends rows of data
+  - \`rows\`: array of arrays e.g. \`[["Alice", "2026-03-26", "Active"], ["Bob", "2026-03-25", "Pending"]]\`
+  - **Callback data**: \`{ updatedRows }\` (number of rows added)
+- \`getRows(sheetId, callback)\` — Reads all data; first row treated as headers
+  - **Callback data**: \`{ headers: ["Name", "Date"], rows: [{ "Name": "Alice", "Date": "2026-03-26" }, ...] }\`
+- \`clearRows(sheetId, callback)\` — Clears all data from the sheet
+  - **Callback data**: \`{ sheetId }\`
+- \`updateCell(sheetId, cell, value, callback)\` — Sets a single cell value (e.g. \`"B3"\`)
+  - **Callback data**: \`{ sheetId }\`
+- **Usage**:
+  \`\`\`js
+  AppacadabraSheets.createSheet("Patient Log",
+    ["Name", "Date", "Reason", "Status"], "onSheetReady");
+  window.onSheetReady = function(ok, data) {
+    if (!ok) return;
+    localStorage.setItem('logSheetId', data.sheetId);
+  };
+
+  // Log a new patient visit
+  AppacadabraSheets.appendRows(localStorage.getItem('logSheetId'),
+    [["Maria Silva", "2026-03-26", "Consultation", "Completed"]], "onAppended");
+
+  // Read all records
+  AppacadabraSheets.getRows(localStorage.getItem('logSheetId'), "onRows");
+  window.onRows = function(ok, data) {
+    if (ok) renderTable(data.headers, data.rows);
+  };
+  \`\`\`
+
 🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app (notifications + alarms combined). Use \`id\` to update existing notification.
 - \`showNow(title, msg, callback)\` - Show notification immediately
     - **Return**: Notification ID (string)
@@ -298,24 +365,6 @@ const result = await callAI(prompt); // NEVER works after background recovery
 - \`capture(callback)\` - Capture screenshot of current view
     - **Callback Data (string)**: Base64 encoded PNG image
     - **Example**: \`AppacadabraScreen.capture("onScreenshotTaken")\`
-
-📄 FILES (AppacadabraFiles)
-- \`generatePDF(content, type, callback)\` - Convert content to a styled PDF
-    - **content** (string): Markdown text or full HTML document
-    - **type** (string): \`'markdown'\` (default, applies styling) | \`'html'\` (uses content as-is)
-    - **Callback Data (string)**: Base64-encoded PDF
-    - **Usage**: combine with \`AppacadabraShare.shareFile(base64, 'application/pdf', 'doc.pdf', cb)\` to share or save
-    - **Example (markdown)**:
-      \`\`\`js
-      AppacadabraFiles.generatePDF(markdownContent, 'markdown', "onPDFReady");
-      window.onPDFReady = function(success, base64) {
-          if (success) AppacadabraShare.shareFile(base64, 'application/pdf', 'report.pdf', "onShared");
-      };
-      \`\`\`
-    - **Example (HTML)**:
-      \`\`\`js
-      AppacadabraFiles.generatePDF('<h1>Hello</h1><p>World</p>', 'html', "onPDFReady");
-      \`\`\`
 
 🎨 UI HELPERS (AppacadabraUI)
 - \`showLoader(message?, options?)\` - Show a full-screen loading overlay with a spinner. Options: \`{ color?: string, bg?: string }\`. Defaults: color from \`--color-primary\` CSS var or #6366f1; bg: rgba(255,255,255,0.92). **No callback.**

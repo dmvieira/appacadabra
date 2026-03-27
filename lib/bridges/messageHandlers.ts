@@ -574,6 +574,137 @@ async function estimateManaCost(type: string, data: any): Promise<{ display: str
     return { display: `${result.mana} ${manaLabel}`, value: result.value };
 }
 
+// ============= Google Docs Helpers =============
+
+function parseInlineStyles(text: string): Array<{ text: string; bold: boolean; italic: boolean }> {
+    const segments: Array<{ text: string; bold: boolean; italic: boolean }> = [];
+    // Simple parser: handle **bold**, *italic*, and plain text
+    const re = /(\*\*(.+?)\*\*)|(\*(.+?)\*)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            segments.push({ text: text.slice(lastIndex, match.index), bold: false, italic: false });
+        }
+        if (match[1]) {
+            segments.push({ text: match[2], bold: true, italic: false });
+        } else if (match[3]) {
+            segments.push({ text: match[4], bold: false, italic: true });
+        }
+        lastIndex = re.lastIndex;
+    }
+    if (lastIndex < text.length) {
+        segments.push({ text: text.slice(lastIndex), bold: false, italic: false });
+    }
+    return segments.filter(s => s.text.length > 0);
+}
+
+function buildDocsRequests(markdownText: string, startIndex: number): { requests: any[]; endIndex: number } {
+    const lines = markdownText.split('\n');
+    const requests: any[] = [];
+    let cursor = startIndex;
+
+    for (const rawLine of lines) {
+        let lineText = rawLine;
+        let paragraphStyle: string | null = null;
+        let isBullet = false;
+
+        if (lineText.startsWith('### ')) {
+            paragraphStyle = 'HEADING_3';
+            lineText = lineText.slice(4);
+        } else if (lineText.startsWith('## ')) {
+            paragraphStyle = 'HEADING_2';
+            lineText = lineText.slice(3);
+        } else if (lineText.startsWith('# ')) {
+            paragraphStyle = 'HEADING_1';
+            lineText = lineText.slice(2);
+        } else if (lineText.startsWith('- ')) {
+            isBullet = true;
+            lineText = lineText.slice(2);
+        }
+
+        const lineStart = cursor;
+        const segments = parseInlineStyles(lineText);
+
+        for (const seg of segments) {
+            requests.push({ insertText: { location: { index: cursor }, text: seg.text } });
+            if (seg.bold || seg.italic) {
+                requests.push({
+                    updateTextStyle: {
+                        range: { startIndex: cursor, endIndex: cursor + seg.text.length },
+                        textStyle: { bold: seg.bold, italic: seg.italic },
+                        fields: seg.bold && seg.italic ? 'bold,italic' : seg.bold ? 'bold' : 'italic',
+                    },
+                });
+            }
+            cursor += seg.text.length;
+        }
+
+        // Insert newline
+        requests.push({ insertText: { location: { index: cursor }, text: '\n' } });
+        cursor += 1;
+
+        if (paragraphStyle) {
+            requests.push({
+                updateParagraphStyle: {
+                    range: { startIndex: lineStart, endIndex: cursor },
+                    paragraphStyle: { namedStyleType: paragraphStyle },
+                    fields: 'namedStyleType',
+                },
+            });
+        }
+
+        if (isBullet) {
+            requests.push({
+                createParagraphBullets: {
+                    range: { startIndex: lineStart, endIndex: cursor },
+                    bulletPreset: 'BULLET_DISC_CIRCLE_SQUARE',
+                },
+            });
+        }
+    }
+
+    return { requests, endIndex: cursor };
+}
+
+function docsToMarkdown(doc: any): string {
+    const bodyContent: any[] = doc.body?.content || [];
+    const lines: string[] = [];
+
+    for (const section of bodyContent) {
+        const para = section.paragraph;
+        if (!para) continue;
+
+        const styleType: string = para.paragraphStyle?.namedStyleType ?? 'NORMAL_TEXT';
+        const hasBullet = !!para.bullet;
+
+        let prefix = '';
+        if (styleType === 'HEADING_1') prefix = '# ';
+        else if (styleType === 'HEADING_2') prefix = '## ';
+        else if (styleType === 'HEADING_3') prefix = '### ';
+        else if (hasBullet) prefix = '- ';
+
+        let lineText = '';
+        for (const el of (para.elements || [])) {
+            const run = el.textRun;
+            if (!run) continue;
+            let content: string = run.content || '';
+            content = content.replace(/\n$/, '');
+            if (!content) continue;
+            const bold = run.textStyle?.bold ?? false;
+            const italic = run.textStyle?.italic ?? false;
+            if (bold && italic) content = `**_${content}_**`;
+            else if (bold) content = `**${content}**`;
+            else if (italic) content = `*${content}*`;
+            lineText += content;
+        }
+
+        lines.push(prefix + lineText);
+    }
+
+    return lines.join('\n').replace(/\n+$/, '');
+}
+
 export async function handleBridgeMessage(
     type: string,
     data: any,
@@ -2918,6 +3049,339 @@ export async function handleBridgeMessage(
             } catch (e) {
                 success = false;
                 result = e instanceof Error ? e.message : 'Forms get responses error';
+            }
+            break;
+        }
+
+        // ============= Google Docs Handlers =============
+        case 'DOCS_CREATE': {
+            const DOCS_SCOPES = ['https://www.googleapis.com/auth/documents'];
+            const DOCS_API = 'https://docs.googleapis.com/v1/documents';
+
+            debugLog(`Docs create: ${data.title}`);
+            try {
+                const token = await requestGoogleScopes(DOCS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Docs access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const createRes = await fetch(DOCS_API, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: data.title }),
+                });
+                if (!createRes.ok) {
+                    success = false;
+                    result = `Failed to create doc: ${createRes.status} ${await createRes.text()}`;
+                    break;
+                }
+                const created = await createRes.json();
+                const documentId: string = created.documentId;
+
+                if (data.content) {
+                    const { requests } = buildDocsRequests(data.content, 1);
+                    if (requests.length > 0) {
+                        const batchRes = await fetch(`${DOCS_API}/${documentId}:batchUpdate`, {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ requests }),
+                        });
+                        if (!batchRes.ok) {
+                            success = false;
+                            result = `Failed to write doc content: ${batchRes.status} ${await batchRes.text()}`;
+                            break;
+                        }
+                    }
+                }
+
+                result = JSON.stringify({ docId: documentId, url: `https://docs.google.com/document/d/${documentId}/edit` });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Docs create error';
+            }
+            break;
+        }
+
+        case 'DOCS_GET': {
+            const DOCS_SCOPES = ['https://www.googleapis.com/auth/documents'];
+            const DOCS_API = 'https://docs.googleapis.com/v1/documents';
+
+            debugLog(`Docs get: ${data.docId}`);
+            try {
+                const token = await requestGoogleScopes(DOCS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Docs access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const docRes = await fetch(`${DOCS_API}/${data.docId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!docRes.ok) {
+                    success = false;
+                    result = `Failed to get doc: ${docRes.status} ${await docRes.text()}`;
+                    break;
+                }
+                const doc = await docRes.json();
+                const content = docsToMarkdown(doc);
+                result = JSON.stringify({ title: doc.title, content });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Docs get error';
+            }
+            break;
+        }
+
+        case 'DOCS_APPEND_TEXT': {
+            const DOCS_SCOPES = ['https://www.googleapis.com/auth/documents'];
+            const DOCS_API = 'https://docs.googleapis.com/v1/documents';
+
+            debugLog(`Docs append: ${data.docId}`);
+            try {
+                const token = await requestGoogleScopes(DOCS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Docs access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const docRes = await fetch(`${DOCS_API}/${data.docId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!docRes.ok) {
+                    success = false;
+                    result = `Failed to get doc: ${docRes.status} ${await docRes.text()}`;
+                    break;
+                }
+                const doc = await docRes.json();
+                const bodyContent: any[] = doc.body?.content || [];
+                const lastSegment = bodyContent[bodyContent.length - 1];
+                const endIndex: number = (lastSegment?.endIndex ?? 1) - 1;
+
+                const { requests } = buildDocsRequests('\n' + data.text, endIndex);
+                if (requests.length > 0) {
+                    const batchRes = await fetch(`${DOCS_API}/${data.docId}:batchUpdate`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ requests }),
+                    });
+                    if (!batchRes.ok) {
+                        success = false;
+                        result = `Failed to append text: ${batchRes.status} ${await batchRes.text()}`;
+                        break;
+                    }
+                }
+
+                result = JSON.stringify({ docId: data.docId });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Docs append error';
+            }
+            break;
+        }
+
+        // ============= Google Sheets Handlers =============
+        case 'SHEETS_CREATE': {
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+            debugLog(`Sheets create: ${data.title}`);
+            try {
+                const token = await requestGoogleScopes(SHEETS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Sheets access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const createRes = await fetch(SHEETS_API, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        properties: { title: data.title },
+                        sheets: [{ properties: { title: 'Sheet1' } }],
+                    }),
+                });
+                if (!createRes.ok) {
+                    success = false;
+                    result = `Failed to create sheet: ${createRes.status} ${await createRes.text()}`;
+                    break;
+                }
+                const created = await createRes.json();
+                const spreadsheetId: string = created.spreadsheetId;
+
+                const headers: string[] = data.headers || [];
+                if (headers.length > 0) {
+                    const appendRes = await fetch(
+                        `${SHEETS_API}/${spreadsheetId}/values/Sheet1:append?valueInputOption=USER_ENTERED`,
+                        {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ values: [headers] }),
+                        }
+                    );
+                    if (!appendRes.ok) {
+                        success = false;
+                        result = `Failed to write headers: ${appendRes.status} ${await appendRes.text()}`;
+                        break;
+                    }
+                }
+
+                result = JSON.stringify({ sheetId: spreadsheetId, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Sheets create error';
+            }
+            break;
+        }
+
+        case 'SHEETS_APPEND_ROWS': {
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+            debugLog(`Sheets append rows: ${data.sheetId}`);
+            try {
+                const token = await requestGoogleScopes(SHEETS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Sheets access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const rows: string[][] = data.rows || [];
+                if (rows.length === 0) {
+                    result = JSON.stringify({ updatedRows: 0 });
+                    break;
+                }
+
+                const appendRes = await fetch(
+                    `${SHEETS_API}/${data.sheetId}/values/Sheet1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+                    {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: rows }),
+                    }
+                );
+                if (!appendRes.ok) {
+                    success = false;
+                    result = `Failed to append rows: ${appendRes.status} ${await appendRes.text()}`;
+                    break;
+                }
+                const appendData = await appendRes.json();
+                result = JSON.stringify({ updatedRows: appendData.updates?.updatedRows ?? rows.length });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Sheets append rows error';
+            }
+            break;
+        }
+
+        case 'SHEETS_GET_ROWS': {
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+            debugLog(`Sheets get rows: ${data.sheetId}`);
+            try {
+                const token = await requestGoogleScopes(SHEETS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Sheets access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const getRes = await fetch(`${SHEETS_API}/${data.sheetId}/values/Sheet1`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!getRes.ok) {
+                    success = false;
+                    result = `Failed to get rows: ${getRes.status} ${await getRes.text()}`;
+                    break;
+                }
+                const getData = await getRes.json();
+                const values: string[][] = getData.values || [];
+                if (values.length === 0) {
+                    result = JSON.stringify({ headers: [], rows: [] });
+                    break;
+                }
+                const headers: string[] = values[0];
+                const rows = values.slice(1).map((row: string[]) =>
+                    headers.reduce((acc: Record<string, string>, header: string, i: number) => {
+                        acc[header] = row[i] ?? '';
+                        return acc;
+                    }, {})
+                );
+                result = JSON.stringify({ headers, rows });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Sheets get rows error';
+            }
+            break;
+        }
+
+        case 'SHEETS_CLEAR_ROWS': {
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+            debugLog(`Sheets clear rows: ${data.sheetId}`);
+            try {
+                const token = await requestGoogleScopes(SHEETS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Sheets access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const clearRes = await fetch(`${SHEETS_API}/${data.sheetId}/values/Sheet1:clear`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                });
+                if (!clearRes.ok) {
+                    success = false;
+                    result = `Failed to clear rows: ${clearRes.status} ${await clearRes.text()}`;
+                    break;
+                }
+                result = JSON.stringify({ sheetId: data.sheetId });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Sheets clear rows error';
+            }
+            break;
+        }
+
+        case 'SHEETS_UPDATE_CELL': {
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+            debugLog(`Sheets update cell: ${data.sheetId} ${data.cell}`);
+            try {
+                const token = await requestGoogleScopes(SHEETS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Sheets access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const updateRes = await fetch(
+                    `${SHEETS_API}/${data.sheetId}/values/Sheet1!${data.cell}?valueInputOption=USER_ENTERED`,
+                    {
+                        method: 'PUT',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values: [[data.value]] }),
+                    }
+                );
+                if (!updateRes.ok) {
+                    success = false;
+                    result = `Failed to update cell: ${updateRes.status} ${await updateRes.text()}`;
+                    break;
+                }
+                result = JSON.stringify({ sheetId: data.sheetId });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Sheets update cell error';
             }
             break;
         }
