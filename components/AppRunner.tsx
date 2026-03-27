@@ -167,6 +167,39 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     const handleLoadEnd = useCallback(async () => {
         if (!webViewRef.current) return;
 
+        // Recover lost AI callbacks that completed after the component unmounted
+        const COMPLETED_AI_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+        try {
+            const keys = await AsyncStorage.getAllKeys();
+
+            // Deliver completed callbacks (if not too stale)
+            const completedKeys = keys.filter(k => k.startsWith(`completed_ai_${appId}_`));
+            for (const key of completedKeys) {
+                const item = await AsyncStorage.getItem(key);
+                if (item) {
+                    const { callbackName, success, result, savedAt } = JSON.parse(item);
+                    const age = savedAt ? Date.now() - savedAt : Infinity;
+                    if (age <= COMPLETED_AI_MAX_AGE_MS) {
+                        console.log(`[AppRunner] Recovering lost callback: ${callbackName}`);
+                        const script = createCallbackScript(callbackName, success, result);
+                        webViewRef.current.injectJavaScript(script);
+                    } else {
+                        console.log(`[AppRunner] Discarding stale callback: ${callbackName} (age ${Math.round(age / 1000)}s)`);
+                    }
+                }
+                await AsyncStorage.removeItem(key);
+            }
+
+            // Clean up orphaned pending_ai_ entries left by crashed sessions
+            const pendingKeys = keys.filter(k => k.startsWith(`pending_ai_${appId}_`));
+            if (pendingKeys.length > 0) {
+                console.log(`[AppRunner] Cleaning up ${pendingKeys.length} orphaned pending_ai_ entries`);
+                await AsyncStorage.multiRemove(pendingKeys);
+            }
+        } catch (e) {
+            console.warn('[AppRunner] Failed to recover callbacks:', e);
+        }
+
         // Restore storage
         if (savedStorage.length > 0) {
             const expandedStorage = await expandStorageBlobMarkers(savedStorage);
@@ -287,6 +320,21 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
             const messageStr = event.nativeEvent.data;
             const message = JSON.parse(messageStr);
             const { type, data, callbackName } = message;
+
+            // Only track lifecycle for long-running operations that might outlive the WebView.
+            // Fast operations (STORAGE_GET, contacts, etc.) complete while the WebView is alive,
+            // so writing + removing AsyncStorage entries for every call is unnecessary overhead.
+            const LONG_RUNNING_TYPES = new Set([
+                'AI_GENERATE', 'AI_SIMILARITY', 'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO',
+                'AUDIO_SPEAK_AI', 'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
+                'SCANNER_SCAN',
+            ]);
+            const callbackId = (callbackName && LONG_RUNNING_TYPES.has(type))
+                ? `${appId}_${type}_${callbackName}_${Date.now()}`
+                : null;
+            if (callbackId) {
+                await AsyncStorage.setItem(`pending_ai_${callbackId}`, JSON.stringify({ type, callbackName }));
+            }
 
             // Log non-frequent messages
             if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG') {
@@ -796,9 +844,20 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 }
             }
 
-            if (callbackName && webViewRef.current && !deferredCallback) {
-                const script = createCallbackScript(callbackName, success, result);
-                webViewRef.current.injectJavaScript(script);
+            if (callbackId) {
+                if (webViewRef.current && !deferredCallback) {
+                    const script = createCallbackScript(callbackName, success, result);
+                    webViewRef.current.injectJavaScript(script);
+                    await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
+                } else if (!webViewRef.current && !deferredCallback) {
+                    // Component unmounted before we could deliver the result. Save for next boot!
+                    console.log(`[AppRunner] WebView unmounted. Saving callback ${callbackName} for next boot.`);
+                    await AsyncStorage.setItem(`completed_ai_${callbackId}`, JSON.stringify({ callbackName, success, result, savedAt: Date.now() }));
+                    await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
+                } else if (deferredCallback) {
+                    // Media handlers handle delivery incrementally, so we just clear pending tracking
+                    await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
+                }
             }
         } catch (e) {
             console.error('Error handling WebView message:', e);

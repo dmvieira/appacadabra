@@ -450,7 +450,7 @@ export default function HomeScreen() {
                 t('manaDepletedTitle'),
                 t('manaDepletedMessage'),
                 [
-                    { text: t('buyMana'), onPress: openShop },
+                    { text: t('buyMana'), onPress: () => openShop() },
                     { text: t('cancel'), style: 'cancel' }
                 ]
             );
@@ -950,7 +950,7 @@ export default function HomeScreen() {
                 {balance <= 0 && (
                     <TouchableOpacity
                         style={styles.manaWarningBanner}
-                        onPress={openShop}
+                        onPress={() => openShop()}
                         activeOpacity={0.8}
                     >
                         <Text style={styles.manaWarningEmoji}>⚡</Text>
@@ -1120,7 +1120,7 @@ export default function HomeScreen() {
                                 t('manaDepletedTitle'),
                                 t('manaDepletedMessage'),
                                 [
-                                    { text: t('buyMana'), onPress: openShop },
+                                    { text: t('buyMana'), onPress: () => openShop() },
                                     { text: t('cancel'), style: 'cancel' }
                                 ]
                             );
@@ -1442,16 +1442,19 @@ export default function HomeScreen() {
                                 <Text style={styles.legalHeading}>2. Information We Collect</Text>
                                 <Text style={styles.legalText}>• Tool descriptions you provide{'\n'}• Generated code (stored locally){'\n'}• Permissions accessed only when needed (contacts, calendar, location)</Text>
 
-                                <Text style={styles.legalHeading}>3. Storage</Text>
+                                <Text style={styles.legalHeading}>3. Health Data</Text>
+                                <Text style={styles.legalText}>With your explicit consent via Google Health Connect, we access health metrics (Steps, Heart Rate, Calories, Sleep, Exercise) strictly for local processing on your device. We use this data exclusively to display your wellness summary and to generate personalized insights. We do NOT collect, transmit, or store your health data on our or any external servers. Your health data never leaves your device and is never sold or shared.</Text>
+
+                                <Text style={styles.legalHeading}>4. Storage</Text>
                                 <Text style={styles.legalText}>All data is stored exclusively on your device. We do not maintain servers with your personal data.</Text>
 
-                                <Text style={styles.legalHeading}>4. Sharing</Text>
+                                <Text style={styles.legalHeading}>5. Sharing</Text>
                                 <Text style={styles.legalText}>App descriptions are processed by Google Gemini API. We do not sell or share your data with third parties for marketing.</Text>
 
-                                <Text style={styles.legalHeading}>5. Your Rights</Text>
+                                <Text style={styles.legalHeading}>6. Your Rights</Text>
                                 <Text style={styles.legalText}>You can delete any app at any time, revoke permissions, or uninstall the application to remove all local data.</Text>
 
-                                <Text style={styles.legalHeading}>6. Contact</Text>
+                                <Text style={styles.legalHeading}>7. Contact</Text>
                                 <Text style={styles.legalText}>For questions: support@appacadabra.ai</Text>
                             </>
                         ) : (

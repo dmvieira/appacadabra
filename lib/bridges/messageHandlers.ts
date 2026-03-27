@@ -130,7 +130,6 @@ import {
 import { WebView } from 'react-native-webview';
 import * as ai from '../api/ai';
 
-import * as db from '../database/db';
 import { createCallbackScript, ExpandedStorageItem } from './injectedJS';
 import { t } from '../i18n';
 import { useManaStore } from '../manaStore';

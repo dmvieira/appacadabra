@@ -99,3 +99,4 @@ firebase/functions/lib/
 firebase/functions/lib.zip
 firebase/functions/firebase-debug.log*
 firebase/functions/firebase-debug.*.log*
+website/.firebase/

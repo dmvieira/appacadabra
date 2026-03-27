@@ -41,6 +41,7 @@ YOUR CALLBACK MUST BE BULLETPROOF:
 2. It must save the result to \`localStorage\` IMMEDIATELY inside the callback so it isn't lost if they refresh again.
 3. Never assume the UI is still on a "Loading" screen when the callback fires. Assume the app might be completely fresh.
 4. Ensure target DOM elements exist or handle updates safely.
+5. ALWAYS check \`localStorage\` on app initialization to see if there is data from a previous background AI generation that the user hasn't seen yet, and restore the UI.
 
 ✅ CORRECT PATTERN:
 \`\`\`javascript

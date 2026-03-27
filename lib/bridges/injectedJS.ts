@@ -655,7 +655,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       parseJSON: function(str) {
         if (!str || typeof str !== 'string') return null;
         try {
-            var clean = str.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+            var clean = str.replace(/\`\`\`[a-z]*\n?/gi, '').replace(/\`\`\`/g, '').trim();
             var fi = clean.indexOf('['), fb = clean.indexOf('{');
             var start = -1, end = -1;
             if (fi !== -1 && (fb === -1 || fi < fb)) {

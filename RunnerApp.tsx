@@ -28,6 +28,7 @@ import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
 import { t, getWebViewTranslations } from './lib/i18n';
 import { getStorageFromCache, isCacheLoaded, reloadStorageForApp, StorageItem } from './lib/storageCache';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import AiLoadingBar from './components/AiLoadingBar';
 import QRScannerOverlay from './components/QRScannerOverlay';
 import { useBridgeUIStore } from './lib/bridgeUIStore';
@@ -350,6 +351,11 @@ function RunnerContent({ appId }: Props) {
             const { type, data, callbackName: cbName } = message;
             callbackName = cbName;
 
+            const callbackId = callbackName ? `${appId}_${type}_${callbackName}_${Date.now()}` : null;
+            if (callbackId) {
+                await AsyncStorage.setItem(`pending_ai_${callbackId}`, JSON.stringify({ type, data, callbackName }));
+            }
+
             // Skip logging for frequent message types
             if (type !== 'CONSOLE_LOG' && type !== 'NETWORK_LOG' && type !== 'PONG') {
                 console.log('WebView Message received:', type);
@@ -533,8 +539,18 @@ function RunnerContent({ appId }: Props) {
 
                 if (!handledCallback) {
                     console.log(`[RunnerApp] Sending callback: ${callbackName} | type: ${type} | success: ${handlerResult.success}`);
-                    const script = createCallbackScript(callbackName, handlerResult.success, handlerResult.result);
-                    webViewRef.current.injectJavaScript(script);
+                    if (webViewRef.current) {
+                        const script = createCallbackScript(callbackName, handlerResult.success, handlerResult.result);
+                        webViewRef.current.injectJavaScript(script);
+                        if (callbackId) await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
+                    } else if (callbackId) {
+                        console.log(`[RunnerApp] WebView unmounted. Saving callback ${callbackName} for next boot.`);
+                        await AsyncStorage.setItem(`completed_ai_${callbackId}`, JSON.stringify({ callbackName, success: handlerResult.success, result: handlerResult.result }));
+                        await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
+                    }
+                } else if (callbackId) {
+                    // Handled incrementally via media chunking
+                    await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
                 }
             }
 
@@ -548,6 +564,13 @@ function RunnerContent({ appId }: Props) {
                 const errorMsg = e instanceof Error ? e.message : 'Unknown error';
                 const script = createCallbackScript(callbackName, false, errorMsg);
                 webViewRef.current.injectJavaScript(script);
+                // Try to clean up pending_ai from AsyncStorage if we can't access callbackId locally
+                // Note: since callbackId is block-scoped in the try block, we do a best-effort here or just leave it to expire
+            } else if (callbackName && !webViewRef.current) {
+                // If it crashed but we know the callbackName, we can still save an error result
+                const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+                const fallBackId = `${appId}_ERROR_${callbackName}_${Date.now()}`;
+                AsyncStorage.setItem(`completed_ai_${fallBackId}`, JSON.stringify({ callbackName, success: false, result: errorMsg }));
             }
         }
     }, [app]);
@@ -652,6 +675,22 @@ function RunnerContent({ appId }: Props) {
                         onLoadEnd={() => {
                             console.log('RunnerApp: WebView loaded, checking for shared content');
                             setWebViewReady(true);
+
+                            // Recover lost AI callbacks
+                            AsyncStorage.getAllKeys().then(keys => {
+                                const completedKeys = keys.filter(k => k.startsWith(`completed_ai_${appId}_`));
+                                for (const key of completedKeys) {
+                                    AsyncStorage.getItem(key).then(item => {
+                                        if (item && webViewRef.current) {
+                                            const { callbackName, success, result } = JSON.parse(item);
+                                            console.log(`[RunnerApp] Recovering lost callback: ${callbackName}`);
+                                            const script = createCallbackScript(callbackName, success, result);
+                                            webViewRef.current.injectJavaScript(script);
+                                        }
+                                        AsyncStorage.removeItem(key);
+                                    });
+                                }
+                            }).catch(e => console.warn('[RunnerApp] Failed to recover callbacks:', e));
 
                             // Safety net: re-inject restore with DOM scan (corrects images set to raw markers)
                             if (savedStorageRef.current.length > 0 && webViewRef.current) {
