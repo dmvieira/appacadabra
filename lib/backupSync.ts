@@ -1,7 +1,9 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { createBackup, processBackupData, BackupData, BackupApp, readBackupFile } from './backup';
-import { getGoogleAccessToken, isGoogleUser } from './firebase';
+import { requestGoogleScopes, isGoogleUser } from './firebase';
+
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 import { useBackupStore } from './backupStore';
 import { useAppStore } from './store';
 
@@ -231,7 +233,7 @@ async function downloadFromDrive(accessToken: string): Promise<BackupData | null
 /** Check if a backup exists on Google Drive */
 export async function checkDriveBackupExists(): Promise<boolean> {
     if (!isGoogleUser()) return false;
-    const token = await getGoogleAccessToken();
+    const token = await requestGoogleScopes([DRIVE_SCOPE]);
     if (!token) return false;
     const files = await listDriveFiles(token);
     return files.length > 0;
@@ -371,7 +373,7 @@ export async function performBackup(): Promise<boolean> {
                 console.log('[BackupSync] Skipping Drive backup: user is not logged in with Google');
                 return false;
             }
-            const token = await getGoogleAccessToken();
+            const token = await requestGoogleScopes([DRIVE_SCOPE]);
             if (!token) {
                 console.warn('[BackupSync] No access token for Drive backup');
                 return false;
@@ -421,7 +423,7 @@ export async function performRestore(): Promise<{ success: boolean; count: numbe
                 console.log('[BackupSync] Skipping Drive restore: user is not logged in with Google');
                 return { success: false, count: 0 };
             }
-            const token = await getGoogleAccessToken();
+            const token = await requestGoogleScopes([DRIVE_SCOPE]);
             if (!token) return { success: false, count: 0 };
             backupData = await downloadFromDrive(token);
         } else if (backupMode === 'local_folder' && localFolderUri) {

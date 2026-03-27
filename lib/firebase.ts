@@ -632,7 +632,7 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 // Configure Google Sign-In
 GoogleSignin.configure({
-    scopes: ['https://www.googleapis.com/auth/drive.appdata'],
+    // scopes: [] — no upfront scopes; requested lazily per feature
     webClientId: '901177243529-0vod4amdjigg9bvve0h1ebaa609hpdba.apps.googleusercontent.com',
     offlineAccess: true,
     hostedDomain: '',
@@ -727,6 +727,27 @@ export async function getGoogleAccessToken(): Promise<string | null> {
         return tokens.accessToken;
     } catch (e) {
         console.warn('[Firebase] Failed to get Google access token:', e);
+        return null;
+    }
+}
+
+/** Request additional Google OAuth scopes lazily (incremental auth).
+ *  If not signed in: signs in requesting these scopes.
+ *  If already signed in: requests only the new scopes via incremental consent.
+ *  Returns access token, or null if user cancelled/denied.
+ */
+export async function requestGoogleScopes(scopes: string[]): Promise<string | null> {
+    try {
+        const isSignedIn = await GoogleSignin.getCurrentUser() !== null;
+        if (!isSignedIn) {
+            await GoogleSignin.signIn();
+        }
+        await GoogleSignin.requestScopes({ scopes });
+        const tokens = await GoogleSignin.getTokens();
+        return tokens.accessToken;
+    } catch (e: any) {
+        if (e.code === statusCodes.SIGN_IN_CANCELLED) return null;
+        console.error('[requestGoogleScopes] failed:', e);
         return null;
     }
 }

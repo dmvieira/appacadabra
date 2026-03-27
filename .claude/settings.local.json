@@ -40,7 +40,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(curl:*)",
       "Bash(find /c -name \"newTrack.toml\" 2>/dev/null; find /c -name \"implement.toml\" 2>/dev/null)",
-      "Bash(grep \"\"marked\"\":*)"
+      "Bash(grep \"\"marked\"\":*)",
+      "WebFetch(domain:developers.google.com)",
+      "mcp__plugin_firebase_firebase__developerknowledge_get_documents"
     ]
   }
 }

@@ -669,6 +669,21 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
     };
   })();
 
+  window.AppacadabraForms = {
+    createForm: function(title, questions, callbackName) {
+      console.log('[AppacadabraForms.createForm] title:', title, 'questions:', questions.length, 'callback:', callbackName);
+      sendMessage('FORMS_CREATE', { title, questions }, callbackName);
+    },
+    updateForm: function(formId, title, questions, callbackName) {
+      console.log('[AppacadabraForms.updateForm] formId:', formId, 'questions:', questions.length, 'callback:', callbackName);
+      sendMessage('FORMS_UPDATE', { formId, title, questions }, callbackName);
+    },
+    getResponses: function(formId, callbackName) {
+      console.log('[AppacadabraForms.getResponses] formId:', formId, 'callback:', callbackName);
+      sendMessage('FORMS_GET_RESPONSES', { formId }, callbackName);
+    }
+  };
+
   window.AppacadabraCalendar = {
     createEvent: function(title, description, startTimeMs, endTimeMs, callbackName) {
         console.log('[AppacadabraCalendar.createEvent] title:', title, 'start:', new Date(startTimeMs).toISOString(), 'end:', new Date(endTimeMs).toISOString(), 'callback:', callbackName);

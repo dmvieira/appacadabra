@@ -20,6 +20,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { useBridgeUIStore } from '../bridgeUIStore';
 import { markBackupDirty } from '../backupSync';
+import { requestGoogleScopes } from '../firebase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Vibration, NativeModules } from 'react-native';
 import * as db from '../database/db';
 import { Accelerometer, Gyroscope, Magnetometer, Pedometer } from 'expo-sensors';
@@ -2600,6 +2602,322 @@ export async function handleBridgeMessage(
                 console.error('Audio stop error:', e);
                 success = false;
                 result = e instanceof Error ? e.message : 'Audio stop failed';
+            }
+            break;
+        }
+
+        // ============= Google Forms Handlers =============
+        case 'FORMS_CREATE': {
+            const FORMS_SCOPES = [
+                'https://www.googleapis.com/auth/forms.body',
+                'https://www.googleapis.com/auth/forms.responses.readonly',
+            ];
+            const FORMS_API = 'https://forms.googleapis.com/v1/forms';
+
+            debugLog(`Forms create: ${data.title}`);
+            try {
+                const token = await requestGoogleScopes(FORMS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Forms access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                // Step 1: Create form with title
+                const createRes = await fetch(FORMS_API, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ info: { title: data.title } }),
+                });
+                if (!createRes.ok) {
+                    success = false;
+                    result = `Failed to create form: ${createRes.status} ${await createRes.text()}`;
+                    break;
+                }
+                const created = await createRes.json();
+                const formId: string = created.formId;
+
+                // Step 2: Build batchUpdate requests
+                const buildQuestionItem = (q: any, index: number) => {
+                    let questionField: any;
+                    if (q.type === 'text') {
+                        questionField = { textQuestion: { paragraph: false } };
+                    } else if (q.type === 'paragraph') {
+                        questionField = { textQuestion: { paragraph: true } };
+                    } else if (q.type === 'radio') {
+                        questionField = { choiceQuestion: { type: 'RADIO', options: (q.options || []).map((v: string) => ({ value: v })), shuffle: q.shuffle ?? false } };
+                    } else if (q.type === 'checkbox') {
+                        questionField = { choiceQuestion: { type: 'CHECKBOX', options: (q.options || []).map((v: string) => ({ value: v })), shuffle: q.shuffle ?? false } };
+                    } else if (q.type === 'dropdown') {
+                        questionField = { choiceQuestion: { type: 'DROP_DOWN', options: (q.options || []).map((v: string) => ({ value: v })), shuffle: q.shuffle ?? false } };
+                    } else if (q.type === 'date') {
+                        questionField = { dateQuestion: { includeTime: false, includeYear: true } };
+                    } else if (q.type === 'datetime') {
+                        questionField = { dateQuestion: { includeTime: true, includeYear: true } };
+                    } else if (q.type === 'time') {
+                        questionField = { timeQuestion: { duration: false } };
+                    } else if (q.type === 'duration') {
+                        questionField = { timeQuestion: { duration: true } };
+                    } else if (q.type === 'scale') {
+                        questionField = { scaleQuestion: { low: q.low, high: q.high, ...(q.lowLabel ? { lowLabel: q.lowLabel } : {}), ...(q.highLabel ? { highLabel: q.highLabel } : {}) } };
+                    } else if (q.type === 'rating') {
+                        const ICON_MAP: Record<string, string> = { star: 'STAR', heart: 'HEART', thumb: 'THUMB_UP' };
+                        questionField = { ratingQuestion: { ratingScaleLevel: q.level ?? 5, iconType: ICON_MAP[q.icon ?? 'star'] ?? 'STAR' } };
+                    } else {
+                        questionField = { textQuestion: { paragraph: false } };
+                    }
+                    return {
+                        createItem: {
+                            item: {
+                                title: q.title,
+                                questionItem: {
+                                    question: { required: q.required ?? false, ...questionField },
+                                },
+                            },
+                            location: { index },
+                        },
+                    };
+                };
+
+                const questions: any[] = data.questions || [];
+                const requests: any[] = [
+                    ...questions.map((q: any, i: number) => buildQuestionItem(q, i)),
+                    {
+                        updateSettings: {
+                            settings: { quizSettings: { isQuiz: false } },
+                            updateMask: 'quizSettings',
+                        },
+                    },
+                ];
+
+                const batchRes = await fetch(`${FORMS_API}/${formId}:batchUpdate`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requests }),
+                });
+                if (!batchRes.ok) {
+                    success = false;
+                    result = `Failed to update form: ${batchRes.status} ${await batchRes.text()}`;
+                    break;
+                }
+
+                // Step 3: Fetch form to get assigned questionIds
+                const formRes = await fetch(`${FORMS_API}/${formId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const formData = await formRes.json();
+                const schemaMap: Record<string, string> = {};
+                for (const item of (formData.items || [])) {
+                    if (item.questionItem?.question?.questionId) {
+                        schemaMap[item.questionItem.question.questionId] = item.title || '';
+                    }
+                }
+                await AsyncStorage.setItem('appacadabra_forms_' + formId, JSON.stringify(schemaMap));
+
+                result = JSON.stringify({ formId, shareUrl: `https://docs.google.com/forms/d/${formId}/viewform` });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Forms create error';
+            }
+            break;
+        }
+
+        case 'FORMS_UPDATE': {
+            const FORMS_SCOPES = [
+                'https://www.googleapis.com/auth/forms.body',
+                'https://www.googleapis.com/auth/forms.responses.readonly',
+            ];
+            const FORMS_API = 'https://forms.googleapis.com/v1/forms';
+
+            debugLog(`Forms update: ${data.formId}`);
+            try {
+                const token = await requestGoogleScopes(FORMS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Forms access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const formId: string = data.formId;
+
+                // Step 1: Fetch existing form items
+                const existingRes = await fetch(`${FORMS_API}/${formId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!existingRes.ok) {
+                    success = false;
+                    result = `Failed to fetch form: ${existingRes.status}`;
+                    break;
+                }
+                const existingForm = await existingRes.json();
+                const existingItems: any[] = existingForm.items || [];
+
+                // Step 2: Build batchUpdate — delete existing (reverse order), then add new
+                const deleteRequests = existingItems
+                    .slice()
+                    .reverse()
+                    .map((_: any, revIdx: number) => ({
+                        deleteItem: { location: { index: existingItems.length - 1 - revIdx } },
+                    }));
+
+                const buildQuestionItem = (q: any, index: number) => {
+                    let questionField: any;
+                    if (q.type === 'text') {
+                        questionField = { textQuestion: { paragraph: false } };
+                    } else if (q.type === 'paragraph') {
+                        questionField = { textQuestion: { paragraph: true } };
+                    } else if (q.type === 'radio') {
+                        questionField = { choiceQuestion: { type: 'RADIO', options: (q.options || []).map((v: string) => ({ value: v })), shuffle: q.shuffle ?? false } };
+                    } else if (q.type === 'checkbox') {
+                        questionField = { choiceQuestion: { type: 'CHECKBOX', options: (q.options || []).map((v: string) => ({ value: v })), shuffle: q.shuffle ?? false } };
+                    } else if (q.type === 'dropdown') {
+                        questionField = { choiceQuestion: { type: 'DROP_DOWN', options: (q.options || []).map((v: string) => ({ value: v })), shuffle: q.shuffle ?? false } };
+                    } else if (q.type === 'date') {
+                        questionField = { dateQuestion: { includeTime: false, includeYear: true } };
+                    } else if (q.type === 'datetime') {
+                        questionField = { dateQuestion: { includeTime: true, includeYear: true } };
+                    } else if (q.type === 'time') {
+                        questionField = { timeQuestion: { duration: false } };
+                    } else if (q.type === 'duration') {
+                        questionField = { timeQuestion: { duration: true } };
+                    } else if (q.type === 'scale') {
+                        questionField = { scaleQuestion: { low: q.low, high: q.high, ...(q.lowLabel ? { lowLabel: q.lowLabel } : {}), ...(q.highLabel ? { highLabel: q.highLabel } : {}) } };
+                    } else if (q.type === 'rating') {
+                        const ICON_MAP: Record<string, string> = { star: 'STAR', heart: 'HEART', thumb: 'THUMB_UP' };
+                        questionField = { ratingQuestion: { ratingScaleLevel: q.level ?? 5, iconType: ICON_MAP[q.icon ?? 'star'] ?? 'STAR' } };
+                    } else {
+                        questionField = { textQuestion: { paragraph: false } };
+                    }
+                    return {
+                        createItem: {
+                            item: {
+                                title: q.title,
+                                questionItem: {
+                                    question: { required: q.required ?? false, ...questionField },
+                                },
+                            },
+                            location: { index },
+                        },
+                    };
+                };
+
+                const questions: any[] = data.questions || [];
+                const createRequests = questions.map((q: any, i: number) => buildQuestionItem(q, i));
+                const infoRequests = data.title
+                    ? [{ updateFormInfo: { info: { title: data.title }, updateMask: 'title' } }]
+                    : [];
+
+                const batchRes = await fetch(`${FORMS_API}/${formId}:batchUpdate`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requests: [...infoRequests, ...deleteRequests, ...createRequests] }),
+                });
+                if (!batchRes.ok) {
+                    success = false;
+                    result = `Failed to update form: ${batchRes.status} ${await batchRes.text()}`;
+                    break;
+                }
+
+                // Step 3: Fetch updated form to get new questionIds
+                const formRes = await fetch(`${FORMS_API}/${formId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const updatedForm = await formRes.json();
+                const newMap: Record<string, string> = {};
+                for (const item of (updatedForm.items || [])) {
+                    if (item.questionItem?.question?.questionId) {
+                        newMap[item.questionItem.question.questionId] = item.title || '';
+                    }
+                }
+
+                // Step 4: Merge into existing schema (preserve deleted question titles)
+                const stored = await AsyncStorage.getItem('appacadabra_forms_' + formId);
+                const storedMap: Record<string, string> = stored ? JSON.parse(stored) : {};
+                const mergedMap = { ...storedMap, ...newMap };
+                await AsyncStorage.setItem('appacadabra_forms_' + formId, JSON.stringify(mergedMap));
+
+                result = JSON.stringify({ formId, shareUrl: `https://docs.google.com/forms/d/${formId}/viewform` });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Forms update error';
+            }
+            break;
+        }
+
+        case 'FORMS_GET_RESPONSES': {
+            const FORMS_SCOPES = [
+                'https://www.googleapis.com/auth/forms.body',
+                'https://www.googleapis.com/auth/forms.responses.readonly',
+            ];
+            const FORMS_API = 'https://forms.googleapis.com/v1/forms';
+
+            debugLog(`Forms get responses: ${data.formId}`);
+            try {
+                const token = await requestGoogleScopes(FORMS_SCOPES);
+                if (!token) {
+                    success = false;
+                    result = 'Google Forms access was denied. Please try again and grant permission.';
+                    break;
+                }
+
+                const formId: string = data.formId;
+
+                // Step 1: Build question schema — stored (includes deleted) merged with current form
+                const stored = await AsyncStorage.getItem('appacadabra_forms_' + formId);
+                const storedMap: Record<string, string> = stored ? JSON.parse(stored) : {};
+
+                const formRes = await fetch(`${FORMS_API}/${formId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const currentForm = await formRes.json();
+                const currentMap: Record<string, string> = {};
+                for (const item of (currentForm.items || [])) {
+                    if (item.questionItem?.question?.questionId) {
+                        currentMap[item.questionItem.question.questionId] = item.title || '';
+                    }
+                }
+                const schemaMap: Record<string, string> = { ...storedMap, ...currentMap };
+
+                // Step 2: Fetch responses
+                const respRes = await fetch(`${FORMS_API}/${formId}/responses`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!respRes.ok) {
+                    success = false;
+                    result = `Failed to fetch responses: ${respRes.status} ${await respRes.text()}`;
+                    break;
+                }
+                const respData = await respRes.json();
+                const rawResponses: any[] = respData.responses || [];
+
+                const responses = rawResponses.map((r: any) => {
+                    const answers: Record<string, string> = {};
+                    for (const [questionId, answerObj] of Object.entries(r.answers || {})) {
+                        const title = schemaMap[questionId] || questionId;
+                        const a = answerObj as any;
+                        let value = '';
+                        if (a.textAnswers?.answers?.length) {
+                            value = a.textAnswers.answers[0].value ?? '';
+                        } else if (a.choiceAnswers?.answers?.length) {
+                            value = a.choiceAnswers.answers.map((x: any) => x.value).join(', ');
+                        } else if (a.dateAnswers?.answers?.length) {
+                            const d = a.dateAnswers.answers[0];
+                            value = `${d.year ?? ''}-${String(d.month ?? '').padStart(2, '0')}-${String(d.day ?? '').padStart(2, '0')}`;
+                        } else if (a.timeAnswers?.answers?.length) {
+                            const tm = a.timeAnswers.answers[0];
+                            value = `${String(tm.hours ?? 0).padStart(2, '0')}:${String(tm.minutes ?? 0).padStart(2, '0')}`;
+                        } else if (a.scaleAnswers?.answers?.length) {
+                            value = String(a.scaleAnswers.answers[0].value ?? '');
+                        }
+                        answers[title] = value;
+                    }
+                    return { responseId: r.responseId, submitTime: r.lastSubmittedTime, answers };
+                });
+
+                result = JSON.stringify({ responses });
+            } catch (e) {
+                success = false;
+                result = e instanceof Error ? e.message : 'Forms get responses error';
             }
             break;
         }
