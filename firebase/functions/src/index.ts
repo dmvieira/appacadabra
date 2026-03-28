@@ -361,7 +361,18 @@ function calcVideoMana(durationSeconds: number, hasImages: boolean): number {
 
 // Helper to get text from response
 function extractText(result: any): string {
-    try { return result.text() || ""; } catch { return ""; }
+    try {
+        const text = result.text;
+        if (!text) {
+            const finishReason = result.candidates?.[0]?.finishReason;
+            console.warn(`[extractText] Empty response. finishReason: ${finishReason}`);
+        }
+        return text || "";
+    } catch (e) {
+        const finishReason = result?.candidates?.[0]?.finishReason;
+        console.warn(`[extractText] result.text threw: ${e}. finishReason: ${finishReason}`);
+        return "";
+    }
 }
 
 // Helper to get usage metadata
@@ -1046,17 +1057,29 @@ export const processSpellJob = onDocumentCreated(
 
                         const generationPromise = withRetry(async () => {
                             if (sysCacheName) {
-                                return getAI().models.generateContent({
+                                const result = await getAI().models.generateContent({
                                     model: 'models/gemini-3-flash-preview',
                                     contents: p,
                                     config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
                                 });
+                                const text = extractText(result);
+                                if (!text) {
+                                    const finishReason = result.candidates?.[0]?.finishReason;
+                                    throw new Error(`Empty AI response (finishReason: ${finishReason ?? 'unknown'})`);
+                                }
+                                return result;
                             }
-                            return getAI().models.generateContent({
+                            const result = await getAI().models.generateContent({
                                 model: 'models/gemini-3-flash-preview',
                                 contents: fullPromptFallback,
                                 config: MAIN_MODEL_CONFIG,
                             });
+                            const text = extractText(result);
+                            if (!text) {
+                                const finishReason = result.candidates?.[0]?.finishReason;
+                                throw new Error(`Empty AI response (finishReason: ${finishReason ?? 'unknown'})`);
+                            }
+                            return result;
                         });
 
                         return Promise.race([generationPromise, timeoutPromise]) as Promise<any>;
@@ -1158,17 +1181,29 @@ export const processSpellJob = onDocumentCreated(
                     const callEditModel = async (p: string, fullPromptFallback: string) => {
                         return withRetry(async () => {
                             if (editCacheName) {
-                                return getAI().models.generateContent({
+                                const result = await getAI().models.generateContent({
                                     model: 'models/gemini-3-flash-preview',
                                     contents: p,
                                     config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: editCacheName },
                                 });
+                                const text = extractText(result);
+                                if (!text) {
+                                    const finishReason = result.candidates?.[0]?.finishReason;
+                                    throw new Error(`Empty AI response (finishReason: ${finishReason ?? 'unknown'})`);
+                                }
+                                return result;
                             }
-                            return getAI().models.generateContent({
+                            const result = await getAI().models.generateContent({
                                 model: 'models/gemini-3-flash-preview',
                                 contents: fullPromptFallback,
                                 config: MAIN_MODEL_CONFIG,
                             });
+                            const text = extractText(result);
+                            if (!text) {
+                                const finishReason = result.candidates?.[0]?.finishReason;
+                                throw new Error(`Empty AI response (finishReason: ${finishReason ?? 'unknown'})`);
+                            }
+                            return result;
                         });
                     };
 
