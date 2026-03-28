@@ -844,20 +844,19 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                 }
             }
 
+            // Deliver callback for ALL types with a callbackName (restores original behavior)
+            if (callbackName && webViewRef.current && !deferredCallback) {
+                const script = createCallbackScript(callbackName, success, result);
+                webViewRef.current.injectJavaScript(script);
+            }
+
+            // Long-running ops: save result for recovery if WebView unmounted before delivery
             if (callbackId) {
-                if (webViewRef.current && !deferredCallback) {
-                    const script = createCallbackScript(callbackName, success, result);
-                    webViewRef.current.injectJavaScript(script);
-                    await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
-                } else if (!webViewRef.current && !deferredCallback) {
-                    // Component unmounted before we could deliver the result. Save for next boot!
+                if (!webViewRef.current && !deferredCallback) {
                     console.log(`[AppRunner] WebView unmounted. Saving callback ${callbackName} for next boot.`);
                     await AsyncStorage.setItem(`completed_ai_${callbackId}`, JSON.stringify({ callbackName, success, result, savedAt: Date.now() }));
-                    await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
-                } else if (deferredCallback) {
-                    // Media handlers handle delivery incrementally, so we just clear pending tracking
-                    await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
                 }
+                await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
             }
         } catch (e) {
             console.error('Error handling WebView message:', e);

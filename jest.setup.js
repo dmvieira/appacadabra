@@ -1,5 +1,27 @@
 // Jest setup file for mocks
 
+// Override expo winter runtime lazy getters that crash in Node test environment.
+// expo/src/winter/runtime.native.ts installs these as lazy getters during the react-native
+// jest preset's setupFiles phase. When triggered from within a test module they run in the
+// wrong runtime context (isInsideTestCode === false) and throw. We replace them with the
+// Node.js built-ins (or safe stubs) before any test module is loaded.
+(function overrideExpoWinterGlobals() {
+    const safeDefine = (name, value) => {
+        try {
+            Object.defineProperty(global, name, { value, writable: true, configurable: true });
+        } catch (e) {
+            global[name] = value;
+        }
+    };
+    safeDefine('__ExpoImportMetaRegistry', { url: null });
+    safeDefine('structuredClone', global.structuredClone || ((v) => JSON.parse(JSON.stringify(v))));
+    safeDefine('TextDecoder', global.TextDecoder);
+    safeDefine('TextDecoderStream', global.TextDecoderStream || class TextDecoderStream {});
+    safeDefine('TextEncoderStream', global.TextEncoderStream || class TextEncoderStream {});
+    safeDefine('URL', global.URL);
+    safeDefine('URLSearchParams', global.URLSearchParams);
+}());
+
 // Mock expo modules
 jest.mock('expo-file-system/legacy', () => ({
     documentDirectory: '/mock/documents/',

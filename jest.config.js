@@ -13,6 +13,7 @@ module.exports = {
         '!lib/**/index.ts'
     ],
     moduleNameMapper: {
-        '^@/(.*)$': '<rootDir>/$1'
+        '^@/(.*)$': '<rootDir>/$1',
+        'expo/src/winter/runtime\\.native': '<rootDir>/__mocks__/expo-winter-runtime.js'
     }
 };

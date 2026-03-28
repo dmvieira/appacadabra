@@ -1489,7 +1489,37 @@ export default function RunnerScreen() {
                                         const newMode = !isSelectionMode;
                                         setIsSelectionMode(newMode);
                                         if (webViewRef.current) {
-                                            webViewRef.current.injectJavaScript(`window.toggleSelectionMode(${newMode}); true;`);
+                                            const script = `
+                                                (function() {
+                                                    if (!window.toggleSelectionMode) {
+                                                        window._appacadabraSelectionMode = false;
+                                                        window._selectionHandler = function(e) {
+                                                            if (!window._appacadabraSelectionMode) return;
+                                                            e.preventDefault(); e.stopPropagation();
+                                                            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                                                            if (e.type === 'click') {
+                                                                var t = e.target;
+                                                                var p = t.outerHTML; if (p.length > 500) p = p.substring(0, 500) + '...';
+                                                                window.ReactNativeWebView.postMessage(JSON.stringify({
+                                                                    type: 'ELEMENT_SELECTED',
+                                                                    data: { html: t.outerHTML, tagName: t.tagName, preview: p }
+                                                                }));
+                                                            }
+                                                        };
+                                                        var evts = ['click','mousedown','mouseup','pointerdown','pointerup'];
+                                                        window.toggleSelectionMode = function(active) {
+                                                            window._appacadabraSelectionMode = active;
+                                                            evts.forEach(function(evt) {
+                                                                if (active) document.addEventListener(evt, window._selectionHandler, true);
+                                                                else document.removeEventListener(evt, window._selectionHandler, true);
+                                                            });
+                                                        };
+                                                    }
+                                                    window.toggleSelectionMode(${newMode});
+                                                })();
+                                                true;
+                                            `;
+                                            webViewRef.current.injectJavaScript(script);
                                         }
                                     }}
                                 >

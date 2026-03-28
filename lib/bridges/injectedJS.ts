@@ -655,7 +655,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       parseJSON: function(str) {
         if (!str || typeof str !== 'string') return null;
         try {
-            var clean = str.replace(/\`\`\`[a-z]*\n?/gi, '').replace(/\`\`\`/g, '').trim();
+            var clean = str.replace(/\`\`\`[a-z]*\\n?/gi, '').replace(/\`\`\`/g, '').trim();
             var fi = clean.indexOf('['), fb = clean.indexOf('{');
             var start = -1, end = -1;
             if (fi !== -1 && (fb === -1 || fi < fb)) {
@@ -1581,19 +1581,23 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
       sendMessage('ELEMENT_SELECTED', info);
   }
   
-  // Inject CSS for selection mode
-  // Inject CSS for selection mode
-  const style = document.createElement('style');
-  style.textContent = \`
-      .selection-mode * {
-          cursor: crosshair !important;
-      }
-      .selection-mode *:hover {
-          outline: 2px solid #00f !important;
-          background-color: rgba(0, 0, 255, 0.1) !important;
-      }
-  \`;
-  document.head.appendChild(style);
+  // Inject CSS for selection mode (deferred to avoid crash when document.head is null)
+  function injectSelectionStyle() {
+      const style = document.createElement('style');
+      style.textContent = \`
+          .selection-mode * { cursor: crosshair !important; }
+          .selection-mode *:hover {
+              outline: 2px solid #00f !important;
+              background-color: rgba(0, 0, 255, 0.1) !important;
+          }
+      \`;
+      (document.head || document.documentElement).appendChild(style);
+  }
+  if (document.head) {
+      injectSelectionStyle();
+  } else {
+      document.addEventListener('DOMContentLoaded', injectSelectionStyle);
+  }
 
   // ============= Console Log Interception =============
   const originalConsole = {
