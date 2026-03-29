@@ -1897,7 +1897,8 @@ export function createCallbackScript(callbackName: string, success: boolean, dat
   return `
     (function() {
       var __d = "${escapedData}";
-      var dataPreview = __d.length > 100 ? __d.substring(0, 100) + "..." : __d;
+      if (__d && (__d[0] === '{' || __d[0] === '[')) { try { __d = JSON.parse(__d); } catch(e) {} }
+      var dataPreview = typeof __d === 'string' ? (__d.length > 100 ? __d.substring(0, 100) + "..." : __d) : JSON.stringify(__d).substring(0, 100);
       if ("${callbackName}" && "${callbackName}" !== "undefined") {
           console.log("[BridgeReturn] ${callbackName} | Success: ${success} | Data: " + dataPreview);
           if (typeof window["${callbackName}"] === 'function') {

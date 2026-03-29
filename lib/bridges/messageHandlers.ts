@@ -387,6 +387,16 @@ async function getSpellNotifications(appId: number | null) {
     }
 }
 
+export async function cancelAlarmEntry(appId: number, alarmId: string): Promise<void> {
+    try {
+        await NativeModules.AlarmModule.cancelAlarm(alarmId);
+    } catch (e) {
+        console.warn('[cancelAlarmEntry] NativeModule cancel failed:', e);
+    }
+    await db.deleteAlarm(appId, alarmId);
+    alarmRegistry.get(appId)?.delete(alarmId);
+}
+
 export async function cancelSpellNotifications(appId: number): Promise<void> {
     const toCancel = await getSpellNotifications(appId);
     for (const n of toCancel) {

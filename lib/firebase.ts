@@ -632,7 +632,7 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 // Configure Google Sign-In
 GoogleSignin.configure({
-    // scopes: [] — no upfront scopes; requested lazily per feature
+    scopes: ['https://www.googleapis.com/auth/drive.appdata'],
     webClientId: '901177243529-0vod4amdjigg9bvve0h1ebaa609hpdba.apps.googleusercontent.com',
     offlineAccess: true,
     hostedDomain: '',
@@ -742,7 +742,8 @@ export async function requestGoogleScopes(scopes: string[]): Promise<string | nu
         if (!isSignedIn) {
             await GoogleSignin.signIn();
         }
-        await GoogleSignin.addScopes({ scopes });
+        const userWithScopes = await GoogleSignin.addScopes({ scopes });
+        if (!userWithScopes) return null;
         const tokens = await GoogleSignin.getTokens();
         return tokens.accessToken;
     } catch (e: any) {

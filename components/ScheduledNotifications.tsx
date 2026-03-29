@@ -14,6 +14,8 @@ import {
 import * as Notifications from 'expo-notifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../lib/i18n';
+import * as db from '../lib/database/db';
+import { cancelAlarmEntry } from '../lib/bridges/messageHandlers';
 
 interface ScheduledNotification {
     identifier: string;
@@ -21,6 +23,8 @@ interface ScheduledNotification {
     body: string | null;
     trigger: any;
     fireDate?: number; // Absolute ms timestamp computed at load time
+    isAlarm?: boolean;
+    alarmAppId?: number;
 }
 
 interface ScheduledNotificationsProps {
@@ -74,7 +78,7 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                 return channelMatch || dataMatch || badgeMatch;
             });
 
-            setNotifications(filtered.map(n => {
+            const expoItems: ScheduledNotification[] = filtered.map(n => {
                 const trigger = n.trigger as any;
                 const now = Date.now();
                 // Compute absolute fire timestamp from whatever the trigger provides
@@ -98,7 +102,23 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                     trigger: n.trigger,
                     fireDate,
                 };
-            }));
+            });
+
+            const now = Date.now();
+            const alarmRows = await db.getAlarmsForApp(appId);
+            const alarmItems: ScheduledNotification[] = alarmRows
+                .filter(a => a.timeMs > now)
+                .map(a => ({
+                    identifier: a.alarmId,
+                    title: a.title,
+                    body: a.body,
+                    trigger: null,
+                    fireDate: a.timeMs,
+                    isAlarm: true,
+                    alarmAppId: appId,
+                }));
+
+            setNotifications([...expoItems, ...alarmItems]);
         } catch (e) {
             console.error('Failed to load notifications:', e);
         } finally {
@@ -106,7 +126,7 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
         }
     };
 
-    const handleCancel = (id: string) => {
+    const handleCancel = (item: ScheduledNotification) => {
         Alert.alert(
             t('cancelNotification'),
             t('cancelNotificationConfirm') || 'Remove this notification?',
@@ -117,8 +137,12 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await Notifications.cancelScheduledNotificationAsync(id);
-                            setNotifications(prev => prev.filter(n => n.identifier !== id));
+                            if (item.isAlarm && item.alarmAppId != null) {
+                                await cancelAlarmEntry(item.alarmAppId, item.identifier);
+                            } else {
+                                await Notifications.cancelScheduledNotificationAsync(item.identifier);
+                            }
+                            setNotifications(prev => prev.filter(n => n.identifier !== item.identifier));
                         } catch (e) {
                             console.error('Failed to cancel notification:', e);
                         }
@@ -183,7 +207,7 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                             renderItem={({ item: n }) => (
                                 <View style={styles.item}>
                                     <View style={styles.itemIconWrap}>
-                                        <Text style={styles.itemEmoji}>🔔</Text>
+                                        <Text style={styles.itemEmoji}>{n.isAlarm ? '⏰' : '🔔'}</Text>
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.itemTitle} numberOfLines={1}>{n.title || '(No title)'}</Text>
@@ -192,7 +216,7 @@ export function ScheduledNotifications({ visible, appId, appName, onClose }: Sch
                                     </View>
                                     <TouchableOpacity
                                         style={styles.itemDeleteBtn}
-                                        onPress={() => handleCancel(n.identifier)}
+                                        onPress={() => handleCancel(n)}
                                     >
                                         <Text style={styles.itemDeleteIcon}>🗑️</Text>
                                     </TouchableOpacity>

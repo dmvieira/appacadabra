@@ -425,7 +425,7 @@ function repairJson(text: string): string {
 
 // Helper to extract HTML from markdown code block
 function extractHtml(response: string): string {
-    const openMatch = response.match(/^\s*```html\s*/);
+    const openMatch = response.match(/```(?:html)?\s*/i);
     if (openMatch && openMatch.index !== undefined) {
         const contentStart = openMatch.index + openMatch[0].length;
         const lastClose = response.lastIndexOf('```');
@@ -433,6 +433,11 @@ function extractHtml(response: string): string {
             return response.substring(contentStart, lastClose).trim();
         }
         return response.substring(contentStart).trim();
+    }
+    // Fallback if no code blocks but there is a preamble
+    const docTypeIdx = response.toLowerCase().indexOf('<!doctype html>');
+    if (docTypeIdx !== -1) {
+        return response.substring(docTypeIdx).trim();
     }
     return response.trim();
 }

@@ -318,7 +318,10 @@ export default function HomeScreen() {
 
 
     const refreshNotifCounts = useCallback(() => {
-        Notifications.getAllScheduledNotificationsAsync().then(all => {
+        Promise.all([
+            Notifications.getAllScheduledNotificationsAsync(),
+            db.getAllFutureAlarms(),
+        ]).then(([all, alarms]) => {
             const counts: Record<number, number> = {};
             for (const n of all) {
                 const c = n.content as any;
@@ -349,6 +352,12 @@ export default function HomeScreen() {
                 }
 
                 if (appId) counts[appId] = (counts[appId] || 0) + 1;
+            }
+            const now = Date.now();
+            for (const a of alarms) {
+                if (a.timeMs > now) {
+                    counts[a.appId] = (counts[a.appId] ?? 0) + 1;
+                }
             }
             setNotifCounts(counts);
         }).catch(() => { });
