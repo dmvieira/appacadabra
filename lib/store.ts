@@ -29,6 +29,7 @@ interface AppState {
     isImporting: boolean;
     error: string | null;
     statusMessage: string | null;
+    statusActionAppId: number | null;
     pendingImportUrl: string | null; // For confirming imports in UI context
 
     // Window Management (Multitasking)
@@ -88,6 +89,7 @@ interface AppState {
     importProject: (zipUri: string) => Promise<GeneratedApp | null>;
     clearError: () => void;
     clearStatusMessage: () => void;
+    clearStatusActionAppId: () => void;
     setStatusMessage: (message: string) => void;
     setPendingImportUrl: (url: string | null) => void;
     setSharedContent: (content: AppState['sharedContent']) => void;
@@ -123,6 +125,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     isImporting: false,
     error: null,
     statusMessage: null,
+    statusActionAppId: null,
     pendingImportUrl: null,
     runningInstances: [],
     activeAppId: null,
@@ -306,23 +309,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                     // Reload apps to update UI
                     await get().loadApps();
-                    set({ statusMessage: t('appReadyNotify', { name: appName }), lastCreatedAppId: id });
+                    set({ statusMessage: t('appReadyNotify', { name: appName }), statusActionAppId: id, lastCreatedAppId: id });
 
                     // Cleanup placeholder at the very end
                     set(state => ({
                         creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
                     }));
-
-                    // Schedule Local Notification
-                    await Notifications.scheduleNotificationAsync({
-                        content: {
-                            title: t('appReadyTitle', { name: appName }),
-                            body: t('appReadyBody', { name: appName }),
-                            data: { appId: id, notificationType: 'app_created' },
-                            channelId: `spell-${id}`, // Use spell-specific channel
-                        } as any, // channelId is valid on Android but types may lag
-                        trigger: null, // Show immediately
-                    });
 
                     // Mark as processed in history to prevent zombies
                     await db.markJobAsProcessed(job.id, job.action);
@@ -360,21 +352,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                             jobId: job.id
                         });
 
-                        set({ statusMessage: t('appUpdatedNotify', { name: app.name }) });
+                        set({ statusMessage: t('appUpdatedNotify', { name: app.name }), statusActionAppId: appId });
 
                         // Reload to reflect changes
                         await get().loadApps();
-
-                        // Schedule Local Notification for Edit
-                        await Notifications.scheduleNotificationAsync({
-                            content: {
-                                title: t('appUpdatedTitle', { name: app.name }),
-                                body: t('appUpdatedBody', { name: app.name }),
-                                data: { appId: appId },
-                                channelId: `spell-${appId}`, // Use spell-specific channel
-                            } as any, // channelId is valid on Android but types may lag
-                            trigger: null,
-                        });
 
                         // Mark as processed in history to prevent zombies
                         await db.markJobAsProcessed(job.id, job.action);
@@ -951,7 +932,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     clearError: () => set({ error: null }),
-    clearStatusMessage: () => set({ statusMessage: null }),
+    clearStatusMessage: () => set({ statusMessage: null, statusActionAppId: null }),
+    clearStatusActionAppId: () => set({ statusActionAppId: null }),
     setStatusMessage: (message: string) => set({ statusMessage: message }),
     setPendingImportUrl: (url: string | null) => {
         const current = get().pendingImportUrl;

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
 import { colors, spacing, borderRadius, typography, shadows } from '../lib/theme';
 import { useAppStore } from '../lib/store';
+import { useRouter } from 'expo-router';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -10,6 +11,8 @@ export const Toast = () => {
     const error = useAppStore(state => state.error);
     const clearStatusMessage = useAppStore(state => state.clearStatusMessage);
     const clearError = useAppStore(state => state.clearError);
+    const statusActionAppId = useAppStore(state => state.statusActionAppId);
+    const router = useRouter();
     const translateY = useRef(new Animated.Value(100)).current;
     const opacity = useRef(new Animated.Value(0)).current;
 
@@ -61,6 +64,11 @@ export const Toast = () => {
         });
     };
 
+    const handlePress = statusActionAppId != null ? () => {
+        dismiss();
+        router.push(`/runner/${statusActionAppId}` as any);
+    } : undefined;
+
     if (!activeMessage) return null;
 
     return (
@@ -73,7 +81,12 @@ export const Toast = () => {
                 },
             ]}
         >
-            <View style={[styles.content, isError && styles.contentError]}>
+            <TouchableOpacity
+                style={[styles.content, isError && styles.contentError]}
+                onPress={handlePress}
+                disabled={!handlePress}
+                activeOpacity={handlePress ? 0.8 : 1}
+            >
                 <Ionicons
                     name={isError ? "alert-circle" : "sparkles"}
                     size={20}
@@ -84,7 +97,7 @@ export const Toast = () => {
                 <TouchableOpacity onPress={dismiss} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Ionicons name="close" size={18} color={colors.onPrimary} style={{ opacity: 0.8 }} />
                 </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
         </Animated.View>
     );
 };

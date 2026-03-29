@@ -45,6 +45,12 @@ export const useManaStore = create<ManaState>()(
 
                     if (userId) {
                         console.log('ManaStore: User authenticated, listening to credits for', userId);
+                        
+                        // Register background push token for this device
+                        firebase.registerAndSavePushTokenAsync(userId).catch(e => {
+                            console.warn('ManaStore: Failed to register push token', e);
+                        });
+
                         // Setup credits listener
                         firebase.onCreditsChanged((credits) => {
                             console.log('ManaStore: Balance updated:', credits);

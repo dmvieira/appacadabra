@@ -928,6 +928,7 @@ export default function RunnerScreen() {
             let deferredCallback = false;
             let mediaLocalPath: string | undefined;
             let cacheResult: string | undefined;
+            let cacheId: number | null = null;
 
             switch (type) {
                 // ============= Scroll Status for Smart Refresh =============
@@ -969,10 +970,10 @@ export default function RunnerScreen() {
 
                 case 'AI_CALLBACK_ACK': {
                     // Webview confirms it received and invoked the recovered AI callback
-                    const { cacheId } = data;
-                    if (cacheId != null) {
-                        await db.markWebviewAiCacheDelivered(cacheId);
-                        console.log(`[Runner] AI callback ACK received for cacheId=${cacheId}`);
+                    const { cacheId: ackCacheId } = data;
+                    if (ackCacheId != null) {
+                        await db.markWebviewAiCacheDelivered(ackCacheId);
+                        console.log(`[Runner] AI callback ACK received for cacheId=${ackCacheId}`);
                     }
                     return; // No callback to webview needed
                 }
@@ -989,7 +990,6 @@ export default function RunnerScreen() {
                     if (isAiAction && !isEditMode) setIsAiLoading(true);
 
                     // Pre-save pending cache entry BEFORE job starts so recovery works on reload
-                    let cacheId: number | null = null;
                     if (isAiAction && !isEditMode && app?.id && callbackName) {
                         try {
                             cacheId = await db.saveWebviewAiCachePending(app.id, callbackName, type);
@@ -1140,6 +1140,11 @@ export default function RunnerScreen() {
                 if (!handledCallback) {
                     const script = createCallbackScript(callbackName, success, result);
                     webViewRef.current.injectJavaScript(script);
+                }
+
+                // Mark the cache entry as delivered now that the callback was injected
+                if (cacheId != null) {
+                    try { await db.markWebviewAiCacheDelivered(cacheId); } catch {}
                 }
             }
         } catch (e) {

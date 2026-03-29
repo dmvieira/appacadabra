@@ -515,14 +515,14 @@ export interface WebviewAiCacheEntry {
     createdAt: number;
 }
 
-/** Save a completed AI result (used by backup restore & RunnerApp legacy path). */
+/** Save a completed AI result (used by backup restore & RunnerApp legacy path). Returns the new row id. */
 export async function saveWebviewAiCache(entry: {
     appId: number; callbackName: string; action: string;
     requestData?: string; result: string; mediaLocalPath?: string;
     creditsUsed: number; success: number;
-}): Promise<void> {
+}): Promise<number> {
     const database = await getDatabase();
-    await database.runAsync(
+    const r = await database.runAsync(
         `INSERT OR REPLACE INTO webview_ai_cache
          (appId, callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
@@ -531,6 +531,7 @@ export async function saveWebviewAiCache(entry: {
          entry.mediaLocalPath ?? null, entry.creditsUsed,
          entry.success, Date.now()]
     );
+    return r.lastInsertRowId;
 }
 
 /** Save a pending entry BEFORE the AI job starts. Returns the new row id. */

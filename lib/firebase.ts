@@ -1,6 +1,6 @@
 import { getAuth, signInAnonymously, onAuthStateChanged as onAuthStateChangedModular, getIdToken, reload as reloadUser } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
-import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, query, where, orderBy, limit, getDoc } from '@react-native-firebase/firestore';
+import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, query, where, orderBy, limit, getDoc, setDoc } from '@react-native-firebase/firestore';
 import { getApp } from '@react-native-firebase/app';
 // @ts-ignore - Index.d.ts exports class as type, but it is a value in runtime. Import from root to ensure module registration.
 import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
@@ -10,6 +10,9 @@ import Constants from 'expo-constants';
 import pako from 'pako';
 
 const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
+
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 // Compression Utils
 function uint8ArrayToBase64(bytes: Uint8Array): string {
@@ -809,4 +812,43 @@ export function listenToActiveJobs(callback: (jobs: Job[]) => void): () => void 
         unsubscribeAuth();
         if (unsubscribeFirestore) unsubscribeFirestore();
     };
+}
+
+/**
+ * Request notification permissions and save the Expo Push Token to the user's document.
+ */
+export async function registerAndSavePushTokenAsync(userId: string) {
+    if (Platform.OS === 'web') return;
+
+    try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+        }
+        
+        if (finalStatus !== 'granted') {
+            console.log('[Firebase] Push notifications permission not granted');
+            return;
+        }
+
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId 
+            ?? Constants.easConfig?.projectId 
+            ?? 'appacadabra-bee0f';
+            
+        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+        const pushToken = tokenData.data;
+        
+        console.log('[Firebase] Expo Push Token obtained:', pushToken);
+
+        const { getCurrentLanguage } = require('./i18n');
+        const locale = getCurrentLanguage();
+        const db = getFirestore();
+        await setDoc(doc(db, 'users', userId), { pushToken, locale }, { merge: true });
+        console.log('[Firebase] Push Token saved to Firestore for user', userId);
+    } catch (e) {
+        console.warn('[Firebase] Failed to get/save push token:', e);
+    }
 }

@@ -408,6 +408,7 @@ function RunnerContent({ appId }: Props) {
             // Only AI-generated content should be cached for recovery — device captures should not
             const AI_CACHE_TYPES = new Set(['AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI']);
             let mediaLocalPath: string | undefined;
+            let aiCacheId: number | null = null;
             if (callbackName) {
                 console.log(`[RunnerApp] Handling response for: ${callbackName} | type: ${type} | success: ${handlerResult.success}`);
                 if (handlerResult.result && typeof handlerResult.result === 'string') {
@@ -454,7 +455,7 @@ function RunnerContent({ appId }: Props) {
                 }
                 if (app?.id && callbackName && AI_CACHE_TYPES.has(type)) {
                     try {
-                        await db.saveWebviewAiCache({
+                        aiCacheId = await db.saveWebviewAiCache({
                             appId: app.id, callbackName, action: type,
                             requestData: JSON.stringify(data),
                             result: cacheResult, mediaLocalPath,
@@ -469,7 +470,7 @@ function RunnerContent({ appId }: Props) {
 
             if (type === 'AI_GENERATE' && handlerResult.success && handlerResult.result && app?.id && callbackName) {
                 try {
-                    await db.saveWebviewAiCache({
+                    aiCacheId = await db.saveWebviewAiCache({
                         appId: app.id, callbackName, action: type,
                         requestData: JSON.stringify(data),
                         result: handlerResult.result,
@@ -551,6 +552,11 @@ function RunnerContent({ appId }: Props) {
                 } else if (callbackId) {
                     // Handled incrementally via media chunking
                     await AsyncStorage.removeItem(`pending_ai_${callbackId}`);
+                }
+
+                // Mark the cache entry as delivered now that the callback was injected
+                if (aiCacheId != null) {
+                    try { await db.markWebviewAiCacheDelivered(aiCacheId); } catch {}
                 }
             }
 
