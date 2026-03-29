@@ -1321,14 +1321,21 @@ export async function handleBridgeMessage(
         case 'SHARE_CONTENT':
             debugLog(`Share content request`);
             try {
-                const { Share: RNShare } = require('react-native');
+                const { Share: RNShare, Platform } = require('react-native');
                 const shareContent: { message?: string; url?: string; title?: string } = {};
 
-                if (data.text) {
-                    shareContent.message = data.text;
-                }
-                if (data.url) {
-                    shareContent.url = data.url;
+                if (Platform.OS === 'android') {
+                    const textParts = [];
+                    if (data.text) textParts.push(data.text);
+                    if (data.url) textParts.push(data.url);
+                    shareContent.message = textParts.join('\n');
+                } else {
+                    if (data.text) {
+                        shareContent.message = data.text;
+                    }
+                    if (data.url) {
+                        shareContent.url = data.url;
+                    }
                 }
 
                 const shareResult = await RNShare.share(shareContent);

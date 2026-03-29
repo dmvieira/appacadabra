@@ -817,36 +817,34 @@ export function listenToActiveJobs(callback: (jobs: Job[]) => void): () => void 
 /**
  * Request notification permissions and save the Expo Push Token to the user's document.
  */
-export async function registerAndSavePushTokenAsync(userId: string) {
+export async function registerAndSavePushTokenAsync(userId: string, locale?: string) {
     if (Platform.OS === 'web') return;
 
     try {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
-        
+
         if (existingStatus !== 'granted') {
             const { status } = await Notifications.requestPermissionsAsync();
             finalStatus = status;
         }
-        
+
         if (finalStatus !== 'granted') {
             console.log('[Firebase] Push notifications permission not granted');
             return;
         }
 
-        const projectId = Constants.expoConfig?.extra?.eas?.projectId 
-            ?? Constants.easConfig?.projectId 
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId
+            ?? Constants.easConfig?.projectId
             ?? 'appacadabra-bee0f';
-            
+
         const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
         const pushToken = tokenData.data;
-        
+
         console.log('[Firebase] Expo Push Token obtained:', pushToken);
 
-        const { getCurrentLanguage } = require('./i18n');
-        const locale = getCurrentLanguage();
         const db = getFirestore();
-        await setDoc(doc(db, 'users', userId), { pushToken, locale }, { merge: true });
+        await setDoc(doc(db, 'users', userId), { pushToken, ...(locale ? { locale } : {}) }, { merge: true });
         console.log('[Firebase] Push Token saved to Firestore for user', userId);
     } catch (e) {
         console.warn('[Firebase] Failed to get/save push token:', e);

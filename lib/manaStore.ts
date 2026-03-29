@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as firebase from './firebase';
+import { getCurrentLanguage } from './i18n';
 
 interface ManaState {
     balance: number;
@@ -47,7 +48,7 @@ export const useManaStore = create<ManaState>()(
                         console.log('ManaStore: User authenticated, listening to credits for', userId);
                         
                         // Register background push token for this device
-                        firebase.registerAndSavePushTokenAsync(userId).catch(e => {
+                        firebase.registerAndSavePushTokenAsync(userId, getCurrentLanguage()).catch(e => {
                             console.warn('ManaStore: Failed to register push token', e);
                         });
 
