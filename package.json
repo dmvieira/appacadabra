@@ -23,6 +23,7 @@
     "@react-native-firebase/crashlytics": "^23.8.3",
     "@react-native-firebase/firestore": "^23.8.3",
     "@react-native-firebase/functions": "^23.8.3",
+    "@react-native-firebase/messaging": "^23.8.8",
     "@react-native-google-signin/google-signin": "^16.1.1",
     "@types/pako": "^2.0.4",
     "expo": "~54.0.30",

@@ -446,7 +446,7 @@ export default function RunnerScreen() {
         const expandedItems = await expandStorageBlobMarkers(storageItems);
         savedStorageRef.current = expandedItems;
         setSavedStorage(expandedItems);
-        
+
         // Smooth sync: inject update instead of full reload
         if (webViewRef.current) {
             const script = createStorageRestoreScript(expandedItems);
@@ -1000,7 +1000,7 @@ export default function RunnerScreen() {
 
                     // Callback fired once Firestore job doc is created — records jobId for recovery
                     const onJobCreated = cacheId != null ? async (jobId: string) => {
-                        try { await db.updateWebviewAiCacheJobId(cacheId!, jobId); } catch {}
+                        try { await db.updateWebviewAiCacheJobId(cacheId!, jobId); } catch { }
                     } : undefined;
 
                     let handlerResult;
@@ -1144,7 +1144,7 @@ export default function RunnerScreen() {
 
                 // Mark the cache entry as delivered now that the callback was injected
                 if (cacheId != null) {
-                    try { await db.markWebviewAiCacheDelivered(cacheId); } catch {}
+                    try { await db.markWebviewAiCacheDelivered(cacheId); } catch { }
                 }
             }
         } catch (e) {

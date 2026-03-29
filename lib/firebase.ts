@@ -13,6 +13,7 @@ const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
 
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import messaging from '@react-native-firebase/messaging';
 
 // Compression Utils
 function uint8ArrayToBase64(bytes: Uint8Array): string {
@@ -834,19 +835,14 @@ export async function registerAndSavePushTokenAsync(userId: string, locale?: str
             return;
         }
 
-        const projectId = Constants.expoConfig?.extra?.eas?.projectId
-            ?? Constants.easConfig?.projectId
-            ?? 'appacadabra-bee0f';
+        const pushToken = await messaging().getToken();
 
-        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-        const pushToken = tokenData.data;
-
-        console.log('[Firebase] Expo Push Token obtained:', pushToken);
+        console.log('[Firebase] FCM Push Token obtained:', pushToken);
 
         const db = getFirestore();
         await setDoc(doc(db, 'users', userId), { pushToken, ...(locale ? { locale } : {}) }, { merge: true });
         console.log('[Firebase] Push Token saved to Firestore for user', userId);
-    } catch (e) {
-        console.warn('[Firebase] Failed to get/save push token:', e);
+    } catch (e: any) {
+        console.error('[Firebase] Failed to get/save push token:', e?.message, e?.code, e);
     }
 }

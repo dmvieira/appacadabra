@@ -9,6 +9,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { getAuth } from "firebase-admin/auth";
+import { getMessaging } from "firebase-admin/messaging";
 import { GoogleGenAI, VideoGenerationReferenceType, Type, ThinkingLevel } from "@google/genai";
 
 import * as zlib from 'zlib';
@@ -930,25 +931,14 @@ async function sendJobNotification(uid: string, action: string, success: boolean
             ? (action === 'edit' ? strings.editBody : strings.createBody)
             : strings.failBody;
 
-        console.log(`[Push Notification] Sending to ${pushToken} for user ${uid}`);
-        const response = await fetch('https://exp.host/--/api/v2/push/send', {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Accept-encoding': 'gzip, deflate',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                to: pushToken,
-                title,
-                body,
-                data,
-                sound: 'default'
-            }),
+        console.log(`[Push Notification] Sending FCM to user ${uid}`);
+        const result = await getMessaging().send({
+            token: pushToken,
+            notification: { title, body },
+            data: data ? Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])) : undefined,
+            android: { notification: { sound: 'default' } },
         });
-
-        const result = await response.json();
-        console.log('[Push Notification] Result:', JSON.stringify(result));
+        console.log('[Push Notification] FCM result:', result);
     } catch (err) {
         console.error('[Push Notification] Error sending:', err);
     }

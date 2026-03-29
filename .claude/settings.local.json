@@ -43,7 +43,8 @@
       "Bash(grep \"\"marked\"\":*)",
       "WebFetch(domain:developers.google.com)",
       "mcp__plugin_firebase_firebase__developerknowledge_get_documents",
-      "Bash(npx jest:*)"
+      "Bash(npx jest:*)",
+      "Bash(npx eas:*)"
     ]
   }
 }
