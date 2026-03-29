@@ -742,7 +742,7 @@ export async function requestGoogleScopes(scopes: string[]): Promise<string | nu
         if (!isSignedIn) {
             await GoogleSignin.signIn();
         }
-        await GoogleSignin.requestScopes({ scopes });
+        await GoogleSignin.addScopes({ scopes });
         const tokens = await GoogleSignin.getTokens();
         return tokens.accessToken;
     } catch (e: any) {

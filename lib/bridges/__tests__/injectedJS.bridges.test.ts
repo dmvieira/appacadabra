@@ -16,7 +16,8 @@ function createSandbox(overrides: Record<string, any> = {}) {
             head: null,
             body: { classList: { add: jest.fn(), remove: jest.fn() }, addEventListener: jest.fn(), removeEventListener: jest.fn(), appendChild: jest.fn(), querySelector: jest.fn(() => null), querySelectorAll: jest.fn(() => []) },
             documentElement: { appendChild: jest.fn(), outerHTML: '<html></html>' },
-            createElement: (tag: string) => ({ tagName: tag, textContent: '', style: {}, className: '', id: '', innerHTML: '', appendChild: jest.fn(), setAttribute: jest.fn(), addEventListener: jest.fn(), removeEventListener: jest.fn(), focus: jest.fn(), querySelector: jest.fn(() => null) }),
+            createElement: (tag: string) => ({ tagName: tag, textContent: '', style: {}, className: '', id: '', innerHTML: '', appendChild: jest.fn(), setAttribute: jest.fn(), addEventListener: jest.fn(), removeEventListener: jest.fn(), focus: jest.fn(), querySelector: jest.fn(() => null), onclick: null }),
+            getElementById: jest.fn((id: string) => ({ id, style: {}, remove: jest.fn() })),
             addEventListener: (evt: string, fn: Function) => {
                 listeners[evt] = listeners[evt] || [];
                 listeners[evt].push(fn);
@@ -34,13 +35,17 @@ function createSandbox(overrides: Record<string, any> = {}) {
         XMLHttpRequest: { prototype: { open: jest.fn(), send: jest.fn() } },
         navigator: {
             vibrate: jest.fn(),
-            clipboard: { writeText: jest.fn(), readText: jest.fn() },
+            clipboard: {
+                writeText: jest.fn(() => Promise.resolve()),
+                readText: jest.fn(() => Promise.resolve('')),
+            },
             onLine: true,
             language: 'en',
             userAgent: 'test-agent',
             geolocation: { watchPosition: jest.fn(), clearWatch: jest.fn() },
         },
         open: jest.fn(),
+        getComputedStyle: jest.fn(() => ({ getPropertyValue: jest.fn(() => '') })),
         location: { href: '', origin: '', protocol: 'https:', host: 'localhost' },
         localStorage: {
             _store: {} as Record<string, string>,
@@ -127,10 +132,10 @@ describe('AppacadabraAI', () => {
         expect(result).toBeNull();
     });
 
-    it('withSearch().generate → data.useSearch = true', () => {
+    it('withSearch().generate → data.search = true', () => {
         sb.AppacadabraAI.withSearch().generate('query', 'cb');
         const msg = getLastMessage(postMessage);
-        expect(msg.data.useSearch).toBe(true);
+        expect(msg.data.search).toBe(true);
     });
 
     it('withSchema().generate → data.schema is set', () => {
@@ -337,10 +342,11 @@ describe('AppacadabraNotify', () => {
         expect(msg.type).toBe('NOTIFY_SHOW_NOW');
     });
 
-    it('alert → NOTIFY_SHOW_NOW', () => {
-        sb.AppacadabraNotify.alert('msg', 'cb');
-        const msg = getLastMessage(postMessage);
-        expect(msg.type).toBe('NOTIFY_SHOW_NOW');
+    it('alert returns a Promise (custom dialog, not postMessage)', () => {
+        // AppacadabraNotify.alert is overridden to a Promise-based DOM dialog
+        const result = sb.AppacadabraNotify.alert('msg');
+        expect(result).toBeInstanceOf(Promise);
+        expect(postMessage.mock.calls.length).toBe(0);
     });
 
     it('schedule → NOTIFY_SCHEDULE with isAlarm falsy', () => {
@@ -533,7 +539,9 @@ describe('AppacadabraClipboard', () => {
     beforeEach(() => {
         postMessage.mockClear();
         sb.navigator.clipboard.writeText.mockClear();
+        sb.navigator.clipboard.writeText.mockImplementation(() => Promise.resolve());
         sb.navigator.clipboard.readText.mockClear();
+        sb.navigator.clipboard.readText.mockImplementation(() => Promise.resolve(''));
     });
 
     it('setString calls navigator.clipboard.writeText', () => {
