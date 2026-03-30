@@ -904,6 +904,7 @@ interface Job {
         model?: string;
         voiceName?: string;
         items?: string[];
+        appId?: string | number;
     };
     result?: {
         text: string; // GZIP:base64
