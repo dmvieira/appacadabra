@@ -2756,8 +2756,7 @@ export async function handleBridgeMessage(
         // ============= Google Forms Handlers =============
         case 'FORMS_CREATE': {
             const FORMS_SCOPES = [
-                'https://www.googleapis.com/auth/forms.body',
-                'https://www.googleapis.com/auth/forms.responses.readonly',
+                'https://www.googleapis.com/auth/drive.file'
             ];
             const FORMS_API = 'https://forms.googleapis.com/v1/forms';
 
@@ -2871,8 +2870,7 @@ export async function handleBridgeMessage(
 
         case 'FORMS_UPDATE': {
             const FORMS_SCOPES = [
-                'https://www.googleapis.com/auth/forms.body',
-                'https://www.googleapis.com/auth/forms.responses.readonly',
+                'https://www.googleapis.com/auth/drive.file'
             ];
             const FORMS_API = 'https://forms.googleapis.com/v1/forms';
 
@@ -2993,8 +2991,7 @@ export async function handleBridgeMessage(
 
         case 'FORMS_GET_RESPONSES': {
             const FORMS_SCOPES = [
-                'https://www.googleapis.com/auth/forms.body',
-                'https://www.googleapis.com/auth/forms.responses.readonly',
+                'https://www.googleapis.com/auth/drive.file'
             ];
             const FORMS_API = 'https://forms.googleapis.com/v1/forms';
 
@@ -3071,7 +3068,7 @@ export async function handleBridgeMessage(
 
         // ============= Google Docs Handlers =============
         case 'DOCS_CREATE': {
-            const DOCS_SCOPES = ['https://www.googleapis.com/auth/documents'];
+            const DOCS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
             const DOCS_API = 'https://docs.googleapis.com/v1/documents';
 
             debugLog(`Docs create: ${data.title}`);
@@ -3121,7 +3118,7 @@ export async function handleBridgeMessage(
         }
 
         case 'DOCS_GET': {
-            const DOCS_SCOPES = ['https://www.googleapis.com/auth/documents'];
+            const DOCS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
             const DOCS_API = 'https://docs.googleapis.com/v1/documents';
 
             debugLog(`Docs get: ${data.docId}`);
@@ -3152,7 +3149,7 @@ export async function handleBridgeMessage(
         }
 
         case 'DOCS_APPEND_TEXT': {
-            const DOCS_SCOPES = ['https://www.googleapis.com/auth/documents'];
+            const DOCS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
             const DOCS_API = 'https://docs.googleapis.com/v1/documents';
 
             debugLog(`Docs append: ${data.docId}`);
@@ -3201,7 +3198,7 @@ export async function handleBridgeMessage(
 
         // ============= Google Sheets Handlers =============
         case 'SHEETS_CREATE': {
-            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
             const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 
             debugLog(`Sheets create: ${data.title}`);
@@ -3255,7 +3252,7 @@ export async function handleBridgeMessage(
         }
 
         case 'SHEETS_APPEND_ROWS': {
-            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
             const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 
             debugLog(`Sheets append rows: ${data.sheetId}`);
@@ -3296,7 +3293,7 @@ export async function handleBridgeMessage(
         }
 
         case 'SHEETS_GET_ROWS': {
-            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
             const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 
             debugLog(`Sheets get rows: ${data.sheetId}`);
@@ -3338,7 +3335,7 @@ export async function handleBridgeMessage(
         }
 
         case 'SHEETS_CLEAR_ROWS': {
-            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
             const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 
             debugLog(`Sheets clear rows: ${data.sheetId}`);
@@ -3369,7 +3366,7 @@ export async function handleBridgeMessage(
         }
 
         case 'SHEETS_UPDATE_CELL': {
-            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+            const SHEETS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
             const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 
             debugLog(`Sheets update cell: ${data.sheetId} ${data.cell}`);

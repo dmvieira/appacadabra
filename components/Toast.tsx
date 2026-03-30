@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet, Animated, Easing, TouchableOpacity, Platform } from 'react-native';
 import { colors, spacing, borderRadius, typography, shadows } from '../lib/theme';
 import { useAppStore } from '../lib/store';
 import { useRouter } from 'expo-router';
+import * as ShareIntent from 'share-intent';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -66,7 +67,11 @@ export const Toast = () => {
 
     const handlePress = statusActionAppId != null ? () => {
         dismiss();
-        router.push(`/runner/${statusActionAppId}` as any);
+        if (Platform.OS === 'android') {
+            ShareIntent.openRunnerWindow(Number(statusActionAppId)).catch(() => {});
+        } else {
+            router.push(`/runner/${statusActionAppId}` as any);
+        }
     } : undefined;
 
     if (!activeMessage) return null;

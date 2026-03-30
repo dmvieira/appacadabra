@@ -127,6 +127,12 @@ describe('AppacadabraAI', () => {
         expect(result).toEqual({ a: 1 });
     });
 
+    it('parseJSON returns the object directly if passed an object', () => {
+        const obj = { already: "object" };
+        const result = sb.AppacadabraAI.parseJSON(obj);
+        expect(result).toBe(obj);
+    });
+
     it('parseJSON returns null for invalid JSON', () => {
         const result = sb.AppacadabraAI.parseJSON('not json');
         expect(result).toBeNull();

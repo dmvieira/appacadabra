@@ -87,25 +87,31 @@ export default function RootLayout() {
             }
 
             const content = response.notification.request.content as any;
+            const notificationType = content?.data?.notificationType;
             const appId = extractAppIdFromNotification(content);
-            if (!appId) return;
 
-            // Guard: do not open runner for a deleted spell
-            const knownApps = useAppStore.getState().apps;
-            if (!knownApps.some(a => String(a.id) === String(appId))) {
-                console.warn('[Layout] Notification for unknown/deleted spell:', appId);
-                Notifications.dismissNotificationAsync(
-                    response.notification.request.identifier
-                ).catch(() => {});
+            if (!appId) {
+                if (notificationType === 'app_created') {
+                    try { router.replace('/'); } catch {}
+                }
                 return;
             }
 
-            const notificationType = content?.data?.notificationType;
+            // Guard: do not open runner for unknown/deleted spell — skip for app_created (app may not exist yet)
+            if (notificationType !== 'app_created') {
+                const knownApps = useAppStore.getState().apps;
+                if (!knownApps.some(a => String(a.id) === String(appId))) {
+                    console.warn('[Layout] Notification for unknown/deleted spell:', appId);
+                    Notifications.dismissNotificationAsync(
+                        response.notification.request.identifier
+                    ).catch(() => {});
+                    return;
+                }
+            }
 
             lastHandledNotificationTapId = tapId || String(appId);
 
             if (notificationType === 'app_created') {
-                // For create notifications we want listing/setup flow, not runner.
                 try {
                     router.replace({ pathname: '/', params: { setupAppId: String(appId) } });
                 } catch {

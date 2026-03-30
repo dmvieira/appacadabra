@@ -653,6 +653,7 @@ export function getInjectedJavaScript(appId: number, translations?: InjectedTran
         sendMessage('AI_SIMILARITY', { items: items }, callbackName);
       },
       parseJSON: function(str) {
+        if (typeof str === 'object' && str !== null) return str;
         if (!str || typeof str !== 'string') return null;
         try {
             var clean = str.replace(/\`\`\`[a-z]*\\n?/gi, '').replace(/\`\`\`/g, '').trim();
