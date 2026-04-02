@@ -49,9 +49,51 @@ jest.mock('expo-notifications', () => ({
     scheduleNotificationAsync: jest.fn()
 }));
 
+jest.mock('expo-av', () => ({
+    Audio: {
+        Recording: jest.fn().mockImplementation(() => ({
+            prepareToRecordAsync: jest.fn(),
+            startAsync: jest.fn(),
+            stopAndUnloadAsync: jest.fn(),
+            getURI: jest.fn(() => null),
+        })),
+        Sound: {
+            createAsync: jest.fn(() => Promise.resolve({ sound: { playAsync: jest.fn(), stopAsync: jest.fn(), unloadAsync: jest.fn(), setOnPlaybackStatusUpdate: jest.fn() }, status: {} })),
+        },
+        setAudioModeAsync: jest.fn(),
+        RecordingOptionsPresets: { HIGH_QUALITY: {} },
+    },
+    Video: jest.fn(),
+}));
+
+jest.mock('expo-sqlite', () => ({
+    openDatabaseAsync: jest.fn(() => Promise.resolve({
+        execAsync: jest.fn(),
+        runAsync: jest.fn(),
+        getAllAsync: jest.fn(() => Promise.resolve([])),
+        getFirstAsync: jest.fn(() => Promise.resolve(null)),
+        closeAsync: jest.fn(),
+    })),
+}));
+
 jest.mock('expo-localization', () => ({
     getLocales: () => [{ languageCode: 'en' }]
 }));
+
+// Mock i18n-js to prevent its TypeScript ESM source from crashing Jest.
+// lib/i18n.ts wraps this package, so we mock the package rather than lib/i18n
+// to allow the real lib/i18n exports (t, getWebViewTranslations, etc.) to work.
+jest.mock('i18n-js', () => {
+    const scope = {};
+    const I18n = jest.fn().mockImplementation(function(translations) {
+        this.translations = translations || {};
+        this.locale = 'en';
+        this.enableFallback = true;
+        this.t = (key) => key;
+        this.translate = (key) => key;
+    });
+    return { I18n, scope };
+});
 
 // Mock react-native AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -60,6 +102,34 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     removeItem: jest.fn(),
     clear: jest.fn()
 }));
+
+// Mock lib/firebase to prevent @react-native-firebase native module loading
+jest.mock('./lib/firebase', () => ({
+    requestGoogleScopes: jest.fn(() => Promise.resolve(true)),
+    getAccessToken: jest.fn(() => Promise.resolve('mock-token')),
+    APP_VERSION: '1.0.0',
+}));
+
+// Mock lib/backupSync to prevent firebase chain loading
+jest.mock('./lib/backupSync', () => ({
+    markBackupDirty: jest.fn(),
+}));
+
+// Mock lib/analytics to prevent @react-native-firebase/analytics chain loading
+jest.mock('./lib/analytics', () => ({
+    logEvent: jest.fn(),
+    setUserProperties: jest.fn(),
+}));
+
+// Mock lib/api/ai to prevent firebase/analytics loading
+jest.mock('./lib/api/ai', () => ({
+    generateText: jest.fn(),
+    generateImage: jest.fn(),
+    generateVideo: jest.fn(),
+    computeSimilarity: jest.fn(),
+    speakAI: jest.fn(),
+}));
+
 
 // Mock Firebase
 jest.mock('@react-native-firebase/auth', () => ({

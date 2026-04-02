@@ -4,6 +4,16 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+task syncCapabilities(type: Exec) {
+    workingDir rootDir.parentFile  // repo root (android/ → ../ = appacadabra/)
+    def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+    commandLine isWindows ? 'cmd' : 'sh',
+                isWindows ? '/c' : '-c',
+                'npm run sync-capabilities'
+}
+
+preBuild.dependsOn syncCapabilities
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.

@@ -14,7 +14,7 @@ import { GoogleGenAI, VideoGenerationReferenceType, Type, ThinkingLevel } from "
 
 import * as zlib from 'zlib';
 import {
-    SYSTEM_INSTRUCTIONS,
+    SYSTEM_PREAMBLE,
     CONVERT_PROJECT_PROMPT,
     // Unified 2-Step Prompts
     UNIFIED_CREATE_PLANNER_PROMPT,
@@ -22,6 +22,7 @@ import {
     UNIFIED_EDIT_PLANNER_PROMPT,
     UNIFIED_EDIT_MIGRATE_PROMPT,
 } from "./prompts";
+import { buildSystemInstructions, ALL_CAPABILITIES } from "./capabilities/index";
 import { validateGeneratedCode, generateFixPrompt } from "./codeValidator";
 import { validateWithExecution } from "./executionValidator";
 import { NOTIF_I18N } from "./i18n";
@@ -47,30 +48,36 @@ const CACHED_MAIN_MODEL_CONFIG = {
     thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
 };
 
-// Context Caching for SYSTEM_INSTRUCTIONS (~1,800 tokens)
-// Cache read: 25% of input price → significant savings at volume
-let _sysCache: any = null;
-let _sysCacheExpiresAt = 0;
-const CACHE_TTL_S = 3600;           // 1 hour TTL
-const CACHE_RENEW_BEFORE_MS = 5 * 60 * 1000;  // renew 5 min before expiry
+// Context Caching for system instructions (~1,800 tokens)
+// Cache read: 25% of input price → significant savings at volume.
+// One cache entry per active app version — at any time only 2-3 versions are live.
+const CACHE_TTL_S = 3600;                          // 1 hour TTL
+const CACHE_RENEW_BEFORE_MS = 5 * 60 * 1000;      // renew 5 min before expiry
 
-async function getOrCreateSysCache(): Promise<string> {
+interface SysCacheEntry { cache: any; expiresAt: number; }
+const _sysCacheMap = new Map<string, SysCacheEntry>();
+
+async function getOrCreateSysCacheForVersion(appVersion: string): Promise<string> {
     const now = Date.now();
-    if (!_sysCache || now > _sysCacheExpiresAt - CACHE_RENEW_BEFORE_MS) {
-        console.log('[CACHE] Creating/renewing SYSTEM_INSTRUCTIONS cache...');
-        _sysCache = await getAI().caches.create({
+    const entry = _sysCacheMap.get(appVersion);
+    if (!entry || now > entry.expiresAt - CACHE_RENEW_BEFORE_MS) {
+        console.log(`[CACHE] Creating/renewing cache for appVersion=${appVersion}...`);
+        const instructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+        const cache = await getAI().caches.create({
             model: 'models/gemini-3-flash-preview',
             config: {
-                systemInstruction: SYSTEM_INSTRUCTIONS,
+                systemInstruction: instructions,
                 tools: [{ googleSearch: {} }],
                 ttl: `${CACHE_TTL_S}s`,
             },
         });
-        _sysCacheExpiresAt = now + CACHE_TTL_S * 1000;
-        console.log(`[CACHE] Cache created: ${_sysCache.name}`);
+        _sysCacheMap.set(appVersion, { cache, expiresAt: now + CACHE_TTL_S * 1000 });
+        console.log(`[CACHE] Cache created for ${appVersion}: ${cache.name}`);
+        return cache.name!;
     }
-    return _sysCache.name!;
+    return entry.cache.name!;
 }
+
 
 
 // ============= COMPRESSION UTILS =============
@@ -905,6 +912,7 @@ interface Job {
         voiceName?: string;
         items?: string[];
         appId?: string | number;
+        appVersion?: string;
     };
     result?: {
         text: string; // GZIP:base64
@@ -993,6 +1001,7 @@ export const processSpellJob = onDocumentCreated(
 
         const sourceCode = decompressContent(payload.sourceCode || "");
         const frameworkHint = payload.frameworkHint;
+        const appVersion: string = payload.appVersion ?? '1.0.0';
 
         const schema = payload.schema;
         const imagesBase64 = payload.imagesBase64;
@@ -1084,7 +1093,7 @@ export const processSpellJob = onDocumentCreated(
                     };
 
                     let sysCacheName: string | null = null;
-                    try { sysCacheName = await getOrCreateSysCache(); }
+                    try { sysCacheName = await getOrCreateSysCacheForVersion(appVersion); }
                     catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back:`, cacheErr); }
 
                     const callModel = async (p: string, fullPromptFallback: string) => {
@@ -1125,7 +1134,7 @@ export const processSpellJob = onDocumentCreated(
                     // Stage 1: Planning
                     console.log(`[Job ${jobId}] Stage 1: Planning...`);
                     const plannerPrompt = `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
-                    const planResult = await callModel(plannerPrompt, `${SYSTEM_INSTRUCTIONS}\n\n${plannerPrompt}`);
+                    const planResult = await callModel(plannerPrompt, `${SYSTEM_PREAMBLE}\n\n${plannerPrompt}`);
                     addUsage(planResult);
                     const appPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Plan created:`, JSON.stringify(appPlan).substring(0, 200) + '...');
@@ -1133,7 +1142,7 @@ export const processSpellJob = onDocumentCreated(
                     // Stage 2: Coding
                     console.log(`[Job ${jobId}] Stage 2: Coding...`);
                     const codePrompt = `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
-                    const codeResult = await callModel(codePrompt, `${SYSTEM_INSTRUCTIONS}\n\n${codePrompt}`);
+                    const codeResult = await callModel(codePrompt, `${SYSTEM_PREAMBLE}\n\n${codePrompt}`);
                     addUsage(codeResult);
 
                     resultText = fixCallbackPatterns(extractHtml(extractText(codeResult)));
@@ -1212,7 +1221,7 @@ export const processSpellJob = onDocumentCreated(
                         : '';
 
                     let editCacheName: string | null = null;
-                    try { editCacheName = await getOrCreateSysCache(); }
+                    try { editCacheName = await getOrCreateSysCacheForVersion(appVersion); }
                     catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back:`, cacheErr); }
 
                     const callEditModel = async (p: string, fullPromptFallback: string) => {
@@ -1247,7 +1256,7 @@ export const processSpellJob = onDocumentCreated(
                     // Stage 1: Plan
                     console.log(`[Job ${jobId}] Stage 1: Planning Edit...`);
                     const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const planResult = await callEditModel(planPrompt, `${SYSTEM_INSTRUCTIONS}\n\n${planPrompt}`);
+                    const planResult = await callEditModel(planPrompt, `${SYSTEM_PREAMBLE}\n\n${planPrompt}`);
                     addUsage(planResult);
                     const editPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Edit Plan:`, JSON.stringify(editPlan, null, 2));
@@ -1255,7 +1264,7 @@ export const processSpellJob = onDocumentCreated(
                     // Stage 2: Patch
                     console.log(`[Job ${jobId}] Stage 2: Patching...`);
                     const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const patchResult = await callEditModel(patchPrompt, `${SYSTEM_INSTRUCTIONS}\n\n${patchPrompt}`);
+                    const patchResult = await callEditModel(patchPrompt, `${SYSTEM_PREAMBLE}\n\n${patchPrompt}`);
                     addUsage(patchResult);
                     const patchResponse = extractJson(extractText(patchResult));
 
@@ -1310,7 +1319,7 @@ export const processSpellJob = onDocumentCreated(
 
                     let convertResult: any;
                     let convCacheName: string | null = null;
-                    try { convCacheName = await getOrCreateSysCache(); }
+                    try { convCacheName = await getOrCreateSysCacheForVersion(appVersion); }
                     catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back for convert:`, cacheErr); }
 
                     if (convCacheName) {
@@ -1322,7 +1331,7 @@ export const processSpellJob = onDocumentCreated(
                     } else {
                         convertResult = await withRetry(() => getAI().models.generateContent({
                             model: 'models/gemini-3-flash-preview',
-                            contents: `${SYSTEM_INSTRUCTIONS}\n\n${convertPrompt}`,
+                            contents: `${SYSTEM_PREAMBLE}\n\n${convertPrompt}`,
                             config: MAIN_MODEL_CONFIG,
                         }));
                     }

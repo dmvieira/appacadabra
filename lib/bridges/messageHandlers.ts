@@ -28,6 +28,7 @@ import { Accelerometer, Gyroscope, Magnetometer, Pedometer } from 'expo-sensors'
 import * as Haptics from 'expo-haptics';
 import * as Battery from 'expo-battery';
 import * as Network from 'expo-network';
+import { ALL_CAPABILITIES } from '../capabilities/index';
 
 // State for Audio Recording
 let currentRecording: Audio.Recording | null = null;
@@ -739,6 +740,24 @@ export async function handleBridgeMessage(
         }
     };
 
+    // ── Capability module delegates ──────────────────────────────────────────
+    // Each registered capability handles its own message types and returns null
+    // for types it doesn't own. Extracted capabilities are removed from the
+    // switch below as they are migrated.
+    for (const cap of ALL_CAPABILITIES) {
+        const capRes = await cap.handleMessage(type, data, ctx);
+        if (capRes !== null) {
+            return {
+                success: capRes.success ?? true,
+                result: capRes.result ?? '',
+                handled: true,
+                deferredCallback: capRes.deferredCallback ?? false,
+                creditsUsed: capRes.creditsUsed ?? 0,
+                isFirstAiUse: capRes.isFirstAiUse ?? false,
+            };
+        }
+    }
+
     switch (type) {
         case 'AI_GENERATE': {
             let generateCostDisplay: string;
@@ -855,122 +874,6 @@ export async function handleBridgeMessage(
             }
             break;
         }
-
-        // ============= Calendar Handlers =============
-        case 'CALENDAR_CREATE_EVENT':
-        case 'CALENDAR_CREATE_EVENT_REMINDER':
-            debugLog(`Calendar create event: ${data.title}`);
-            try {
-                const startMs = data.startTimeMs;
-                const endMs = data.endTimeMs;
-                const eventTitle = encodeURIComponent(data.title || t('newEvent'));
-                const eventDesc = encodeURIComponent(data.description || '');
-
-                const startDate = new Date(startMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-                const endDate = new Date(endMs).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-
-                const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&details=${eventDesc}&dates=${startDate}/${endDate}`;
-                await Linking.openURL(googleCalUrl);
-                result = 'Calendar opened';
-            } catch (e) {
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
-
-        case 'CALENDAR_GET_EVENTS':
-            debugLog(`Calendar get events request`);
-            try {
-                const { status } = await Calendar.requestCalendarPermissionsAsync();
-                if (status !== 'granted') {
-                    success = false;
-                    result = t('accessDenied') || 'Permission denied';
-                    break;
-                }
-
-                const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-                const calendarIds = calendars.map(c => c.id);
-
-                // Create lookup map for calendar names
-                const calendarMap = new Map(calendars.map(c => [c.id, c.title]));
-
-                if (calendarIds.length === 0) {
-                    result = JSON.stringify([]);
-                    break;
-                }
-
-                // Default range: 24h if not provided
-                const startDate = data.startTimeMs ? new Date(data.startTimeMs) : new Date();
-                const endDate = data.endTimeMs ? new Date(data.endTimeMs) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-                const events = await Calendar.getEventsAsync(calendarIds, startDate, endDate);
-
-                // Build detailed events with attendees
-                const detailedEvents = await Promise.all(events.map(async (e) => {
-                    // Get attendees for this event
-                    let attendees: { name?: string; email?: string; status?: string; isCurrentUser?: boolean }[] = [];
-                    try {
-                        const rawAttendees = await Calendar.getAttendeesForEventAsync(e.id);
-                        attendees = rawAttendees.map(a => ({
-                            name: a.name,
-                            email: a.email,
-                            status: a.status,
-                            isCurrentUser: a.isCurrentUser
-                        }));
-                    } catch {
-                        // Some events may not support attendees
-                    }
-
-                    return {
-                        id: e.id,
-                        title: e.title,
-                        startDate: e.startDate,
-                        endDate: e.endDate,
-                        allDay: e.allDay,
-                        location: e.location,
-                        notes: e.notes,
-                        calendarId: e.calendarId,
-                        calendarName: calendarMap.get(e.calendarId) || 'Unknown',
-                        attendees
-                    };
-                }));
-
-                debugLog(`Found ${detailedEvents.length} events`);
-                result = JSON.stringify(detailedEvents);
-            } catch (e) {
-                console.error('Calendar get events error:', e);
-                success = false;
-                result = e instanceof Error ? e.message : 'Error reading calendar';
-            }
-            break;
-
-        case 'CALENDAR_HAS_PERMISSION':
-            const calPerm = await Calendar.getCalendarPermissionsAsync();
-            result = (calPerm.status === 'granted').toString();
-            break;
-
-        case 'CALENDAR_DELETE_EVENT':
-            debugLog(`Calendar delete event: ${data.eventId}`);
-            try {
-                const { status } = await Calendar.requestCalendarPermissionsAsync();
-                if (status !== 'granted') {
-                    success = false;
-                    result = t('accessDenied') || 'Permission denied';
-                    break;
-                }
-
-                await Calendar.deleteEventAsync(data.eventId);
-                result = 'Event deleted';
-            } catch (e) {
-                console.error('Calendar delete event error:', e);
-                success = false;
-                result = e instanceof Error ? e.message : 'Error deleting event';
-            }
-            break;
-
-        case 'CALENDAR_REQUEST_PERMISSION':
-            await Calendar.requestCalendarPermissionsAsync();
-            break;
 
         // ============= Notification Handlers =============
         case 'NOTIFY_SHOW_NOW':
@@ -1310,74 +1213,6 @@ export async function handleBridgeMessage(
                 } else {
                     result = 'Permission denied';
                     success = false;
-                }
-            } catch (e) {
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
-
-        // ============= Share Handlers =============
-        case 'SHARE_CONTENT':
-            debugLog(`Share content request`);
-            try {
-                const { Share: RNShare, Platform } = require('react-native');
-                const shareContent: { message?: string; url?: string; title?: string } = {};
-
-                if (Platform.OS === 'android') {
-                    const textParts = [];
-                    if (data.text) textParts.push(data.text);
-                    if (data.url) textParts.push(data.url);
-                    shareContent.message = textParts.join('\n');
-                } else {
-                    if (data.text) {
-                        shareContent.message = data.text;
-                    }
-                    if (data.url) {
-                        shareContent.url = data.url;
-                    }
-                }
-
-                const shareResult = await RNShare.share(shareContent);
-                result = shareResult.action === RNShare.sharedAction ? 'Shared' : 'Dismissed';
-            } catch (e) {
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
-
-        case 'SHARE_FILE':
-            debugLog(`Share file: ${data.filename}`);
-            try {
-                if (await Sharing.isAvailableAsync()) {
-                    let sharePath: string;
-                    const input: string = data.base64 ?? '';
-
-                    if (input.startsWith('file://') || (input.startsWith('/') && input.length < 500)) {
-                        // Already a file path — share directly without re-writing
-                        sharePath = input.startsWith('/') ? `file://${input}` : input;
-                    } else {
-                        // Real base64 (or data URI) — sanitize filename and write to cache
-                        let base64Data = input;
-                        const commaIdx = input.indexOf(',');
-                        if (input.startsWith('data:') && commaIdx !== -1) {
-                            base64Data = input.slice(commaIdx + 1);
-                        }
-                        const safeFilename = (data.filename || 'shared_file')
-                            .normalize('NFD')
-                            .replace(/[\u0300-\u036f]/g, '')   // Remove diacritics: ê→e, á→a
-                            .replace(/[^a-zA-Z0-9._-]/g, '_'); // Spaces and specials → _
-                        sharePath = FileSystem.cacheDirectory + safeFilename;
-                        await FileSystem.writeAsStringAsync(sharePath, base64Data, {
-                            encoding: FileSystem.EncodingType.Base64,
-                        });
-                    }
-
-                    await Sharing.shareAsync(sharePath, { mimeType: data.mimeType || 'application/octet-stream' });
-                    result = 'File shared';
-                } else {
-                    success = false;
-                    result = 'Sharing not available';
                 }
             } catch (e) {
                 success = false;
@@ -2235,203 +2070,6 @@ export async function handleBridgeMessage(
                 } else {
                     result = errorMsg;
                 }
-            }
-            break;
-        }
-
-        // ============= Device Info Handlers =============
-        case 'DEVICE_GET_BATTERY_LEVEL':
-            try {
-                const level = await Battery.getBatteryLevelAsync();
-                result = String(level);
-            } catch (e) {
-                console.error('Battery level error:', e);
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
-
-        case 'DEVICE_IS_CHARGING':
-            try {
-                const status = await Battery.getBatteryStateAsync();
-                const isCharging = status === Battery.BatteryState.CHARGING || status === Battery.BatteryState.FULL;
-                result = String(isCharging);
-            } catch (e) {
-                console.error('Battery charging error:', e);
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
-
-        case 'DEVICE_GET_NETWORK_INFO':
-            try {
-                const state = await Network.getNetworkStateAsync();
-                // Return simplified type compatible with old navigator.connection.effectiveType or a new rich object
-                // For now, let's return the type string (WIFI, CELLULAR, NONE, UNKNOWN)
-                console.log(`[Bridge] Network State:`, JSON.stringify(state));
-
-                // Map Expo Network Types to translated strings
-                // Use loose equality or check against enum values directly
-                if (state.type === Network.NetworkStateType.WIFI) result = t('network_wifi');
-                else if (state.type === Network.NetworkStateType.CELLULAR) result = t('network_cellular');
-                else if (state.type === Network.NetworkStateType.NONE) result = t('network_none');
-                else result = t('network_unknown'); // Default fallback for UNKNOWN or unexpected values
-
-                console.log(`[Bridge] Network result: ${result}`);
-            } catch (e) {
-                console.error('Network info error:', e);
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
-
-        case 'DEVICE_IS_ONLINE':
-            try {
-                const state = await Network.getNetworkStateAsync();
-                const isOnline = state.isInternetReachable !== false;
-                result = String(isOnline);
-            } catch (e) {
-                console.error('Network online check error:', e);
-                success = false;
-                result = e instanceof Error ? e.message : 'Error';
-            }
-            break;
-
-        // ============= Vibration Handler =============
-        case 'VIBRATE': {
-            let pattern = data.pattern;
-            console.log(`[Native Bridge] VIBRATE command received. Raw type: ${typeof pattern}, Value: ${JSON.stringify(pattern)}`);
-
-            try {
-                // Cancel any previous vibration to ensure a clean slate
-                Vibration.cancel();
-
-                // 1. Normalize input: Handle stringified JSON that might have slipped through
-                if (typeof pattern === 'string') {
-                    try {
-                        const parsed = JSON.parse(pattern);
-                        if (Array.isArray(parsed) || typeof parsed === 'number') {
-                            pattern = parsed;
-                            console.log(`[Native Bridge] Parsed string pattern to: ${JSON.stringify(pattern)}`);
-                        }
-                    } catch (e) {
-                        // Not JSON, assume simple string -> ignore or treat as error
-                        console.warn('[Native Bridge] VIBRATE: Could not parse string pattern');
-                    }
-                }
-
-                // 2. Handle Array Pattern
-                if (Array.isArray(pattern)) {
-                    // Normalize array: Ensure all elements are numbers
-                    const validPattern = pattern.map(p => Number(p)).filter(n => !isNaN(n));
-
-                    if (validPattern.length === 0) {
-                        console.warn('[Native Bridge] VIBRATE: Empty pattern array');
-                        result = 'Empty pattern';
-                        break;
-                    }
-
-                    // Android: Native patterns supported. Prepend 0 to start immediately.
-                    // Web/User: [vibrate, wait, vibrate, ...]
-                    // Android: [wait, vibrate, wait, vibrate, ...]
-                    const { Platform } = require('react-native');
-
-                    if (Platform.OS === 'android') {
-                        const androidPattern = [0, ...validPattern];
-                        console.log(`[Native Bridge] Vibrating Android Pattern: ${JSON.stringify(androidPattern)}`);
-                        Vibration.vibrate(androidPattern);
-                        result = 'Vibrated (Android Pattern)';
-                    } else {
-                        // iOS/Other: Fallback loop (Best effort)
-                        console.log(`[Native Bridge] Vibrating iOS/Manual Pattern: ${JSON.stringify(validPattern)}`);
-                        let currentTime = 0;
-                        for (let i = 0; i < validPattern.length; i++) {
-                            const duration = validPattern[i];
-                            if (i % 2 === 0 && duration > 0) { // Even index = Vibrate
-                                setTimeout(() => {
-                                    Vibration.vibrate();
-                                    // Enhance with Haptics for short bursts on iOS
-                                    if (duration < 100) {
-                                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
-                                    }
-                                }, currentTime);
-                            }
-                            currentTime += duration;
-                        }
-                        result = 'Vibrated (Manual Pattern)';
-                    }
-                }
-                // 3. Handle Single Number (Duration)
-                else {
-                    const duration = Number(pattern);
-                    if (!isNaN(duration) && duration > 0) {
-                        console.log(`[Native Bridge] Vibrating Single Duration: ${duration}ms`);
-                        Vibration.vibrate(duration);
-
-                        // Safety/Enhancement haptic
-                        if (duration <= 100) {
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
-                        }
-                        result = `Vibrated ${duration}ms`;
-                    } else {
-                        console.warn(`[Native Bridge] VIBRATE: Invalid pattern format: ${pattern}`);
-                        result = 'Invalid pattern';
-                        success = false;
-                    }
-                }
-            } catch (e) {
-                console.error('[Native Bridge] Vibration FATAL error:', e);
-                success = false;
-                result = e instanceof Error ? e.message : String(e);
-            }
-            break;
-        }
-
-        // ============= Screen Capture Handler =============
-        case 'SCREEN_CAPTURE':
-            debugLog('Capturing screen...');
-            // First choice: viewContainerRef (usually more reliable for capturing WebView content on Android)
-            // Second choice: webViewRef
-            const captureTarget = (ctx.viewContainerRef && ctx.viewContainerRef.current)
-                ? ctx.viewContainerRef.current
-                : (ctx.webViewRef && ctx.webViewRef.current ? ctx.webViewRef.current : null);
-
-            if (captureTarget) {
-                try {
-                    const { captureRef } = require('react-native-view-shot');
-                    const uri = await captureRef(captureTarget, {
-                        format: 'png',
-                        quality: 0.8,
-                        result: 'base64'
-                    });
-                    result = uri.replace(/(\r\n|\n|\r)/gm, "");
-                } catch (e) {
-                    success = false;
-                    result = e instanceof Error ? e.message : 'Screen capture failed';
-                }
-            } else {
-                success = false;
-                result = 'Capture target not available';
-            }
-            break;
-
-        // ============= Print Handler =============
-        case 'PRINT': {
-            debugLog('Requesting print dialog...');
-            try {
-                if (data.html) {
-                    await Print.printAsync({
-                        html: data.html
-                    });
-                    result = 'Print dialog opened';
-                } else {
-                    success = false;
-                    result = 'No content to print';
-                }
-            } catch (e) {
-                console.error('Print error:', e);
-                success = false;
-                result = e instanceof Error ? e.message : 'Print failed';
             }
             break;
         }

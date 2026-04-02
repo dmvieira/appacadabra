@@ -2,29 +2,33 @@
  * Unit tests for prompts.ts
  */
 
-import { validateContentRequest, SYSTEM_INSTRUCTIONS, UNIFIED_CREATE_PLANNER_PROMPT, UNIFIED_EDIT_PLANNER_PROMPT, CONVERT_PROJECT_PROMPT } from '../prompts';
+import { validateContentRequest, SYSTEM_PREAMBLE, UNIFIED_CREATE_PLANNER_PROMPT, UNIFIED_EDIT_PLANNER_PROMPT, CONVERT_PROJECT_PROMPT } from '../prompts';
+import { buildSystemInstructions, ALL_CAPABILITIES } from '../capabilities/index';
+
+/** Full system instructions for a current app version — includes all capability docs. */
+const FULL_INSTRUCTIONS = buildSystemInstructions('1.0.0', ALL_CAPABILITIES);
 
 describe('prompts', () => {
-    describe('SYSTEM_INSTRUCTIONS', () => {
+    describe('SYSTEM_PREAMBLE', () => {
         it('should contain Appacadabra API documentation', () => {
-            expect(SYSTEM_INSTRUCTIONS).toContain('Appacadabra');
+            expect(FULL_INSTRUCTIONS).toContain('Appacadabra');
         });
 
         it('should document the callback pattern', () => {
-            expect(SYSTEM_INSTRUCTIONS).toContain('CALLBACK PATTERN');
-            expect(SYSTEM_INSTRUCTIONS).toContain('global function');
+            expect(SYSTEM_PREAMBLE).toContain('CALLBACK PATTERN');
+            expect(SYSTEM_PREAMBLE).toContain('global function');
         });
 
         it('should document localStorage for persistence', () => {
-            expect(SYSTEM_INSTRUCTIONS).toContain('localStorage');
+            expect(SYSTEM_PREAMBLE).toContain('localStorage');
         });
 
         it('should document AI API', () => {
-            expect(SYSTEM_INSTRUCTIONS).toContain('AppacadabraAI');
+            expect(FULL_INSTRUCTIONS).toContain('AppacadabraAI');
         });
 
         it('should document notification API', () => {
-            expect(SYSTEM_INSTRUCTIONS).toContain('AppacadabraNotify');
+            expect(FULL_INSTRUCTIONS).toContain('AppacadabraNotify');
         });
     });
 
