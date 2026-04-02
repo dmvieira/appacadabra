@@ -3,7 +3,7 @@ import * as Localization from 'expo-localization';
 import { I18nManager } from 'react-native';
 
 // Translations for 17 languages: EN, PT, ES, FR, DE, IT, JA, ZH, KO, AR, HI, RU, TR, NL, PL, VI, TH
-const translations = {
+export const translations = {
     en: {
 
         // File types

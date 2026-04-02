@@ -2,12 +2,30 @@
  * Unit tests for i18n.ts
  */
 
-import { t, getWebViewTranslations } from '../i18n';
+import i18n, { t, getWebViewTranslations, translations } from '../i18n';
+
+jest.mock('expo-localization', () => ({
+    getLocales: () => [{ languageCode: 'en' }]
+}));
+
+jest.mock('react-native', () => ({
+    I18nManager: {
+        allowRTL: jest.fn(),
+        isRTL: false,
+        forceRTL: jest.fn(),
+    }
+}));
+
+// Setup i18n for tests
+i18n.store(translations);
+i18n.locale = 'en';
+i18n.defaultLocale = 'en';
+i18n.enableFallback = true;
 
 describe('i18n', () => {
     describe('t() translation function', () => {
         it('should return translation for appName', () => {
-            const result = t('appName');
+            const result = t('appName', { locale: 'en' });
             expect(result).toBe('Appacadabra');
         });
 
@@ -24,7 +42,7 @@ describe('i18n', () => {
         });
 
         it('should support interpolation', () => {
-            const result = t('manaBalance', { amount: 150 });
+            const result = t('manaConfirmBalance', { balance: 150, locale: 'en' });
             expect(result).toContain('150');
         });
 
@@ -42,8 +60,8 @@ describe('i18n', () => {
             const webviewT = getWebViewTranslations();
 
             expect(typeof webviewT).toBe('object');
-            expect(webviewT).toHaveProperty('shareTitle');
-            expect(webviewT).toHaveProperty('confirmIdentity');
+            expect(webviewT).toHaveProperty('sharedTextInserted');
+            expect(webviewT).toHaveProperty('fileAttached');
         });
 
         it('should have string values for all keys', () => {

@@ -88,9 +88,22 @@ jest.mock('i18n-js', () => {
     const I18n = jest.fn().mockImplementation(function(translations) {
         this.translations = translations || {};
         this.locale = 'en';
+        this.defaultLocale = 'en';
         this.enableFallback = true;
-        this.t = (key) => key;
-        this.translate = (key) => key;
+        this.t = (key, options) => {
+            const locale = options?.locale || this.locale;
+            const trans = this.translations[locale] || this.translations[this.defaultLocale] || {};
+            let result = trans[key] || key;
+            // Simple interpolation matching i18n-js %{key} syntax
+            if (typeof result === 'string' && options) {
+                Object.keys(options).forEach(k => {
+                    result = result.replace(new RegExp(`%\\{${k}\\}`, 'g'), options[k]);
+                });
+            }
+            return result;
+        };
+        this.translate = this.t;
+        this.store = (t) => { Object.assign(this.translations, t); };
     });
     return { I18n, scope };
 });
@@ -152,12 +165,5 @@ jest.mock('@react-native-firebase/functions', () => ({
     httpsCallable: jest.fn()
 }));
 
-// Global console suppression for cleaner test output
-global.console = {
-    ...console,
-    log: jest.fn(),
-    debug: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn()
-};
+// Global console suppression removed for better debugging
+// global.console = { ... };

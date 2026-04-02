@@ -140,6 +140,28 @@ function validateJavaScript(js: string): ValidationError[] {
         });
     }
 
+    // Count braces
+    const openBraces = (js.match(/\{/g) || []).length;
+    const closeBraces = (js.match(/\}/g) || []).length;
+    if (openBraces !== closeBraces) {
+        errors.push({
+            type: 'js',
+            message: `Mismatched braces in JavaScript: ${openBraces} opening, ${closeBraces} closing`,
+            fixable: true
+        });
+    }
+
+    // Count parentheses
+    const openParens = (js.match(/\(/g) || []).length;
+    const closeParens = (js.match(/\)/g) || []).length;
+    if (openParens !== closeParens) {
+        errors.push({
+            type: 'js',
+            message: `Mismatched parentheses in JavaScript: ${openParens} opening, ${closeParens} closing`,
+            fixable: true
+        });
+    }
+
     return errors;
 }
 
