@@ -1,188 +1,167 @@
 <en-US>
-• Added integrations for Google Sheets, Docs, and Forms
-• Added PDF generation and scheduled alarms
-• Improved AI reasoning and prompt analysis
-• Enhanced background push notifications
-• Fixed Google Drive permissions and URL sharing
-• Improved backup reliability and general stability
+• Build AI-powered apps for your own phone — no coding needed, just describe what you want
+• Access camera, contacts, calendar, sensors, GPS, and device features from your AI apps
+• Integrate with Google Docs, Sheets, and Forms directly from anything you create
+• Built-in AI with image generation, voice synthesis, and web-connected answers
+• Schedule notifications and alarms that work even when your app is closed
 </en-US>
 
 <ar>
-• إضافة تكامل لـ Google Sheets و Docs و Forms
-• إضافة إنشاء ملفات PDF ومنبهات مجدولة
-• تحسين تفكير الذكاء الاصطناعي وتحليل الأوامر
-• تعزيز إشعارات الخلفية
-• إصلاح أذونات Google Drive ومشاركة الروابط
-• تحسين موثوقية النسخ الاحتياطي والاستقرار العام
+• أنشئ تطبيقات مدعومة بالذكاء الاصطناعي لهاتفك — دون الحاجة إلى برمجة، فقط صف ما تريد
+• وصّل تطبيقاتك بالكاميرا وجهات الاتصال والتقويم والمستشعرات ونظام تحديد المواقع
+• تكامل مباشر مع Google Docs وSheets وForms من داخل ما تنشئه
+• ذكاء اصطناعي مدمج لتوليد الصور والنصوص والأصوات والإجابات المتصلة بالويب
+• جدوِل إشعارات وتنبيهات تعمل حتى عند إغلاق التطبيق
 </ar>
 
 <de-DE>
-• Integration für Google Sheets, Docs und Forms hinzugefügt
-• PDF-Generierung und geplante Alarme hinzugefügt
-• KI-Logik und Prompt-Analyse verbessert
-• Push-Benachrichtigungen im Hintergrund optimiert
-• Google Drive-Berechtigungen und URL-Freigabe korrigiert
-• Zuverlässigere Backups und allgemeine Stabilität
+• Erstelle KI-gestützte Apps für dein eigenes Handy — ohne Programmierkenntnisse, einfach beschreiben
+• Greife auf Kamera, Kontakte, Kalender, Sensoren und GPS aus deinen KI-Apps heraus zu
+• Direkte Integration mit Google Docs, Sheets und Forms in allem, was du erstellst
+• Integrierte KI mit Bildgenerierung, Sprachsynthese und webbasierten Antworten
+• Plane Benachrichtigungen und Alarme, die auch bei geschlossener App funktionieren
 </de-DE>
 
 <es-419>
-• Integración con Google Sheets, Docs y Forms agregada
-• Generación de PDF y alarmas programadas agregadas
-• Razonamiento de IA y análisis de prompts mejorados
-• Notificaciones en segundo plano optimizadas
-• Corrección de permisos de Google Drive y uso compartido de URL
-• Mejoras en la fiabilidad de las copias de seguridad y la estabilidad
+• Crea apps con IA para tu propio teléfono — sin programación, solo describe lo que quieres
+• Accede a cámara, contactos, calendario, sensores y GPS desde tus apps de IA
+• Integración directa con Google Docs, Sheets y Forms en todo lo que crees
+• IA integrada con generación de imágenes, síntesis de voz y respuestas conectadas a la web
+• Programa notificaciones y alarmas que funcionan aunque la app esté cerrada
 </es-419>
 
 <es-ES>
-• Integración con Google Sheets, Docs y Forms agregada
-• Generación de PDF y alarmas programadas agregadas
-• Razonamiento de IA y análisis de prompts mejorados
-• Notificaciones en segundo plano optimizadas
-• Corrección de permisos de Google Drive y uso compartido de URL
-• Mejoras en la fiabilidad de las copias de seguridad y la estabilidad
+• Crea apps con IA para tu propio teléfono — sin programación, solo describe lo que quieres
+• Accede a cámara, contactos, calendario, sensores y GPS desde tus apps de IA
+• Integración directa con Google Docs, Sheets y Forms en todo lo que crees
+• IA integrada con generación de imágenes, síntesis de voz y respuestas conectadas a la web
+• Programa notificaciones y alarmas que funcionan aunque la app esté cerrada
 </es-ES>
 
 <es-US>
-• Integración con Google Sheets, Docs y Forms agregada
-• Generación de PDF y alarmas programadas agregadas
-• Razonamiento de IA y análisis de prompts mejorados
-• Notificaciones en segundo plano optimizadas
-• Corrección de permisos de Google Drive y uso compartido de URL
-• Mejoras en la fiabilidad de las copias de seguridad y la estabilidad
+• Crea apps con IA para tu propio teléfono — sin programación, solo describe lo que quieres
+• Accede a cámara, contactos, calendario, sensores y GPS desde tus apps de IA
+• Integración directa con Google Docs, Sheets y Forms en todo lo que crees
+• IA integrada con generación de imágenes, síntesis de voz y respuestas conectadas a la web
+• Programa notificaciones y alarmas que funcionan aunque la app esté cerrada
 </es-US>
 
 <fr-CA>
-• Ajout de l'intégration pour Google Sheets, Docs et Forms
-• Ajout de la génération de PDF et d'alarmes programmées
-• Amélioration du raisonnement de l'IA et de l'analyse des prompts
-• Amélioration des notifications en arrière-plan
-• Correction des permissions Google Drive et du partage d'URL
-• Amélioration de la fiabilité des sauvegardes et de la stabilité générale
+• Crée des apps propulsées par l'IA pour ton téléphone — sans code, décris simplement ce que tu veux
+• Accède à la caméra, aux contacts, au calendrier, aux capteurs et au GPS depuis tes apps IA
+• Intégration directe avec Google Docs, Sheets et Forms dans tout ce que tu crées
+• IA intégrée avec génération d'images, synthèse vocale et réponses connectées au web
+• Programme des notifications et alarmes qui fonctionnent même quand l'app est fermée
 </fr-CA>
 
 <fr-FR>
-• Ajout de l'intégration pour Google Sheets, Docs et Forms
-• Ajout de la génération de PDF et d'alarmes programmées
-• Amélioration du raisonnement de l'IA et de l'analyse des prompts
-• Amélioration des notifications en arrière-plan
-• Correction des permissions Google Drive et du partage d'URL
-• Amélioration de la fiabilité des sauvegardes et de la stabilité générale
+• Crée des apps propulsées par l'IA pour ton téléphone — sans code, décris simplement ce que tu veux
+• Accède à la caméra, aux contacts, au calendrier, aux capteurs et au GPS depuis tes apps IA
+• Intégration directe avec Google Docs, Sheets et Forms dans tout ce que tu crées
+• IA intégrée avec génération d'images, synthèse vocale et réponses connectées au web
+• Programme des notifications et alarmes qui fonctionnent même quand l'app est fermée
 </fr-FR>
 
 <hi-IN>
-• Google Sheets, Docs और Forms एकीकरण जोड़ा गया
-• PDF जनरेशन और शेड्यूल्ड अलार्म जोड़े गए
-• AI तर्क और प्रॉम्ट विश्लेषण में सुधार
-• बैकग्राउंड पुश नोटिफिकेशन और बेहतर हुए
-• Google Drive अनुमतियाँ और URL शेयरिंग ठीक की गई
-• बेहतर बैकअप और सामान्य स्थिरता
+• बिना कोडिंग के अपने फ़ोन के लिए AI-संचालित ऐप बनाएं — बस बताएं आप क्या चाहते हैं
+• अपने AI ऐप्स से कैमरा, कॉन्टैक्ट, कैलेंडर, सेंसर और GPS एक्सेस करें
+• जो कुछ भी बनाएं उसमें Google Docs, Sheets और Forms से सीधा जुड़ाव
+• इमेज जनरेशन, वॉयस सिंथेसिस और वेब-कनेक्टेड जवाबों के साथ बिल्ट-इन AI
+• नोटिफिकेशन और अलार्म शेड्यूल करें जो ऐप बंद होने पर भी काम करें
 </hi-IN>
 
 <it-IT>
-• Aggiunta integrazione per Google Sheets, Docs e Forms
-• Aggiunta generazione PDF e sveglie programmate
-• Ragionamento dell'IA e analisi dei prompt migliorati
-• Notifiche push in background potenziate
-• Corretti i permessi di Google Drive e la condivisione degli URL
-• Migliorata la stabilità generale e l'affidabilità dei backup
+• Crea app basate sull'IA per il tuo telefono — senza programmare, descrivi solo ciò che vuoi
+• Accedi a fotocamera, contatti, calendario, sensori e GPS dalle tue app IA
+• Integrazione diretta con Google Docs, Sheets e Forms in tutto ciò che crei
+• IA integrata con generazione di immagini, sintesi vocale e risposte connesse al web
+• Pianifica notifiche e sveglie che funzionano anche quando l'app è chiusa
 </it-IT>
 
 <ja-JP>
-• Googleスプレッドシート、ドキュメント、フォームの連携を追加
-• PDF生成とスケジュールされたアラームを追加
-• AIの推論とプロンプト分析を改善
-• バックグラウンドでのプッシュ通知を改善
-• Googleドライブの権限とURL共有の問題を修正
-• 全般的な安定性とバックアップの信頼性を向上
+• コード不要でAI搭載アプリを自分のスマホに作成 — 作りたいものを説明するだけ
+• AIアプリからカメラ、連絡先、カレンダー、センサー、GPSにアクセス
+• 作るものすべてにGoogle Docs・Sheets・Formsを直接統合
+• 画像生成・音声合成・ウェブ連携回答を備えたAIを内蔵
+• アプリを閉じていても動作する通知とアラームをスケジュール設定
 </ja-JP>
 
 <ko-KR>
-• Google 스프레드시트, 문서 및 설문지 연동 추가
-• PDF 생성 및 예약 알람 추가
-• AI 추론 및 프롬프트 분석 개선
-• 백그라운드 푸시 알림 개선
-• Google 드라이브 권한 및 URL 공유 문제 수정
-• 전반적인 안정성 및 백업 신뢰성 향상
+• 코딩 없이 내 스마트폰을 위한 AI 앱 만들기 — 원하는 것을 설명하기만 하면 됩니다
+• AI 앱에서 카메라, 연락처, 캘린더, 센서, GPS에 접근
+• 만드는 모든 것에 Google Docs, Sheets, Forms 직접 연동
+• 이미지 생성, 음성 합성, 웹 연결 답변을 갖춘 내장 AI
+• 앱이 닫혀 있어도 작동하는 알림 및 알람 예약
 </ko-KR>
 
 <nl-NL>
-• Integratie voor Google Sheets, Docs en Forms toegevoegd
-• PDF-generatie en geplande alarmen toegevoegd
-• AI-redenering en promptanalyse verbeterd
-• Pushmeldingen op de achtergrond verbeterd
-• Rechten voor Google Drive en URL-delen opgelost
-• Verbeterde betrouwbaarheid van back-ups en algemene stabiliteit
+• Maak AI-gestuurde apps voor je eigen telefoon — geen code nodig, beschrijf gewoon wat je wilt
+• Toegang tot camera, contacten, agenda, sensoren en GPS vanuit je AI-apps
+• Directe integratie met Google Docs, Sheets en Forms in alles wat je maakt
+• Ingebouwde AI met beeldgeneratie, spraaksynthese en webverbonden antwoorden
+• Plan meldingen en alarmen die werken ook als de app is gesloten
 </nl-NL>
 
 <pl-PL>
-• Dodano integrację z Google Sheets, Docs i Forms
-• Dodano generowanie PDF i zaplanowane alarmy
-• Ulepszono rozumowanie AI i analizę promptów
-• Usprawniono powiadomienia push w tle
-• Naprawiono uprawnienia Google Drive i udostępnianie URL
-• Poprawiono stabilność i niezawodność kopii zapasowych
+• Twórz aplikacje AI na swój telefon — bez kodowania, wystarczy opisać, czego chcesz
+• Dostęp do kamery, kontaktów, kalendarza, czujników i GPS z poziomu aplikacji AI
+• Bezpośrednia integracja z Google Docs, Sheets i Forms we wszystkim, co tworzysz
+• Wbudowana AI z generowaniem obrazów, syntezą mowy i odpowiedziami połączonymi z siecią
+• Planuj powiadomienia i alarmy działające nawet przy zamkniętej aplikacji
 </pl-PL>
 
 <pt-BR>
-• Adicionada integração com Google Sheets, Docs e Forms
-• Adicionada geração de PDF e alarmes programados
-• Raciocínio da IA e análise de prompts aprimorados
-• Notificações em segundo plano melhoradas
-• Correção das permissões do Google Drive e partilha de URLs
-• Maior fiabilidade das cópias de segurança e estabilidade geral
+• Crie apps com IA para o seu próprio celular — sem programação, basta descrever o que quer
+• Acesse câmera, contatos, agenda, sensores e GPS nos seus apps de IA
+• Integração direta com Google Docs, Sheets e Forms em tudo que você criar
+• IA integrada com geração de imagens, síntese de voz e respostas conectadas à web
+• Agende notificações e alarmes que funcionam mesmo com o app fechado
 </pt-BR>
 
 <pt-PT>
-• Adicionada integração com Google Sheets, Docs e Forms
-• Adicionada geração de PDF e alarmes programados
-• Raciocínio da IA e análise de prompts aprimorados
-• Notificações em segundo plano melhoradas
-• Correção das permissões do Google Drive e partilha de URLs
-• Maior fiabilidade das cópias de segurança e estabilidade geral
+• Crie apps com IA para o seu próprio telemóvel — sem programação, basta descrever o que quer
+• Aceda a câmara, contactos, calendário, sensores e GPS nos seus apps de IA
+• Integração direta com Google Docs, Sheets e Forms em tudo o que criar
+• IA integrada com geração de imagens, síntese de voz e respostas ligadas à web
+• Agende notificações e alarmes que funcionam mesmo com o app fechado
 </pt-PT>
 
 <ru-RU>
-• Добавлена интеграция с Google Sheets, Docs и Forms
-• Добавлено создание PDF и запланированные будильники
-• Улучшено логическое мышление ИИ и анализ запросов
-• Оптимизированы push-уведомления в фоновом режиме
-• Исправлены проблемы с разрешениями Google Drive и публикацией URL
-• Повышена надежность резервных копий и общая стабильность
+• Создавайте AI-приложения для своего телефона — без программирования, просто опишите идею
+• Получайте доступ к камере, контактам, календарю, датчикам и GPS из своих AI-приложений
+• Прямая интеграция с Google Docs, Sheets и Forms во всём, что вы создаёте
+• Встроенный ИИ с генерацией изображений, синтезом речи и ответами с доступом к сети
+• Планируйте уведомления и будильники, которые работают даже при закрытом приложении
 </ru-RU>
 
 <th>
-• เพิ่มการทำงานร่วมกับ Google Sheets, Docs และ Forms
-• เพิ่มการสร้าง PDF และการตั้งปลุกตามกำหนดเวลา
-• ปรับปรุงการใช้เหตุผลของ AI และการวิเคราะห์คำสั่ง
-• ปรับปรุงการแจ้งเตือนแบบพุชในพื้นหลัง
-• แก้ไขสิทธิ์ Google Drive และการแชร์ URL
-• ปรับปรุงความน่าเชื่อถือของการสำรองข้อมูลและความเสถียรทั่วไป
+• สร้างแอปที่ขับเคลื่อนด้วย AI สำหรับโทรศัพท์ของคุณ — ไม่ต้องเขียนโค้ด แค่บอกสิ่งที่ต้องการ
+• เข้าถึงกล้อง ผู้ติดต่อ ปฏิทิน เซ็นเซอร์ และ GPS จากแอป AI ของคุณ
+• ผสานการทำงานกับ Google Docs, Sheets และ Forms โดยตรงในทุกสิ่งที่คุณสร้าง
+• AI ในตัวพร้อมสร้างภาพ สังเคราะห์เสียง และตอบคำถามแบบเชื่อมต่อเว็บ
+• ตั้งเวลาการแจ้งเตือนและสัญญาณเตือนที่ทำงานแม้ปิดแอปแล้ว
 </th>
 
 <tr-TR>
-• Google Sheets, Docs ve Forms entegrasyonu eklendi
-• PDF oluşturma ve zamanlanmış alarmlar eklendi
-• Yapay zeka akıl yürütme ve komut analizi iyileştirildi
-• Arka plan push bildirimleri geliştirildi
-• Google Drive izinleri ve URL paylaşımı düzeltildi
-• Yedekleme güvenilirliği ve genel kararlılık iyileştirildi
+• Kendi telefonun için AI destekli uygulamalar yap — kod gerekmez, sadece ne istediğini anlat
+• AI uygulamalarından kamera, rehber, takvim, sensörler ve GPS'e eriş
+• Oluşturduğun her şeyde Google Docs, Sheets ve Forms ile doğrudan entegrasyon
+• Görsel oluşturma, ses sentezi ve web bağlantılı yanıtlarla yerleşik AI
+• Uygulama kapalıyken bile çalışan bildirimler ve alarmlar planla
 </tr-TR>
 
 <vi>
-• Thêm khả năng tích hợp Google Sheets, Docs và Forms
-• Thêm khả năng tạo PDF và báo thức được lập lịch
-• Cải thiện khả năng suy luận của AI và phân tích lệnh
-• Cải thiện thông báo đẩy dưới nền
-• Sửa quyền truy cập Google Drive và chia sẻ URL
-• Nâng cao độ tin cậy của sao lưu và độ ổn định chung
+• Tạo ứng dụng AI cho điện thoại của bạn — không cần lập trình, chỉ cần mô tả điều bạn muốn
+• Truy cập camera, danh bạ, lịch, cảm biến và GPS từ ứng dụng AI của bạn
+• Tích hợp trực tiếp Google Docs, Sheets và Forms vào mọi thứ bạn tạo ra
+• AI tích hợp với tạo hình ảnh, tổng hợp giọng nói và câu trả lời kết nối web
+• Lên lịch thông báo và báo thức hoạt động ngay cả khi ứng dụng đã đóng
 </vi>
 
 <zh-CN>
-• 添加了 Google Sheets、Docs 和 Forms 集成
-• 添加了 PDF 生成和定时闹钟
-• 改进了 AI 推理和提示分析
-• 优化了后台推送通知
-• 修复了 Google 云端硬盘权限和 URL 分享问题
-• 提高了整体稳定性和备份可靠性
+• 为你的手机创建 AI 驱动的应用 — 无需编程，只需描述你想要什么
+• 从 AI 应用中访问摄像头、联系人、日历、传感器和 GPS
+• 在你创建的任何内容中直接集成 Google Docs、Sheets 和 Forms
+• 内置 AI，支持图像生成、语音合成和联网回答
+• 安排通知和闹钟，即使应用关闭也能正常运行
 </zh-CN>

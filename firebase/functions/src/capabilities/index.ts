@@ -12,7 +12,6 @@ import screenCapability from './screen';
 import deviceCapability from './device';
 import calendarCapability from './calendar';
 import notifyCapability from './notify';
-import healthCapability from './health';
 import contactsCapability from './contacts';
 import sensorsCapability from './sensors';
 import uiCapability from './ui';
@@ -30,7 +29,6 @@ export const ALL_CAPABILITIES: FirebaseCapabilityDoc[] = [
     deviceCapability,
     calendarCapability,
     notifyCapability,
-    healthCapability,
     contactsCapability,
     sensorsCapability,
     uiCapability,

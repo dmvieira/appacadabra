@@ -16,7 +16,7 @@ import { CapabilityModule } from './types';
  * Re-enable by uncommenting the id.
  */
 export const DISABLED_CAPABILITIES = new Set<string>([
-    // 'health', // Pending Google Play approval for health permissions
+    'health', // Pending Google Play approval for health permissions
 ]);
 import { clipboardCapability } from './clipboard';
 import { shareCapability } from './share';

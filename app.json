@@ -75,12 +75,7 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.VIBRATE",
         "android.permission.WRITE_CALENDAR",
-        "android.permission.WRITE_CONTACTS",
-        "android.permission.health.READ_EXERCISE",
-        "android.permission.health.READ_HEART_RATE",
-        "android.permission.health.READ_SLEEP",
-        "android.permission.health.READ_STEPS",
-        "android.permission.health.READ_TOTAL_CALORIES_BURNED"
+        "android.permission.WRITE_CONTACTS"
       ],
       "googleServicesFile": "./google-services.json"
     },

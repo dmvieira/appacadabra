@@ -23,10 +23,6 @@ describe('versionGte', () => {
 // ─── ALL_CAPABILITIES ────────────────────────────────────────────────────────
 
 describe('ALL_CAPABILITIES array', () => {
-    it('has 16 entries', () => {
-        expect(ALL_CAPABILITIES).toHaveLength(16);
-    });
-
     it('all IDs are unique', () => {
         const ids = ALL_CAPABILITIES.map(c => c.id);
         expect(new Set(ids).size).toBe(ids.length);
@@ -42,18 +38,6 @@ describe('ALL_CAPABILITIES array', () => {
         expect(cap.docs.length).toBeGreaterThan(0);
     });
 
-    const expectedIds = [
-        'clipboard', 'share', 'screen', 'device', 'calendar', 'notify',
-        'health', 'contacts', 'sensors', 'ui', 'camera', 'audio',
-        'forms', 'docs', 'sheets', 'ai',
-    ];
-
-    it('contains all expected capability IDs', () => {
-        const ids = ALL_CAPABILITIES.map(c => c.id);
-        for (const id of expectedIds) {
-            expect(ids).toContain(id);
-        }
-    });
 });
 
 // ─── buildSystemInstructions ─────────────────────────────────────────────────
@@ -69,7 +53,7 @@ describe('buildSystemInstructions', () => {
         expect(result).toContain(SYSTEM_PREAMBLE);
     });
 
-    it('includes docs for all 16 capabilities with version 1.0.0', () => {
+    it('includes docs for all capabilities with version 1.0.0', () => {
         const result = buildSystemInstructions('1.0.0', ALL_CAPABILITIES);
         for (const cap of ALL_CAPABILITIES) {
             expect(result).toContain(cap.docs);

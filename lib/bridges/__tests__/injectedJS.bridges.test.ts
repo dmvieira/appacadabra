@@ -1,5 +1,9 @@
 import * as vm from 'vm';
 import { getInjectedJavaScript } from '../injectedJS';
+import { DISABLED_CAPABILITIES } from '../../capabilities/index';
+
+const describeCapability = (id: string) =>
+    DISABLED_CAPABILITIES.has(id) ? describe.skip : describe;
 
 function makeMockPrototype() {
     return { appendChild: jest.fn(), setAttribute: jest.fn(), insertAdjacentHTML: jest.fn() };
@@ -80,7 +84,7 @@ function getLastMessage(postMessage: jest.Mock) {
 
 // ─── AppacadabraAI ───────────────────────────────────────────────────────────
 
-describe('AppacadabraAI', () => {
+describeCapability('ai')('AppacadabraAI', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -160,7 +164,7 @@ describe('AppacadabraAI', () => {
 
 // ─── AppacadabraForms ────────────────────────────────────────────────────────
 
-describe('AppacadabraForms', () => {
+describeCapability('forms')('AppacadabraForms', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -196,7 +200,7 @@ describe('AppacadabraForms', () => {
 
 // ─── AppacadabraDocs ─────────────────────────────────────────────────────────
 
-describe('AppacadabraDocs', () => {
+describeCapability('docs')('AppacadabraDocs', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -239,7 +243,7 @@ describe('AppacadabraDocs', () => {
 
 // ─── AppacadabraSheets ───────────────────────────────────────────────────────
 
-describe('AppacadabraSheets', () => {
+describeCapability('sheets')('AppacadabraSheets', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -289,7 +293,7 @@ describe('AppacadabraSheets', () => {
 
 // ─── AppacadabraCalendar ─────────────────────────────────────────────────────
 
-describe('AppacadabraCalendar', () => {
+describeCapability('calendar')('AppacadabraCalendar', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -330,7 +334,7 @@ describe('AppacadabraCalendar', () => {
 
 // ─── AppacadabraNotify ───────────────────────────────────────────────────────
 
-describe('AppacadabraNotify', () => {
+describeCapability('notify')('AppacadabraNotify', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -416,7 +420,7 @@ describe('AppacadabraNotify', () => {
 
 // ─── AppacadabraShare ────────────────────────────────────────────────────────
 
-describe('AppacadabraShare', () => {
+describeCapability('share')('AppacadabraShare', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -446,7 +450,7 @@ describe('AppacadabraShare', () => {
 
 // ─── AppacadabraHealth ───────────────────────────────────────────────────────
 
-describe('AppacadabraHealth', () => {
+describeCapability('health')('AppacadabraHealth', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -497,7 +501,7 @@ describe('AppacadabraHealth', () => {
 
 // ─── AppacadabraContacts ─────────────────────────────────────────────────────
 
-describe('AppacadabraContacts', () => {
+describeCapability('contacts')('AppacadabraContacts', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -532,7 +536,7 @@ describe('AppacadabraContacts', () => {
 
 // ─── AppacadabraClipboard ────────────────────────────────────────────────────
 
-describe('AppacadabraClipboard', () => {
+describeCapability('clipboard')('AppacadabraClipboard', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -564,7 +568,7 @@ describe('AppacadabraClipboard', () => {
 
 // ─── AppacadabraDevice ───────────────────────────────────────────────────────
 
-describe('AppacadabraDevice', () => {
+describeCapability('device')('AppacadabraDevice', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -631,7 +635,7 @@ describe('AppacadabraDevice', () => {
 
 // ─── AppacadabraScreen ───────────────────────────────────────────────────────
 
-describe('AppacadabraScreen', () => {
+describeCapability('screen')('AppacadabraScreen', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -658,7 +662,7 @@ describe('AppacadabraScreen', () => {
 
 // ─── AppacadabraUI ───────────────────────────────────────────────────────────
 
-describe('AppacadabraUI', () => {
+describeCapability('ui')('AppacadabraUI', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -685,7 +689,7 @@ describe('AppacadabraUI', () => {
 
 // ─── AppacadabraSensors ──────────────────────────────────────────────────────
 
-describe('AppacadabraSensors', () => {
+describeCapability('sensors')('AppacadabraSensors', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -781,7 +785,7 @@ describe('AppacadabraSensors', () => {
 
 // ─── AppacadabraCamera ───────────────────────────────────────────────────────
 
-describe('AppacadabraCamera', () => {
+describeCapability('camera')('AppacadabraCamera', () => {
     let sb: any;
     let postMessage: jest.Mock;
 
@@ -832,7 +836,7 @@ describe('AppacadabraCamera', () => {
 
 // ─── AppacadabraAudio ────────────────────────────────────────────────────────
 
-describe('AppacadabraAudio', () => {
+describeCapability('audio')('AppacadabraAudio', () => {
     let sb: any;
     let postMessage: jest.Mock;
 

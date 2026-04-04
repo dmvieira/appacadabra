@@ -141,7 +141,10 @@ jest.mock('../../database/db', () => ({
 // react-native is already mocked by jest-expo preset.
 // Stub AlarmModule and Share into NativeModules in beforeAll below.
 
-import { ALL_CAPABILITIES } from '../index';
+import { ALL_CAPABILITIES, DISABLED_CAPABILITIES } from '../index';
+
+const describeCapability = (id: string) =>
+    DISABLED_CAPABILITIES.has(id) ? describe.skip : describe;
 import * as Battery from 'expo-battery';
 import * as Notifications from 'expo-notifications';
 import * as Sharing from 'expo-sharing';
@@ -168,10 +171,7 @@ const ctx = {
 
 // ─── Section A: Module structure ─────────────────────────────────────────────
 
-describe('Module structure — all 16 capabilities', () => {
-    it('has exactly 16 capabilities', () => {
-        expect(ALL_CAPABILITIES).toHaveLength(16);
-    });
+describe(`Module structure — all ${ALL_CAPABILITIES.length} capabilities`, () => {
 
     it.each(ALL_CAPABILITIES)('$id — has non-empty id', (cap) => {
         expect(typeof cap.id).toBe('string');
@@ -209,36 +209,33 @@ describe('Module structure — all 16 capabilities', () => {
 // ─── Section B: getInjectedJS contract ───────────────────────────────────────
 
 describe('getInjectedJS contract', () => {
-    const find = (id: string) => ALL_CAPABILITIES.find(c => c.id === id)!;
+    const knownIdentifiers: Record<string, string[]> = {
+        clipboard: ['AppacadabraClipboard', 'setString', 'getString'],
+        share: ['AppacadabraShare', 'share', 'shareFile'],
+        screen: ['AppacadabraScreen', 'capture', 'print'],
+        device: ['AppacadabraDevice', 'vibrate', 'getBatteryLevel'],
+        calendar: ['AppacadabraCalendar', 'createEvent', 'getEvents'],
+        notify: ['AppacadabraNotify', 'showNow', 'schedule'],
+        health: ['AppacadabraHealth', 'getSteps', 'getHeartRate'],
+        contacts: ['AppacadabraContacts', 'search', 'add'],
+        sensors: ['AppacadabraSensors', 'startAccelerometer', 'startGPS'],
+        ui: ['AppacadabraUI', 'showLoader', 'toast'],
+        camera: ['AppacadabraCamera', 'takePhoto', 'recordVideo'],
+        audio: ['AppacadabraAudio', 'recordStart', 'speak'],
+        forms: ['AppacadabraForms', 'createForm', 'getResponses'],
+        docs: ['AppacadabraDocs', 'createDoc', 'generatePDF'],
+        sheets: ['AppacadabraSheets', 'createSheet', 'appendRows'],
+        ai: ['AppacadabraAI', 'generate', 'similarity'],
+    };
 
-    const cases: Array<[string, string[]]> = [
-        ['clipboard', ['AppacadabraClipboard', 'setString', 'getString']],
-        ['share', ['AppacadabraShare', 'share', 'shareFile']],
-        ['screen', ['AppacadabraScreen', 'capture', 'print']],
-        ['device', ['AppacadabraDevice', 'vibrate', 'getBatteryLevel']],
-        ['calendar', ['AppacadabraCalendar', 'createEvent', 'getEvents']],
-        ['notify', ['AppacadabraNotify', 'showNow', 'schedule']],
-        ['health', ['AppacadabraHealth', 'getSteps', 'getHeartRate']],
-        ['contacts', ['AppacadabraContacts', 'search', 'add']],
-        ['sensors', ['AppacadabraSensors', 'startAccelerometer', 'startGPS']],
-        ['ui', ['AppacadabraUI', 'showLoader', 'toast']],
-        ['camera', ['AppacadabraCamera', 'takePhoto', 'recordVideo']],
-        ['audio', ['AppacadabraAudio', 'recordStart', 'speak']],
-        ['forms', ['AppacadabraForms', 'createForm', 'getResponses']],
-        ['docs', ['AppacadabraDocs', 'createDoc', 'generatePDF']],
-        ['sheets', ['AppacadabraSheets', 'createSheet', 'appendRows']],
-        ['ai', ['AppacadabraAI', 'generate', 'similarity']],
-    ];
-
-    test.each(cases)('%s — getInjectedJS returns non-empty string', (id) => {
-        const cap = find(id);
+    it.each(ALL_CAPABILITIES)('$id — getInjectedJS returns non-empty string', (cap) => {
         const js = cap.getInjectedJS(1, false);
         expect(typeof js).toBe('string');
         expect(js.length).toBeGreaterThan(0);
     });
 
-    test.each(cases)('%s — getInjectedJS contains expected identifiers', (id, identifiers) => {
-        const cap = find(id);
+    it.each(ALL_CAPABILITIES)('$id — getInjectedJS contains expected identifiers', (cap) => {
+        const identifiers = knownIdentifiers[cap.id] ?? [];
         const js = cap.getInjectedJS(1, false);
         for (const identifier of identifiers) {
             expect(js).toContain(identifier);
@@ -248,7 +245,7 @@ describe('getInjectedJS contract', () => {
 
 // ─── Section C: handleMessage for simple/mockable handlers ───────────────────
 
-describe('handleMessage — clipboard', () => {
+describeCapability('clipboard')('handleMessage — clipboard', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'clipboard')!;
 
     it('returns null for any message type (pure WebView API)', async () => {
@@ -262,7 +259,7 @@ describe('handleMessage — clipboard', () => {
     });
 });
 
-describe('handleMessage — device', () => {
+describeCapability('device')('handleMessage — device', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'device')!;
 
     it('VIBRATE: returns success for numeric pattern', async () => {
@@ -289,7 +286,7 @@ describe('handleMessage — device', () => {
     });
 });
 
-describe('handleMessage — share', () => {
+describeCapability('share')('handleMessage — share', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'share')!;
 
     it('SHARE_CONTENT: calls Share.share and returns Shared on success', async () => {
@@ -320,7 +317,7 @@ describe('handleMessage — share', () => {
     });
 });
 
-describe('handleMessage — notify', () => {
+describeCapability('notify')('handleMessage — notify', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'notify')!;
 
     beforeEach(() => {
@@ -351,7 +348,7 @@ describe('handleMessage — notify', () => {
 
 // ─── Section D: additional handler tests (Phase 2) ────────────────────────────
 
-describe('handleMessage — screen', () => {
+describeCapability('screen')('handleMessage — screen', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'screen')!;
 
     it('PRINT with html: calls printAsync and returns Print dialog opened', async () => {
@@ -387,7 +384,7 @@ describe('handleMessage — screen', () => {
     });
 });
 
-describe('handleMessage — ui', () => {
+describeCapability('ui')('handleMessage — ui', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'ui')!;
 
     it('UI_SHOW_LOADER: returns null (pure WebView API)', async () => {
@@ -401,7 +398,7 @@ describe('handleMessage — ui', () => {
     });
 });
 
-describe('handleMessage — calendar', () => {
+describeCapability('calendar')('handleMessage — calendar', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'calendar')!;
 
     it('CALENDAR_CREATE_EVENT: calls Linking.openURL and returns Calendar opened', async () => {
@@ -432,7 +429,7 @@ describe('handleMessage — calendar', () => {
     });
 });
 
-describe('handleMessage — contacts', () => {
+describeCapability('contacts')('handleMessage — contacts', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'contacts')!;
 
     it('CONTACTS_SEARCH: calls getContactsAsync and returns contacts list', async () => {
@@ -449,7 +446,7 @@ describe('handleMessage — contacts', () => {
     });
 });
 
-describe('handleMessage — sensors', () => {
+describeCapability('sensors')('handleMessage — sensors', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'sensors')!;
 
     it('SENSORS_STOP_ALL: removes all listeners and returns success', async () => {
@@ -474,7 +471,7 @@ describe('handleMessage — sensors', () => {
     });
 });
 
-describe('handleMessage — health', () => {
+describeCapability('health')('handleMessage — health', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'health')!;
 
     it('HEALTH_INITIALIZE: returns success without native calls', async () => {
@@ -497,7 +494,7 @@ describe('handleMessage — health', () => {
     });
 });
 
-describe('handleMessage — camera', () => {
+describeCapability('camera')('handleMessage — camera', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'camera')!;
 
     it('VIDEO_STOP without active sound: returns Stopped', async () => {
@@ -517,7 +514,7 @@ describe('handleMessage — camera', () => {
     });
 });
 
-describe('handleMessage — audio', () => {
+describeCapability('audio')('handleMessage — audio', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'audio')!;
 
     it('TTS_SPEAK with text: calls Speech.speak and returns Speaking', async () => {
@@ -546,7 +543,7 @@ describe('handleMessage — audio', () => {
     });
 });
 
-describe('handleMessage — notify (additional)', () => {
+describeCapability('notify')('handleMessage — notify (additional)', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'notify')!;
 
     beforeEach(() => {
@@ -561,7 +558,7 @@ describe('handleMessage — notify (additional)', () => {
 
 // ─── Section E: error path tests (Phase 3) ────────────────────────────────────
 
-describe('error paths — device', () => {
+describeCapability('device')('error paths — device', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'device')!;
 
     it('DEVICE_GET_BATTERY_LEVEL when getBatteryLevelAsync throws: returns failure', async () => {
@@ -571,7 +568,7 @@ describe('error paths — device', () => {
     });
 });
 
-describe('error paths — share', () => {
+describeCapability('share')('error paths — share', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'share')!;
 
     it('SHARE_CONTENT when Share.share throws: returns failure', async () => {
@@ -581,7 +578,7 @@ describe('error paths — share', () => {
     });
 });
 
-describe('error paths — notify', () => {
+describeCapability('notify')('error paths — notify', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'notify')!;
 
     it('NOTIFY_SHOW_NOW when permission denied: returns permission denied failure', async () => {
