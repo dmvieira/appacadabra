@@ -85,6 +85,9 @@ export const notifyCapability: CapabilityModule = {
     id: 'notify',
     displayName: 'Notify',
     minVersion: '1.0.0',
+    androidPermissions: [
+        'android.permission.POST_NOTIFICATIONS',
+    ],
 
     docs: `🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app (notifications + alarms combined). Use \`id\` to update existing notification.
 - \`showNow(title, msg, callback)\` - Show notification immediately

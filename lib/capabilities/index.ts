@@ -9,6 +9,15 @@
  */
 
 import { CapabilityModule } from './types';
+
+/**
+ * Capabilities disabled for this release.
+ * The sync script removes their permissions from app.json and AndroidManifest.xml.
+ * Re-enable by uncommenting the id.
+ */
+export const DISABLED_CAPABILITIES = new Set<string>([
+    // 'health', // Pending Google Play approval for health permissions
+]);
 import { clipboardCapability } from './clipboard';
 import { shareCapability } from './share';
 import { screenCapability } from './screen';
@@ -43,7 +52,7 @@ export const ALL_CAPABILITIES: CapabilityModule[] = [
     docsCapability,
     sheetsCapability,
     aiCapability,
-];
+].filter(cap => !DISABLED_CAPABILITIES.has(cap.id));
 
 /**
  * Assembles the injected JavaScript for all registered capabilities.

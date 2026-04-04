@@ -41,6 +41,12 @@ export interface CapabilityModule {
      * Firebase uses this to gate the docs sent to the AI per user's app version.
      */
     minVersion: string;
+    /**
+     * Android permissions required by this capability.
+     * Synced to app.json and AndroidManifest.xml by `npm run sync-capabilities`.
+     * Full permission string, e.g. "android.permission.CAMERA"
+     */
+    androidPermissions?: string[];
     /** AI documentation block — copied to Firebase by the sync script. */
     docs: string;
     /**

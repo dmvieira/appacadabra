@@ -8,6 +8,9 @@ export const deviceCapability: CapabilityModule = {
     id: 'device',
     displayName: 'Device',
     minVersion: '1.0.0',
+    androidPermissions: [
+        'android.permission.VIBRATE',
+    ],
 
     docs: `📱 DEVICE (AppacadabraDevice)
 - \`vibrate(pattern)\` - Vibrate device (number or array of numbers). **No callback**.

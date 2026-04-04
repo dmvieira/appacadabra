@@ -47,7 +47,8 @@
       "Bash(npx eas:*)",
       "Bash(npx ts-node:*)",
       "Bash(npm test:*)",
-      "Bash(npx husky:*)"
+      "Bash(npx husky:*)",
+      "Bash(do:*)"
     ]
   }
 }

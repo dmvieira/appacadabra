@@ -268,6 +268,7 @@ describe('handleMessage — device', () => {
     it('VIBRATE: returns success for numeric pattern', async () => {
         const result = await cap.handleMessage('VIBRATE', { pattern: 200 }, ctx);
         expect(result).toMatchObject({ success: true });
+        expect(result!.result).toBe('Vibrated 200ms');
     });
 
     it('DEVICE_IS_ONLINE: returns success with true or false string', async () => {
@@ -291,11 +292,12 @@ describe('handleMessage — device', () => {
 describe('handleMessage — share', () => {
     const cap = ALL_CAPABILITIES.find(c => c.id === 'share')!;
 
-    it('SHARE_CONTENT: calls Share.share and returns success', async () => {
+    it('SHARE_CONTENT: calls Share.share and returns Shared on success', async () => {
         jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as any);
         const result = await cap.handleMessage('SHARE_CONTENT', { text: 'hello' }, ctx);
         expect(Share.share).toHaveBeenCalled();
         expect(result).toMatchObject({ success: true });
+        expect(result!.result).toBe('Shared');
     });
 
     it('SHARE_FILE: writes base64 file and calls shareAsync', async () => {
@@ -335,7 +337,7 @@ describe('handleMessage — notify', () => {
         expect(result).toMatchObject({ success: true });
     });
 
-    it('NOTIFY_CANCEL_ALL: returns success with All cancelled message', async () => {
+    it('NOTIFY_CANCEL_ALL: returns success with cancellation count message', async () => {
         const result = await cap.handleMessage('NOTIFY_CANCEL_ALL', {}, ctx);
         expect(result).toMatchObject({ success: true });
         expect(result!.result).toContain('Cancelled');
@@ -346,3 +348,247 @@ describe('handleMessage — notify', () => {
         expect(result).toBeNull();
     });
 });
+
+// ─── Section D: additional handler tests (Phase 2) ────────────────────────────
+
+describe('handleMessage — screen', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'screen')!;
+
+    it('PRINT with html: calls printAsync and returns Print dialog opened', async () => {
+        const { printAsync } = require('expo-print');
+        (printAsync as jest.Mock).mockResolvedValue(undefined);
+        const result = await cap.handleMessage('PRINT', { html: '<h1>Test</h1>' }, ctx);
+        expect(printAsync).toHaveBeenCalled();
+        expect(result).toMatchObject({ success: true, result: 'Print dialog opened' });
+    });
+
+    it('PRINT without html: returns failure', async () => {
+        const result = await cap.handleMessage('PRINT', {}, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+
+    it('SCREEN_CAPTURE with valid webViewRef: returns base64 image', async () => {
+        const { captureRef } = require('react-native-view-shot');
+        (captureRef as jest.Mock).mockResolvedValue('base64screenshot');
+        const result = await cap.handleMessage('SCREEN_CAPTURE', {}, ctx);
+        expect(result).toMatchObject({ success: true });
+    });
+
+    it('SCREEN_CAPTURE with null refs: returns capture target not available', async () => {
+        const noRefCtx = { ...ctx, webViewRef: { current: null }, viewContainerRef: { current: null } };
+        const result = await cap.handleMessage('SCREEN_CAPTURE', {}, noRefCtx);
+        expect(result).toMatchObject({ success: false, result: 'Capture target not available' });
+    });
+
+    it('returns null for unknown type', async () => {
+        const cap2 = ALL_CAPABILITIES.find(c => c.id === 'screen')!;
+        const result = await cap2.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+describe('handleMessage — ui', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'ui')!;
+
+    it('UI_SHOW_LOADER: returns null (pure WebView API)', async () => {
+        const result = await cap.handleMessage('UI_SHOW_LOADER', {}, ctx);
+        expect(result).toBeNull();
+    });
+
+    it('returns null for any unknown type', async () => {
+        const result = await cap.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+describe('handleMessage — calendar', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'calendar')!;
+
+    it('CALENDAR_CREATE_EVENT: calls Linking.openURL and returns Calendar opened', async () => {
+        const { openURL } = require('expo-linking');
+        (openURL as jest.Mock).mockResolvedValue(undefined);
+        const result = await cap.handleMessage('CALENDAR_CREATE_EVENT', {
+            title: 'Test Event',
+            description: 'Test',
+            startTimeMs: Date.now(),
+            endTimeMs: Date.now() + 3600000,
+        }, ctx);
+        expect(openURL).toHaveBeenCalled();
+        expect(result).toMatchObject({ success: true, result: 'Calendar opened' });
+    });
+
+    it('CALENDAR_GET_EVENTS: returns empty array when no calendars found', async () => {
+        const result = await cap.handleMessage('CALENDAR_GET_EVENTS', {
+            startTimeMs: Date.now(),
+            endTimeMs: Date.now() + 86400000,
+        }, ctx);
+        expect(result).toMatchObject({ success: true });
+    });
+
+    it('returns null for unknown type', async () => {
+        const cap2 = ALL_CAPABILITIES.find(c => c.id === 'calendar')!;
+        const result = await cap2.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+describe('handleMessage — contacts', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'contacts')!;
+
+    it('CONTACTS_SEARCH: calls getContactsAsync and returns contacts list', async () => {
+        const Contacts = require('expo-contacts');
+        const result = await cap.handleMessage('CONTACTS_SEARCH', { query: 'John' }, ctx);
+        expect(Contacts.getContactsAsync).toHaveBeenCalled();
+        expect(result).toMatchObject({ success: true });
+    });
+
+    it('returns null for unknown type', async () => {
+        const cap2 = ALL_CAPABILITIES.find(c => c.id === 'contacts')!;
+        const result = await cap2.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+describe('handleMessage — sensors', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'sensors')!;
+
+    it('SENSORS_STOP_ALL: removes all listeners and returns success', async () => {
+        const result = await cap.handleMessage('SENSORS_STOP_ALL', {}, ctx);
+        expect(result).toMatchObject({ success: true });
+    });
+
+    it('SENSORS_STOP_PEDOMETER without active session: returns success', async () => {
+        const result = await cap.handleMessage('SENSORS_STOP_PEDOMETER', {}, ctx);
+        expect(result).toMatchObject({ success: true });
+    });
+
+    it('SENSORS_STOP_ACCELEROMETER: removes listeners and returns success', async () => {
+        const result = await cap.handleMessage('SENSORS_STOP_ACCELEROMETER', {}, ctx);
+        expect(result).toMatchObject({ success: true });
+    });
+
+    it('returns null for unknown type', async () => {
+        const cap2 = ALL_CAPABILITIES.find(c => c.id === 'sensors')!;
+        const result = await cap2.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+describe('handleMessage — health', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'health')!;
+
+    it('HEALTH_INITIALIZE: returns success without native calls', async () => {
+        const result = await cap.handleMessage('HEALTH_INITIALIZE', {}, ctx);
+        expect(result).toMatchObject({ success: true, result: 'Health Connect initialized' });
+    });
+
+    it('HEALTH_GET_STEPS: returns step data when SDK is available', async () => {
+        const result = await cap.handleMessage('HEALTH_GET_STEPS', {
+            startTimeMs: Date.now() - 86400000,
+            endTimeMs: Date.now(),
+        }, ctx);
+        expect(result).toMatchObject({ success: true });
+    });
+
+    it('returns null for unknown type', async () => {
+        const cap2 = ALL_CAPABILITIES.find(c => c.id === 'health')!;
+        const result = await cap2.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+describe('handleMessage — camera', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'camera')!;
+
+    it('VIDEO_STOP without active sound: returns Stopped', async () => {
+        const result = await cap.handleMessage('VIDEO_STOP', {}, ctx);
+        expect(result).toMatchObject({ success: true, result: 'Stopped' });
+    });
+
+    it('VIDEO_IS_PLAYING without active sound: returns false string', async () => {
+        const result = await cap.handleMessage('VIDEO_IS_PLAYING', {}, ctx);
+        expect(result).toMatchObject({ success: true, result: 'false' });
+    });
+
+    it('returns null for unknown type', async () => {
+        const cap2 = ALL_CAPABILITIES.find(c => c.id === 'camera')!;
+        const result = await cap2.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+describe('handleMessage — audio', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'audio')!;
+
+    it('TTS_SPEAK with text: calls Speech.speak and returns Speaking', async () => {
+        const Speech = require('expo-speech');
+        const result = await cap.handleMessage('TTS_SPEAK', { text: 'Hello world' }, ctx);
+        expect(Speech.speak).toHaveBeenCalledWith('Hello world', expect.any(Object));
+        expect(result).toMatchObject({ success: true, result: 'Speaking' });
+    });
+
+    it('TTS_STOP: calls Speech.stop and returns Stopped', async () => {
+        const Speech = require('expo-speech');
+        const result = await cap.handleMessage('TTS_STOP', {}, ctx);
+        expect(Speech.stop).toHaveBeenCalled();
+        expect(result).toMatchObject({ success: true, result: 'Stopped' });
+    });
+
+    it('TTS_SPEAK without text: returns failure', async () => {
+        const result = await cap.handleMessage('TTS_SPEAK', {}, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+
+    it('returns null for unknown type', async () => {
+        const cap2 = ALL_CAPABILITIES.find(c => c.id === 'audio')!;
+        const result = await cap2.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+describe('handleMessage — notify (additional)', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'notify')!;
+
+    beforeEach(() => {
+        (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
+    });
+
+    it('NOTIFY_HAS_PERMISSION: returns true when permission granted', async () => {
+        const result = await cap.handleMessage('NOTIFY_HAS_PERMISSION', {}, ctx);
+        expect(result).toMatchObject({ success: true, result: 'true' });
+    });
+});
+
+// ─── Section E: error path tests (Phase 3) ────────────────────────────────────
+
+describe('error paths — device', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'device')!;
+
+    it('DEVICE_GET_BATTERY_LEVEL when getBatteryLevelAsync throws: returns failure', async () => {
+        (Battery.getBatteryLevelAsync as jest.Mock).mockRejectedValueOnce(new Error('Battery unavailable'));
+        const result = await cap.handleMessage('DEVICE_GET_BATTERY_LEVEL', {}, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+});
+
+describe('error paths — share', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'share')!;
+
+    it('SHARE_CONTENT when Share.share throws: returns failure', async () => {
+        jest.spyOn(Share, 'share').mockRejectedValueOnce(new Error('Share failed'));
+        const result = await cap.handleMessage('SHARE_CONTENT', { text: 'hello' }, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+});
+
+describe('error paths — notify', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'notify')!;
+
+    it('NOTIFY_SHOW_NOW when permission denied: returns permission denied failure', async () => {
+        (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+        (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+        const result = await cap.handleMessage('NOTIFY_SHOW_NOW', { title: 'Test', message: 'Hi' }, ctx);
+        expect(result).toMatchObject({ success: false, result: 'Notification permission denied' });
+    });
+});
+

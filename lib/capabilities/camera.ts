@@ -13,6 +13,10 @@ export const cameraCapability: CapabilityModule = {
     id: 'camera',
     displayName: 'Camera',
     minVersion: '1.0.0',
+    androidPermissions: [
+        'android.permission.CAMERA',
+        'android.permission.RECORD_AUDIO',
+    ],
 
     docs: `📸 CAMERA (AppacadabraCamera)
 - \`takePhoto(callback)\` - Take a photo using the device camera

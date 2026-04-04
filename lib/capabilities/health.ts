@@ -77,6 +77,13 @@ export const healthCapability: CapabilityModule = {
     id: 'health',
     displayName: 'Health',
     minVersion: '1.0.0',
+    androidPermissions: [
+        'android.permission.health.READ_STEPS',
+        'android.permission.health.READ_HEART_RATE',
+        'android.permission.health.READ_EXERCISE',
+        'android.permission.health.READ_SLEEP',
+        'android.permission.health.READ_TOTAL_CALORIES_BURNED',
+    ],
 
     docs: `💪 HEALTH (AppacadabraHealth)
 - \`getSteps(startMs, endMs, callback)\` - Get step count

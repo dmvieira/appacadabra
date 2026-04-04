@@ -9,6 +9,11 @@ export const sensorsCapability: CapabilityModule = {
     id: 'sensors',
     displayName: 'Sensors',
     minVersion: '1.0.0',
+    androidPermissions: [
+        'android.permission.ACTIVITY_RECOGNITION',
+        'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.ACCESS_COARSE_LOCATION',
+    ],
 
     docs: ` SENSORS (AppacadabraSensors)
 - **IMPORTANT**: All sensor callbacks must be GLOBAL function names (strings).

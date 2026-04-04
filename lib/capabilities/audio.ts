@@ -34,6 +34,10 @@ export const audioCapability: CapabilityModule = {
     id: 'audio',
     displayName: 'Audio',
     minVersion: '1.0.0',
+    androidPermissions: [
+        'android.permission.RECORD_AUDIO',
+        'android.permission.MODIFY_AUDIO_SETTINGS',
+    ],
 
     docs: `🎙️ AUDIO (AppacadabraAudio)
 - \`recordStart(callback)\` - Start audio recording (M4A/AAC)

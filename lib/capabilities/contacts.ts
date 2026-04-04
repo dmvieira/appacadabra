@@ -5,6 +5,10 @@ export const contactsCapability: CapabilityModule = {
     id: 'contacts',
     displayName: 'Contacts',
     minVersion: '1.0.0',
+    androidPermissions: [
+        'android.permission.READ_CONTACTS',
+        'android.permission.WRITE_CONTACTS',
+    ],
 
     docs: `📇 CONTACTS (AppacadabraContacts): prefer search/update
 - \`search(query, callback)\`

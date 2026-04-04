@@ -7,6 +7,10 @@ export const calendarCapability: CapabilityModule = {
     id: 'calendar',
     displayName: 'Calendar',
     minVersion: '1.0.0',
+    androidPermissions: [
+        'android.permission.READ_CALENDAR',
+        'android.permission.WRITE_CALENDAR',
+    ],
 
     docs: `📅 CALENDAR (AppacadabraCalendar)
 - \`createEvent(title, desc, startMs, endMs, callback)\`
