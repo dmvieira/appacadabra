@@ -10,7 +10,7 @@ const JSDOM_FALSE_POSITIVE_PATTERNS = [
     "Unexpected token '<'",  // JSX syntax ou CDN retornando HTML (limitação jsdom)
 ];
 
-function isJsdomFalsePositive(message: string): boolean {
+export function isJsdomFalsePositive(message: string): boolean {
     return JSDOM_FALSE_POSITIVE_PATTERNS.some(p =>
         message.toLowerCase().includes(p.toLowerCase())
     );
@@ -106,7 +106,7 @@ const APPACADABRA_MOCKS = `
 </script>
 `;
 
-function injectAtStart(html: string, injection: string): string {
+export function injectAtStart(html: string, injection: string): string {
     // 1. Prefer injecting right after <head>
     const withHead = html.replace(/(<head[^>]*>)/i, `$1${injection}`);
     if (withHead !== html) return withHead;

@@ -84,6 +84,20 @@ export const healthCapability: CapabilityModule = {
         'android.permission.health.READ_SLEEP',
         'android.permission.health.READ_TOTAL_CALORIES_BURNED',
     ],
+    manifestBlocks: [
+        {
+            anchor: '<!-- CAPABILITY:health:queries:anchor -->',
+            xml: `  <queries>\n    <package android:name="com.google.android.apps.healthdata"/>\n  </queries>`,
+        },
+        {
+            anchor: '<!-- CAPABILITY:health:mainActivity:anchor -->',
+            xml: `      <intent-filter>\n        <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>\n      </intent-filter>`,
+        },
+        {
+            anchor: '<!-- CAPABILITY:health:application:anchor -->',
+            xml: `    <activity-alias android:name="ViewPermissionUsageActivity" android:exported="true" android:targetActivity=".MainActivity" android:permission="android.permission.START_VIEW_PERMISSION_USAGE">\n      <intent-filter>\n        <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>\n        <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>\n      </intent-filter>\n    </activity-alias>`,
+        },
+    ],
 
     docs: `💪 HEALTH (AppacadabraHealth)
 - \`getSteps(startMs, endMs, callback)\` - Get step count

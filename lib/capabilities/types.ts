@@ -7,6 +7,13 @@
  * - handleMessage → the native message handler (RN app side)
  */
 
+export interface ManifestBlock {
+    /** Anchor comment placeholder, e.g. <!-- CAPABILITY:health:queries:anchor --> */
+    anchor: string;
+    /** XML content to expand in place of the anchor when capability is enabled. */
+    xml: string;
+}
+
 /** Lightweight version of the WebView ref so this file stays free of RN imports. */
 export interface WebViewRef {
     current: {
@@ -47,6 +54,12 @@ export interface CapabilityModule {
      * Full permission string, e.g. "android.permission.CAMERA"
      */
     androidPermissions?: string[];
+    /**
+     * Android manifest blocks required by this capability.
+     * Synced to AndroidManifest.xml by `npm run sync-capabilities`.
+     * Each block is a pair of anchor (placeholder) and XML content.
+     */
+    manifestBlocks?: ManifestBlock[];
     /** AI documentation block — copied to Firebase by the sync script. */
     docs: string;
     /**

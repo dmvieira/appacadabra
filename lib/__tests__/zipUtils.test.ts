@@ -2,7 +2,7 @@
  * Unit tests for zipUtils.ts
  */
 
-import { analyzeProject, prepareSourceForAI, ExtractedFile, ProjectAnalysis } from '../zipUtils';
+import { analyzeProject, prepareSourceForAI, bundleBuiltProject, ExtractedFile, ProjectAnalysis } from '../zipUtils';
 
 // Mock the i18n module
 jest.mock('../i18n', () => ({
@@ -149,6 +149,102 @@ describe('zipUtils', () => {
             const result = prepareSourceForAI(analysis);
 
             expect(result).not.toContain('image.png');
+        });
+    });
+
+    describe('bundleBuiltProject', () => {
+        it('should throw when mainHtml is null', () => {
+            const analysis: ProjectAnalysis = {
+                type: 'built',
+                mainHtml: null,
+                packageJson: null,
+                files: [],
+                totalSize: 0,
+            };
+            expect(() => bundleBuiltProject(analysis)).toThrow();
+        });
+
+        it('should return mainHtml unchanged when no linked assets', () => {
+            const html = '<html><head></head><body><p>hello</p></body></html>';
+            const analysis: ProjectAnalysis = {
+                type: 'built',
+                mainHtml: html,
+                packageJson: null,
+                files: [{ path: 'index.html', content: html, isBinary: false }],
+                totalSize: html.length,
+            };
+            expect(bundleBuiltProject(analysis)).toBe(html);
+        });
+
+        it('should inline CSS referenced by <link> tag', () => {
+            const cssContent = 'body { color: red; }';
+            const html = '<html><head><link rel="stylesheet" href="style.css"></head><body></body></html>';
+            const analysis: ProjectAnalysis = {
+                type: 'built',
+                mainHtml: html,
+                packageJson: null,
+                files: [
+                    { path: 'index.html', content: html, isBinary: false },
+                    { path: 'style.css', content: cssContent, isBinary: false },
+                ],
+                totalSize: html.length + cssContent.length,
+            };
+            const result = bundleBuiltProject(analysis);
+            expect(result).toContain(`<style>${cssContent}</style>`);
+            expect(result).not.toContain('<link');
+        });
+
+        it('should append CSS to <head> when link tag is not found in HTML', () => {
+            const cssContent = 'p { margin: 0; }';
+            const html = '<html><head></head><body></body></html>';
+            const analysis: ProjectAnalysis = {
+                type: 'built',
+                mainHtml: html,
+                packageJson: null,
+                files: [
+                    { path: 'index.html', content: html, isBinary: false },
+                    { path: 'extra.css', content: cssContent, isBinary: false },
+                ],
+                totalSize: html.length + cssContent.length,
+            };
+            const result = bundleBuiltProject(analysis);
+            expect(result).toContain(`<style>${cssContent}</style></head>`);
+        });
+
+        it('should inline JS referenced by <script src>', () => {
+            const jsContent = 'console.log("hello");';
+            const html = '<html><head></head><body><script src="app.js"></script></body></html>';
+            const analysis: ProjectAnalysis = {
+                type: 'built',
+                mainHtml: html,
+                packageJson: null,
+                files: [
+                    { path: 'index.html', content: html, isBinary: false },
+                    { path: 'app.js', content: jsContent, isBinary: false },
+                ],
+                totalSize: html.length + jsContent.length,
+            };
+            const result = bundleBuiltProject(analysis);
+            expect(result).toContain(`<script>${jsContent}</script>`);
+            expect(result).not.toContain('src="app.js"');
+        });
+
+        it('should replace image src with base64 data URL', () => {
+            const imgData = 'data:image/png;base64,abc123';
+            const html = '<html><body><img src="logo.png"></body></html>';
+            const analysis: ProjectAnalysis = {
+                type: 'built',
+                mainHtml: html,
+                packageJson: null,
+                files: [
+                    { path: 'index.html', content: html, isBinary: false },
+                    { path: 'logo.png', content: imgData, isBinary: true },
+                ],
+                totalSize: html.length,
+            };
+            const result = bundleBuiltProject(analysis);
+            expect(result).toContain(`src="${imgData}"`);
+            expect(result).not.toContain('src="logo.png"');
         });
     });
 });

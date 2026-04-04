@@ -40,27 +40,11 @@ interface CapDoc {
     docs: string;
 }
 
-interface ManifestBlock {
+export interface ManifestBlock {
     anchor: string;
     xml: string;
 }
 
-const CAPABILITY_MANIFEST_BLOCKS: Record<string, ManifestBlock[]> = {
-    health: [
-        {
-            anchor: '<!-- CAPABILITY:health:queries:anchor -->',
-            xml: `  <queries>\n    <package android:name="com.google.android.apps.healthdata"/>\n  </queries>`,
-        },
-        {
-            anchor: '<!-- CAPABILITY:health:mainActivity:anchor -->',
-            xml: `      <intent-filter>\n        <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>\n      </intent-filter>`,
-        },
-        {
-            anchor: '<!-- CAPABILITY:health:application:anchor -->',
-            xml: `    <activity-alias android:name="ViewPermissionUsageActivity" android:exported="true" android:targetActivity=".MainActivity" android:permission="android.permission.START_VIEW_PERMISSION_USAGE">\n      <intent-filter>\n        <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>\n        <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>\n      </intent-filter>\n    </activity-alias>`,
-        },
-    ],
-};
 
 /**
  * Extracts the value of a simple string field (single or double quotes, or backtick)
@@ -190,7 +174,7 @@ export function buildSystemInstructions(
  * Parses lib/capabilities/index.ts to find capability IDs in DISABLED_CAPABILITIES
  * that are NOT commented out.
  */
-function parseDisabledCapabilities(indexSrc: string): Set<string> {
+export function parseDisabledCapabilities(indexSrc: string): Set<string> {
     const match = indexSrc.match(/DISABLED_CAPABILITIES\s*=\s*new\s+Set<[^>]*>\s*\(\s*\[([\s\S]*?)\]\s*\)/);
     if (!match) return new Set();
     const ids = new Set<string>();
@@ -213,15 +197,122 @@ function parseAndroidPermissions(src: string): string[] {
 }
 
 /**
+ * Parses the manifestBlocks array from a capability source file.
+ */
+export function parseManifestBlocks(src: string): ManifestBlock[] {
+    const startIdx = src.search(/\bmanifestBlocks\s*:\s*\[/);
+    if (startIdx === -1) return [];
+
+    // Walk to find the matching closing ] accounting for strings and template literals
+    const openBracket = src.indexOf('[', startIdx);
+    let depth = 0, inTemplate = false, inStr = false, strChar = '';
+    let closeIdx = -1;
+    for (let i = openBracket; i < src.length; i++) {
+        const ch = src[i];
+        if (inTemplate) {
+            if (ch === '\\') { i++; continue; }
+            if (ch === '`') inTemplate = false;
+            continue;
+        }
+        if (inStr) {
+            if (ch === '\\') { i++; continue; }
+            if (ch === strChar) inStr = false;
+            continue;
+        }
+        if (ch === '`') { inTemplate = true; continue; }
+        if (ch === '"' || ch === "'") { inStr = true; strChar = ch; continue; }
+        if (ch === '[' || ch === '{') depth++;
+        else if (ch === ']' || ch === '}') {
+            depth--;
+            if (depth === 0) { closeIdx = i; break; }
+        }
+    }
+    const arrayContent = src.slice(openBracket + 1, closeIdx === -1 ? undefined : closeIdx);
+
+    // Extract anchor strings (single or double quoted)
+    const anchorRe = /\banchor\s*:\s*(?:'([^']*)'|"([^"]*)")/g;
+    // Extract xml template literals
+    const xmlRe = /\bxml\s*:\s*`((?:[^`\\]|\\[\s\S])*)`/g;
+
+    const anchors: string[] = [];
+    const xmls: string[] = [];
+    let m: RegExpExecArray | null;
+
+    while ((m = anchorRe.exec(arrayContent)) !== null) {
+        anchors.push(m[1] ?? m[2]);
+    }
+    while ((m = xmlRe.exec(arrayContent)) !== null) {
+        xmls.push(
+            m[1]
+                .replace(/\\n/g, '\n')
+                .replace(/\\t/g, '\t')
+                .replace(/\\`/g, '`')
+                .replace(/\\\\/g, '\\'),
+        );
+    }
+
+    return anchors.map((anchor, i) => ({ anchor, xml: xmls[i] ?? '' }));
+}
+
+/**
+ * Pure transformation: replaces the CAPABILITY_PERMISSIONS:start/end block
+ * in the manifest string with lines for the given active permissions (sorted).
+ */
+export function applyPermissionsBlock(manifest: string, activePermissions: string[]): string {
+    const permLines = [...activePermissions].sort()
+        .map(p => `  <uses-permission android:name="${p}"/>`)
+        .join('\n');
+    const permBlockRe = /([ \t]*<!-- CAPABILITY_PERMISSIONS:start -->)[\s\S]*?([ \t]*<!-- CAPABILITY_PERMISSIONS:end -->)/;
+    if (!permBlockRe.test(manifest)) {
+        console.warn('[sync] WARNING: CAPABILITY_PERMISSIONS block not found in AndroidManifest.xml');
+        return manifest;
+    }
+    return manifest.replace(
+        permBlockRe,
+        `  <!-- CAPABILITY_PERMISSIONS:start -->\n${permLines}\n  <!-- CAPABILITY_PERMISSIONS:end -->`,
+    );
+}
+
+/**
+ * Pure transformation: bidirectional anchor ↔ start/end block sync for all
+ * capability manifest blocks. Disabled capabilities collapse to their anchor;
+ * enabled capabilities expand from anchor to full XML block.
+ */
+export function applyManifestBlocks(
+    manifest: string,
+    disabledIds: Set<string>,
+    allBlocks: Map<string, ManifestBlock[]>,
+): string {
+    for (const [id, blocks] of allBlocks.entries()) {
+        const isDisabled = disabledIds.has(id);
+        for (const { anchor, xml } of blocks) {
+            const blockContent = `  <!-- CAPABILITY:${id}:start -->\n${xml}\n  <!-- CAPABILITY:${id}:end -->`;
+            const blockRe = new RegExp(
+                `[ \\t]*<!-- CAPABILITY:${id}:start -->[\\s\\S]*?<!-- CAPABILITY:${id}:end -->`,
+            );
+            if (isDisabled) {
+                // block → anchor
+                manifest = manifest.replace(blockRe, anchor);
+            } else {
+                // anchor → block; if already a block: no-op
+                manifest = manifest.replace(anchor, blockContent);
+            }
+        }
+    }
+    return manifest;
+}
+
+/**
  * Syncs Android permissions to app.json and AndroidManifest.xml.
  * - Active capability permissions are added to both files.
  * - Disabled capability permissions are removed from both files.
  * - System permissions (INTERNET, etc.) are never touched.
  */
 function syncPermissions(allCapIds: string[], disabledIds: Set<string>): void {
-    // Collect permissions from all capability source files
+    // Collect permissions and manifest blocks from all capability source files
     const activePermissions = new Set<string>();
     const allCapabilityPermissions = new Set<string>();
+    const allManifestBlocks = new Map<string, ManifestBlock[]>();
 
     for (const id of allCapIds) {
         const srcPath = path.join(LIB_CAPS_DIR, `${id}.ts`);
@@ -232,6 +323,8 @@ function syncPermissions(allCapIds: string[], disabledIds: Set<string>): void {
             allCapabilityPermissions.add(p);
             if (!disabledIds.has(id)) activePermissions.add(p);
         }
+        const blocks = parseManifestBlocks(src);
+        if (blocks.length > 0) allManifestBlocks.set(id, blocks);
     }
 
     // --- Sync app.json ---
@@ -259,39 +352,8 @@ function syncPermissions(allCapIds: string[], disabledIds: Set<string>): void {
 
     // --- Sync AndroidManifest.xml ---
     let manifest = fs.readFileSync(MANIFEST_PATH, 'utf-8');
-
-    // 1. Replace CAPABILITY_PERMISSIONS block with sorted active permissions
-    const permLines = [...activePermissions].sort()
-        .map(p => `  <uses-permission android:name="${p}"/>`)
-        .join('\n');
-    const permBlockRe = /([ \t]*<!-- CAPABILITY_PERMISSIONS:start -->)[\s\S]*?([ \t]*<!-- CAPABILITY_PERMISSIONS:end -->)/;
-    if (permBlockRe.test(manifest)) {
-        manifest = manifest.replace(
-            permBlockRe,
-            `  <!-- CAPABILITY_PERMISSIONS:start -->\n${permLines}\n  <!-- CAPABILITY_PERMISSIONS:end -->`,
-        );
-    } else {
-        console.warn('[sync] WARNING: CAPABILITY_PERMISSIONS block not found in AndroidManifest.xml');
-    }
-
-    // 2. Bidirectional sync of non-permission manifest blocks (anchor ↔ start/end block)
-    for (const [id, blocks] of Object.entries(CAPABILITY_MANIFEST_BLOCKS)) {
-        const isDisabled = disabledIds.has(id);
-        for (const { anchor, xml } of blocks) {
-            const blockContent = `  <!-- CAPABILITY:${id}:start -->\n${xml}\n  <!-- CAPABILITY:${id}:end -->`;
-            const blockRe = new RegExp(
-                `[ \\t]*<!-- CAPABILITY:${id}:start -->[\\s\\S]*?<!-- CAPABILITY:${id}:end -->`,
-            );
-            if (isDisabled) {
-                // block → anchor
-                manifest = manifest.replace(blockRe, anchor);
-                // if already anchor, no-op
-            } else {
-                // anchor → block; se já é block (já ativo): no-op
-                manifest = manifest.replace(anchor, blockContent);
-            }
-        }
-    }
+    manifest = applyPermissionsBlock(manifest, [...activePermissions]);
+    manifest = applyManifestBlocks(manifest, disabledIds, allManifestBlocks);
 
     const currentManifest = fs.readFileSync(MANIFEST_PATH, 'utf-8');
     if (manifest !== currentManifest) {
@@ -380,4 +442,6 @@ async function main(): Promise<void> {
     console.log('[sync] Done.');
 }
 
-main().catch(err => { console.error('[sync] Error:', err); process.exit(1); });
+if (require.main === module) {
+    main().catch(err => { console.error('[sync] Error:', err); process.exit(1); });
+}
