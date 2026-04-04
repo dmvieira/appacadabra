@@ -681,6 +681,14 @@ export async function addDeletedAppName(name: string, deletedAt: number): Promis
     );
 }
 
+export async function deleteDeletedAppName(name: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'DELETE FROM deleted_app_names WHERE name = ?',
+        [name]
+    );
+}
+
 export async function getDeletedAppNames(): Promise<{ name: string; deletedAt: number }[]> {
     const database = await getDatabase();
     return database.getAllAsync<{ name: string; deletedAt: number }>(

@@ -381,7 +381,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
 
         const json = await readBackupFile(fileUri);
         const backup: BackupData = JSON.parse(json);
-        return await processBackupData(backup);
+        return await processBackupData(backup, { ignoreLocalTombstones: true });
     } catch (error) {
         console.error('Import backup error:', error);
         return {
@@ -395,7 +395,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
 /**
  * Process raw backup data and insert into DB
  */
-export async function processBackupData(backup: BackupData): Promise<{ success: boolean; count: number; message: string; importedIds?: number[] }> {
+export async function processBackupData(backup: BackupData, options?: { ignoreLocalTombstones?: boolean }): Promise<{ success: boolean; count: number; message: string; importedIds?: number[] }> {
     try {
         console.log('Parsed backup apps count:', backup?.apps?.length);
 
@@ -423,11 +423,13 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
         const tombstoneMap = new Map<string, number>(
             (backup.deletedApps ?? []).map(d => [d.name, d.deletedAt])
         );
-        const localTombstones = await db.getDeletedAppNames();
-        for (const t of localTombstones) {
-            const existing = tombstoneMap.get(t.name);
-            if (existing === undefined || t.deletedAt > existing) {
-                tombstoneMap.set(t.name, t.deletedAt);
+        if (!options?.ignoreLocalTombstones) {
+            const localTombstones = await db.getDeletedAppNames();
+            for (const t of localTombstones) {
+                const existing = tombstoneMap.get(t.name);
+                if (existing === undefined || t.deletedAt > existing) {
+                    tombstoneMap.set(t.name, t.deletedAt);
+                }
             }
         }
 
@@ -742,6 +744,9 @@ export async function processBackupData(backup: BackupData): Promise<{ success: 
                     }
                 }
             }
+
+            // Clear any local tombstone so future syncs don't block this spell
+            await db.deleteDeletedAppName(app.name);
 
             importedCount++;
             importedIds.push(newId);

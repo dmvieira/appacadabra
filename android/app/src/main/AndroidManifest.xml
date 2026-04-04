@@ -83,6 +83,16 @@
         <data android:scheme="runapp"/>
       </intent-filter>
     </activity>
+    <!-- Suppress manifest merger warnings from expo-image-picker -->
+    <activity
+        android:name="expo.modules.imagepicker.ExpoCropImageActivity"
+        android:exported="false"/>
+    <!-- Suppress manifest merger warnings from expo-file-system -->
+    <provider
+        android:name="expo.modules.filesystem.FileSystemFileProvider"
+        android:authorities="${applicationId}.FileSystemFileProvider"
+        android:exported="false"
+        android:grantUriPermissions="true"/>
     <receiver android:name=".AlarmReceiver" android:exported="false"/>
 <!-- CAPABILITY:health:application:anchor -->
   </application>

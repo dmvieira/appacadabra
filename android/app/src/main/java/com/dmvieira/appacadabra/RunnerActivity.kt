@@ -151,7 +151,7 @@ class RunnerActivity : ReactActivity() {
     private fun emitResumedEvent(attempt: Int) {
         try {
             val reactContext = (application as? ReactApplication)
-                ?.reactNativeHost?.reactInstanceManager?.currentReactContext
+                ?.reactHost?.currentReactContext
             if (reactContext?.hasActiveReactInstance() == true) {
                 // If another Runner closed recently (< 3s), it's a Runner→Runner transition
                 val timeSince = System.currentTimeMillis() - justClosedTimeMs

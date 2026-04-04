@@ -48,7 +48,8 @@
       "Bash(npx ts-node:*)",
       "Bash(npm test:*)",
       "Bash(npx husky:*)",
-      "Bash(do:*)"
+      "Bash(do:*)",
+      "Bash(xargs basename:*)"
     ]
   }
 }
