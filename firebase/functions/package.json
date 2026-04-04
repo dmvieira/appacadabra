@@ -4,7 +4,7 @@
     "description": "Firebase Functions for Appacadabra AI operations",
     "main": "lib/index.js",
     "scripts": {
-        "prebuild": "node --require ../../scripts/sucrase-register.js ../../scripts/sync-capability-docs.ts",
+        "prebuild": "node --require ../../scripts/sucrase-register.js ../../scripts/sync-capabilities.ts",
         "build": "tsc",
         "build:watch": "tsc --watch",
         "serve": "npm run build && firebase emulators:start --only functions",

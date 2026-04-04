@@ -34,7 +34,6 @@ import {
     extractHtml,
     extractJson,
     fixCallbackPatterns,
-    Patch,
     applyPatches,
     withRetry,
     computeManaCost,
@@ -1500,11 +1499,11 @@ export const processSpellJob = onDocumentCreated(
 
             // Send push notification on success
             await sendJobNotification(uid, action, true, {
-                    jobId,
-                    status: 'completed',
-                    appId: String(payload?.appId ?? ''),
-                    notificationType: action === 'create' ? 'app_created' : 'app_edited',
-                });
+                jobId,
+                status: 'completed',
+                appId: String(payload?.appId ?? ''),
+                notificationType: action === 'create' ? 'app_created' : 'app_edited',
+            });
 
         } catch (error: any) {
             console.error(`Job ${jobId} failed:`, error);
@@ -1517,13 +1516,13 @@ export const processSpellJob = onDocumentCreated(
                     error: errorMsg,
                     failedAt: FieldValue.serverTimestamp(),
                 });
-                
+
                 await sendJobNotification(uid, action, false, {
-                        jobId,
-                        status: 'failed',
-                        appId: String(payload?.appId ?? ''),
-                        notificationType: action === 'create' ? 'app_created' : 'app_edited',
-                    });
+                    jobId,
+                    status: 'failed',
+                    appId: String(payload?.appId ?? ''),
+                    notificationType: action === 'create' ? 'app_created' : 'app_edited',
+                });
             } catch (fallbackErr) {
                 console.error(`[Job ${jobId}] Failed to write failure state to Firestore:`, fallbackErr);
             }
