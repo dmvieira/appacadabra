@@ -1,0 +1,24 @@
+[debug] [2026-04-04T12:17:59.813Z] ----------------------------------------------------------------------
+[debug] [2026-04-04T12:17:59.819Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\vivia\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --project appacadabra-bee0f
+[debug] [2026-04-04T12:17:59.820Z] CLI Version:   15.5.1
+[debug] [2026-04-04T12:17:59.820Z] Platform:      win32
+[debug] [2026-04-04T12:17:59.820Z] Node Version:  v24.12.0
+[debug] [2026-04-04T12:17:59.820Z] Time:          Sat Apr 04 2026 09:17:59 GMT-0300 (Horário Padrão de Brasília)
+[debug] [2026-04-04T12:17:59.821Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-04T12:17:59.824Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-04-04T12:18:03.274Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-04T12:18:03.274Z] > authorizing via signed-in user (support@appacadabra.ai)
+[debug] [2026-04-04T12:18:03.274Z] [iam] checking project appacadabra-bee0f for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-04-04T12:18:03.276Z] Checked if tokens are valid: false, expires at: 1775242664026
+[debug] [2026-04-04T12:18:03.276Z] Checked if tokens are valid: false, expires at: 1775242664026
+[debug] [2026-04-04T12:18:03.276Z] > refreshing access token with scopes: []
+[debug] [2026-04-04T12:18:03.278Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-04-04T12:18:03.278Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-04-04T12:18:03.593Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-04-04T12:18:03.593Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-04-04T12:18:03.601Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/appacadabra-bee0f:testIamPermissions [none]
+[debug] [2026-04-04T12:18:03.601Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/appacadabra-bee0f:testIamPermissions  x-goog-user-project=appacadabra-bee0f
+[debug] [2026-04-04T12:18:03.601Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/appacadabra-bee0f:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-04-04T12:18:03.790Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-04-04T12:18:03.790Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}

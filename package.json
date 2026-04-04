@@ -11,7 +11,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "sync-capabilities": "node --require ./scripts/sucrase-register.js scripts/sync-capability-docs.ts",
+    "sync-capabilities": "node --require ./scripts/sucrase-register.js scripts/sync-capabilities.ts",
     "prepare": "husky"
   },
   "dependencies": {

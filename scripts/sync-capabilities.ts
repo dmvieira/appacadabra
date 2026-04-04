@@ -1,9 +1,10 @@
 /**
- * sync-capability-docs.ts
+ * sync-capabilities.ts
  *
- * Extracts { id, displayName, minVersion, docs } from every capability module
- * in lib/capabilities/ by statically parsing the TypeScript source files.
- * This avoids the need to execute native RN/Expo modules at build time.
+ * Syncs every capability module in lib/capabilities/ to Firebase functions
+ * and Android (app.json + AndroidManifest.xml) by statically parsing the
+ * TypeScript source files. This avoids executing native RN/Expo modules at
+ * build time.
  *
  * Run:  npm run sync-capabilities
  *

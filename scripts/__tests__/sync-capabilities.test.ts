@@ -3,8 +3,8 @@ import {
     applyPermissionsBlock,
     parseDisabledCapabilities,
     parseManifestBlocks,
-} from '../sync-capability-docs';
-import type { ManifestBlock } from '../sync-capability-docs';
+} from '../sync-capabilities';
+import type { ManifestBlock } from '../sync-capabilities';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
