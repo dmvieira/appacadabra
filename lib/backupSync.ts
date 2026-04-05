@@ -84,12 +84,15 @@ async function deleteDriveFile(accessToken: string, fileId: string): Promise<voi
 
 /** Merge two BackupData objects, keeping the more recently updated version of each app */
 function mergeBackups(local: BackupData, remote: BackupData): BackupData {
-    // Merge tombstones: per name, keep the most recent deletedAt
-    const tombstoneMap = new Map<string, number>();
+    // Merge tombstones: per name, keep the most recent deletedAt; preserve snapshot from either side
+    const tombstoneMap = new Map<string, { deletedAt: number; snapshot?: BackupApp }>();
     for (const d of [...(local.deletedApps ?? []), ...(remote.deletedApps ?? [])]) {
         const existing = tombstoneMap.get(d.name);
-        if (existing === undefined || d.deletedAt > existing) {
-            tombstoneMap.set(d.name, d.deletedAt);
+        if (existing === undefined || d.deletedAt > existing.deletedAt) {
+            tombstoneMap.set(d.name, { deletedAt: d.deletedAt, snapshot: d.snapshot });
+        } else if (!existing.snapshot && d.snapshot) {
+            // Older tombstone wins on time, but inherit snapshot if it was missing
+            tombstoneMap.set(d.name, { ...existing, snapshot: d.snapshot });
         }
     }
 
@@ -118,12 +121,12 @@ function mergeBackups(local: BackupData, remote: BackupData): BackupData {
 
     // Filter out tombstoned apps
     const mergedApps = Array.from(map.values()).filter(app => {
-        const deletedAt = tombstoneMap.get(app.name);
-        return deletedAt === undefined || app.lastUpdated > deletedAt;
+        const entry = tombstoneMap.get(app.name);
+        return entry === undefined || app.lastUpdated > entry.deletedAt;
     });
 
     const deletedApps = tombstoneMap.size > 0
-        ? Array.from(tombstoneMap.entries()).map(([name, deletedAt]) => ({ name, deletedAt }))
+        ? Array.from(tombstoneMap.entries()).map(([name, { deletedAt, snapshot }]) => ({ name, deletedAt, snapshot }))
         : undefined;
 
     return { ...local, apps: mergedApps, deletedApps };
@@ -235,6 +238,20 @@ export async function checkDriveBackupExists(): Promise<boolean> {
     if (!token) return false;
     const files = await listDriveFiles(token);
     return files.length > 0;
+}
+
+/** Read the latest backup from the configured auto-backup source (Drive or local folder) without importing it */
+export async function fetchLatestAutoBackup(): Promise<BackupData | null> {
+    const { backupMode, localFolderUri } = useBackupStore.getState();
+    if (backupMode === 'google_drive') {
+        if (!isGoogleUser()) return null;
+        const token = await getGoogleAccessToken();
+        if (!token) return null;
+        return downloadFromDrive(token);
+    } else if (backupMode === 'local_folder' && localFolderUri) {
+        return readFromLocalFolder(localFolderUri);
+    }
+    return null;
 }
 
 // ─── Local folder backend (Android SAF) ─────────────────────────────

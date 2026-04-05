@@ -19,7 +19,7 @@ export interface BackupData {
     // New format (React Native)
     versions?: Record<number, AppVersion[]>;
     storage?: Record<number, { key: string; value: string }[]>;
-    deletedApps?: { name: string; deletedAt: number }[];
+    deletedApps?: { name: string; deletedAt: number; snapshot?: BackupApp }[];
 }
 
 // Android format has versions and localStorage inside each app
@@ -224,7 +224,12 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
         });
     }
 
-    const deletedApps = await db.getDeletedAppNames();
+    const rawDeletedApps = await db.getDeletedAppNames();
+    const deletedApps = rawDeletedApps.map(t => ({
+        name: t.name,
+        deletedAt: t.deletedAt,
+        snapshot: t.snapshotJson ? JSON.parse(t.snapshotJson) as BackupApp : undefined,
+    }));
     return {
         version: 2,
         exportedAt: Date.now(),
@@ -395,7 +400,7 @@ export async function importBackup(existingUri?: string): Promise<{ success: boo
 /**
  * Process raw backup data and insert into DB
  */
-export async function processBackupData(backup: BackupData, options?: { ignoreLocalTombstones?: boolean }): Promise<{ success: boolean; count: number; message: string; importedIds?: number[] }> {
+export async function processBackupData(backup: BackupData, options?: { ignoreLocalTombstones?: boolean; onlyNames?: Set<string> }): Promise<{ success: boolean; count: number; message: string; importedIds?: number[] }> {
     try {
         console.log('Parsed backup apps count:', backup?.apps?.length);
 
@@ -438,6 +443,8 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
         const importedIds: number[] = [];
 
         for (const app of validApps) {
+            if (options?.onlyNames && !options.onlyNames.has(app.name)) continue;
+
             // Skip tombstoned apps (deleted at or after last update)
             const deletedAt = tombstoneMap.get(app.name);
             if (deletedAt !== undefined && deletedAt >= app.lastUpdated) {
@@ -766,6 +773,29 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
             count: 0,
             message: `${t('importError')} ${error instanceof Error ? error.message : t('unknownError')}`
         };
+    }
+}
+
+/** Restore a single named spell from already-fetched backup data */
+export async function importSpellByNameFromData(name: string, backupData: BackupData): Promise<{ success: boolean; found: boolean; message: string }> {
+    try {
+        const res = await processBackupData(backupData, {
+            ignoreLocalTombstones: true,
+            onlyNames: new Set([name]),
+        });
+        if (res.count === 0) {
+            // Fallback: try to restore from snapshot stored in the tombstone
+            const tombstone = backupData.deletedApps?.find(d => d.name === name && d.snapshot);
+            if (tombstone?.snapshot) {
+                const miniBackup: BackupData = { version: backupData.version, apps: [tombstone.snapshot] };
+                const res2 = await processBackupData(miniBackup, { ignoreLocalTombstones: true });
+                if (res2.count > 0) return { success: true, found: true, message: res2.message };
+            }
+            return { success: false, found: false, message: t('spellNotInBackup') };
+        }
+        return { success: true, found: true, message: res.message };
+    } catch (error) {
+        return { success: false, found: false, message: error instanceof Error ? error.message : t('unknownError') };
     }
 }
 

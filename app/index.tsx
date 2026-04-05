@@ -43,7 +43,7 @@ import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
 import { t, getCurrentLanguage } from '../lib/i18n';
 import { ManaDisplay } from '../components/ManaDisplay';
 import * as db from '../lib/database/db';
-import { exportSingleApp } from '../lib/backup';
+import { exportSingleApp, importSpellByNameFromData, readBackupFile, BackupData } from '../lib/backup';
 import * as firebase from '../lib/firebase';
 import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useManaStore } from '../lib/manaStore';
@@ -51,7 +51,7 @@ import SpellSetup from '../components/SpellSetup';
 import { logIconGenerated, logSpellCreateOpened, logSpellCreateSubmitted } from '../lib/analytics';
 import { useBackupStore } from '../lib/backupStore';
 import BackupSyncModal from '../components/BackupSyncModal';
-import { autoBackupAfterChange, tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup } from '../lib/backupSync';
+import { autoBackupAfterChange, tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup, fetchLatestAutoBackup } from '../lib/backupSync';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -134,6 +134,9 @@ export default function HomeScreen() {
     const [showSyncModal, setShowSyncModal] = useState(false);
     const [syncModalMode, setSyncModalMode] = useState<'choose' | 'reconnect'>('choose');
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showDeletedSpells, setShowDeletedSpells] = useState(false);
+    const [deletedSpellsList, setDeletedSpellsList] = useState<{ name: string; deletedAt: number }[]>([]);
+    const [restoringSpell, setRestoringSpell] = useState<string | null>(null);
     const [suggestions, setSuggestions] = useState<Array<{ title: string; description: string }>>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
@@ -842,6 +845,56 @@ export default function HomeScreen() {
         }, 300);
     };
 
+    const handleViewDeletedSpells = async () => {
+        setShowMenu(false);
+        setShowAdvanced(false);
+        const tombstones = await db.getDeletedAppNames();
+        tombstones.sort((a, b) => b.deletedAt - a.deletedAt);
+        setDeletedSpellsList(tombstones);
+        setShowDeletedSpells(true);
+    };
+
+    const handleRestoreSpell = async (name: string) => {
+        if (restoringSpell) return;
+        setRestoringSpell(name);
+        try {
+            let backupData: BackupData | null = await fetchLatestAutoBackup();
+
+            if (!backupData) {
+                const result = await DocumentPicker.getDocumentAsync({
+                    type: ['application/json', 'text/plain', '*/*'],
+                    copyToCacheDirectory: true,
+                });
+                if (result.canceled || !result.assets?.[0]) {
+                    return;
+                }
+                const json = await readBackupFile(result.assets[0].uri);
+                backupData = JSON.parse(json) as BackupData;
+            }
+
+            const res = await importSpellByNameFromData(name, backupData);
+            if (res.success) {
+                setDeletedSpellsList(prev => prev.filter(t => t.name !== name));
+                setStatusMessage(t('spellRestored', { name }));
+                markBackupDirty();
+                await loadApps();
+            } else {
+                setStatusMessage(res.message);
+            }
+        } catch (error) {
+            setStatusMessage(error instanceof Error ? error.message : t('unknownError'));
+        } finally {
+            setRestoringSpell(null);
+        }
+    };
+
+    const handleClearAllTombstones = async () => {
+        for (const tomb of deletedSpellsList) {
+            await db.deleteDeletedAppName(tomb.name);
+        }
+        setDeletedSpellsList([]);
+    };
+
     if (isLoading) {
         return (
             <SafeAreaView style={styles.container}>
@@ -1205,6 +1258,13 @@ export default function HomeScreen() {
                                             <Text style={styles.sheetItemTitle}>{t('importBackup')}</Text>
                                         </View>
                                     </TouchableOpacity>
+                                    <TouchableOpacity style={styles.sheetItem} onPress={handleViewDeletedSpells} accessibilityLabel={t('deletedSpells')} accessibilityRole="menuitem">
+                                        <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🗑️</Text></View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('deletedSpells')}</Text>
+                                            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('deletedSpellsDesc')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
                                     {/* Import Project — hidden for now
                                     <TouchableOpacity style={styles.sheetItem} onPress={handleImportProject} accessibilityLabel={t('importProject')} accessibilityRole="menuitem">
                                         <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📜</Text></View>
@@ -1521,6 +1581,60 @@ export default function HomeScreen() {
                 mode={syncModalMode}
                 onClose={() => setShowSyncModal(false)}
             />
+
+            <Modal visible={showDeletedSpells} transparent animationType="slide" onRequestClose={() => setShowDeletedSpells(false)}>
+                <Pressable style={styles.sheetOverlay} onPress={() => setShowDeletedSpells(false)}>
+                    <Pressable style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
+                        <View style={styles.sheetHandle} />
+                        <View style={styles.sheetHeader}>
+                            <View style={styles.sheetHeaderIcon}><Text style={{ fontSize: 20 }}>🗑️</Text></View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.sheetHeaderTitle}>{t('deletedSpells')}</Text>
+                            </View>
+                            <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => setShowDeletedSpells(false)}>
+                                <Text style={styles.sheetCloseBtnText}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.sheetBody}>
+                            {deletedSpellsList.length === 0 ? (
+                                <Text style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', paddingVertical: 24 }}>
+                                    {t('deletedSpellsEmpty')}
+                                </Text>
+                            ) : (
+                                <>
+                                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>
+                                        {t('deletedSpellsInfo')}
+                                    </Text>
+                                    <ScrollView style={{ maxHeight: 320 }}>
+                                        {deletedSpellsList.map(spell => (
+                                            <View key={spell.name} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' }}>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={{ color: '#fff', fontSize: 15 }}>{spell.name}</Text>
+                                                    <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>
+                                                        {t('deletedOn', { date: new Date(spell.deletedAt).toLocaleDateString() })}
+                                                    </Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    onPress={() => handleRestoreSpell(spell.name)}
+                                                    disabled={restoringSpell === spell.name}
+                                                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: 'rgba(124,58,237,0.25)', opacity: restoringSpell === spell.name ? 0.5 : 1 }}
+                                                >
+                                                    <Text style={{ color: '#a78bfa', fontSize: 13 }}>
+                                                        {restoringSpell === spell.name ? '...' : `↩ ${t('removeTombstone')}`}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </ScrollView>
+                                    <TouchableOpacity onPress={handleClearAllTombstones} style={{ marginTop: 16, paddingVertical: 12, borderRadius: 10, backgroundColor: 'rgba(248,113,113,0.15)', alignItems: 'center' }}>
+                                        <Text style={{ color: '#f87171', fontSize: 14 }}>{t('clearAllTombstones')}</Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </SafeAreaView>
     );
 }

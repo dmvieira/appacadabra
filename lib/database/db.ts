@@ -125,6 +125,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
     await addColumn('generated_apps', 'totalManaCost', 'REAL NOT NULL DEFAULT 0');
     await addColumn('generated_apps', 'jobId', 'TEXT');
+    await addColumn('deleted_app_names', 'snapshot_json', 'TEXT');
     await addColumn('generated_apps', 'requiresBiometric', 'INTEGER NOT NULL DEFAULT 0');
     await addColumn('generated_apps', 'shortDescription', 'TEXT');
     await addColumn('generated_apps', 'createdAt', 'INTEGER NOT NULL DEFAULT 0');
@@ -673,11 +674,11 @@ export async function deleteSetting(key: string): Promise<void> {
 
 // ============= Deleted App Tombstones =============
 
-export async function addDeletedAppName(name: string, deletedAt: number): Promise<void> {
+export async function addDeletedAppName(name: string, deletedAt: number, snapshotJson?: string): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        'INSERT OR REPLACE INTO deleted_app_names (name, deletedAt) VALUES (?, ?)',
-        [name, deletedAt]
+        'INSERT OR REPLACE INTO deleted_app_names (name, deletedAt, snapshot_json) VALUES (?, ?, ?)',
+        [name, deletedAt, snapshotJson ?? null]
     );
 }
 
@@ -689,10 +690,10 @@ export async function deleteDeletedAppName(name: string): Promise<void> {
     );
 }
 
-export async function getDeletedAppNames(): Promise<{ name: string; deletedAt: number }[]> {
+export async function getDeletedAppNames(): Promise<{ name: string; deletedAt: number; snapshotJson?: string }[]> {
     const database = await getDatabase();
-    return database.getAllAsync<{ name: string; deletedAt: number }>(
-        'SELECT name, deletedAt FROM deleted_app_names'
+    return database.getAllAsync<{ name: string; deletedAt: number; snapshotJson?: string }>(
+        'SELECT name, deletedAt, snapshot_json as snapshotJson FROM deleted_app_names'
     );
 }
 

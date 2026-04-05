@@ -4,7 +4,7 @@ import { DeviceEventEmitter } from 'react-native';
 import { GeneratedApp, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Paths } from 'expo-file-system/next';
+import { Paths, File } from 'expo-file-system/next';
 import * as ai from './api/ai';
 import * as backup from './backup';
 import { onboardingTemplates } from './onboardingTemplates';
@@ -622,6 +622,43 @@ export const useAppStore = create<AppState>((set, get) => ({
                 console.warn('[Store] Failed to cleanup AI media files:', e);
             }
 
+            // Build deletion snapshot before CASCADE wipes versions & storage
+            let snapshotJson: string | undefined;
+            if (appToDelete) {
+                try {
+                    const versions = (await db.getVersionsForApp(id)).slice(0, 5);
+                    const storageItems = await db.getStorageForApp(id);
+                    const localStorage: Record<string, string> = {};
+                    storageItems.forEach(s => { localStorage[s.key] = s.value; });
+
+                    let iconBase64: string | undefined;
+                    if (appToDelete.iconPath) {
+                        try {
+                            const iconFile = new File(appToDelete.iconPath);
+                            if (iconFile.exists) iconBase64 = await iconFile.base64();
+                        } catch (e) {
+                            console.warn('[Store] Failed to read icon for snapshot:', e);
+                        }
+                    }
+
+                    const snapshot: backup.BackupApp = {
+                        ...appToDelete,
+                        iconBase64,
+                        versions: versions.map(v => ({
+                            version: v.version,
+                            code: v.code,
+                            instruction: v.instruction || '',
+                            selectedContext: v.selectedContext || '',
+                            createdAt: v.createdAt,
+                        })),
+                        localStorage,
+                    };
+                    snapshotJson = JSON.stringify(snapshot);
+                } catch (e) {
+                    console.warn('[Store] Failed to build deletion snapshot:', e);
+                }
+            }
+
             await db.deleteApp(id);
             set(state => ({
                 apps: state.apps.filter(a => a.id !== id),
@@ -629,7 +666,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             // Record tombstone so backup sync knows this app was intentionally deleted
             if (appToDelete) {
-                await db.addDeletedAppName(appToDelete.name, Date.now());
+                await db.addDeletedAppName(appToDelete.name, Date.now(), snapshotJson);
                 markBackupDirty();
             }
 
