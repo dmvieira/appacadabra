@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { createBackup, processBackupData, BackupData, BackupApp, readBackupFile } from './backup';
 import { getGoogleAccessToken, isGoogleUser } from './firebase';
@@ -53,6 +53,18 @@ export function stopPeriodicBackup() {
         clearInterval(_periodicTimer);
         _periodicTimer = null;
     }
+}
+
+let _appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
+
+/** Start listening for app foreground events and retry backup if dirty */
+export function startAppStateBackupListener() {
+    if (_appStateSubscription) return; // avoid duplicates
+    _appStateSubscription = AppState.addEventListener('change', (nextState) => {
+        if (nextState === 'active') {
+            flushBackupIfDirty();
+        }
+    });
 }
 
 // ─── Google Drive backend ───────────────────────────────────────────
@@ -375,6 +387,7 @@ export async function performBackup(): Promise<boolean> {
         return false; // Don't clear dirty — it will retry
     }
 
+    _dirty = true;  // assume dirty until proven success; guarantees retry if backgrounded
     _writeLock = true;
     try {
         // Snapshot the data while locked

@@ -51,7 +51,7 @@ import SpellSetup from '../components/SpellSetup';
 import { logIconGenerated, logSpellCreateOpened, logSpellCreateSubmitted } from '../lib/analytics';
 import { useBackupStore } from '../lib/backupStore';
 import BackupSyncModal from '../components/BackupSyncModal';
-import { autoBackupAfterChange, tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup, fetchLatestAutoBackup } from '../lib/backupSync';
+import { autoBackupAfterChange, tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup, startAppStateBackupListener, fetchLatestAutoBackup } from '../lib/backupSync';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -147,6 +147,7 @@ export default function HomeScreen() {
     useEffect(() => {
         hydrateBackup();
         startPeriodicBackup();
+        startAppStateBackupListener();
         return () => stopPeriodicBackup();
     }, []);
 
