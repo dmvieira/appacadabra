@@ -4,8 +4,8 @@ import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, que
 import { getApp } from '@react-native-firebase/app';
 // @ts-ignore - Index.d.ts exports class as type, but it is a value in runtime. Import from root to ensure module registration.
 import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
-import crashlytics from '@react-native-firebase/crashlytics';
-import analytics from '@react-native-firebase/analytics';
+import { getCrashlytics, setCrashlyticsCollectionEnabled } from '@react-native-firebase/crashlytics';
+import { getAnalytics, setAnalyticsCollectionEnabled } from '@react-native-firebase/analytics';
 import Constants from 'expo-constants';
 import pako from 'pako';
 
@@ -139,25 +139,32 @@ async function initializeAppCheckWrapper() {
         // Activate App Check: debug provider in dev, production providers in release builds
         // @ts-ignore - Class is exported as type only in d.ts, but is a value at runtime
         const provider = new ReactNativeFirebaseAppCheckProvider();
-        // Using fixed debug tokens to avoid Play Integrity API rate limits (429) in dev/test builds.
-        // When publishing to Play Store, change providers to:
-        //   android: IS_PRODUCTION_BUILD ? 'playIntegrity' : 'debug'
-        //   apple: IS_PRODUCTION_BUILD ? 'appAttestWithDeviceCheckFallback' : 'debug'
-        // and register new production tokens in Firebase Console → App Check.
-        provider.configure({
-            android: {
-                provider: 'debug',
-                debugToken: '11223344-5566-4778-8990-aabbccddeeff',
-            },
-            apple: {
-                provider: 'debug',
-                debugToken: 'aabbccdd-eeff-4112-8334-556677889900',
-            },
-            web: {
-                provider: 'reCaptchaV3',
-                siteKey: 'none',
-            },
-        });
+        // Debug tokens are only used in dev builds to avoid Play Integrity rate limits.
+        // Production builds use Play Integrity (Android) / App Attest (iOS).
+        // Before enabling enforceAppCheck: true in Functions, register the production
+        // App Check providers in Firebase Console → App Check.
+        if (__DEV__) {
+            provider.configure({
+                android: {
+                    provider: 'debug',
+                    debugToken: '11223344-5566-4778-8990-aabbccddeeff',
+                },
+                apple: {
+                    provider: 'debug',
+                    debugToken: 'aabbccdd-eeff-4112-8334-556677889900',
+                },
+                web: {
+                    provider: 'reCaptchaV3',
+                    siteKey: 'none',
+                },
+            });
+        } else {
+            provider.configure({
+                android: { provider: 'playIntegrity' },
+                apple: { provider: 'appAttestWithDeviceCheckFallback' },
+                web: { provider: 'reCaptchaV3', siteKey: 'none' },
+            });
+        }
 
         await initializeAppCheck(getApp(), {
             provider,
@@ -174,8 +181,16 @@ async function initializeAppCheckWrapper() {
 initializeAppCheckWrapper();
 
 // Enable Crashlytics + Analytics collection (disabled in dev to reduce noise)
-crashlytics(getApp()).setCrashlyticsCollectionEnabled(!__DEV__);
-analytics(getApp()).setAnalyticsCollectionEnabled(!__DEV__);
+try {
+    setCrashlyticsCollectionEnabled(getCrashlytics(), !__DEV__);
+} catch (e) {
+    console.warn('Firebase: Crashlytics not available', e);
+}
+try {
+    setAnalyticsCollectionEnabled(getAnalytics(), !__DEV__);
+} catch (e) {
+    console.warn('Firebase: Analytics not available', e);
+}
 
 // Get current user ID (null if not authenticated)
 export function getCurrentUserId(): string | null {

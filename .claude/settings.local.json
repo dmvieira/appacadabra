@@ -49,7 +49,11 @@
       "Bash(npm test:*)",
       "Bash(npx husky:*)",
       "Bash(do:*)",
-      "Bash(xargs basename:*)"
+      "Bash(xargs basename:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd:*)",
+      "mcp__plugin_firebase_firebase__firebase_read_resources",
+      "mcp__plugin_firebase_firebase__functions_get_logs"
     ]
   }
 }

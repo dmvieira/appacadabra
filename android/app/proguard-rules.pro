@@ -12,3 +12,14 @@
 -keep class com.facebook.react.turbomodule.** { *; }
 
 # Add any project specific keep options here:
+
+# React Native Firebase
+-keep class io.invertase.firebase.** { *; }
+-dontwarn io.invertase.firebase.**
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+-keep class io.invertase.firebase.app.ReactNativeFirebaseAppModule { *; }
+-keep class io.invertase.firebase.auth.ReactNativeFirebaseAuthModule { *; }
+-keep class io.invertase.firebase.appcheck.ReactNativeFirebaseAppCheckModule { *; }
+-keep class io.invertase.firebase.crashlytics.** { *; }
+-keep class com.google.firebase.crashlytics.** { *; }

@@ -401,6 +401,9 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
         const { query, language } = request.data;
         if (!query?.trim()) throw new HttpsError("invalid-argument", "Query required");
 
+        const ALLOWED_LANGUAGES = ['pt-BR', 'en-US', 'es-ES', 'fr-FR', 'de-DE', 'ja-JP', 'zh-CN', 'ko-KR', 'it-IT', 'ru-RU', 'ar-SA', 'hi-IN', 'nl-NL', 'pl-PL', 'tr-TR', 'vi-VN', 'th-TH', 'id-ID'];
+        const safeLanguage = ALLOWED_LANGUAGES.includes(language) ? language : 'en-US';
+
         const uid = request.auth.uid;
         const userRef = db.collection("users").doc(uid);
 
@@ -414,7 +417,7 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
             const prompt = `You are helping users of Appacadabra, an app that creates mini AI-powered tools called "spells".
 The user searched for "${query.trim()}" but found no results.
 Suggest exactly 2 spell ideas related to "${query.trim()}".
-Respond in language: ${language}.
+Respond in language: ${safeLanguage}.
 For each suggestion:
 - title: short name (3–5 words)
 - description: one sentence written as a prompt for the AI to create it, starting with an action verb.`;
@@ -594,6 +597,7 @@ export const processSpellJob = onDocumentCreated(
         };
 
         const userRef = db.collection("users").doc(uid);
+        let preDeductedMana = 0; // tracks pre-deducted amount so we can refund on failure
         try {
             // Resolve any Storage URLs in media arrays back to Base64 for the models
             const resolvedImages = await resolveMedia(imagesBase64);
@@ -635,6 +639,20 @@ export const processSpellJob = onDocumentCreated(
             if (estimatedCost > currentBalance) {
                 throw new Error(`Insufficient credits: operation requires ~${estimatedCost.toFixed(2)} mana but balance is ${currentBalance.toFixed(2)}`);
             }
+
+            // Pre-deduct estimated cost atomically before calling AI.
+            // This ensures that if the function crashes or times out between AI completion
+            // and the deduction transaction, the user is still charged.
+            // On success the deduction transaction applies the delta (actual vs estimated).
+            // On failure the catch block refunds preDeductedMana.
+            await db.runTransaction(async (preDeductTx) => {
+                const freshDoc = await preDeductTx.get(userRef);
+                if (!freshDoc.exists) throw new Error("User not found");
+                const freshBalance = (freshDoc.data()!.credits as number) || 0;
+                if (freshBalance < estimatedCost) throw new Error("Insufficient credits (re-check)");
+                preDeductTx.update(userRef, { credits: freshBalance - estimatedCost });
+            });
+            preDeductedMana = estimatedCost;
 
             let resultText = "";
             let usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
@@ -1420,7 +1438,11 @@ export const processSpellJob = onDocumentCreated(
                     const limitError = await checkRateLimit(ref, t, data);
                     if (limitError) throw new Error(`RATE_LIMITED: ${limitError}`);
 
-                    const newCredits = Math.max(0, (data.credits || 0) - creditsUsed);
+                    // Balance was already reduced by preDeductedMana; apply the delta
+                    // between estimated and actual cost (positive delta = refund, negative = extra charge).
+                    const preDeductDelta = preDeductedMana - creditsUsed;
+                    const newCredits = Math.max(0, (data.credits || 0) + preDeductDelta);
+                    preDeductedMana = 0; // mark as settled so the catch block does not double-refund
                     t.update(ref, {
                         credits: newCredits,
                         creditsUsed: FieldValue.increment(creditsUsed),
@@ -1508,6 +1530,19 @@ export const processSpellJob = onDocumentCreated(
         } catch (error: any) {
             console.error(`Job ${jobId} failed:`, error);
             const errorMsg = typeof error?.message === 'string' ? error.message : String(error || 'Unknown error');
+
+            // Refund the pre-deducted amount if the AI call never completed (or the
+            // success transaction was rolled back). preDeductedMana is zeroed out by the
+            // success path once it settles, so this only runs on genuine failures.
+            if (preDeductedMana > 0) {
+                try {
+                    await userRef.update({ credits: FieldValue.increment(preDeductedMana) });
+                    console.log(`[Job ${jobId}] Refunded ${preDeductedMana} mana to user ${uid} after failure.`);
+                } catch (refundErr) {
+                    console.error(`[Job ${jobId}] CRITICAL: Failed to refund ${preDeductedMana} mana to user ${uid}:`, refundErr);
+                }
+            }
+
             try {
                 const currentDoc = await snapshot.ref.get();
                 if (currentDoc.data()?.status === 'completed') return; // transaction already committed, don't overwrite
@@ -1547,6 +1582,23 @@ export const uploadMedia = onCall({
 
     if (!Array.isArray(media) || media.length === 0) {
         throw new HttpsError('invalid-argument', 'Media array required');
+    }
+
+    const MAX_FILES = 15;
+    const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB per file
+
+    if (media.length > MAX_FILES) {
+        throw new HttpsError('invalid-argument', `Too many files (max ${MAX_FILES})`);
+    }
+    for (const base64 of media) {
+        if (typeof base64 !== 'string') {
+            throw new HttpsError('invalid-argument', 'Invalid media data');
+        }
+        // base64 encodes 3 bytes as 4 chars; approximate decoded size
+        const approxBytes = Math.ceil(base64.length * 0.75);
+        if (approxBytes > MAX_FILE_BYTES) {
+            throw new HttpsError('invalid-argument', `File too large (max ${MAX_FILE_BYTES / 1024 / 1024} MB)`);
+        }
     }
 
     const bucket = getStorage().bucket();

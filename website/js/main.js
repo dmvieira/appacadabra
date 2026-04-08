@@ -116,7 +116,7 @@ function trackDownload(platform) {
     if (isAndroid) {
         window.location.href = 'market://details?id=ai.appacadabra.app';
     } else {
-        window.open('https://play.google.com/apps/testing/ai.appacadabra.app', '_blank');
+        window.open('https://play.google.com/store/apps/details?id=ai.appacadabra.app', '_blank');
     }
     return false; // prevent default href
 }
