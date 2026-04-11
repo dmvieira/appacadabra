@@ -10,6 +10,7 @@ const formsCapability: FirebaseCapabilityDoc = {
     displayName: "Forms",
     minVersion: "1.0.0",
     docs: `📋 FORMS (AppacadabraForms) — Google Sign-In required (consent shown on first use only)
+⚠️ **Acesso restrito:** \`getResponses()\` e \`updateForm()\` funcionam **apenas com formulários criados por este app via \`createForm()\`**. Formulários externos não podem ser acessados por duas razões: (1) restrição de escopo OAuth \`drive.file\`; (2) o mapeamento de perguntas é armazenado internamente no momento da criação e não existe para formulários externos. Nunca sugira ao usuário usar um formulário Google existente.
 - \`createForm(title, questions[], callback)\` — Creates a Google Form
   - \`questions\`: \`[{ type: "text"|"paragraph"|"radio"|"checkbox"|"dropdown", title: "...", options?: ["..."] }]\`
   - **Callback data**: \`{ formId, shareUrl }\`

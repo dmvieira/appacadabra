@@ -4,14 +4,15 @@ const { getDefaultConfig } = require('expo/metro-config');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-// Disable package exports resolution to suppress @react-native-firebase/app
-// warnings about missing dist/ files. Metro already falls back to file-based
-// resolution which works correctly.
-config.resolver.unstable_enablePackageExports = false;
+// Enable package exports resolution so @react-native-firebase/app v23+ modules
+// (functions, app-check, etc.) resolve to dist/commonjs/ instead of lib/,
+// which ensures a single FirebaseModule instance and prevents "module could not
+// be found" errors at runtime.
+config.resolver.unstable_enablePackageExports = true;
 
 // make-plural@8 is ESM-only with no "main" field — only an "exports" field.
-// Since package exports are disabled above, Metro can't find the entry point.
-// Redirect bare "make-plural" imports to the actual plurals file.
+// Redirect bare "make-plural" imports to the actual plurals file so Metro
+// can resolve it without issues.
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === 'make-plural') {
     return context.resolveRequest(context, 'make-plural/plurals', platform);

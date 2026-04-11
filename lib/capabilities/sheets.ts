@@ -7,6 +7,7 @@ export const sheetsCapability: CapabilityModule = {
     minVersion: '1.0.0',
 
     docs: `📊 SHEETS (AppacadabraSheets) — Google Sign-In required (consent shown on first use only)
+⚠️ **Acesso restrito:** \`getRows()\` e \`appendRows()\` funcionam **apenas com planilhas criadas por este app via \`createSheet()\`**. Não é possível acessar Google Sheets existentes do usuário. Se o usuário quiser usar "sua planilha de vendas" ou similar, explique a limitação e ofereça criar uma nova planilha dedicada dentro do app.
 - \`createSheet(title, headers[], callback)\` — Creates a Google Spreadsheet
   - \`headers\`: optional column headers written to row 1 (e.g. \`["Name", "Date", "Status"]\`)
   - **Callback data**: \`{ sheetId, url }\`

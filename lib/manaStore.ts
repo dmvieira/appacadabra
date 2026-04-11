@@ -34,6 +34,7 @@ export const useManaStore = create<ManaState>()(
             isAnonymous: true,
 
             init: () => {
+                try {
                 console.log('ManaStore: Initializing firebase sync...');
 
                 // Listen for Auth changes first
@@ -68,6 +69,9 @@ export const useManaStore = create<ManaState>()(
                         set({ balance: 0 });
                     }
                 });
+                } catch (e) {
+                    console.error('ManaStore: Firebase init failed, proceeding offline:', e);
+                }
             },
 
             addMana: (amount: number) => {

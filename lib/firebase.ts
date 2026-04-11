@@ -1,11 +1,12 @@
-import { getAuth, signInAnonymously, onAuthStateChanged as onAuthStateChangedModular, getIdToken, reload as reloadUser } from '@react-native-firebase/auth';
+
+import firebaseAuth, { signInAnonymously, onAuthStateChanged as onAuthStateChangedModular, getIdToken, reload as reloadUser } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
-import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, query, where, orderBy, limit, getDoc, setDoc } from '@react-native-firebase/firestore';
+import firebaseFirestore, { doc, collection, onSnapshot, addDoc, serverTimestamp, query, where, orderBy, limit, getDoc, setDoc } from '@react-native-firebase/firestore';
 import { getApp } from '@react-native-firebase/app';
 // @ts-ignore - Index.d.ts exports class as type, but it is a value in runtime. Import from root to ensure module registration.
 import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
-import { getCrashlytics, setCrashlyticsCollectionEnabled } from '@react-native-firebase/crashlytics';
-import { getAnalytics, setAnalyticsCollectionEnabled } from '@react-native-firebase/analytics';
+import firebaseCrashlytics, { setCrashlyticsCollectionEnabled } from '@react-native-firebase/crashlytics';
+import firebaseAnalytics, { setAnalyticsCollectionEnabled } from '@react-native-firebase/analytics';
 import Constants from 'expo-constants';
 import pako from 'pako';
 
@@ -114,7 +115,7 @@ function getFunctionsInstance() {
 }
 
 export async function ensureAuthenticated(): Promise<string> {
-    const auth = getAuth();
+    const auth = firebaseAuth();
     const currentUser = auth.currentUser;
 
     if (currentUser) {
@@ -182,27 +183,32 @@ initializeAppCheckWrapper();
 
 // Enable Crashlytics + Analytics collection (disabled in dev to reduce noise)
 try {
-    setCrashlyticsCollectionEnabled(getCrashlytics(), !__DEV__);
+    setCrashlyticsCollectionEnabled(firebaseCrashlytics(), !__DEV__);
 } catch (e) {
     console.warn('Firebase: Crashlytics not available', e);
 }
 try {
-    setAnalyticsCollectionEnabled(getAnalytics(), !__DEV__);
+    setAnalyticsCollectionEnabled(firebaseAnalytics(), !__DEV__);
 } catch (e) {
     console.warn('Firebase: Analytics not available', e);
 }
 
 // Get current user ID (null if not authenticated)
 export function getCurrentUserId(): string | null {
-    return getAuth().currentUser?.uid || null;
+    return firebaseAuth().currentUser?.uid || null;
 }
 
 // Listen to auth state changes
 export function onAuthStateChanged(callback: (userId: string | null) => void): () => void {
-    const auth = getAuth();
-    return onAuthStateChangedModular(auth, (user) => {
-        callback(user?.uid || null);
-    });
+    try {
+        const auth = firebaseAuth();
+        return onAuthStateChangedModular(auth, (user) => {
+            callback(user?.uid || null);
+        });
+    } catch (e) {
+        console.error('Firebase: onAuthStateChanged failed, auth module unavailable:', e);
+        return () => {};
+    }
 }
 
 // Helper to submit a job and wait for it
@@ -237,7 +243,7 @@ async function submitJobAndWait(
         const userId = await ensureAuthenticated();
         console.log(`[DEBUG] UserId: ${userId}`);
 
-        const db = getFirestore();
+        const db = firebaseFirestore();
         const jobsRef = collection(db, 'jobs');
 
         // Check for large media to bypass Firestore 1MB limit
@@ -475,7 +481,7 @@ export async function generateSpellVideoGen(
 // Attach to an existing job and wait for its completion (used for recovery after reload)
 export async function waitForExistingJob(jobId: string): Promise<GenerationResult> {
     await ensureAuthenticated();
-    const firestoreDb = getFirestore();
+    const firestoreDb = firebaseFirestore();
     const jobDocRef = doc(firestoreDb, 'jobs', jobId);
 
     return new Promise<GenerationResult>((resolve, reject) => {
@@ -578,17 +584,32 @@ export async function estimateManaCost(type: string, data: any): Promise<{ mana:
     return result.data;
 }
 
-export async function addCredits(amount: number, source: string): Promise<AddCreditsResult> {
+export async function addCredits(amount: number, source: string, purchaseToken?: string): Promise<AddCreditsResult> {
     await ensureAuthenticated();
 
     console.log('[Firebase] Calling addCredits...', amount, source);
     try {
-        const addCreditsFunc = httpsCallable<{ amount: number; source: string }, AddCreditsResult>(getFunctionsInstance(), 'addCredits');
-        const result = await addCreditsFunc({ amount, source });
+        const addCreditsFunc = httpsCallable<{ amount: number; source: string; purchaseToken?: string }, AddCreditsResult>(getFunctionsInstance(), 'addCredits');
+        const result = await addCreditsFunc({ amount, source, ...(purchaseToken ? { purchaseToken } : {}) });
         console.log('[Firebase] addCredits success');
         return result.data;
     } catch (e: any) {
         console.error('[Firebase] addCredits ERROR:', e.code, e.message, e.details);
+        throw e;
+    }
+}
+
+export async function voidPurchase(purchaseToken: string, productId: string): Promise<{ success: boolean }> {
+    await ensureAuthenticated();
+
+    console.log('[Firebase] Calling voidPurchase...', productId);
+    try {
+        const voidPurchaseFunc = httpsCallable<{ purchaseToken: string; productId: string }, { success: boolean }>(getFunctionsInstance(), 'voidPurchase');
+        const result = await voidPurchaseFunc({ purchaseToken, productId });
+        console.log('[Firebase] voidPurchase success');
+        return result.data;
+    } catch (e: any) {
+        console.error('[Firebase] voidPurchase ERROR:', e.code, e.message, e.details);
         throw e;
     }
 }
@@ -601,7 +622,7 @@ export function onCreditsChanged(callback: (credits: number) => void, explicitUs
         return () => { };
     }
 
-    const db = getFirestore();
+    const db = firebaseFirestore();
     const userDocRef = doc(collection(db, 'users'), userId);
 
     // In modular SDK, onSnapshot is a top-level function that takes the reference
@@ -626,7 +647,7 @@ export async function submitJob(action: Job['action'], payload: any): Promise<st
     console.log(`[Firebase] submitJob called. Action: ${action}`);
     try {
         const userId = await ensureAuthenticated();
-        const db = getFirestore();
+        const db = firebaseFirestore();
         const jobsRef = collection(db, 'jobs');
 
         const cleanPayload = sanitizePayload({ ...payload, appVersion: APP_VERSION });
@@ -676,7 +697,7 @@ export async function signInWithGoogle() {
         if (!idToken) throw new Error('No ID token found');
 
         const googleCredential = GoogleAuthProvider.credential(idToken);
-        return signInWithCredential(getAuth(), googleCredential);
+        return signInWithCredential(firebaseAuth(), googleCredential);
     } catch (error: any) {
         console.error('Google Sign-In Error', error);
         throw error;
@@ -697,7 +718,7 @@ export async function linkWithGoogle() {
         if (!idToken) throw new Error('No ID token found from Google Sign-In');
 
         const googleCredential = GoogleAuthProvider.credential(idToken);
-        const user = getAuth().currentUser;
+        const user = firebaseAuth().currentUser;
 
         if (user) {
             return await linkWithCredential(user, googleCredential);
@@ -722,19 +743,19 @@ export async function signOut() {
     try {
         await GoogleSignin.revokeAccess();
         await GoogleSignin.signOut();
-        await getAuth().signOut();
+        await firebaseAuth().signOut();
     } catch (error) {
         console.error('Sign Out Error', error);
     }
 }
 
 export function getCurrentUser() {
-    return getAuth().currentUser;
+    return firebaseAuth().currentUser;
 }
 
 /** Check if the current Firebase user is linked with Google (vs anonymous-only) */
 export function isGoogleUser(): boolean {
-    const user = getAuth().currentUser;
+    const user = firebaseAuth().currentUser;
     if (!user) return false;
     return user.providerData.some(p => p.providerId === 'google.com');
 }
@@ -778,7 +799,7 @@ export function listenToActiveJobs(callback: (jobs: Job[]) => void): () => void 
     let unsubscribeFirestore: (() => void) | null = null;
 
     // Listen to Auth State to set up Firestore listener
-    const unsubscribeAuth = onAuthStateChangedModular(getAuth(), (user) => {
+    const unsubscribeAuth = onAuthStateChangedModular(firebaseAuth(), (user) => {
         // Cleanup previous listener if user changed
         if (unsubscribeFirestore) {
             unsubscribeFirestore();
@@ -787,7 +808,7 @@ export function listenToActiveJobs(callback: (jobs: Job[]) => void): () => void 
 
         if (user) {
             console.log('[Firebase] listenToActiveJobs: User authenticated, setting up listener.', user.uid);
-            const db = getFirestore();
+            const db = firebaseFirestore();
             const jobsRef = collection(db, 'jobs');
 
             const q = query(
@@ -854,7 +875,7 @@ export async function registerAndSavePushTokenAsync(userId: string, locale?: str
 
         console.log('[Firebase] FCM Push Token obtained:', pushToken);
 
-        const db = getFirestore();
+        const db = firebaseFirestore();
         await setDoc(doc(db, 'users', userId), { pushToken, ...(locale ? { locale } : {}) }, { merge: true });
         console.log('[Firebase] Push Token saved to Firestore for user', userId);
     } catch (e: any) {

@@ -4,6 +4,7 @@
  */
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { JWT } from "google-auth-library";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
@@ -305,7 +306,7 @@ function inferSchema(data: any): any {
 }
 
 // Function to add credits (for purchases/ad rewards)
-export const addCredits = onCall<{ amount: number; source: string }>(
+export const addCredits = onCall<{ amount: number; source: string; purchaseToken?: string }>(
     {
         region: "southamerica-east1",
         enforceAppCheck: false,
@@ -316,7 +317,7 @@ export const addCredits = onCall<{ amount: number; source: string }>(
         }
 
         const uid = request.auth.uid;
-        const { amount, source } = request.data;
+        const { amount, source, purchaseToken } = request.data;
 
         if (!amount || amount <= 0) {
             throw new HttpsError("invalid-argument", "Amount must be positive");
@@ -327,8 +328,20 @@ export const addCredits = onCall<{ amount: number; source: string }>(
         await db.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userRef);
 
+            // Idempotency: if purchaseToken provided, use it as log doc ID to deduplicate
+            const logRef = purchaseToken
+                ? db.collection("users").doc(uid).collection("creditLogs").doc(purchaseToken)
+                : db.collection("users").doc(uid).collection("creditLogs").doc();
+
+            if (purchaseToken) {
+                const logDoc = await transaction.get(logRef);
+                if (logDoc.exists) {
+                    // Already credited — return without modifying balance
+                    return;
+                }
+            }
+
             if (!userDoc.exists) {
-                // Create new user
                 transaction.set(userRef, {
                     credits: amount,
                     creditsUsed: 0,
@@ -342,8 +355,6 @@ export const addCredits = onCall<{ amount: number; source: string }>(
                 });
             }
 
-            // Log the credit addition
-            const logRef = db.collection("users").doc(uid).collection("creditLogs").doc();
             transaction.set(logRef, {
                 amount,
                 source,
@@ -357,6 +368,64 @@ export const addCredits = onCall<{ amount: number; source: string }>(
             success: true,
             creditsRemaining: userDoc.data()?.credits || 0,
         };
+    }
+);
+
+// Function to void/refund a Google Play purchase
+export const voidPurchase = onCall<{ purchaseToken: string; productId: string }>(
+    {
+        region: "southamerica-east1",
+        enforceAppCheck: false,
+        secrets: ["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"],
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError("unauthenticated", "User must be authenticated");
+        }
+
+        const { purchaseToken, productId } = request.data;
+        if (!purchaseToken || !productId) {
+            throw new HttpsError("invalid-argument", "purchaseToken and productId are required");
+        }
+
+        const serviceAccountJson = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
+        if (!serviceAccountJson) {
+            throw new HttpsError("internal", "Service account not configured");
+        }
+
+        let serviceAccount: any;
+        try {
+            serviceAccount = JSON.parse(serviceAccountJson);
+        } catch {
+            throw new HttpsError("internal", "Invalid service account JSON");
+        }
+
+        const client = new JWT({
+            email: serviceAccount.client_email,
+            key: serviceAccount.private_key,
+            scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+        });
+
+        const accessToken = await client.getAccessToken();
+        if (!accessToken.token) {
+            throw new HttpsError("internal", "Failed to obtain access token");
+        }
+
+        const packageName = "ai.appacadabra.app";
+        const refundUrl = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/products/${productId}/tokens/${purchaseToken}:refund`;
+
+        const response = await fetch(refundUrl, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken.token}` },
+        });
+
+        if (response.status !== 204 && !response.ok) {
+            const body = await response.text();
+            console.error(`[voidPurchase] Google Play API error ${response.status}:`, body);
+            throw new HttpsError("internal", `Refund failed: ${response.status}`);
+        }
+
+        return { success: true };
     }
 );
 

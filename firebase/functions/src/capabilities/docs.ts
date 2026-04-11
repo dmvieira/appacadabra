@@ -10,6 +10,7 @@ const docsCapability: FirebaseCapabilityDoc = {
     displayName: "Docs",
     minVersion: "1.0.0",
     docs: `📄 DOCS (AppacadabraDocs) — Google Sign-In required (consent shown on first use only)
+⚠️ **Acesso restrito:** \`getDoc()\` e \`appendText()\` funcionam **apenas com documentos criados por este app via \`createDoc()\`**. Não é possível acessar Google Docs externos do usuário — nem mesmo documentos que ele criou manualmente no Google Drive. Se o usuário mencionar uma planilha ou documento que já existe, explique que o app só pode acessar arquivos que ele mesmo gerou e ofereça criar um novo.
 - \`createDoc(title, content, callback)\` — Creates a Google Doc with optional markdown content
   - \`content\`: optional markdown string. Supported: \`# H1\`, \`## H2\`, \`### H3\`, \`- bullet\`, \`**bold**\`, \`*italic*\`, plain paragraphs
   - **Callback data**: \`{ docId, url }\`

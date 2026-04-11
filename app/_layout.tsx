@@ -138,10 +138,18 @@ export default function RootLayout() {
         });
 
         // Initialize Mana Store (Firebase Sync)
-        useManaStore.getState().init();
+        try {
+            useManaStore.getState().init();
+        } catch (e) {
+            console.error('RootLayout: ManaStore init failed:', e);
+        }
 
         // Initialize App Store (Job Listeners)
-        useAppStore.getState().initializeListeners();
+        try {
+            useAppStore.getState().initializeListeners();
+        } catch (e) {
+            console.error('RootLayout: AppStore listeners init failed:', e);
+        }
 
         // Check for notification permissions
         (async () => {

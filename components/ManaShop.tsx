@@ -42,6 +42,7 @@ export function ManaShop() {
     const productsRef = useRef<IAPProduct[]>([]);
     const [isLoadingProducts, setIsLoadingProducts] = useState(false);
     const [isPurchasing, setIsPurchasing] = useState(false);
+    const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'crediting' | 'refunding'>('idle');
     // const [iapInitialized, setIapInitialized] = useState(false);
 
     // Track the revenue earned from the current ad impression
@@ -73,23 +74,58 @@ export function ManaShop() {
         }
     };
 
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     const setupListeners = () => {
         iap.setupPurchaseListeners(
             async (purchase: any, productId: string) => {
-                const product = productsRef.current.find(p => p.productId === productId);
-                const amount = product ? product.manaAmount : 0;
+                // Use the static map so pending purchases from previous sessions
+                // work even if productsRef hasn't loaded yet.
+                const amount = iap.PRODUCT_MANA_AMOUNTS[productId] ?? 0;
 
                 if (amount > 0) {
-                    try {
-                        await firebase.addCredits(amount, 'iap_purchase');
-                        logManaEarned('iap_purchase', amount);
+                    const delays = [0, 2000, 4000];
+                    let credited = false;
+
+                    setPurchaseStatus('crediting');
+
+                    for (let attempt = 0; attempt < delays.length; attempt++) {
+                        if (delays[attempt] > 0) await sleep(delays[attempt]);
+                        try {
+                            await firebase.ensureAuthenticated();
+                            await firebase.addCredits(amount, 'iap_purchase', purchase.purchaseToken);
+                            logManaEarned('iap_purchase', amount);
+                            credited = true;
+                            break;
+                        } catch (error) {
+                            console.error(`Failed to credit mana (attempt ${attempt + 1}):`, error);
+                        }
+                    }
+
+                    if (credited) {
+                        // Acknowledge ONLY after credits are confirmed — correct IAP order.
+                        try {
+                            await iap.finishTransaction({ purchase, isConsumable: true });
+                        } catch (finishErr) {
+                            console.warn('[IAP] finishTransaction failed (non-critical):', finishErr);
+                        }
+                        setPurchaseStatus('idle');
                         setIsPurchasing(false);
                         Alert.alert(t('success'), t('purchaseSuccess', { amount }));
                         closeShop();
-                    } catch (error) {
-                        console.error('Failed to credit mana:', error);
+                    } else {
+                        // Do NOT acknowledge — Google Play auto-refunds in ~3 days.
+                        // Also attempt immediate refund as best-effort.
+                        setPurchaseStatus('refunding');
+                        try {
+                            await firebase.voidPurchase(purchase.purchaseToken, productId);
+                        } catch (refundError) {
+                            console.error('Immediate refund failed (auto-refund in 3 days):', refundError);
+                        }
+                        setPurchaseStatus('idle');
                         setIsPurchasing(false);
-                        Alert.alert(t('error'), 'Purchase successful but failed to add mana. Please contact support.');
+                        Alert.alert(t('purchaseRefundedTitle'), t('purchaseRefundedMessage'));
+                        closeShop();
                     }
                 } else {
                     setIsPurchasing(false);
@@ -272,6 +308,7 @@ export function ManaShop() {
     // Login prompt state
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [isSigningIn, setIsSigningIn] = useState(false);
+    const [loginError, setLoginError] = useState<string | null>(null);
     const [rewardBanner, setRewardBanner] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     const closeShopWithCleanup = () => {
@@ -294,6 +331,7 @@ export function ManaShop() {
 
     const handleGoogleSignIn = async () => {
         setIsSigningIn(true);
+        setLoginError(null);
         try {
             await firebase.ensureAuthenticated();
             await firebase.linkWithGoogle();
@@ -331,7 +369,7 @@ export function ManaShop() {
                     ]
                 );
             } else {
-                Alert.alert(t('error'), t('linkError'));
+                setLoginError(e.message || t('linkError'));
             }
         } finally {
             setIsSigningIn(false);
@@ -352,7 +390,13 @@ export function ManaShop() {
                     {isPurchasing && (
                         <View style={styles.purchasingOverlay}>
                             <ActivityIndicator size="large" color={colors.primary} />
-                            <Text style={styles.purchasingText}>{t('processingPurchase')}</Text>
+                            <Text style={styles.purchasingText}>
+                                {purchaseStatus === 'crediting'
+                                    ? t('creditingPurchase')
+                                    : purchaseStatus === 'refunding'
+                                    ? t('refundingPurchase')
+                                    : t('processingPurchase')}
+                            </Text>
                         </View>
                     )}
                     <ScrollView contentContainerStyle={styles.content}>
@@ -384,6 +428,9 @@ export function ManaShop() {
                                         <Text style={styles.googleButtonText}>🔗 {t('signInGoogle')}</Text>
                                     )}
                                 </TouchableOpacity>
+                                {loginError && (
+                                    <Text style={styles.loginError}>{loginError}</Text>
+                                )}
                                 <TouchableOpacity
                                     style={styles.cancelButton}
                                     onPress={() => setShowLoginPrompt(false)}
@@ -778,6 +825,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600' as const,
         color: '#1a1a1a',
+    },
+    loginError: {
+        fontSize: 13,
+        color: colors.error,
+        textAlign: 'center' as const,
+        marginBottom: spacing.sm,
     },
     cancelButton: {
         paddingVertical: 8,

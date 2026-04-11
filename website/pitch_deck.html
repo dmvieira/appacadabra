@@ -1,0 +1,2191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appacadabra — Pitch Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0f0f1a;
+      --purple: #9d4edd;
+      --purple2: #7b2cbf;
+      --purple3: #5a189a;
+      --gold: #f4c430;
+      --gold2: #e8a800;
+      --text: #f0eeff;
+      --muted: rgba(240, 238, 255, 0.55);
+      --card: rgba(157, 78, 221, 0.08);
+      --card-border: rgba(157, 78, 221, 0.28);
+      --red-card: rgba(220, 60, 60, 0.12);
+      --red-border: rgba(220, 60, 60, 0.35);
+      --green-card: rgba(40, 200, 120, 0.10);
+      --green-border: rgba(40, 200, 120, 0.35);
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+    }
+
+    canvas#stars {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Slide System ── */
+    #deck {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 80px 80px;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: all;
+    }
+
+    .slide.exit-left {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+
+    .slide.exit-right {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+
+    /* ── Entrance Animations ── */
+    [data-animate] {
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    [data-animate].revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── UI Chrome ── */
+    #counter {
+      position: fixed;
+      top: 24px;
+      right: 32px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: rgba(240, 238, 255, 0.4);
+      z-index: 100;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #dots {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(157, 78, 221, 0.35);
+      border: 1px solid rgba(157, 78, 221, 0.5);
+      cursor: pointer;
+      transition: background 0.3s, transform 0.3s;
+    }
+
+    .dot.active {
+      background: var(--purple);
+      transform: scale(1.4);
+      box-shadow: 0 0 8px var(--purple);
+    }
+
+    .nav-btn {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      background: rgba(157, 78, 221, 0.15);
+      border: 1px solid rgba(157, 78, 221, 0.3);
+      border-radius: 50%;
+      color: rgba(240, 238, 255, 0.6);
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+      backdrop-filter: blur(8px);
+    }
+
+    .nav-btn:hover {
+      background: rgba(157, 78, 221, 0.35);
+      color: #fff;
+    }
+
+    #btn-prev {
+      left: 16px;
+    }
+
+    #btn-next {
+      right: 16px;
+    }
+
+    /* ── Typography ── */
+    .slide-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--purple);
+      margin-bottom: 14px;
+    }
+
+    .slide-headline {
+      font-size: clamp(28px, 4.5vw, 58px);
+      font-weight: 900;
+      line-height: 1.08;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    .slide-sub {
+      font-size: clamp(14px, 1.8vw, 20px);
+      color: var(--muted);
+      text-align: center;
+      max-width: 680px;
+      line-height: 1.6;
+    }
+
+    .gold {
+      color: var(--gold);
+    }
+
+    .purple {
+      color: var(--purple);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+    }
+
+    .card-red {
+      background: var(--red-card);
+      border: 1px solid var(--red-border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .card-green {
+      background: var(--green-card);
+      border: 1px solid var(--green-border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    /* ── Pills / Badges ── */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(157, 78, 221, 0.2);
+      border: 1px solid rgba(157, 78, 221, 0.45);
+      color: var(--purple);
+    }
+
+    .pill-gold {
+      background: rgba(244, 196, 48, 0.15);
+      border: 1px solid rgba(244, 196, 48, 0.45);
+      color: var(--gold);
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 1 — OPENING HOOK
+  ════════════════════════════════════════ */
+    #slide-1 {
+      background: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(157, 78, 221, 0.22) 0%, transparent 70%);
+    }
+
+    .s1-brand {
+      font-size: clamp(18px, 2.5vw, 28px);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: rgba(240, 238, 255, 0.7);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .s1-wand {
+      font-size: 2.2em;
+      line-height: 1;
+    }
+
+    .s1-h1 {
+      font-size: clamp(36px, 6vw, 76px);
+      font-weight: 900;
+      line-height: 1.0;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .s1-gold {
+      font-size: clamp(32px, 5.5vw, 68px);
+      font-weight: 900;
+      line-height: 1.0;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 24px;
+      animation: goldPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes goldPulse {
+
+      0%,
+      100% {
+        text-shadow: 0 0 20px rgba(244, 196, 48, 0.4), 0 0 40px rgba(244, 196, 48, 0.15);
+      }
+
+      50% {
+        text-shadow: 0 0 30px rgba(244, 196, 48, 0.7), 0 0 70px rgba(244, 196, 48, 0.3);
+      }
+    }
+
+    .s1-sub {
+      font-size: clamp(16px, 2vw, 22px);
+      color: var(--muted);
+      margin-bottom: 36px;
+      font-weight: 500;
+    }
+
+    .s1-glow-ring {
+      position: absolute;
+      width: min(70vw, 600px);
+      height: min(70vw, 600px);
+      border-radius: 50%;
+      border: 1px solid rgba(157, 78, 221, 0.12);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      animation: ringPulse 5s ease-in-out infinite;
+    }
+
+    .s1-glow-ring:nth-child(2) {
+      width: min(55vw, 460px);
+      height: min(55vw, 460px);
+      animation-delay: 1s;
+    }
+
+    .s1-glow-ring:nth-child(3) {
+      width: min(40vw, 340px);
+      height: min(40vw, 340px);
+      animation-delay: 2s;
+    }
+
+    @keyframes ringPulse {
+
+      0%,
+      100% {
+        opacity: 0.3;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      50% {
+        opacity: 0.7;
+        transform: translate(-50%, -50%) scale(1.03);
+      }
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 2 — O PROBLEMA
+  ════════════════════════════════════════ */
+    .s2-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      width: 100%;
+      max-width: 1000px;
+      margin: 24px 0;
+    }
+
+    .s2-card {
+      background: rgba(157, 78, 221, 0.07);
+      border: 1px solid rgba(157, 78, 221, 0.25);
+      border-radius: 16px;
+      padding: 22px;
+      backdrop-filter: blur(10px);
+    }
+
+    .s2-card-icon {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    .s2-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .s2-card-text {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .s2-stat {
+      background: rgba(244, 196, 48, 0.1);
+      border: 1px solid rgba(244, 196, 48, 0.3);
+      border-radius: 12px;
+      padding: 14px 24px;
+      font-size: 13px;
+      color: var(--gold);
+      text-align: center;
+      max-width: 720px;
+      line-height: 1.5;
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 3 — IA vs APP
+  ════════════════════════════════════════ */
+    .s3-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+      max-width: 900px;
+      margin: 20px 0;
+    }
+
+    .s3-col-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .s3-steps {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      line-height: 1.8;
+    }
+
+    .s3-item {
+      font-size: 13px;
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .s3-verdict {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .s3-caps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      max-width: 800px;
+      margin-top: 4px;
+    }
+
+    .s3-cap-pill {
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(157, 78, 221, 0.15);
+      border: 1px solid rgba(157, 78, 221, 0.3);
+      color: var(--muted);
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 4 — SOLUÇÃO
+  ════════════════════════════════════════ */
+    .s4-orb {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(157, 78, 221, 0.6) 0%, rgba(90, 24, 154, 0.3) 60%, transparent 100%);
+      border: 2px solid rgba(157, 78, 221, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 52px;
+      box-shadow: 0 0 40px rgba(157, 78, 221, 0.5), 0 0 80px rgba(157, 78, 221, 0.2);
+      animation: orbFloat 4s ease-in-out infinite;
+      margin: 18px 0;
+    }
+
+    @keyframes orbFloat {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .s4-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .s4-card {
+      background: rgba(157, 78, 221, 0.08);
+      border: 1px solid rgba(157, 78, 221, 0.25);
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .s4-card-icon {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    .s4-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .s4-card-text {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 5 — COMO FUNCIONA
+  ════════════════════════════════════════ */
+    .s5-steps {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      width: 100%;
+      max-width: 900px;
+      margin: 28px 0;
+    }
+
+    .s5-step {
+      flex: 1;
+      background: rgba(157, 78, 221, 0.08);
+      border: 1px solid rgba(157, 78, 221, 0.25);
+      border-radius: 16px;
+      padding: 28px 22px;
+      text-align: center;
+      position: relative;
+    }
+
+    .s5-num {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--purple);
+      color: #fff;
+      font-weight: 800;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px;
+      box-shadow: 0 0 16px rgba(157, 78, 221, 0.5);
+    }
+
+    .s5-icon {
+      font-size: 2.2em;
+      margin-bottom: 10px;
+    }
+
+    .s5-title {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .s5-text {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-style: italic;
+    }
+
+    .s5-arrow {
+      width: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(157, 78, 221, 0.6);
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .s5-badges {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 6 — PÚBLICO-ALVO
+  ════════════════════════════════════════ */
+    .s6-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+      max-width: 900px;
+      margin: 20px 0;
+    }
+
+    .s6-card {
+      background: rgba(157, 78, 221, 0.07);
+      border: 1px solid rgba(157, 78, 221, 0.22);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .s6-card-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .s6-emoji {
+      font-size: 1.8em;
+    }
+
+    .s6-name {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .s6-role {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .s6-quote {
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    .s6-result {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gold);
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(244, 196, 48, 0.1);
+      border: 1px solid rgba(244, 196, 48, 0.25);
+      display: inline-block;
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 7 — MERCADO
+  ════════════════════════════════════════ */
+    .s7-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      width: 100%;
+      max-width: 960px;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .s7-circles-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .s7-stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .s7-stat {
+      background: rgba(157, 78, 221, 0.08);
+      border: 1px solid rgba(157, 78, 221, 0.22);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .s7-stat-num {
+      font-size: clamp(18px, 2.5vw, 28px);
+      font-weight: 900;
+      color: var(--gold);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .s7-stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .s7-cagr {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 12px;
+      grid-column: 1/-1;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(157, 78, 221, 0.08);
+      border: 1px solid rgba(157, 78, 221, 0.2);
+    }
+
+    .s7-cagr span {
+      color: var(--purple);
+      font-weight: 700;
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 8 — DIFERENCIAIS
+  ════════════════════════════════════════ */
+    .s8-table {
+      width: 100%;
+      max-width: 920px;
+      border-collapse: collapse;
+      margin-top: 22px;
+      font-size: clamp(11px, 1.3vw, 14px);
+    }
+
+    .s8-table th {
+      padding: 12px 10px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      border-bottom: 2px solid rgba(157, 78, 221, 0.3);
+      color: var(--muted);
+    }
+
+    .s8-table th.highlight {
+      color: var(--purple);
+      background: rgba(157, 78, 221, 0.12);
+      border-radius: 8px 8px 0 0;
+    }
+
+    .s8-table th:first-child {
+      text-align: left;
+    }
+
+    .s8-table td {
+      padding: 10px 10px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 18px;
+    }
+
+    .s8-table td:first-child {
+      text-align: left;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .s8-table td.highlight {
+      background: rgba(157, 78, 221, 0.08);
+    }
+
+    .s8-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .s8-table tr:hover td {
+      background: rgba(157, 78, 221, 0.05);
+    }
+
+    .s8-table tr:hover td.highlight {
+      background: rgba(157, 78, 221, 0.14);
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 9 — MODELO DE NEGÓCIOS
+  ════════════════════════════════════════ */
+    .s9-pillars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      width: 100%;
+      max-width: 900px;
+      margin: 20px 0;
+    }
+
+    .s9-pillar {
+      background: rgba(157, 78, 221, 0.08);
+      border: 1px solid rgba(157, 78, 221, 0.25);
+      border-radius: 16px;
+      padding: 22px;
+      text-align: center;
+    }
+
+    .s9-pillar-icon {
+      font-size: 2.5em;
+      margin-bottom: 12px;
+    }
+
+    .s9-pillar-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .s9-pillar-text {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .s9-flywheel {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 12px 20px;
+      border-radius: 12px;
+      background: rgba(244, 196, 48, 0.06);
+      border: 1px solid rgba(244, 196, 48, 0.2);
+      max-width: 740px;
+    }
+
+    .s9-fw-step {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .s9-fw-arrow {
+      color: rgba(244, 196, 48, 0.6);
+      font-size: 14px;
+    }
+
+    .s9-note {
+      font-size: 12px;
+      color: var(--gold);
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 10 — POR QUE AGORA
+  ════════════════════════════════════════ */
+    .s10-forces {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      width: 100%;
+      max-width: 900px;
+      margin: 20px 0;
+    }
+
+    .s10-force {
+      background: rgba(157, 78, 221, 0.08);
+      border: 1px solid rgba(157, 78, 221, 0.25);
+      border-radius: 16px;
+      padding: 26px 22px;
+      text-align: center;
+    }
+
+    .s10-force-icon {
+      font-size: 2.8em;
+      margin-bottom: 14px;
+    }
+
+    .s10-force-title {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .s10-force-text {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .s10-timeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      width: 100%;
+      max-width: 800px;
+      margin-top: 14px;
+      font-size: 11px;
+    }
+
+    .s10-tl-item {
+      flex: 1;
+      text-align: center;
+      padding: 10px 6px;
+      border-top: 2px solid rgba(157, 78, 221, 0.3);
+      position: relative;
+    }
+
+    .s10-tl-item::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(157, 78, 221, 0.4);
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .s10-tl-item.now {
+      border-top-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .s10-tl-item.now::before {
+      background: var(--gold);
+      box-shadow: 0 0 8px var(--gold);
+    }
+
+    .s10-tl-year {
+      font-weight: 800;
+      font-size: 13px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .s10-tl-desc {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .s10-tl-item.now .s10-tl-desc {
+      color: var(--gold);
+      opacity: 0.85;
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 11 — GO TO MARKET
+  ════════════════════════════════════════ */
+    .s11-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 900px;
+      margin: 16px 0;
+    }
+
+    .s11-phase {
+      background: rgba(157, 78, 221, 0.08);
+      border: 1px solid rgba(157, 78, 221, 0.3);
+      border-radius: 16px;
+      padding: 22px;
+    }
+
+    .s11-phase.active-phase {
+      border-color: rgba(244, 196, 48, 0.5);
+      background: rgba(244, 196, 48, 0.06);
+    }
+
+    .s11-phase-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .s11-phase.active-phase .s11-phase-label {
+      color: var(--gold);
+    }
+
+    .s11-phase-item {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 4px 0;
+      line-height: 1.5;
+    }
+
+    .s11-phase-item strong {
+      color: var(--text);
+    }
+
+    .s11-roadmap {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      width: 100%;
+      max-width: 700px;
+      background: rgba(157, 78, 221, 0.06);
+      border: 1px solid rgba(157, 78, 221, 0.2);
+      border-radius: 12px;
+      padding: 14px 20px;
+    }
+
+    .s11-rm-item {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 6px;
+    }
+
+    .s11-rm-item.done {
+      color: var(--gold);
+    }
+
+    .s11-rm-arrow {
+      color: rgba(157, 78, 221, 0.5);
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 12 — CTA
+  ════════════════════════════════════════ */
+    #slide-12 {
+      background: radial-gradient(ellipse 80% 70% at 50% 50%, rgba(157, 78, 221, 0.25) 0%, transparent 65%);
+    }
+
+    .s12-wand {
+      font-size: clamp(50px, 8vw, 80px);
+      margin-bottom: 10px;
+      animation: orbFloat 4s ease-in-out infinite;
+    }
+
+    .s12-headline {
+      font-size: clamp(28px, 4.5vw, 52px);
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .s12-sub {
+      font-size: clamp(15px, 2vw, 22px);
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .s12-btns {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 28px;
+    }
+
+    .s12-btn {
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+
+    .s12-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .s12-btn-primary {
+      background: var(--purple);
+      color: #fff;
+      box-shadow: 0 4px 24px rgba(157, 78, 221, 0.4);
+    }
+
+    .s12-btn-primary:hover {
+      box-shadow: 0 8px 32px rgba(157, 78, 221, 0.6);
+    }
+
+    .s12-btn-outline {
+      background: rgba(157, 78, 221, 0.12);
+      border: 1px solid rgba(157, 78, 221, 0.4);
+      color: var(--text);
+    }
+
+    .s12-btn-outline:hover {
+      background: rgba(157, 78, 221, 0.2);
+    }
+
+    .s12-qr {
+      width: 100px;
+      height: 100px;
+      border: 2px dashed rgba(157, 78, 221, 0.5);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      gap: 4px;
+      padding: 8px;
+      margin-bottom: 20px;
+    }
+
+    .s12-qr-icon {
+      font-size: 1.8em;
+    }
+
+    .s12-footer {
+      font-size: 12px;
+      color: rgba(240, 238, 255, 0.3);
+      text-align: center;
+      letter-spacing: 0.08em;
+    }
+
+    /* ════════════════════════════════════════
+     RESPONSIVE
+  ════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .slide {
+        padding: 40px 20px 70px;
+      }
+
+      .s2-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .s3-cols {
+        grid-template-columns: 1fr;
+      }
+
+      .s4-cards {
+        grid-template-columns: 1fr;
+      }
+
+      .s5-steps {
+        flex-direction: column;
+      }
+
+      .s5-arrow {
+        transform: rotate(90deg);
+      }
+
+      .s6-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .s7-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .s8-table th,
+      .s8-table td {
+        padding: 7px 5px;
+        font-size: 11px;
+      }
+
+      .s9-pillars {
+        grid-template-columns: 1fr;
+      }
+
+      .s10-forces {
+        grid-template-columns: 1fr;
+      }
+
+      .s10-timeline {
+        flex-direction: column;
+      }
+
+      .s10-tl-item {
+        border-top: none;
+        border-left: 2px solid rgba(157, 78, 221, 0.3);
+        padding: 6px 14px;
+      }
+
+      .s10-tl-item::before {
+        top: 50%;
+        left: -6px;
+        transform: translateY(-50%);
+      }
+
+      .s11-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .s12-btns {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .slide-headline {
+        font-size: clamp(20px, 5vw, 38px);
+      }
+
+      .nav-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+      }
+
+      #btn-prev {
+        left: 4px;
+      }
+
+      #btn-next {
+        right: 4px;
+      }
+    }
+
+    /* ════════════════════════════════════════
+     SLIDE 13 — REFERÊNCIAS
+  ════════════════════════════════════════ */
+    #slide-13 {
+      justify-content: flex-start;
+      align-items: flex-start;
+      padding-top: 32px;
+      overflow: hidden;
+    }
+
+    .s13-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 16px;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+      width: 100%;
+    }
+
+    .s13-scroll {
+      flex: 1;
+      overflow-y: auto;
+      width: 100%;
+      padding-right: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(157, 78, 221, 0.4) transparent;
+    }
+
+    .s13-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .s13-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .s13-scroll::-webkit-scrollbar-thumb {
+      background: rgba(157, 78, 221, 0.4);
+      border-radius: 3px;
+    }
+
+    .s13-group {
+      margin-bottom: 18px;
+    }
+
+    .s13-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+    }
+
+    .s13-badge {
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(157, 78, 221, 0.25);
+      border: 1px solid rgba(157, 78, 221, 0.5);
+      color: #c77dff;
+      border-radius: 4px;
+      padding: 2px 5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 2px;
+      letter-spacing: 0.05em;
+    }
+
+    .s13-content {
+      flex: 1;
+    }
+
+    .s13-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .s13-source {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .s13-source a {
+      color: #c77dff;
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .s13-source a:hover {
+      text-decoration: underline;
+    }
+
+    .s13-warn {
+      font-size: 9.5px;
+      color: rgba(244, 196, 48, 0.8);
+      margin-top: 4px;
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+
+  <canvas id="stars"></canvas>
+
+  <!-- UI Chrome -->
+  <div id="counter">1 / 12</div>
+  <div id="dots"></div>
+  <button class="nav-btn" id="btn-prev">&#8592;</button>
+  <button class="nav-btn" id="btn-next">&#8594;</button>
+
+  <div id="deck">
+
+    <!-- ══════════════════════════════════════
+       SLIDE 1 — OPENING HOOK
+  ══════════════════════════════════════ -->
+    <div class="slide active" id="slide-1">
+      <div class="s1-glow-ring"></div>
+      <div class="s1-glow-ring"></div>
+      <div class="s1-glow-ring"></div>
+
+      <div class="s1-brand" data-animate>
+        <span class="s1-wand">🪄</span> Appacadabra
+      </div>
+      <h1 class="s1-h1" data-animate>400M de pequenos negócios.</h1>
+      <div class="s1-gold" data-animate>Software sob medida para menos de 1%.</div>
+      <p class="s1-sub" data-animate>Appacadabra fecha esse gap.</p>
+      <div data-animate>
+        <span class="pill">Android · Google Play</span>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 2 — O PROBLEMA
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-2">
+      <div class="slide-label" data-animate>O Problema</div>
+      <h2 class="slide-headline" style="max-width:780px" data-animate>
+        Quem mais precisa de software sob medida<br>é quem menos consegue ter.
+      </h2>
+      <div class="s2-grid">
+        <div class="s2-card" data-animate>
+          <div class="s2-card-icon">🏪</div>
+          <div class="s2-card-title">A Realidade do Pequeno Negócio</div>
+          <div class="s2-card-text">Controla estoque no papel, agenda no WhatsApp, orçamento no Excel. Cada processo é
+            uma gambiarra. São horas perdidas toda semana.</div>
+        </div>
+        <div class="s2-card" data-animate>
+          <div class="s2-card-icon">🚀</div>
+          <div class="s2-card-title">A Startup em Validação</div>
+          <div class="s2-card-text">Precisa de MVP funcionando para investidor em 3 dias. Contratar dev custa
+            R$15k–R$200k e meses. A ideia morre antes de ser testada.</div>
+        </div>
+        <div class="s2-card" data-animate>
+          <div class="s2-card-icon">🧩</div>
+          <div class="s2-card-title">A Solução que Não Existe</div>
+          <div class="s2-card-text">Plataformas no-code têm curva de semanas e não acessam câmera, contatos, sensores.
+            ChatGPT gera código, mas não um app que funciona.</div>
+        </div>
+      </div>
+      <div class="s2-stat" data-animate>
+        💡 <strong>"PMEs perdem em média 20h/semana em processos manuais que software sob medida resolveria."</strong> —
+        McKinsey Global Institute / estimativas setoriais
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 3 — IA vs APP
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-3">
+      <div class="slide-label" data-animate>O Gap</div>
+      <h2 class="slide-headline" data-animate>A IA gera código. Código não é um app.</h2>
+
+      <div class="s3-cols">
+        <div class="card-red" data-animate>
+          <div class="s3-col-title" style="color:#ff6b6b">❌ ChatGPT / Claude direto</div>
+          <div class="s3-steps">💬 Descreve → 🤖 Recebe HTML/JS → 🤔 E agora?</div>
+          <div class="s3-item"><span>❌</span> Precisa hospedar</div>
+          <div class="s3-item"><span>❌</span> Precisa de deploy</div>
+          <div class="s3-item"><span>❌</span> Não acessa câmera</div>
+          <div class="s3-item"><span>❌</span> Não acessa contatos</div>
+          <div class="s3-item"><span>❌</span> Não salva dados offline</div>
+          <div class="s3-item"><span>❌</span> Não manda notificações</div>
+          <div class="s3-verdict" style="color:#ff6b6b">❌ Não é um app de verdade</div>
+        </div>
+        <div class="card-green" data-animate>
+          <div class="s3-col-title" style="color:#4ade80">✅ Appacadabra</div>
+          <div class="s3-steps">💬 Descreve → 🤖 IA gera código → 🪄 Bridge nativa automática</div>
+          <div class="s3-item"><span>✅</span> Roda offline no celular</div>
+          <div class="s3-item"><span>✅</span> Câmera, contatos, GPS, sensores</div>
+          <div class="s3-item"><span>✅</span> Dados persistentes no dispositivo</div>
+          <div class="s3-item"><span>✅</span> Notificações e alarmes</div>
+          <div class="s3-item"><span>✅</span> Zero deploy, zero servidor</div>
+          <div class="s3-item"><span>✅</span> Pronto em 30 segundos</div>
+          <div class="s3-verdict" style="color:#4ade80">✅ App real, pronto em 30 segundos</div>
+        </div>
+      </div>
+
+      <div class="s3-caps" data-animate>
+        <span class="s3-cap-pill">📷 Câmera</span>
+        <span class="s3-cap-pill">📱 Contatos</span>
+        <span class="s3-cap-pill">📅 Calendário</span>
+        <span class="s3-cap-pill">🔔 Notificações</span>
+        <span class="s3-cap-pill">🎙️ Áudio</span>
+        <span class="s3-cap-pill">📍 GPS</span>
+        <span class="s3-cap-pill">🧭 Sensores</span>
+        <span class="s3-cap-pill">🗄️ Dados offline</span>
+        <span class="s3-cap-pill">📊 Planilhas</span>
+        <span class="s3-cap-pill">📄 Documentos</span>
+        <span class="s3-cap-pill">📋 Formulários</span>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 4 — A SOLUÇÃO
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-4">
+      <div class="slide-label" data-animate>A Solução</div>
+      <h2 class="slide-headline" data-animate>Appacadabra fecha o loop.</h2>
+      <p class="slide-sub" data-animate>IA que gera + bridge nativa que entrega.</p>
+
+      <div class="s4-orb" data-animate>🪄</div>
+
+      <div class="s4-cards">
+        <div class="s4-card" data-animate>
+          <div class="s4-card-icon">🤖</div>
+          <div class="s4-card-title">IA Geradora</div>
+          <div class="s4-card-text">Descreva em linguagem natural. A IA escreve o código HTML/CSS/JS completo.</div>
+        </div>
+        <div class="s4-card" data-animate>
+          <div class="s4-card-icon">🌉</div>
+          <div class="s4-card-title">Bridge Nativa</div>
+          <div class="s4-card-text">O código gerado ganha acesso automático a câmera, contatos, GPS, sensores e dados
+            offline.</div>
+        </div>
+        <div class="s4-card" data-animate>
+          <div class="s4-card-icon">⚡</div>
+          <div class="s4-card-title">30 Segundos</div>
+          <div class="s4-card-text">Da descrição ao app funcionando no celular. Sem deploy, sem servidor, sem
+            configuração.</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px" data-animate>
+        <span class="pill pill-gold">✨ Ideia → App funcional em ~30 segundos</span>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 5 — COMO FUNCIONA
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-5">
+      <div class="slide-label" data-animate>Como Funciona</div>
+      <h2 class="slide-headline" data-animate>3 passos. Zero código.</h2>
+
+      <div class="s5-steps">
+        <div class="s5-step" data-animate>
+          <div class="s5-num">1</div>
+          <div class="s5-icon">💬</div>
+          <div class="s5-title">Descreva</div>
+          <div class="s5-text">"Quero um app de controle de estoque com câmera e alertas de estoque baixo"</div>
+        </div>
+        <div class="s5-arrow" data-animate>→</div>
+        <div class="s5-step" data-animate>
+          <div class="s5-num">2</div>
+          <div class="s5-icon">🤖</div>
+          <div class="s5-title">A IA Constrói</div>
+          <div class="s5-text">Gera HTML/CSS/JS completo com todas as capacidades nativas necessárias</div>
+        </div>
+        <div class="s5-arrow" data-animate>→</div>
+        <div class="s5-step" data-animate>
+          <div class="s5-num">3</div>
+          <div class="s5-icon">📱</div>
+          <div class="s5-title">Use</div>
+          <div class="s5-text">App funcionando offline no celular com câmera, dados salvos e notificações</div>
+        </div>
+      </div>
+
+      <div class="s5-badges" data-animate>
+        <span class="pill">📡 Funciona offline</span>
+        <span class="pill">🚫 Sem servidor necessário</span>
+        <span class="pill pill-gold">⚡ ~30 segundos</span>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 6 — PÚBLICO-ALVO
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-6">
+      <div class="slide-label" data-animate>Público-Alvo</div>
+      <h2 class="slide-headline" data-animate>Quem tem um problema específico e um celular.</h2>
+
+      <div class="s6-grid">
+        <div class="s6-card" data-animate>
+          <div class="s6-card-head">
+            <span class="s6-emoji">🚀</span>
+            <div>
+              <div class="s6-name">Sofia</div>
+              <div class="s6-role">Fundadora startup pré-seed</div>
+            </div>
+          </div>
+          <div class="s6-quote">"Preciso mostrar um MVP funcionando para investidores em 3 dias. Meu dev está alocado no
+            produto principal."</div>
+          <span class="s6-result">→ Dashboard de métricas em 30 segundos</span>
+        </div>
+        <div class="s6-card" data-animate>
+          <div class="s6-card-head">
+            <span class="s6-emoji">🔧</span>
+            <div>
+              <div class="s6-name">Carlos</div>
+              <div class="s6-role">Dono de oficina mecânica</div>
+            </div>
+          </div>
+          <div class="s6-quote">"Controlo meu estoque no papel. Já perdi peça vendida duas vezes porque não sabia que
+            tinha acabado."</div>
+          <span class="s6-result">→ App com câmera, alertas e relatório de saída</span>
+        </div>
+        <div class="s6-card" data-animate>
+          <div class="s6-card-head">
+            <span class="s6-emoji">💼</span>
+            <div>
+              <div class="s6-name">Beatriz</div>
+              <div class="s6-role">Consultora freelance</div>
+            </div>
+          </div>
+          <div class="s6-quote">"Mando proposta no e-mail, acompanho no caderno, nota fiscal manual. É caos."</div>
+          <span class="s6-result">→ CRM pessoal com lembretes e histórico</span>
+        </div>
+        <div class="s6-card" data-animate>
+          <div class="s6-card-head">
+            <span class="s6-emoji">🛠️</span>
+            <div>
+              <div class="s6-name">Diego</div>
+              <div class="s6-role">Maker / builder curioso</div>
+            </div>
+          </div>
+          <div class="s6-quote">"Tenho ideias de mini-apps que fariam minha vida mais fácil. Não sei programar."</div>
+          <span class="s6-result">→ Cria apps com câmera, sensores e notificações</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 7 — ANÁLISE DE MERCADO
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-7">
+      <div class="slide-label" data-animate>Mercado</div>
+      <h2 class="slide-headline" data-animate>Um mercado enorme, mal servido.</h2>
+
+      <div class="s7-layout">
+        <div class="s7-circles-wrap" data-animate>
+          <svg id="market-svg" width="280" height="280" viewBox="0 0 280 280">
+            <!-- TAM -->
+            <circle id="tam-ring" cx="140" cy="140" r="120" fill="none" stroke="rgba(157,78,221,0.2)" stroke-width="20"
+              stroke-dasharray="753.98" stroke-dashoffset="753.98" />
+            <!-- SAM -->
+            <circle id="sam-ring" cx="140" cy="140" r="85" fill="none" stroke="rgba(157,78,221,0.45)" stroke-width="18"
+              stroke-dasharray="534.07" stroke-dashoffset="534.07" />
+            <!-- SOM -->
+            <circle id="som-ring" cx="140" cy="140" r="50" fill="none" stroke="var(--gold)" stroke-width="16"
+              stroke-dasharray="314.16" stroke-dashoffset="314.16" />
+            <!-- Labels -->
+            <text x="140" y="16" text-anchor="middle" fill="rgba(240,238,255,0.5)" font-family="Inter" font-size="11"
+              font-weight="600">TAM $646B</text>
+            <text x="240" y="90" text-anchor="middle" fill="rgba(157,78,221,0.9)" font-family="Inter" font-size="11"
+              font-weight="700">SAM $52B</text>
+            <text x="140" y="148" text-anchor="middle" fill="var(--gold)" font-family="Inter" font-size="13"
+              font-weight="800">SOM $1.2B</text>
+            <line x1="140" y1="25" x2="140" y2="17" stroke="rgba(240,238,255,0.3)" stroke-width="1" />
+            <line x1="224" y1="97" x2="216" y2="89" stroke="rgba(157,78,221,0.5)" stroke-width="1" />
+          </svg>
+        </div>
+
+        <div class="s7-stat-grid" data-animate>
+          <div class="s7-stat">
+            <span class="s7-stat-num">400M+</span>
+            <span class="s7-stat-label">PMEs no mundo<br><small style="opacity:0.6">(World Bank)</small></span>
+          </div>
+          <div class="s7-stat">
+            <span class="s7-stat-num">1.35M</span>
+            <span class="s7-stat-label">startups tech<br>ativas globalmente</span>
+          </div>
+          <div class="s7-stat">
+            <span class="s7-stat-num">1.57B</span>
+            <span class="s7-stat-label">trabalhadores gig/<br>freelance (Statista 2024)</span>
+          </div>
+          <div class="s7-stat">
+            <span class="s7-stat-num">28.1%</span>
+            <span class="s7-stat-label">CAGR mercado<br>no-code (Gartner)</span>
+          </div>
+          <div class="s7-stat">
+            <span class="s7-stat-num">$2.5T</span>
+            <span class="s7-stat-label">gasto em digital<br>transformation 2025</span>
+          </div>
+          <div class="s7-stat">
+            <span class="s7-stat-num">80%</span>
+            <span class="s7-stat-label">do software corp. por<br>citizen devs até 2026 (Gartner)</span>
+          </div>
+          <div class="s7-cagr">
+            Mercado no-code: <span>$52B → $187B até 2030</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 8 — DIFERENCIAIS
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-8">
+      <div class="slide-label" data-animate>Diferenciais</div>
+      <h2 class="slide-headline" data-animate>Por que não usar o que já existe?</h2>
+
+      <div style="overflow-x:auto; width:100%; max-width:920px" data-animate>
+        <table class="s8-table">
+          <thead>
+            <tr>
+              <th style="text-align:left">Recurso</th>
+              <th>ChatGPT<br>Manual</th>
+              <th>MIT App<br>Inventor</th>
+              <th>Bubble /<br>Glide</th>
+              <th class="highlight">✨ Appacadabra</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Sem código necessário</td>
+              <td>❌</td>
+              <td>✅</td>
+              <td>✅</td>
+              <td class="highlight">✅</td>
+            </tr>
+            <tr>
+              <td>Acesso à câmera</td>
+              <td>❌</td>
+              <td>⚠️</td>
+              <td>❌</td>
+              <td class="highlight">✅</td>
+            </tr>
+            <tr>
+              <td>Acesso a contatos</td>
+              <td>❌</td>
+              <td>❌</td>
+              <td>❌</td>
+              <td class="highlight">✅</td>
+            </tr>
+            <tr>
+              <td>GPS / Sensores</td>
+              <td>❌</td>
+              <td>⚠️</td>
+              <td>❌</td>
+              <td class="highlight">✅</td>
+            </tr>
+            <tr>
+              <td>Dados offline</td>
+              <td>❌</td>
+              <td>⚠️</td>
+              <td>❌</td>
+              <td class="highlight">✅</td>
+            </tr>
+            <tr>
+              <td>Notificações / Alarmes</td>
+              <td>❌</td>
+              <td>⚠️</td>
+              <td>❌</td>
+              <td class="highlight">✅</td>
+            </tr>
+            <tr>
+              <td>Linguagem natural</td>
+              <td>✅</td>
+              <td>❌</td>
+              <td>❌</td>
+              <td class="highlight">✅</td>
+            </tr>
+            <tr>
+              <td>Pronto em 30 segundos</td>
+              <td>❌</td>
+              <td>❌</td>
+              <td>❌</td>
+              <td class="highlight">✅</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 9 — MODELO DE NEGÓCIOS
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-9">
+      <div class="slide-label" data-animate>Modelo de Negócios</div>
+      <h2 class="slide-headline" data-animate>Freemium com monetização comprovada.</h2>
+
+      <div class="s9-pillars">
+        <div class="s9-pillar" data-animate>
+          <div class="s9-pillar-icon">💎</div>
+          <div class="s9-pillar-title">Mana Gratuita via Ads</div>
+          <div class="s9-pillar-text">Usuário assiste ad e ganha Mana para criar apps. Modelo já validado na Play Store.
+          </div>
+        </div>
+        <div class="s9-pillar" data-animate>
+          <div class="s9-pillar-icon">🛒</div>
+          <div class="s9-pillar-title">Pacotes Premium de Mana</div>
+          <div class="s9-pillar-text">Compra direta de Mana para usuários que querem mais apps sem ads. IAP nativo
+            Android.</div>
+        </div>
+        <div class="s9-pillar" data-animate>
+          <div class="s9-pillar-icon">🏪</div>
+          <div class="s9-pillar-title">Marketplace <span class="pill"
+              style="font-size:10px;padding:2px 8px;vertical-align:middle">Roadmap</span></div>
+          <div class="s9-pillar-text">Spell Marketplace: criadores monetizam templates. Revenue share com a plataforma.
+          </div>
+        </div>
+      </div>
+
+      <div class="s9-flywheel" data-animate>
+        <span class="s9-fw-step">Usuário cria app</span>
+        <span class="s9-fw-arrow">→</span>
+        <span class="s9-fw-step">Compartilha</span>
+        <span class="s9-fw-arrow">→</span>
+        <span class="s9-fw-step">Novos usuários</span>
+        <span class="s9-fw-arrow">→</span>
+        <span class="s9-fw-step">Mais apps</span>
+        <span class="s9-fw-arrow">→</span>
+        <span class="s9-fw-step">Mais mana</span>
+        <span class="s9-fw-arrow">→</span>
+        <span class="s9-fw-step" style="color:var(--gold)">Mais receita ↩</span>
+      </div>
+      <div class="s9-note" data-animate>✅ Sistema de Mana já em produção. Modelo de ads validado.</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 10 — POR QUE AGORA
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-10">
+      <div class="slide-label" data-animate>Por que Agora</div>
+      <h2 class="slide-headline" data-animate>Três forças convergindo em 2026.</h2>
+
+      <div class="s10-forces">
+        <div class="s10-force" data-animate>
+          <div class="s10-force-icon">⚡</div>
+          <div class="s10-force-title">IA Rápida o Suficiente</div>
+          <div class="s10-force-text">LLMs gerando HTML/JS funcional em segundos. Claude, GPT-4o, Gemini atingiram o
+            threshold de qualidade necessário. <strong>Timing: agora.</strong></div>
+        </div>
+        <div class="s10-force" data-animate>
+          <div class="s10-force-icon">🌊</div>
+          <div class="s10-force-title">Citizen Developer Wave</div>
+          <div class="s10-force-text">Gartner: <strong>80% do software corporativo</strong> por não-devs até 2026. O
+            mundo está pronto para ferramentas que democratizam desenvolvimento.</div>
+        </div>
+        <div class="s10-force" data-animate>
+          <div class="s10-force-icon">📱</div>
+          <div class="s10-force-title">Celular como Plataforma Primária</div>
+          <div class="s10-force-text"><strong>7.3B smartphones (Statista, 2025).</strong> ~63% do tráfego digital é mobile (StatCounter, 2025). O celular É o
+            computador para 4B+ pessoas. PMEs operam 100% pelo celular.</div>
+        </div>
+      </div>
+
+      <div class="s10-timeline" data-animate>
+        <div class="s10-tl-item">
+          <span class="s10-tl-year">2020</span>
+          <span class="s10-tl-desc">GPT-3 — lento, código fraco</span>
+        </div>
+        <div class="s10-tl-item">
+          <span class="s10-tl-year">2023</span>
+          <span class="s10-tl-desc">ChatGPT — código ok, sem deploy</span>
+        </div>
+        <div class="s10-tl-item">
+          <span class="s10-tl-year">2025</span>
+          <span class="s10-tl-desc">Claude/Gemini — qualidade alta</span>
+        </div>
+        <div class="s10-tl-item now">
+          <span class="s10-tl-year">2026 →</span>
+          <span class="s10-tl-desc">Appacadabra — o loop fecha ✨</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 11 — GO TO MARKET
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-11">
+      <div class="slide-label" data-animate>Go-to-Market</div>
+      <h2 class="slide-headline" data-animate>Brasil + EUA hoje. Mundo depois.</h2>
+
+      <div class="s11-layout">
+        <div class="s11-phase active-phase" data-animate>
+          <div class="s11-phase-label">📍 Fase 1 — Agora</div>
+          <div class="s11-phase-item">🇧🇷 <strong>Brasil</strong> — 21M+ PMEs, Android 91%, dev custa
+            R$15k–R$80k/projeto</div>
+          <div class="s11-phase-item">🇺🇸 <strong>EUA</strong> — 33M+ small businesses, cultura maker, maior poder
+            aquisitivo</div>
+          <div class="s11-phase-item" style="margin-top:10px">📱 Android (Google Play) em produção</div>
+          <div class="s11-phase-item">🌐 Português + Inglês nativos</div>
+        </div>
+        <div class="s11-phase" data-animate>
+          <div class="s11-phase-label" style="color:var(--purple)">🌍 Fase 2 — Expansão Global</div>
+          <div class="s11-phase-item">🍎 <strong>iOS</strong> — waitlist ativa</div>
+          <div class="s11-phase-item">🗣️ <strong>17 idiomas</strong> já implementados</div>
+          <div class="s11-phase-item">🇪🇺 Europa (PT, ES, FR, DE)</div>
+          <div class="s11-phase-item">🌏 LATAM · Ásia (JA, ZH, KO)</div>
+        </div>
+      </div>
+
+      <div class="s11-roadmap" data-animate>
+        <div class="s11-rm-item done">Android ✅</div>
+        <div class="s11-rm-arrow">→</div>
+        <div class="s11-rm-item">iOS</div>
+        <div class="s11-rm-arrow">→</div>
+        <div class="s11-rm-item">Spell Marketplace</div>
+        <div class="s11-rm-arrow">→</div>
+        <div class="s11-rm-item">API / White-label B2B</div>
+      </div>
+
+      <!-- Simple world map hint -->
+      <div data-animate style="margin-top:14px; display:flex; gap:16px; align-items:center">
+        <span style="font-size:12px; color:var(--gold)">🇧🇷🇺🇸 Ativos agora</span>
+        <span style="font-size:12px; color:var(--muted)">🌍 Expansão Fase 2</span>
+        <span class="pill" style="font-size:11px;padding:4px 12px">17 idiomas prontos</span>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 12 — CALL TO ACTION
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-12">
+      <div class="s12-wand" data-animate>🪄</div>
+      <h2 class="s12-headline" data-animate>Transforme qualquer ideia em um app.</h2>
+      <p class="s12-sub" data-animate>Em 30 segundos. No celular. Sem código.</p>
+
+      <div class="s12-btns" data-animate>
+        <a href="https://play.google.com/store/apps/details?id=ai.appacadabra.app" class="s12-btn s12-btn-primary"
+          target="_blank" rel="noopener">
+          🎮 Baixar no Google Play
+        </a>
+        <a href="https://appacadabra.ai" class="s12-btn s12-btn-outline" target="_blank" rel="noopener">
+          🌐 Visitar appacadabra.ai
+        </a>
+      </div>
+
+      <div class="s12-footer" data-animate>
+        Appacadabra · ai.appacadabra.app · appacadabra.ai
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+       SLIDE 13 — REFERÊNCIAS
+  ══════════════════════════════════════ -->
+    <div class="slide" id="slide-13">
+      <div class="s13-title" data-animate>📚 Referências</div>
+      <div class="s13-scroll" data-animate>
+
+        <div class="s13-group">
+          <div class="s13-item">
+            <span class="s13-badge">S1 · S7</span>
+            <div class="s13-content">
+              <div class="s13-label">400M+ MSMEs no mundo</div>
+              <div class="s13-source">World Bank — "MSME Finance"<br>
+                <a href="https://www.worldbank.org/en/topic/smefinance" target="_blank" rel="noopener">worldbank.org/en/topic/smefinance</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S2</span>
+            <div class="s13-content">
+              <div class="s13-label">PMEs perdem ~20h/semana em processos manuais</div>
+              <div class="s13-source">McKinsey Global Institute — série "The Future of Work"<br>
+                <a href="https://www.mckinsey.com/featured-insights/future-of-work/the-future-of-work-in-america" target="_blank" rel="noopener">mckinsey.com/featured-insights/future-of-work</a>
+              </div>
+              <div class="s13-warn">⚠ Cifra exata de 20h/semana não localizada em publicação oficial McKinsey; baseada em estimativas setoriais de automação.</div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S7</span>
+            <div class="s13-content">
+              <div class="s13-label">TAM $646B — Custom software development global (2024)</div>
+              <div class="s13-source">Grand View Research<br>
+                <a href="https://www.grandviewresearch.com/industry-analysis/custom-software-development-market-report" target="_blank" rel="noopener">grandviewresearch.com/industry-analysis/custom-software-development-market-report</a><br>
+                Polaris Market Research<br>
+                <a href="https://www.polarismarketresearch.com/industry-analysis/custom-software-development-market" target="_blank" rel="noopener">polarismarketresearch.com/industry-analysis/custom-software-development-market</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S7</span>
+            <div class="s13-content">
+              <div class="s13-label">SAM $52B (2026) → $187B (2030) — Low-code/no-code market</div>
+              <div class="s13-source">P&amp;S Intelligence via GlobeNewswire<br>
+                <a href="https://www.globenewswire.com/news-release/2020/11/10/2123468/0/en/Low-Code-Development-Platform-Market-to-Reach-187-0-Billion-by-2030.html" target="_blank" rel="noopener">globenewswire.com — Low-Code Market to Reach $187B by 2030</a><br>
+                Gartner LCNC Forecast<br>
+                <a href="https://www.gartner.com/en/documents/3991201" target="_blank" rel="noopener">gartner.com/en/documents/3991201</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S7</span>
+            <div class="s13-content">
+              <div class="s13-label">1.57B trabalhadores gig/freelance (autônomos globais)</div>
+              <div class="s13-source">Statista / ILO — Informal and gig workforce estimates<br>
+                <a href="https://www.statista.com/statistics/1119702/gig-workers-number-worldwide/" target="_blank" rel="noopener">statista.com/statistics/gig-workers-worldwide</a>
+              </div>
+              <div class="s13-warn">⚠ Inclui trabalhadores informais; gig workers digitais formais estimados em 154–435M (ILO, 2021).</div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S7</span>
+            <div class="s13-content">
+              <div class="s13-label">28.1% CAGR — no-code/low-code market 2023–2025</div>
+              <div class="s13-source">Gartner / ToolJet<br>
+                <a href="https://blog.tooljet.com/gartner-forecast-on-low-code-development-technologies/" target="_blank" rel="noopener">blog.tooljet.com/gartner-forecast-on-low-code-development-technologies</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S7</span>
+            <div class="s13-content">
+              <div class="s13-label">$2.5T digital transformation spending (2025)</div>
+              <div class="s13-source">IDC Worldwide Digital Transformation Spending Guide (~$2.8T projeção 2025)<br>
+                <a href="https://www.businesswire.com/news/home/20240530917191/en/" target="_blank" rel="noopener">businesswire.com — IDC Worldwide DT Spending Guide</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S7 · S10</span>
+            <div class="s13-content">
+              <div class="s13-label">80% do software corporativo por citizen devs até 2026</div>
+              <div class="s13-source">Gartner / Kissflow<br>
+                <a href="https://kissflow.com/citizen-development/gartner-on-citizen-development/" target="_blank" rel="noopener">kissflow.com/citizen-development/gartner-on-citizen-development</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S10</span>
+            <div class="s13-content">
+              <div class="s13-label">7.3B+ smartphones no mundo (2025)</div>
+              <div class="s13-source">Statista — Number of smartphone users worldwide<br>
+                <a href="https://www.statista.com/statistics/330695/number-of-smartphone-users-worldwide/" target="_blank" rel="noopener">statista.com/statistics/330695/number-of-smartphone-users-worldwide</a><br>
+                Ericsson Mobility Report<br>
+                <a href="https://www.ericsson.com/en/reports-and-papers/mobility-report" target="_blank" rel="noopener">ericsson.com/en/reports-and-papers/mobility-report</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S10</span>
+            <div class="s13-content">
+              <div class="s13-label">~63% do tráfego digital é mobile (2025)</div>
+              <div class="s13-source">StatCounter GlobalStats — Platform Market Share Worldwide<br>
+                <a href="https://gs.statcounter.com/platform-market-share/desktop-mobile-tablet/worldwide/" target="_blank" rel="noopener">gs.statcounter.com/platform-market-share/desktop-mobile-tablet/worldwide</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S11</span>
+            <div class="s13-content">
+              <div class="s13-label">21M+ PMEs no Brasil</div>
+              <div class="s13-source">SEBRAE / IBGE — Estudos e Pesquisas<br>
+                <a href="https://sebrae.com.br/sites/PortalSebrae/estudos_pesquisas/" target="_blank" rel="noopener">sebrae.com.br/sites/PortalSebrae/estudos_pesquisas</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S11</span>
+            <div class="s13-content">
+              <div class="s13-label">Android ~91% market share no Brasil</div>
+              <div class="s13-source">StatCounter — OS Market Share Mobile Brazil<br>
+                <a href="https://gs.statcounter.com/os-market-share/mobile/brazil/" target="_blank" rel="noopener">gs.statcounter.com/os-market-share/mobile/brazil</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="s13-item">
+            <span class="s13-badge">S11</span>
+            <div class="s13-content">
+              <div class="s13-label">33M+ small businesses nos EUA</div>
+              <div class="s13-source">U.S. Small Business Administration — Small Business Profile<br>
+                <a href="https://www.sba.gov/sites/default/files/2024-10/2024-small-business-profile.pdf" target="_blank" rel="noopener">sba.gov — 2024 Small Business Profile</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- #deck -->
+
+  <script>
+    // ═══════════════════════════════════════════
+    // STAR FIELD
+    // ═══════════════════════════════════════════
+    (function () {
+      const canvas = document.getElementById('stars');
+      const ctx = canvas.getContext('2d');
+      function draw() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < 120; i++) {
+          const x = Math.random() * canvas.width;
+          const y = Math.random() * canvas.height;
+          const r = Math.random() * 1.4 + 0.2;
+          const a = Math.random() * 0.7 + 0.1;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(220,210,255,${a})`;
+          ctx.fill();
+        }
+      }
+      draw();
+      // Redraw once on resize (still fast, drawn once)
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(draw, 200);
+      });
+    })();
+
+    // ═══════════════════════════════════════════
+    // SLIDE SYSTEM
+    // ═══════════════════════════════════════════
+    let currentSlide = 0;
+    const totalSlides = 13;
+    let isAnimating = false;
+    let touchStartX = 0;
+
+    const slides = document.querySelectorAll('.slide');
+    const counter = document.getElementById('counter');
+    const dotsContainer = document.getElementById('dots');
+
+    // Build dots
+    for (let i = 0; i < totalSlides; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (i === 0 ? ' active' : '');
+      dot.addEventListener('click', () => goToSlide(i));
+      dotsContainer.appendChild(dot);
+    }
+
+    function updateDots() {
+      document.querySelectorAll('.dot').forEach((d, i) => {
+        d.classList.toggle('active', i === currentSlide);
+      });
+    }
+
+    function updateCounter() {
+      counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+    }
+
+    function activateSlideAnimations(slideEl) {
+      const items = slideEl.querySelectorAll('[data-animate]');
+      items.forEach(el => el.classList.remove('revealed'));
+      items.forEach((el, i) => {
+        setTimeout(() => el.classList.add('revealed'), i * 80);
+      });
+    }
+
+    function goToSlide(index, direction) {
+      if (isAnimating || index === currentSlide || index < 0 || index >= totalSlides) return;
+      isAnimating = true;
+
+      const dir = direction !== undefined ? direction : (index > currentSlide ? 1 : -1);
+      const prev = slides[currentSlide];
+      const next = slides[index];
+
+      // Prepare incoming slide off-screen
+      next.style.transition = 'none';
+      next.style.opacity = '0';
+      next.style.transform = `translateX(${dir > 0 ? '100%' : '-100%'})`;
+      next.classList.add('active');
+
+      // Force reflow
+      next.offsetHeight; // eslint-disable-line no-unused-expressions
+      next.style.transition = '';
+
+      // Animate
+      prev.style.transform = `translateX(${dir > 0 ? '-100%' : '100%'})`;
+      prev.style.opacity = '0';
+      next.style.transform = 'translateX(0)';
+      next.style.opacity = '1';
+
+      setTimeout(() => {
+        prev.classList.remove('active');
+        prev.style.transform = '';
+        prev.style.opacity = '';
+        prev.style.transition = '';
+        isAnimating = false;
+
+        // Trigger market SVG animation on slide 7
+        if (index === 6) animateMarket();
+      }, 460);
+
+      currentSlide = index;
+      updateDots();
+      updateCounter();
+      activateSlideAnimations(next);
+    }
+
+    function next() { goToSlide(currentSlide + 1, 1); }
+    function prev() { goToSlide(currentSlide - 1, -1); }
+
+    document.getElementById('btn-next').addEventListener('click', next);
+    document.getElementById('btn-prev').addEventListener('click', prev);
+
+    // Keyboard
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); next(); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'Backspace') { e.preventDefault(); prev(); }
+    });
+
+    // Touch
+    document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const delta = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(delta) > 50) { delta < 0 ? next() : prev(); }
+    }, { passive: true });
+
+    // Activate first slide
+    activateSlideAnimations(slides[0]);
+    updateCounter();
+
+    // ═══════════════════════════════════════════
+    // MARKET SVG ANIMATION (Slide 7)
+    // ═══════════════════════════════════════════
+    function animateMarket() {
+      const tam = document.getElementById('tam-ring');
+      const sam = document.getElementById('sam-ring');
+      const som = document.getElementById('som-ring');
+      if (!tam) return;
+
+      // Reset
+      tam.style.transition = 'none';
+      sam.style.transition = 'none';
+      som.style.transition = 'none';
+      tam.style.strokeDashoffset = '753.98';
+      sam.style.strokeDashoffset = '534.07';
+      som.style.strokeDashoffset = '314.16';
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          tam.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1) 0.1s';
+          sam.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1) 0.4s';
+          som.style.transition = 'stroke-dashoffset 1.0s cubic-bezier(0.4,0,0.2,1) 0.7s';
+          tam.style.strokeDashoffset = '0';
+          sam.style.strokeDashoffset = '0';
+          som.style.strokeDashoffset = '0';
+        });
+      });
+    }
+
+    // If starting on slide 7 (unlikely but safe)
+    if (currentSlide === 6) animateMarket();
+  </script>
+</body>
+
+</html>

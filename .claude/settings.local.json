@@ -53,7 +53,17 @@
       "Bash(taskkill:*)",
       "Bash(cmd:*)",
       "mcp__plugin_firebase_firebase__firebase_read_resources",
-      "mcp__plugin_firebase_firebase__functions_get_logs"
+      "mcp__plugin_firebase_firebase__functions_get_logs",
+      "Bash(iconv:*)",
+      "Bash(~/AppData/Local/Android/Sdk/platform-tools/adb.exe devices:*)",
+      "Bash(~/AppData/Local/Android/Sdk/platform-tools/adb.exe shell:*)",
+      "Bash(~/AppData/Local/Android/Sdk/platform-tools/adb.exe logcat:*)",
+      "Bash(export:*)",
+      "Bash(\"/c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb\" logcat:*)",
+      "Bash(\"/c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb\" shell:*)",
+      "Read(//c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/**)",
+      "Read(//c/dev/appacadabra/$LOCALAPPDATA/Android/Sdk/platform-tools/**)",
+      "mcp__plugin_firebase_firebase__functions_list_functions"
     ]
   }
 }

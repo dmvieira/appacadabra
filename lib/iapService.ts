@@ -13,6 +13,8 @@ import {
 } from 'react-native-iap';
 import { Platform } from 'react-native';
 
+export { finishTransaction } from 'react-native-iap';
+
 // Product IDs as defined in Google Play Console
 export const MANA_PRODUCTS = {
     MANA_10: 'mana_10',
@@ -21,6 +23,12 @@ export const MANA_PRODUCTS = {
 };
 
 export const ALL_PRODUCT_IDS = Object.values(MANA_PRODUCTS);
+
+export const PRODUCT_MANA_AMOUNTS: Record<string, number> = {
+    [MANA_PRODUCTS.MANA_10]: 10,
+    [MANA_PRODUCTS.MANA_50]: 50,
+    [MANA_PRODUCTS.MANA_120]: 120,
+};
 
 let purchaseUpdateSubscription: any = null;
 let purchaseErrorSubscription: any = null;
@@ -84,18 +92,16 @@ export function setupPurchaseListeners(
     onPurchaseSuccess: (purchase: Purchase, productId: string) => Promise<void>,
     onPurchaseError: (error: PurchaseError) => void
 ) {
-    // Listener for successful purchases
+    // Listener for successful purchases.
+    // NOTE: Do NOT call finishTransaction here. The caller (ManaShop) must
+    // acknowledge only after credits are confirmed delivered, so Google Play
+    // auto-refunds if crediting fails.
     purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase: Purchase) => {
-        // Ensure we have a valid purchase object
         if (purchase) {
             try {
-                // Acknowledge the purchase (required for Android)
-                await finishTransaction({ purchase, isConsumable: true });
-
-                // Notify the app to add mana
                 await onPurchaseSuccess(purchase, purchase.productId);
-            } catch (ackErr) {
-                console.error('Error acknowledging purchase:', ackErr);
+            } catch (err) {
+                console.error('Error handling purchase:', err);
             }
         }
     });
