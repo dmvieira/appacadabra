@@ -328,14 +328,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                     if (app) {
                         const newVersion = app.currentVersion + 1;
                         const editCredits = job.result.creditsUsed || 0;
-                        const updatedApp: GeneratedApp = {
-                            ...app,
-                            code: decompressedText,
-                            currentVersion: newVersion,
-                            lastUpdated: Date.now(),
-                        };
 
-                        await db.updateApp(updatedApp);
+                        await db.updateAppContent(appId, decompressedText, newVersion, app.totalManaCost + editCredits, job.id);
 
                         // Log edit mana cost (both totalManaCost + mana_events for recentManaCost)
                         if (editCredits > 0) {
@@ -1022,19 +1016,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         try {
             await db.updateSortOrders(updates);
             markBackupDirty();
-
-            // Update local state immediately
-            const updatedApps = [...apps];
-            updatedApps[idx] = { ...current, sortOrder: neighbor.sortOrder };
-            updatedApps[targetIdx] = { ...neighbor, sortOrder: current.sortOrder };
-
-            // Re-sort to match query order
-            updatedApps.sort((a, b) => {
-                if ((a.sortOrder === 0) !== (b.sortOrder === 0)) return a.sortOrder === 0 ? -1 : 1;
-                if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-                return b.lastUpdated - a.lastUpdated;
-            });
-            set({ apps: updatedApps });
+            await get().loadApps(); // Reload from DB — single source of truth
         } catch (error) {
             console.error('Failed to reorder app:', error);
         }

@@ -344,6 +344,22 @@ export async function deleteApp(id: number): Promise<void> {
     await database.runAsync('DELETE FROM generated_apps WHERE id = ?', [id]);
 }
 
+export async function updateAppContent(
+    id: number,
+    code: string,
+    currentVersion: number,
+    totalManaCost: number,
+    jobId: string
+): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        `UPDATE generated_apps
+         SET code = ?, currentVersion = ?, lastUpdated = ?, totalManaCost = ?, jobId = ?
+         WHERE id = ?`,
+        [code, currentVersion, Date.now(), totalManaCost, jobId, id]
+    );
+}
+
 export async function updateBiometricLock(appId: number, enabled: boolean): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
