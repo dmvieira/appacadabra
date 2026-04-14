@@ -10,7 +10,9 @@ const formsCapability: FirebaseCapabilityDoc = {
     displayName: "Forms",
     minVersion: "1.0.0",
     docs: `📋 FORMS (AppacadabraForms) — Google Sign-In required (consent shown on first use only)
-⚠️ **Acesso restrito:** \`getResponses()\` e \`updateForm()\` funcionam **apenas com formulários criados por este app via \`createForm()\`**. Formulários externos não podem ser acessados por duas razões: (1) restrição de escopo OAuth \`drive.file\`; (2) o mapeamento de perguntas é armazenado internamente no momento da criação e não existe para formulários externos. Nunca sugira ao usuário usar um formulário Google existente.
+⚠️ **Acesso restrito:** \`getResponses()\`, \`updateForm()\` e \`watchResponses()\` funcionam **apenas com formulários criados por este app via \`createForm()\`**. Formulários externos não podem ser acessados por duas razões: (1) restrição de escopo OAuth \`drive.file\`; (2) o mapeamento de perguntas é armazenado internamente no momento da criação e não existe para formulários externos. Nunca sugira ao usuário usar um formulário Google existente.
+
+**Operações básicas:**
 - \`createForm(title, questions[], callback)\` — Creates a Google Form
   - \`questions\`: \`[{ type: "text"|"paragraph"|"radio"|"checkbox"|"dropdown", title: "...", options?: ["..."] }]\`
   - **Callback data**: \`{ formId, shareUrl }\`
@@ -18,8 +20,24 @@ const formsCapability: FirebaseCapabilityDoc = {
   - **Callback data**: \`{ formId, shareUrl }\`
 - \`getResponses(formId, callback)\` — Fetches all responses with human-readable answer labels
   - **Callback data**: \`{ responses: [{ responseId, submitTime, answers: { "Question title": "answer" } }] }\`
-  - Question title mapping and history preservation are handled automatically by the bridge
-- **Question types** (all support \`required: true\` and optional \`title\`):
+
+**Modo sync nativo (recomendado — recebe novas respostas em tempo real):**
+
+Use \`watchResponses\` em spells de dashboard que precisam exibir respostas conforme chegam, sem o usuário ter de recarregar a página. A capability detecta responseIds novos e dispara o callback apenas quando há novidades.
+
+- \`watchResponses(formId, intervalMs, callbackName)\` — Starts polling for new responses
+  - Fires **immediately** with all current responses (\`initial: true\`), then only when new ones arrive
+  - \`intervalMs\`: polling interval in ms (e.g. \`15000\` = every 15 s)
+  - **Callback data (ok, data)**:
+    - \`data.responses\`: all responses (use on \`initial: true\` to populate the table)
+    - \`data.newResponses\`: only the responses added since the last poll (use to append new rows)
+    - \`data.initial\`: \`true\` on first call — render everything; subsequent calls only when new responses exist
+    - \`data.cached\`: \`true\` when offline and data comes from last successful read
+  - Offline behaviour: fires with \`{ cached: true, ...lastKnownData }\`; if no cache: \`ok=false, { offline: true }\`
+- \`stopWatchResponses(formId, callbackName)\` — Stops polling
+  - **Callback data**: \`{ stopped: true }\`
+
+**Question types** (all support \`required: true\` and optional \`title\`):
   - \`"text"\` — short text answer: \`{ type: "text", title: "Full name" }\`
   - \`"paragraph"\` — long text answer: \`{ type: "paragraph", title: "Describe your symptoms" }\`
   - \`"radio"\` — pick exactly one: \`{ type: "radio", title: "Reason for visit", options: ["Consultation", "Follow-up", "Emergency"] }\`
@@ -32,26 +50,23 @@ const formsCapability: FirebaseCapabilityDoc = {
   - \`"duration"\` — elapsed time (hh:mm:ss): \`{ type: "duration", title: "How long did symptoms last?" }\`
   - \`"scale"\` — numeric range (\`low\` and \`high\` required): \`{ type: "scale", title: "Pain level", low: 1, high: 10, lowLabel: "No pain", highLabel: "Worst pain" }\`
   - \`"rating"\` — icon-based rating: \`{ type: "rating", title: "Rate your experience", level: 5, icon: "star" }\` — \`icon\`: \`"star"\` | \`"heart"\` | \`"thumb"\` (default: \`"star"\`, default level: \`5\`)
-- **Usage**:
-  \`\`\`js
-  AppacadabraForms.createForm("Patient Intake", [
-    { type: "text", title: "Full name" },
-    { type: "text", title: "Date of birth" },
-    { type: "radio", title: "Reason for visit", options: ["Consultation", "Follow-up", "Emergency"] },
-    { type: "checkbox", title: "Current symptoms", options: ["Fever", "Cough", "Fatigue", "None"] },
-    { type: "paragraph", title: "Additional notes" }
-  ], "onFormReady");
-  window.onFormReady = function(ok, data) {
-    if (!ok) return;
-    localStorage.setItem('formId', data.formId);
-    showShareLink(data.shareUrl); // send this link to the patient
-  };
 
-  AppacadabraForms.getResponses(localStorage.getItem('formId'), "onResponses");
-  window.onResponses = function(ok, data) {
-    if (ok) displayResponses(data.responses); // answers[title] always works, even for edited forms
-  };
-  \`\`\``,
+**⚠️ REGRA:** Use \`watchResponses\` em vez de \`getResponses\` em qualquer spell que precise mostrar respostas ao vivo. Não use \`setInterval\` manual na spell — o polling fica na capability.
+
+**Usage (sync nativo):**
+\`\`\`js
+// 1. Ao abrir: carrega respostas existentes e fica ouvindo novas
+AppacadabraForms.watchResponses(localStorage.getItem('formId'), 15000, 'onResponses');
+window.onResponses = function(ok, data) {
+  if (!ok) { if (data.offline) showBanner('Sem conexão'); return; }
+  if (data.cached) showBanner('Dados offline');
+  if (data.initial) renderAll(data.responses);   // primeira chamada: mostra tudo
+  else data.newResponses.forEach(r => addRow(r)); // chamadas seguintes: só os novos
+};
+
+// 2. Parar ao fechar a tela
+AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
+\`\`\``,
 };
 
 export default formsCapability;

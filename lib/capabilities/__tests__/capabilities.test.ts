@@ -222,9 +222,9 @@ describe('getInjectedJS contract', () => {
         ui: ['AppacadabraUI', 'showLoader', 'toast'],
         camera: ['AppacadabraCamera', 'takePhoto', 'recordVideo'],
         audio: ['AppacadabraAudio', 'recordStart', 'speak'],
-        forms: ['AppacadabraForms', 'createForm', 'getResponses'],
-        docs: ['AppacadabraDocs', 'createDoc', 'generatePDF'],
-        sheets: ['AppacadabraSheets', 'createSheet', 'appendRows'],
+        forms: ['AppacadabraForms', 'createForm', 'getResponses', 'watchResponses', 'stopWatchResponses'],
+        docs: ['AppacadabraDocs', 'createDoc', 'generatePDF', 'setDoc', 'watchDoc', 'stopWatchDoc'],
+        sheets: ['AppacadabraSheets', 'createSheet', 'appendRows', 'watchSheet', 'stopWatchSheet', 'setRows'],
         ai: ['AppacadabraAI', 'generate', 'similarity'],
     };
 
@@ -588,4 +588,614 @@ describeCapability('notify')('error paths — notify', () => {
         expect(result).toMatchObject({ success: false, result: 'Notification permission denied' });
     });
 });
+
+// ─── Section F/G/H: Google capability sync tests (sheets, docs, forms) ────────
+
+jest.mock('../../firebase', () => ({ requestGoogleScopes: jest.fn() }));
+jest.mock('expo-file-system/legacy', () => ({
+    readAsStringAsync: jest.fn(() => Promise.resolve('base64pdfcontent')),
+    writeAsStringAsync: jest.fn(() => Promise.resolve()),
+    deleteAsync: jest.fn(() => Promise.resolve()),
+    EncodingType: { Base64: 'base64' },
+    cacheDirectory: 'file:///cache/',
+    documentDirectory: 'file:///documents/',
+}));
+
+import { computeDiff, activeWatchers as sheetsWatchers, resourceCache as sheetsCache, writeQueue as sheetsQueue } from '../sheets';
+import { activeWatchers as docsWatchers, resourceCache as docsCache, writeQueue as docsQueue } from '../docs';
+import { activeWatchers as formsWatchers, resourceCache as formsCache } from '../forms';
+
+const { requestGoogleScopes } = require('../../firebase');
+
+// Helper: build a minimal fetch mock response
+const mockFetchOk = (body: any) =>
+    Promise.resolve({ ok: true, json: () => Promise.resolve(body), text: () => Promise.resolve('') } as any);
+
+// Flush all pending microtasks (for async chains with multiple awaits)
+const flushPromises = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+
+// Extract and parse the JSON payload from a createCallbackScript output
+function parseInjectedPayload(injectedScript: string): any {
+    const match = injectedScript.match(/var __d = "([\s\S]*?)";/);
+    if (!match) return null;
+    try { return JSON.parse(match[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\')); } catch { return null; }
+}
+
+describe('Google capabilities — sync (sheets, docs, forms)', () => {
+    beforeEach(() => {
+        jest.useFakeTimers();
+        (global.fetch as jest.Mock) = jest.fn();
+        requestGoogleScopes.mockResolvedValue('fake-token');
+        sheetsWatchers.clear();
+        sheetsCache.clear();
+        sheetsQueue.length = 0;
+        docsWatchers.clear();
+        docsCache.clear();
+        docsQueue.length = 0;
+        formsWatchers.clear();
+        formsCache.clear();
+    });
+
+    afterEach(() => {
+        sheetsWatchers.forEach(w => clearInterval(w.interval));
+        sheetsWatchers.clear();
+        docsWatchers.forEach(w => clearInterval(w.interval));
+        docsWatchers.clear();
+        formsWatchers.forEach(w => clearInterval(w.interval));
+        formsWatchers.clear();
+        jest.useRealTimers();
+    });
+
+    describeCapability('sheets')('handleMessage — sheets', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'sheets')!;
+
+    it('SHEETS_CREATE: creates sheet and returns sheetId + url', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ spreadsheetId: 'sid-1' })); // create
+        const result = await cap.handleMessage('SHEETS_CREATE', { title: 'My Sheet', headers: [] }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ sheetId: 'sid-1' });
+    });
+
+    it('SHEETS_GET_ROWS: parses headers and row objects', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            values: [['Name', 'Age'], ['Alice', '30'], ['Bob', '25']],
+        }));
+        const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-1' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        const parsed = JSON.parse(result!.result!);
+        expect(parsed.headers).toEqual(['Name', 'Age']);
+        expect(parsed.rows).toEqual([{ Name: 'Alice', Age: '30' }, { Name: 'Bob', Age: '25' }]);
+    });
+
+    it('SHEETS_GET_ROWS: returns empty arrays when sheet is empty', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ values: [] }));
+        const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-empty' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toEqual({ headers: [], rows: [] });
+    });
+
+    it('SHEETS_APPEND_ROWS: appends rows and returns updatedRows', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ updates: { updatedRows: 2 } }));
+        const result = await cap.handleMessage('SHEETS_APPEND_ROWS', {
+            sheetId: 'sid-1', rows: [['Alice', '30'], ['Bob', '25']],
+        }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ updatedRows: 2 });
+    });
+
+    it('SHEETS_APPEND_ROWS: empty rows array returns 0 without fetch', async () => {
+        const result = await cap.handleMessage('SHEETS_APPEND_ROWS', { sheetId: 'sid-1', rows: [] }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ updatedRows: 0 });
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('SHEETS_SET_ROWS: writes headers + rows and returns rowsWritten', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ values: [['Name', 'Age']] })) // GET headers
+            .mockResolvedValueOnce(mockFetchOk({}))  // clear
+            .mockResolvedValueOnce(mockFetchOk({})); // append
+        const rows = [{ Name: 'Alice', Age: '30' }];
+        const result = await cap.handleMessage('SHEETS_SET_ROWS', { sheetId: 'sid-1', rows }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ rowsWritten: 1 });
+    });
+
+    it('SHEETS_SET_ROWS: updates active watcher snapshot', async () => {
+        // Set up a fake watcher for this key
+        const fakeInterval = setInterval(() => {}, 99999);
+        sheetsWatchers.set('1_sid-watch', {
+            interval: fakeInterval,
+            webViewRef: ctx.webViewRef as any,
+            callbackName: 'onChange',
+            snapshot: [{ Name: 'Old', Age: '10' }],
+        });
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ values: [['Name', 'Age']] }))
+            .mockResolvedValueOnce(mockFetchOk({}))
+            .mockResolvedValueOnce(mockFetchOk({}));
+        const rows = [{ Name: 'Alice', Age: '30' }];
+        await cap.handleMessage('SHEETS_SET_ROWS', { sheetId: 'sid-watch', rows }, ctx);
+        expect(sheetsWatchers.get('1_sid-watch')?.snapshot).toEqual(rows);
+        clearInterval(fakeInterval);
+    });
+
+    it('SHEETS_WATCH: immediate callback with initial:true', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            values: [['Name'], ['Alice']],
+        }));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+        injectSpy.mockClear();
+
+        const result = await cap.handleMessage('SHEETS_WATCH',
+            { sheetId: 'sid-1', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+        expect(result).toMatchObject({ success: true, deferredCallback: true });
+
+        await flushPromises();
+
+        expect(injectSpy).toHaveBeenCalled();
+        const payload = parseInjectedPayload(injectSpy.mock.calls[0][0] as string);
+        expect(payload.initial).toBe(true);
+        expect(payload.headers).toContain('Name');
+    });
+
+    it('SHEETS_WATCH: poll fires when external change detected', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ values: [['Name'], ['Alice']] }));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+        injectSpy.mockClear();
+
+        await cap.handleMessage('SHEETS_WATCH', { sheetId: 'sid-2', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+        await flushPromises();
+        injectSpy.mockClear();
+
+        // External change: Bob added
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ values: [['Name'], ['Alice'], ['Bob']] }));
+        jest.advanceTimersByTime(5000);
+        await flushPromises();
+
+        expect(injectSpy).toHaveBeenCalled();
+        const payload = parseInjectedPayload(injectSpy.mock.calls[0][0] as string);
+        expect(payload.initial).toBe(false);
+        expect(payload.rows.some((r: any) => r.Name === 'Bob')).toBe(true);
+    });
+
+    it('SHEETS_WATCH: poll after setRows does not re-fire', async () => {
+        const rows = [{ Name: 'Alice', Age: '30' }];
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ values: [['Name', 'Age'], ['Alice', '30']] }));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+
+        await cap.handleMessage('SHEETS_WATCH', { sheetId: 'sid-3', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+        await flushPromises();
+
+        // After initial poll, snapshot is updated; simulate what setRows also does
+        const watcher = sheetsWatchers.get('1_sid-3');
+        if (watcher) watcher.snapshot = rows;
+        injectSpy.mockClear();
+
+        // Poll returns identical data
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ values: [['Name', 'Age'], ['Alice', '30']] }));
+        jest.advanceTimersByTime(5000);
+        await flushPromises();
+
+        expect(injectSpy).not.toHaveBeenCalled();
+    });
+
+    it('SHEETS_STOP_WATCH: clears interval and returns stopped:true', async () => {
+        const fakeInterval = setInterval(() => {}, 99999);
+        sheetsWatchers.set('1_sid-stop', {
+            interval: fakeInterval,
+            webViewRef: ctx.webViewRef as any,
+            callbackName: 'onChanged',
+            snapshot: null,
+        });
+        const result = await cap.handleMessage('SHEETS_STOP_WATCH', { sheetId: 'sid-stop' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ stopped: true });
+        expect(sheetsWatchers.has('1_sid-stop')).toBe(false);
+    });
+
+    it('computeDiff: detects changed rows by index comparison', () => {
+        const prev = [{ Name: 'Alice', Age: '30' }, { Name: 'Bob', Age: '25' }];
+        const next = [{ Name: 'Alice', Age: '31' }, { Name: 'Bob', Age: '25' }];
+        const diff = computeDiff(prev, next);
+        expect(diff.changed).toEqual([{ Name: 'Alice', Age: '31' }]);
+        expect(diff.changed.length).toBe(1);
+        expect(diff.deleted.length).toBe(0);
+        expect(diff.added.length).toBe(0);
+    });
+
+    it('computeDiff: detects additions and deletions by length', () => {
+        const prev = [{ Name: 'Alice' }];
+        const next = [{ Name: 'Alice' }, { Name: 'Bob' }, { Name: 'Charlie' }];
+        const diff = computeDiff(prev, next);
+        expect(diff.added).toEqual([{ Name: 'Bob' }, { Name: 'Charlie' }]);
+        expect(diff.deleted).toEqual([]);
+        expect(diff.changed).toEqual([]); // Alice unchanged
+    });
+
+    it('null token: returns failure', async () => {
+        requestGoogleScopes.mockResolvedValueOnce(null);
+        const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-1' }, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+
+    it('SHEETS_GET_ROWS offline with cache: returns cached data', async () => {
+        sheetsCache.set('sid-cached', { headers: ['X'], rows: [{ X: '1' }] });
+        (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
+        const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-cached' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!).cached).toBe(true);
+    });
+
+    it('SHEETS_GET_ROWS offline without cache: returns offline:true', async () => {
+        (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
+        const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-nocache' }, ctx);
+        expect(result).toMatchObject({ success: false });
+        expect(JSON.parse(result!.result!).offline).toBe(true);
+    });
+
+    it('SHEETS_SET_ROWS offline: queues write and returns queued:true', async () => {
+        (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
+        const result = await cap.handleMessage('SHEETS_SET_ROWS', { sheetId: 'sid-q', rows: [{ X: '1' }] }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!).queued).toBe(true);
+        expect(sheetsQueue.length).toBe(1);
+    });
+
+    it('returns null for unknown type', async () => {
+        const result = await cap.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+// ─── Section G: docs — watch + setDoc ────────────────────────────────────────
+
+describeCapability('docs')('handleMessage — docs', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'docs')!;
+
+    it('DOCS_CREATE: creates doc and returns docId + url', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ documentId: 'doc-1' }));
+        const result = await cap.handleMessage('DOCS_CREATE', { title: 'My Doc', content: '' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ docId: 'doc-1' });
+    });
+
+    it('DOCS_GET: returns title and content', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            title: 'Test Doc',
+            body: { content: [{ paragraph: { paragraphStyle: { namedStyleType: 'NORMAL_TEXT' }, elements: [{ textRun: { content: 'Hello\n' } }] } }] },
+        }));
+        const result = await cap.handleMessage('DOCS_GET', { docId: 'doc-1' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        const parsed = JSON.parse(result!.result!);
+        expect(parsed.title).toBe('Test Doc');
+        expect(typeof parsed.content).toBe('string');
+    });
+
+    it('DOCS_APPEND_TEXT: appends text to doc', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: { content: [{ endIndex: 5 }] } })) // GET for endIndex
+            .mockResolvedValueOnce(mockFetchOk({}))   // batchUpdate append
+            .mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: { content: [] } })); // GET for snapshot update
+        const result = await cap.handleMessage('DOCS_APPEND_TEXT', { docId: 'doc-1', text: 'New text' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ docId: 'doc-1' });
+    });
+
+    it('GENERATE_PDF: returns base64 string', async () => {
+        const result = await cap.handleMessage('GENERATE_PDF', { content: '# Hello', type: 'markdown' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(typeof result!.result).toBe('string');
+    });
+
+    it('DOCS_SET: replaces doc content and returns docId', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: { content: [{ endIndex: 10 }] } })) // GET for endIndex
+            .mockResolvedValueOnce(mockFetchOk({}))   // batchUpdate (delete+insert)
+            .mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: { content: [] } })); // GET for snapshot update
+        const result = await cap.handleMessage('DOCS_SET', { docId: 'doc-1', content: '# New' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ docId: 'doc-1' });
+    });
+
+    it('DOCS_SET on empty doc (endIndex ≤ 2): skips deleteContentRange', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ title: 'Empty', body: { content: [{ endIndex: 1 }] } })) // GET
+            .mockResolvedValueOnce(mockFetchOk({}))   // batchUpdate (insert only)
+            .mockResolvedValueOnce(mockFetchOk({ title: 'Empty', body: { content: [] } })); // snapshot GET
+        const result = await cap.handleMessage('DOCS_SET', { docId: 'doc-empty', content: 'Hello' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        // Verify deleteContentRange was NOT sent (body of batchUpdate should only have insert)
+        const batchCall = (global.fetch as jest.Mock).mock.calls[1];
+        const body = JSON.parse(batchCall[1].body);
+        expect(body.requests.every((r: any) => !r.deleteContentRange)).toBe(true);
+    });
+
+    it('DOCS_SET: updates active watcher snapshot', async () => {
+        const fakeInterval = setInterval(() => {}, 99999);
+        docsWatchers.set('1_doc-w', {
+            interval: fakeInterval,
+            webViewRef: ctx.webViewRef as any,
+            callbackName: 'onChange',
+            snapshot: { title: 'Old', content: 'Old content' },
+        });
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: { content: [{ endIndex: 5 }] } }))
+            .mockResolvedValueOnce(mockFetchOk({}))
+            .mockResolvedValueOnce(mockFetchOk({ title: 'New', body: { content: [{ paragraph: { paragraphStyle: { namedStyleType: 'NORMAL_TEXT' }, elements: [{ textRun: { content: 'New content\n' } }] } }] } }));
+        await cap.handleMessage('DOCS_SET', { docId: 'doc-w', content: 'New content' }, ctx);
+        const snap = docsWatchers.get('1_doc-w')?.snapshot;
+        expect(snap?.title).toBe('New');
+        clearInterval(fakeInterval);
+    });
+
+    it('DOCS_WATCH: immediate callback with initial:true', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            title: 'My Doc',
+            body: { content: [{ paragraph: { paragraphStyle: { namedStyleType: 'NORMAL_TEXT' }, elements: [{ textRun: { content: 'Hello\n' } }] } }] },
+        }));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+        injectSpy.mockClear();
+
+        const result = await cap.handleMessage('DOCS_WATCH',
+            { docId: 'doc-1', intervalMs: 10000, callbackName: 'onDocChanged' }, ctx);
+        expect(result).toMatchObject({ success: true, deferredCallback: true });
+
+        await flushPromises();
+
+        expect(injectSpy).toHaveBeenCalled();
+        const payload = parseInjectedPayload(injectSpy.mock.calls[0][0] as string);
+        expect(payload.initial).toBe(true);
+        expect(payload.title).toBe('My Doc');
+    });
+
+    it('DOCS_WATCH: poll detects external content change', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: { content: [] } }));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+        injectSpy.mockClear();
+
+        await cap.handleMessage('DOCS_WATCH', { docId: 'doc-poll', intervalMs: 10000, callbackName: 'onDocChanged' }, ctx);
+        await flushPromises();
+        injectSpy.mockClear();
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            title: 'Doc Updated',
+            body: { content: [{ paragraph: { paragraphStyle: { namedStyleType: 'NORMAL_TEXT' }, elements: [{ textRun: { content: 'New!\n' } }] } }] },
+        }));
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        expect(injectSpy).toHaveBeenCalled();
+        const payload = parseInjectedPayload(injectSpy.mock.calls[0][0] as string);
+        expect(payload.initial).toBe(false);
+        expect(payload.title).toBe('Doc Updated');
+    });
+
+    it('DOCS_WATCH: poll after appendText does not re-fire', async () => {
+        const docBody = { content: [{ paragraph: { paragraphStyle: { namedStyleType: 'NORMAL_TEXT' }, elements: [{ textRun: { content: 'Hello\n' } }] } }] };
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: docBody }));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+
+        await cap.handleMessage('DOCS_WATCH', { docId: 'doc-ap', intervalMs: 10000, callbackName: 'onDoc' }, ctx);
+        await flushPromises(); // snapshot is now { title: 'Doc', content: 'Hello' }
+        injectSpy.mockClear();
+
+        // Poll returns same data — snapshot matches, should not fire
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: docBody }));
+        jest.advanceTimersByTime(10000);
+        await flushPromises();
+
+        expect(injectSpy).not.toHaveBeenCalled();
+    });
+
+    it('DOCS_STOP_WATCH: clears interval and returns stopped:true', async () => {
+        const fakeInterval = setInterval(() => {}, 99999);
+        docsWatchers.set('1_doc-stop', {
+            interval: fakeInterval,
+            webViewRef: ctx.webViewRef as any,
+            callbackName: 'onChange',
+            snapshot: null,
+        });
+        const result = await cap.handleMessage('DOCS_STOP_WATCH', { docId: 'doc-stop' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ stopped: true });
+        expect(docsWatchers.has('1_doc-stop')).toBe(false);
+    });
+
+    it('DOCS_GET offline with cache: returns cached data with cached:true', async () => {
+        docsCache.set('doc-c', { title: 'Cached Doc', content: 'old content' });
+        (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
+        const result = await cap.handleMessage('DOCS_GET', { docId: 'doc-c' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!).cached).toBe(true);
+    });
+
+    it('DOCS_GET offline without cache: returns offline:true', async () => {
+        (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
+        const result = await cap.handleMessage('DOCS_GET', { docId: 'doc-nocache' }, ctx);
+        expect(result).toMatchObject({ success: false });
+        expect(JSON.parse(result!.result!).offline).toBe(true);
+    });
+
+    it('DOCS_SET offline: queues write and returns queued:true', async () => {
+        (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
+        const result = await cap.handleMessage('DOCS_SET', { docId: 'doc-q', content: 'Hello' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!).queued).toBe(true);
+        expect(docsQueue.length).toBe(1);
+    });
+
+    it('null token: returns failure', async () => {
+        requestGoogleScopes.mockResolvedValueOnce(null);
+        const result = await cap.handleMessage('DOCS_GET', { docId: 'doc-1' }, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+
+    it('returns null for unknown type', async () => {
+        const result = await cap.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+});
+
+// ─── Section H: forms — watchResponses ───────────────────────────────────────
+
+describeCapability('forms')('handleMessage — forms', () => {
+    const cap = ALL_CAPABILITIES.find(c => c.id === 'forms')!;
+
+    const mockFormSchema = { items: [{ questionItem: { question: { questionId: 'q1' } }, title: 'Name' }] };
+    const mockResponsesData = { responses: [{ responseId: 'r1', lastSubmittedTime: '2026-01-01', answers: { q1: { textAnswers: { answers: [{ value: 'Alice' }] } } } }] };
+
+    beforeEach(() => {
+        // AsyncStorage mock
+        require('@react-native-async-storage/async-storage').getItem.mockResolvedValue(JSON.stringify({ q1: 'Name' }));
+        require('@react-native-async-storage/async-storage').setItem.mockResolvedValue(undefined);
+    });
+
+    it('FORMS_CREATE: creates form and returns formId + shareUrl', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ formId: 'form-1' }))  // create
+            .mockResolvedValueOnce(mockFetchOk({}))                     // batchUpdate
+            .mockResolvedValueOnce(mockFetchOk({ items: [] }));         // GET schema
+        const result = await cap.handleMessage('FORMS_CREATE', {
+            title: 'My Form', questions: [{ type: 'text', title: 'Name' }],
+        }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ formId: 'form-1' });
+    });
+
+    it('FORMS_UPDATE: updates form and returns formId', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk({ items: [] }))           // GET existing
+            .mockResolvedValueOnce(mockFetchOk({}))                      // batchUpdate
+            .mockResolvedValueOnce(mockFetchOk({ items: [] }));          // GET updated
+        const result = await cap.handleMessage('FORMS_UPDATE', {
+            formId: 'form-1', title: 'Updated', questions: [{ type: 'text', title: 'Email' }],
+        }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ formId: 'form-1' });
+    });
+
+    it('FORMS_GET_RESPONSES: returns human-readable responses', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk(mockFormSchema))
+            .mockResolvedValueOnce(mockFetchOk(mockResponsesData));
+        const result = await cap.handleMessage('FORMS_GET_RESPONSES', { formId: 'form-1' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        const parsed = JSON.parse(result!.result!);
+        expect(parsed.responses[0].answers['Name']).toBe('Alice');
+    });
+
+    it('FORMS_WATCH_RESPONSES: initial callback with initial:true and all responses', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk(mockFormSchema))
+            .mockResolvedValueOnce(mockFetchOk(mockResponsesData));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+        injectSpy.mockClear();
+
+        const result = await cap.handleMessage('FORMS_WATCH_RESPONSES',
+            { formId: 'form-1', intervalMs: 15000, callbackName: 'onResponses' }, ctx);
+        expect(result).toMatchObject({ success: true, deferredCallback: true });
+
+        await flushPromises();
+
+        expect(injectSpy).toHaveBeenCalled();
+        const payload = parseInjectedPayload(injectSpy.mock.calls[0][0] as string);
+        expect(payload.initial).toBe(true);
+        expect(payload.responses[0].answers['Name']).toBe('Alice');
+    });
+
+    it('FORMS_WATCH_RESPONSES: poll with new response fires callback with newResponses', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk(mockFormSchema))
+            .mockResolvedValueOnce(mockFetchOk(mockResponsesData));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+        injectSpy.mockClear();
+
+        await cap.handleMessage('FORMS_WATCH_RESPONSES',
+            { formId: 'form-2', intervalMs: 15000, callbackName: 'onResponses' }, ctx);
+        await flushPromises();
+        injectSpy.mockClear();
+
+        const twoResponses = {
+            responses: [
+                { responseId: 'r1', lastSubmittedTime: '2026-01-01', answers: { q1: { textAnswers: { answers: [{ value: 'Alice' }] } } } },
+                { responseId: 'r2', lastSubmittedTime: '2026-01-02', answers: { q1: { textAnswers: { answers: [{ value: 'Bob' }] } } } },
+            ],
+        };
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk(mockFormSchema))
+            .mockResolvedValueOnce(mockFetchOk(twoResponses));
+        jest.advanceTimersByTime(15000);
+        await flushPromises();
+
+        expect(injectSpy).toHaveBeenCalled();
+        const payload = parseInjectedPayload(injectSpy.mock.calls[0][0] as string);
+        expect(payload.newResponses).toHaveLength(1);
+        expect(payload.newResponses[0].answers['Name']).toBe('Bob');
+        expect(payload.initial).toBe(false);
+    });
+
+    it('FORMS_WATCH_RESPONSES: poll without new responses does not fire', async () => {
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk(mockFormSchema))
+            .mockResolvedValueOnce(mockFetchOk(mockResponsesData));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+
+        await cap.handleMessage('FORMS_WATCH_RESPONSES',
+            { formId: 'form-3', intervalMs: 15000, callbackName: 'onResponses' }, ctx);
+        await flushPromises();
+        injectSpy.mockClear();
+
+        (global.fetch as jest.Mock)
+            .mockResolvedValueOnce(mockFetchOk(mockFormSchema))
+            .mockResolvedValueOnce(mockFetchOk(mockResponsesData));
+        jest.advanceTimersByTime(15000);
+        await flushPromises();
+
+        expect(injectSpy).not.toHaveBeenCalled();
+    });
+
+    it('FORMS_STOP_WATCH_RESPONSES: clears interval and returns stopped:true', async () => {
+        const fakeInterval = setInterval(() => {}, 99999);
+        formsWatchers.set('1_form-stop', {
+            interval: fakeInterval,
+            webViewRef: ctx.webViewRef as any,
+            callbackName: 'onResponses',
+            snapshot: null,
+        });
+        const result = await cap.handleMessage('FORMS_STOP_WATCH_RESPONSES', { formId: 'form-stop' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!)).toMatchObject({ stopped: true });
+        expect(formsWatchers.has('1_form-stop')).toBe(false);
+    });
+
+    it('FORMS_GET_RESPONSES offline with cache: returns cached:true', async () => {
+        formsCache.set('form-c', [{ responseId: 'r1', submitTime: '', answers: {} }]);
+        (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
+        const result = await cap.handleMessage('FORMS_GET_RESPONSES', { formId: 'form-c' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(JSON.parse(result!.result!).cached).toBe(true);
+    });
+
+    it('FORMS_GET_RESPONSES offline without cache: returns offline:true', async () => {
+        (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
+        const result = await cap.handleMessage('FORMS_GET_RESPONSES', { formId: 'form-nocache' }, ctx);
+        expect(result).toMatchObject({ success: false });
+        expect(JSON.parse(result!.result!).offline).toBe(true);
+    });
+
+    it('null token: returns failure', async () => {
+        requestGoogleScopes.mockResolvedValueOnce(null);
+        const result = await cap.handleMessage('FORMS_GET_RESPONSES', { formId: 'form-1' }, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+
+    it('returns null for unknown type', async () => {
+        const result = await cap.handleMessage('UNKNOWN', {}, ctx);
+        expect(result).toBeNull();
+    });
+    }); // end describeCapability('forms')
+}); // end describe('Google capabilities — sync')
 

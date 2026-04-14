@@ -276,18 +276,19 @@ describeCapability('sheets')('AppacadabraSheets', () => {
         expect(msg.data.sheetId).toBe('sheet1');
     });
 
-    it('clearRows → SHEETS_CLEAR_ROWS with sheetId', () => {
-        sb.AppacadabraSheets.clearRows('sheet1', 'cb');
+    it('watchSheet → SHEETS_WATCH with sheetId and interval', () => {
+        sb.AppacadabraSheets.watchSheet('sheet1', 5000, 'cb');
         const msg = getLastMessage(postMessage);
-        expect(msg.type).toBe('SHEETS_CLEAR_ROWS');
+        expect(msg.type).toBe('SHEETS_WATCH');
         expect(msg.data.sheetId).toBe('sheet1');
+        expect(msg.data.intervalMs).toBe(5000);
     });
 
-    it('updateCell → SHEETS_UPDATE_CELL with cell', () => {
-        sb.AppacadabraSheets.updateCell('sheet1', 'A1', 'val', 'cb');
+    it('setRows → SHEETS_SET_ROWS with rows', () => {
+        sb.AppacadabraSheets.setRows('sheet1', [{ Name: 'Alice' }], 'cb');
         const msg = getLastMessage(postMessage);
-        expect(msg.type).toBe('SHEETS_UPDATE_CELL');
-        expect(msg.data.cell).toBe('A1');
+        expect(msg.type).toBe('SHEETS_SET_ROWS');
+        expect(msg.data.sheetId).toBe('sheet1');
     });
 });
 

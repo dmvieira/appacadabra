@@ -1,8 +1,9 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
 import { marked } from 'marked';
+import { createCallbackScript } from './mediaHelpers';
 import { requestGoogleScopes } from '../firebase';
-import { CapabilityModule, HandlerContext, HandlerResult } from './types';
+import { CapabilityModule, HandlerContext, HandlerResult, WebViewRef } from './types';
 
 // ============= Google Docs Helpers =============
 
@@ -133,45 +134,118 @@ function docsToMarkdown(doc: any): string {
     return lines.join('\n').replace(/\n+$/, '');
 }
 
+// ── Module-level state ────────────────────────────────────────────────────────
+
+interface DocSnapshot { title: string; content: string; }
+
+interface DocWatcher {
+    interval: ReturnType<typeof setInterval>;
+    webViewRef: WebViewRef;
+    callbackName: string;
+    snapshot: DocSnapshot | null;
+}
+
+export const activeWatchers = new Map<string, DocWatcher>();
+export const resourceCache = new Map<string, DocSnapshot>();
+
+interface PendingWrite { execute: () => Promise<void>; }
+export const writeQueue: PendingWrite[] = [];
+
+export function isNetworkError(e: unknown): boolean {
+    return e instanceof TypeError && e.message.includes('Network');
+}
+
+async function flushWriteQueue(): Promise<void> {
+    while (writeQueue.length > 0) {
+        const item = writeQueue[0];
+        try {
+            await item.execute();
+            writeQueue.shift();
+        } catch (e) {
+            if (isNetworkError(e)) break;
+            writeQueue.shift();
+        }
+    }
+}
+
+const DOCS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+const DOCS_API = 'https://docs.googleapis.com/v1/documents';
+
+async function fetchDocSnapshot(docId: string, token: string): Promise<DocSnapshot> {
+    const res = await fetch(`${DOCS_API}/${docId}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`Failed to get doc: ${res.status}`);
+    const doc = await res.json();
+    return { title: doc.title, content: docsToMarkdown(doc) };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const docsCapability: CapabilityModule = {
     id: 'docs',
     displayName: 'Docs',
     minVersion: '1.0.0',
 
     docs: `📄 DOCS (AppacadabraDocs) — Google Sign-In required (consent shown on first use only)
-⚠️ **Acesso restrito:** \`getDoc()\` e \`appendText()\` funcionam **apenas com documentos criados por este app via \`createDoc()\`**. Não é possível acessar Google Docs externos do usuário — nem mesmo documentos que ele criou manualmente no Google Drive. Se o usuário mencionar uma planilha ou documento que já existe, explique que o app só pode acessar arquivos que ele mesmo gerou e ofereça criar um novo.
+⚠️ **Acesso restrito:** \`getDoc()\`, \`appendText()\`, \`setDoc()\` e \`watchDoc()\` funcionam **apenas com documentos criados por este app via \`createDoc()\`**. Não é possível acessar Google Docs externos do usuário — nem mesmo documentos que ele criou manualmente no Google Drive. Se o usuário mencionar um documento que já existe, explique que o app só pode acessar arquivos que ele mesmo gerou e ofereça criar um novo.
+
+**Operações básicas:**
 - \`createDoc(title, content, callback)\` — Creates a Google Doc with optional markdown content
   - \`content\`: optional markdown string. Supported: \`# H1\`, \`## H2\`, \`### H3\`, \`- bullet\`, \`**bold**\`, \`*italic*\`, plain paragraphs
   - **Callback data**: \`{ docId, url }\`
-- \`getDoc(docId, callback)\` — Reads document content as markdown (round-trip with \`createDoc\`)
-  - **Callback data**: \`{ title, content }\` (content is markdown string — headings, bullets, bold, italic preserved)
+- \`getDoc(docId, callback)\` — Reads document content as markdown
+  - **Callback data**: \`{ title, content }\` (content is a markdown string — headings, bullets, bold, italic preserved)
 - \`appendText(docId, text, callback)\` — Appends markdown text to the end of the document
   - **Callback data**: \`{ docId }\`
+- \`setDoc(docId, content, callback)\` — **Replaces** the entire document body with new markdown content
+  - Use when you want to rewrite or clear the document (e.g. save a new version of a report)
+  - After success, the active watcher (if any) skips the next poll to avoid a spurious change event
+  - Offline: write is queued and auto-replayed; callback receives \`{ queued: true }\`
+  - **Callback data**: \`{ docId }\` or \`{ queued: true }\`
 - \`generatePDF(content, type, callback)\` — Converts markdown or HTML to a styled PDF (base64)
   - \`content\`: markdown string or full HTML document
   - \`type\`: \`'markdown'\` (default, auto-styled) | \`'html'\` (used as-is)
   - **Callback data (string)**: Base64-encoded PDF — use with \`AppacadabraShare.shareFile(base64, 'application/pdf', 'doc.pdf', cb)\`
-- **Usage**:
-  \`\`\`js
-  AppacadabraDocs.createDoc("Patient Report",
-    \`# Maria Silva
-## Personal Info
-**Date:** 2026-03-26
-**Diagnosis:** Flu
 
-## Symptoms
-- Fever
-- Cough
-- Fatigue\`,
-    "onDocReady");
-  window.onDocReady = function(ok, data) {
-    if (!ok) return;
-    localStorage.setItem('reportDocId', data.docId);
-    showLink(data.url);
-  };
-  AppacadabraDocs.appendText(localStorage.getItem('reportDocId'),
-    "\\n## Follow-up\\nScheduled for **2026-04-01**", "onAppended");
-  \`\`\``,
+**Modo sync nativo (recomendado para documentos editados externamente):**
+
+Use \`watchDoc\` em spells tipo "editor colaborativo" ou "log compartilhado" onde o documento pode ser editado de fora (outro usuário ou device). A capability detecta mudanças e dispara o callback automaticamente.
+
+- \`watchDoc(docId, intervalMs, callbackName)\` — Starts polling for external changes
+  - Fires **immediately** with current content (\`initial: true\`), then only when title or content changes
+  - \`intervalMs\`: polling interval in ms (e.g. \`10000\` = every 10 s)
+  - **Callback data (ok, data)**:
+    - \`data.title\`: document title
+    - \`data.content\`: full document content as markdown string
+    - \`data.initial\`: \`true\` on first call — use to populate the editor
+    - \`data.cached\`: \`true\` when offline and data comes from last successful read
+  - Offline behaviour: fires with \`{ cached: true, ...lastKnownData }\`; if no cache: \`ok=false, { offline: true }\`
+- \`stopWatchDoc(docId, callbackName)\` — Stops polling
+  - **Callback data**: \`{ stopped: true }\`
+
+**⚠️ REGRA:** Use \`watchDoc\` + \`setDoc\` para edição colaborativa. Use \`appendText\` + \`getDoc\` para docs de insert-only (diários, logs). Não salve \`lastSyncTimestamp\` no localStorage — o diff fica na capability.
+
+**Usage (sync nativo):**
+\`\`\`js
+// 1. Ao abrir: carrega conteúdo atual (ou cache offline)
+AppacadabraDocs.watchDoc(localStorage.getItem('docId'), 10000, 'onDocChanged');
+window.onDocChanged = function(ok, data) {
+  if (!ok) { if (data.offline) showBanner('Sem conexão'); return; }
+  if (data.cached) showBanner('Conteúdo offline');
+  editor.setValue(data.content);   // data.initial = true na primeira chamada
+};
+
+// 2. Salvar nova versão completa (enfileira offline automaticamente)
+AppacadabraDocs.setDoc(localStorage.getItem('docId'), editor.getValue(), 'onSaved');
+window.onSaved = function(ok, data) {
+  if (data.queued) showBanner('Salvando quando voltar a internet');
+};
+
+// 3. Só acrescentar (sem reescrever tudo)
+AppacadabraDocs.appendText(localStorage.getItem('docId'), '\\n## Nova Seção\\nConteúdo', 'done');
+
+// 4. Parar ao fechar a tela
+AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
+\`\`\``,
 
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraDocs = {
@@ -187,6 +261,18 @@ export const docsCapability: CapabilityModule = {
       console.log('[AppacadabraDocs.appendText] docId:', docId, 'callback:', callbackName);
       sendMessage('DOCS_APPEND_TEXT', { docId, text }, callbackName);
     },
+    setDoc: function(docId, content, callbackName) {
+      console.log('[AppacadabraDocs.setDoc] docId:', docId, 'callback:', callbackName);
+      sendMessage('DOCS_SET', { docId, content }, callbackName);
+    },
+    watchDoc: function(docId, intervalMs, callbackName) {
+      console.log('[AppacadabraDocs.watchDoc] docId:', docId, 'interval:', intervalMs, 'callback:', callbackName);
+      sendMessage('DOCS_WATCH', { docId, intervalMs: intervalMs || 10000, callbackName: callbackName }, callbackName);
+    },
+    stopWatchDoc: function(docId, callbackName) {
+      console.log('[AppacadabraDocs.stopWatchDoc] docId:', docId, 'callback:', callbackName);
+      sendMessage('DOCS_STOP_WATCH', { docId }, callbackName);
+    },
     generatePDF: function(content, type, callbackName) {
       console.log('[AppacadabraDocs.generatePDF] type:', type, 'callback:', callbackName);
       sendMessage('GENERATE_PDF', { content, type: type || 'markdown' }, callbackName);
@@ -194,10 +280,7 @@ export const docsCapability: CapabilityModule = {
   };
 `,
 
-    handleMessage: async (type: string, data: any, _ctx: HandlerContext): Promise<Partial<HandlerResult> | null> => {
-        const DOCS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
-        const DOCS_API = 'https://docs.googleapis.com/v1/documents';
-
+    handleMessage: async (type: string, data: any, ctx: HandlerContext): Promise<Partial<HandlerResult> | null> => {
         switch (type) {
             case 'DOCS_CREATE': {
                 console.log(`[Bridge] Docs create: ${data.title}`);
@@ -246,16 +329,16 @@ export const docsCapability: CapabilityModule = {
                         return { success: false, result: 'Google Docs access was denied. Please try again and grant permission.' };
                     }
 
-                    const docRes = await fetch(`${DOCS_API}/${data.docId}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                    if (!docRes.ok) {
-                        return { success: false, result: `Failed to get doc: ${docRes.status} ${await docRes.text()}` };
-                    }
-                    const doc = await docRes.json();
-                    const content = docsToMarkdown(doc);
-                    return { success: true, result: JSON.stringify({ title: doc.title, content }) };
+                    const snap = await fetchDocSnapshot(data.docId, token);
+                    resourceCache.set(data.docId, snap);
+                    await flushWriteQueue();
+                    return { success: true, result: JSON.stringify(snap) };
                 } catch (e) {
+                    if (isNetworkError(e)) {
+                        const cached = resourceCache.get(data.docId);
+                        if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
+                        return { success: false, result: JSON.stringify({ offline: true }) };
+                    }
                     return { success: false, result: e instanceof Error ? e.message : 'Docs get error' };
                 }
             }
@@ -291,10 +374,184 @@ export const docsCapability: CapabilityModule = {
                         }
                     }
 
+                    // Update watcher snapshot so the next poll doesn't re-fire
+                    try {
+                        const snap = await fetchDocSnapshot(data.docId, token);
+                        resourceCache.set(data.docId, snap);
+                        const key = `${ctx.appId}_${data.docId}`;
+                        const watcher = activeWatchers.get(key);
+                        if (watcher) watcher.snapshot = snap;
+                    } catch (_) { /* snapshot update is best-effort */ }
+
+                    await flushWriteQueue();
                     return { success: true, result: JSON.stringify({ docId: data.docId }) };
                 } catch (e) {
+                    if (isNetworkError(e)) {
+                        const docId = data.docId;
+                        const text = data.text;
+                        writeQueue.push({
+                            execute: async () => {
+                                const t = await requestGoogleScopes(DOCS_SCOPES);
+                                if (!t) throw new Error('No token');
+                                const dr = await fetch(`${DOCS_API}/${docId}`, { headers: { Authorization: `Bearer ${t}` } });
+                                if (!dr.ok) throw new Error(`${dr.status}`);
+                                const d = await dr.json();
+                                const bc: any[] = d.body?.content || [];
+                                const last = bc[bc.length - 1];
+                                const ei: number = (last?.endIndex ?? 1) - 1;
+                                const { requests: reqs } = buildDocsRequests('\n' + text, ei);
+                                if (reqs.length > 0) {
+                                    await fetch(`${DOCS_API}/${docId}:batchUpdate`, {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ requests: reqs }),
+                                    });
+                                }
+                            },
+                        });
+                        return { success: true, result: JSON.stringify({ queued: true }) };
+                    }
                     return { success: false, result: e instanceof Error ? e.message : 'Docs append error' };
                 }
+            }
+
+            case 'DOCS_SET': {
+                console.log(`[Bridge] Docs set: ${data.docId}`);
+                const docId: string = data.docId;
+                const content: string = data.content ?? '';
+
+                const executeSetDoc = async () => {
+                    const token = await requestGoogleScopes(DOCS_SCOPES);
+                    if (!token) throw new Error('Google Docs access was denied.');
+
+                    // GET current doc to find endIndex
+                    const docRes = await fetch(`${DOCS_API}/${docId}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (!docRes.ok) throw new Error(`Failed to get doc: ${docRes.status}`);
+                    const doc = await docRes.json();
+                    const bodyContent: any[] = doc.body?.content || [];
+                    const lastSegment = bodyContent[bodyContent.length - 1];
+                    const endIndex: number = lastSegment?.endIndex ?? 1;
+
+                    const requests: any[] = [];
+
+                    // Delete existing body content (if any)
+                    if (endIndex > 2) {
+                        requests.push({
+                            deleteContentRange: {
+                                range: { startIndex: 1, endIndex: endIndex - 1 },
+                            },
+                        });
+                    }
+
+                    // Insert new content
+                    if (content) {
+                        const { requests: insertReqs } = buildDocsRequests(content, 1);
+                        requests.push(...insertReqs);
+                    }
+
+                    if (requests.length > 0) {
+                        const batchRes = await fetch(`${DOCS_API}/${docId}:batchUpdate`, {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ requests }),
+                        });
+                        if (!batchRes.ok) throw new Error(`Failed to set doc: ${batchRes.status}`);
+                    }
+
+                    // Update watcher snapshot so next poll doesn't re-fire
+                    try {
+                        const snap = await fetchDocSnapshot(docId, token);
+                        resourceCache.set(docId, snap);
+                        const key = `${ctx.appId}_${docId}`;
+                        const watcher = activeWatchers.get(key);
+                        if (watcher) watcher.snapshot = snap;
+                    } catch (_) { /* best-effort */ }
+                };
+
+                try {
+                    await executeSetDoc();
+                    await flushWriteQueue();
+                    return { success: true, result: JSON.stringify({ docId }) };
+                } catch (e) {
+                    if (isNetworkError(e)) {
+                        writeQueue.push({ execute: executeSetDoc });
+                        return { success: true, result: JSON.stringify({ queued: true }) };
+                    }
+                    return { success: false, result: e instanceof Error ? e.message : 'Docs set error' };
+                }
+            }
+
+            case 'DOCS_WATCH': {
+                console.log(`[Bridge] Docs watch: ${data.docId}`);
+                const docId: string = data.docId;
+                const intervalMs: number = data.intervalMs || 10000;
+                const callbackName: string = data.callbackName;
+                const key = `${ctx.appId}_${docId}`;
+
+                const existing = activeWatchers.get(key);
+                if (existing) clearInterval(existing.interval);
+
+                const doPoll = async (initial: boolean) => {
+                    try {
+                        const token = await requestGoogleScopes(DOCS_SCOPES);
+                        if (!token) {
+                            if (initial) {
+                                const cached = resourceCache.get(docId);
+                                const script = cached
+                                    ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true }))
+                                    : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                                ctx.webViewRef.current?.injectJavaScript(script);
+                            }
+                            return;
+                        }
+
+                        const snap = await fetchDocSnapshot(docId, token);
+                        resourceCache.set(docId, snap);
+
+                        const watcher = activeWatchers.get(key);
+                        const prev = watcher?.snapshot ?? null;
+                        const hasChanged = initial || prev === null
+                            || prev.title !== snap.title
+                            || prev.content !== snap.content;
+
+                        if (hasChanged) {
+                            if (watcher) watcher.snapshot = snap;
+                            const script = createCallbackScript(callbackName, true,
+                                JSON.stringify({ ...snap, initial }));
+                            ctx.webViewRef.current?.injectJavaScript(script);
+                        }
+
+                        await flushWriteQueue();
+                    } catch (e) {
+                        if (isNetworkError(e) && initial) {
+                            const cached = resourceCache.get(docId);
+                            const script = cached
+                                ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true }))
+                                : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                            ctx.webViewRef.current?.injectJavaScript(script);
+                        }
+                    }
+                };
+
+                const interval = setInterval(() => doPoll(false), intervalMs);
+                activeWatchers.set(key, { interval, webViewRef: ctx.webViewRef, callbackName, snapshot: null });
+
+                doPoll(true);
+
+                return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+            }
+
+            case 'DOCS_STOP_WATCH': {
+                console.log(`[Bridge] Docs stop watch: ${data.docId}`);
+                const key = `${ctx.appId}_${data.docId}`;
+                const watcher = activeWatchers.get(key);
+                if (watcher) {
+                    clearInterval(watcher.interval);
+                    activeWatchers.delete(key);
+                }
+                return { success: true, result: JSON.stringify({ stopped: true }) };
             }
 
             case 'GENERATE_PDF': {

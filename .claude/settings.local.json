@@ -63,7 +63,8 @@
       "Bash(\"/c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb\" shell:*)",
       "Read(//c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/**)",
       "Read(//c/dev/appacadabra/$LOCALAPPDATA/Android/Sdk/platform-tools/**)",
-      "mcp__plugin_firebase_firebase__functions_list_functions"
+      "mcp__plugin_firebase_firebase__functions_list_functions",
+      "Bash(\"C:\\\\dev\\\\appacadabra\\\\lib\\\\capabilities\\\\__tests__\\\\capabilities.test.ts.tmp\":*)"
     ]
   }
 }

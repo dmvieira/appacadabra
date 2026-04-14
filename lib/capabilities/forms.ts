@@ -1,6 +1,28 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createCallbackScript } from './mediaHelpers';
 import { requestGoogleScopes } from '../firebase';
-import { CapabilityModule, HandlerContext, HandlerResult } from './types';
+import { CapabilityModule, HandlerContext, HandlerResult, WebViewRef } from './types';
+
+// ── Module-level state ────────────────────────────────────────────────────────
+
+interface FormWatcher {
+    interval: ReturnType<typeof setInterval>;
+    webViewRef: WebViewRef;
+    callbackName: string;
+    snapshot: Set<string> | null; // set of responseIds seen so far
+}
+
+export const activeWatchers = new Map<string, FormWatcher>();
+export const resourceCache = new Map<string, any[]>(); // formId → responses[]
+
+export function isNetworkError(e: unknown): boolean {
+    return e instanceof TypeError && e.message.includes('Network');
+}
+
+const FORMS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+const FORMS_API = 'https://forms.googleapis.com/v1/forms';
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const formsCapability: CapabilityModule = {
     id: 'forms',
@@ -8,7 +30,9 @@ export const formsCapability: CapabilityModule = {
     minVersion: '1.0.0',
 
     docs: `📋 FORMS (AppacadabraForms) — Google Sign-In required (consent shown on first use only)
-⚠️ **Acesso restrito:** \`getResponses()\` e \`updateForm()\` funcionam **apenas com formulários criados por este app via \`createForm()\`**. Formulários externos não podem ser acessados por duas razões: (1) restrição de escopo OAuth \`drive.file\`; (2) o mapeamento de perguntas é armazenado internamente no momento da criação e não existe para formulários externos. Nunca sugira ao usuário usar um formulário Google existente.
+⚠️ **Acesso restrito:** \`getResponses()\`, \`updateForm()\` e \`watchResponses()\` funcionam **apenas com formulários criados por este app via \`createForm()\`**. Formulários externos não podem ser acessados por duas razões: (1) restrição de escopo OAuth \`drive.file\`; (2) o mapeamento de perguntas é armazenado internamente no momento da criação e não existe para formulários externos. Nunca sugira ao usuário usar um formulário Google existente.
+
+**Operações básicas:**
 - \`createForm(title, questions[], callback)\` — Creates a Google Form
   - \`questions\`: \`[{ type: "text"|"paragraph"|"radio"|"checkbox"|"dropdown", title: "...", options?: ["..."] }]\`
   - **Callback data**: \`{ formId, shareUrl }\`
@@ -16,8 +40,24 @@ export const formsCapability: CapabilityModule = {
   - **Callback data**: \`{ formId, shareUrl }\`
 - \`getResponses(formId, callback)\` — Fetches all responses with human-readable answer labels
   - **Callback data**: \`{ responses: [{ responseId, submitTime, answers: { "Question title": "answer" } }] }\`
-  - Question title mapping and history preservation are handled automatically by the bridge
-- **Question types** (all support \`required: true\` and optional \`title\`):
+
+**Modo sync nativo (recomendado — recebe novas respostas em tempo real):**
+
+Use \`watchResponses\` em spells de dashboard que precisam exibir respostas conforme chegam, sem o usuário ter de recarregar a página. A capability detecta responseIds novos e dispara o callback apenas quando há novidades.
+
+- \`watchResponses(formId, intervalMs, callbackName)\` — Starts polling for new responses
+  - Fires **immediately** with all current responses (\`initial: true\`), then only when new ones arrive
+  - \`intervalMs\`: polling interval in ms (e.g. \`15000\` = every 15 s)
+  - **Callback data (ok, data)**:
+    - \`data.responses\`: all responses (use on \`initial: true\` to populate the table)
+    - \`data.newResponses\`: only the responses added since the last poll (use to append new rows)
+    - \`data.initial\`: \`true\` on first call — render everything; subsequent calls only when new responses exist
+    - \`data.cached\`: \`true\` when offline and data comes from last successful read
+  - Offline behaviour: fires with \`{ cached: true, ...lastKnownData }\`; if no cache: \`ok=false, { offline: true }\`
+- \`stopWatchResponses(formId, callbackName)\` — Stops polling
+  - **Callback data**: \`{ stopped: true }\`
+
+**Question types** (all support \`required: true\` and optional \`title\`):
   - \`"text"\` — short text answer: \`{ type: "text", title: "Full name" }\`
   - \`"paragraph"\` — long text answer: \`{ type: "paragraph", title: "Describe your symptoms" }\`
   - \`"radio"\` — pick exactly one: \`{ type: "radio", title: "Reason for visit", options: ["Consultation", "Follow-up", "Emergency"] }\`
@@ -30,26 +70,23 @@ export const formsCapability: CapabilityModule = {
   - \`"duration"\` — elapsed time (hh:mm:ss): \`{ type: "duration", title: "How long did symptoms last?" }\`
   - \`"scale"\` — numeric range (\`low\` and \`high\` required): \`{ type: "scale", title: "Pain level", low: 1, high: 10, lowLabel: "No pain", highLabel: "Worst pain" }\`
   - \`"rating"\` — icon-based rating: \`{ type: "rating", title: "Rate your experience", level: 5, icon: "star" }\` — \`icon\`: \`"star"\` | \`"heart"\` | \`"thumb"\` (default: \`"star"\`, default level: \`5\`)
-- **Usage**:
-  \`\`\`js
-  AppacadabraForms.createForm("Patient Intake", [
-    { type: "text", title: "Full name" },
-    { type: "text", title: "Date of birth" },
-    { type: "radio", title: "Reason for visit", options: ["Consultation", "Follow-up", "Emergency"] },
-    { type: "checkbox", title: "Current symptoms", options: ["Fever", "Cough", "Fatigue", "None"] },
-    { type: "paragraph", title: "Additional notes" }
-  ], "onFormReady");
-  window.onFormReady = function(ok, data) {
-    if (!ok) return;
-    localStorage.setItem('formId', data.formId);
-    showShareLink(data.shareUrl); // send this link to the patient
-  };
 
-  AppacadabraForms.getResponses(localStorage.getItem('formId'), "onResponses");
-  window.onResponses = function(ok, data) {
-    if (ok) displayResponses(data.responses); // answers[title] always works, even for edited forms
-  };
-  \`\`\``,
+**⚠️ REGRA:** Use \`watchResponses\` em vez de \`getResponses\` em qualquer spell que precise mostrar respostas ao vivo. Não use \`setInterval\` manual na spell — o polling fica na capability.
+
+**Usage (sync nativo):**
+\`\`\`js
+// 1. Ao abrir: carrega respostas existentes e fica ouvindo novas
+AppacadabraForms.watchResponses(localStorage.getItem('formId'), 15000, 'onResponses');
+window.onResponses = function(ok, data) {
+  if (!ok) { if (data.offline) showBanner('Sem conexão'); return; }
+  if (data.cached) showBanner('Dados offline');
+  if (data.initial) renderAll(data.responses);   // primeira chamada: mostra tudo
+  else data.newResponses.forEach(r => addRow(r)); // chamadas seguintes: só os novos
+};
+
+// 2. Parar ao fechar a tela
+AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
+\`\`\``,
 
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraForms = {
@@ -64,14 +101,19 @@ export const formsCapability: CapabilityModule = {
     getResponses: function(formId, callbackName) {
       console.log('[AppacadabraForms.getResponses] formId:', formId, 'callback:', callbackName);
       sendMessage('FORMS_GET_RESPONSES', { formId }, callbackName);
+    },
+    watchResponses: function(formId, intervalMs, callbackName) {
+      console.log('[AppacadabraForms.watchResponses] formId:', formId, 'interval:', intervalMs, 'callback:', callbackName);
+      sendMessage('FORMS_WATCH_RESPONSES', { formId, intervalMs: intervalMs || 15000, callbackName: callbackName }, callbackName);
+    },
+    stopWatchResponses: function(formId, callbackName) {
+      console.log('[AppacadabraForms.stopWatchResponses] formId:', formId, 'callback:', callbackName);
+      sendMessage('FORMS_STOP_WATCH_RESPONSES', { formId }, callbackName);
     }
   };
 `,
 
-    handleMessage: async (type: string, data: any, _ctx: HandlerContext): Promise<Partial<HandlerResult> | null> => {
-        const FORMS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
-        const FORMS_API = 'https://forms.googleapis.com/v1/forms';
-
+    handleMessage: async (type: string, data: any, ctx: HandlerContext): Promise<Partial<HandlerResult> | null> => {
         const buildQuestionItem = (q: any, index: number) => {
             let questionField: any;
             if (q.type === 'text') {
@@ -112,6 +154,31 @@ export const formsCapability: CapabilityModule = {
                 },
             };
         };
+
+        const parseResponses = (rawResponses: any[], schemaMap: Record<string, string>) =>
+            rawResponses.map((r: any) => {
+                const answers: Record<string, string> = {};
+                for (const [questionId, answerObj] of Object.entries(r.answers || {})) {
+                    const title = schemaMap[questionId] || questionId;
+                    const a = answerObj as any;
+                    let value = '';
+                    if (a.textAnswers?.answers?.length) {
+                        value = a.textAnswers.answers[0].value ?? '';
+                    } else if (a.choiceAnswers?.answers?.length) {
+                        value = a.choiceAnswers.answers.map((x: any) => x.value).join(', ');
+                    } else if (a.dateAnswers?.answers?.length) {
+                        const d = a.dateAnswers.answers[0];
+                        value = `${d.year ?? ''}-${String(d.month ?? '').padStart(2, '0')}-${String(d.day ?? '').padStart(2, '0')}`;
+                    } else if (a.timeAnswers?.answers?.length) {
+                        const tm = a.timeAnswers.answers[0];
+                        value = `${String(tm.hours ?? 0).padStart(2, '0')}:${String(tm.minutes ?? 0).padStart(2, '0')}`;
+                    } else if (a.scaleAnswers?.answers?.length) {
+                        value = String(a.scaleAnswers.answers[0].value ?? '');
+                    }
+                    answers[title] = value;
+                }
+                return { responseId: r.responseId, submitTime: r.lastSubmittedTime, answers };
+            });
 
         switch (type) {
             case 'FORMS_CREATE': {
@@ -267,35 +334,119 @@ export const formsCapability: CapabilityModule = {
                     }
                     const respData = await respRes.json();
                     const rawResponses: any[] = respData.responses || [];
-
-                    const responses = rawResponses.map((r: any) => {
-                        const answers: Record<string, string> = {};
-                        for (const [questionId, answerObj] of Object.entries(r.answers || {})) {
-                            const title = schemaMap[questionId] || questionId;
-                            const a = answerObj as any;
-                            let value = '';
-                            if (a.textAnswers?.answers?.length) {
-                                value = a.textAnswers.answers[0].value ?? '';
-                            } else if (a.choiceAnswers?.answers?.length) {
-                                value = a.choiceAnswers.answers.map((x: any) => x.value).join(', ');
-                            } else if (a.dateAnswers?.answers?.length) {
-                                const d = a.dateAnswers.answers[0];
-                                value = `${d.year ?? ''}-${String(d.month ?? '').padStart(2, '0')}-${String(d.day ?? '').padStart(2, '0')}`;
-                            } else if (a.timeAnswers?.answers?.length) {
-                                const tm = a.timeAnswers.answers[0];
-                                value = `${String(tm.hours ?? 0).padStart(2, '0')}:${String(tm.minutes ?? 0).padStart(2, '0')}`;
-                            } else if (a.scaleAnswers?.answers?.length) {
-                                value = String(a.scaleAnswers.answers[0].value ?? '');
-                            }
-                            answers[title] = value;
-                        }
-                        return { responseId: r.responseId, submitTime: r.lastSubmittedTime, answers };
-                    });
+                    const responses = parseResponses(rawResponses, schemaMap);
+                    resourceCache.set(formId, responses);
 
                     return { success: true, result: JSON.stringify({ responses }) };
                 } catch (e) {
+                    if (isNetworkError(e)) {
+                        const cached = resourceCache.get(data.formId);
+                        if (cached) return { success: true, result: JSON.stringify({ responses: cached, cached: true }) };
+                        return { success: false, result: JSON.stringify({ offline: true }) };
+                    }
                     return { success: false, result: e instanceof Error ? e.message : 'Forms get responses error' };
                 }
+            }
+
+            case 'FORMS_WATCH_RESPONSES': {
+                console.log(`[Bridge] Forms watch responses: ${data.formId}`);
+                const formId: string = data.formId;
+                const intervalMs: number = data.intervalMs || 15000;
+                const callbackName: string = data.callbackName;
+                const key = `${ctx.appId}_${formId}`;
+
+                const existing = activeWatchers.get(key);
+                if (existing) clearInterval(existing.interval);
+
+                const fetchResponses = async (token: string): Promise<any[]> => {
+                    const stored = await AsyncStorage.getItem('appacadabra_forms_' + formId);
+                    const storedMap: Record<string, string> = stored ? JSON.parse(stored) : {};
+
+                    const formRes = await fetch(`${FORMS_API}/${formId}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const currentForm = await formRes.json();
+                    const currentMap: Record<string, string> = {};
+                    for (const item of (currentForm.items || [])) {
+                        if (item.questionItem?.question?.questionId) {
+                            currentMap[item.questionItem.question.questionId] = item.title || '';
+                        }
+                    }
+                    const schemaMap = { ...storedMap, ...currentMap };
+
+                    const respRes = await fetch(`${FORMS_API}/${formId}/responses`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (!respRes.ok) throw new Error(`${respRes.status}`);
+                    const respData = await respRes.json();
+                    return parseResponses(respData.responses || [], schemaMap);
+                };
+
+                const doPoll = async (initial: boolean) => {
+                    try {
+                        const token = await requestGoogleScopes(FORMS_SCOPES);
+                        if (!token) {
+                            if (initial) {
+                                const cached = resourceCache.get(formId);
+                                const script = cached
+                                    ? createCallbackScript(callbackName, true, JSON.stringify({ responses: cached, newResponses: [], initial: true, cached: true }))
+                                    : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                                ctx.webViewRef.current?.injectJavaScript(script);
+                            }
+                            return;
+                        }
+
+                        const responses = await fetchResponses(token);
+                        resourceCache.set(formId, responses);
+
+                        const watcher = activeWatchers.get(key);
+                        const prevSnapshot = watcher?.snapshot ?? null;
+
+                        if (initial || prevSnapshot === null) {
+                            // First call: fire with all responses
+                            const allIds = new Set(responses.map((r: any) => r.responseId));
+                            if (watcher) watcher.snapshot = allIds;
+                            const script = createCallbackScript(callbackName, true,
+                                JSON.stringify({ responses, newResponses: [], initial: true }));
+                            ctx.webViewRef.current?.injectJavaScript(script);
+                        } else {
+                            // Subsequent polls: only fire if new responses found
+                            const newResponses = responses.filter((r: any) => !prevSnapshot.has(r.responseId));
+                            if (newResponses.length > 0) {
+                                newResponses.forEach((r: any) => prevSnapshot.add(r.responseId));
+                                const script = createCallbackScript(callbackName, true,
+                                    JSON.stringify({ responses, newResponses, initial: false }));
+                                ctx.webViewRef.current?.injectJavaScript(script);
+                            }
+                        }
+                    } catch (e) {
+                        if (isNetworkError(e) && initial) {
+                            const cached = resourceCache.get(formId);
+                            const script = cached
+                                ? createCallbackScript(callbackName, true, JSON.stringify({ responses: cached, newResponses: [], initial: true, cached: true }))
+                                : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                            ctx.webViewRef.current?.injectJavaScript(script);
+                        }
+                    }
+                };
+
+                const interval = setInterval(() => doPoll(false), intervalMs);
+                activeWatchers.set(key, { interval, webViewRef: ctx.webViewRef, callbackName, snapshot: null });
+
+                doPoll(true);
+
+                return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+            }
+
+            case 'FORMS_STOP_WATCH_RESPONSES': {
+                console.log(`[Bridge] Forms stop watch: ${data.formId}`);
+                const key = `${ctx.appId}_${data.formId}`;
+                const watcher = activeWatchers.get(key);
+                if (watcher) {
+                    clearInterval(watcher.interval);
+                    activeWatchers.delete(key);
+                }
+                return { success: true, result: JSON.stringify({ stopped: true }) };
             }
 
             default:

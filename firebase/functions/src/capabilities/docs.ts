@@ -10,39 +10,66 @@ const docsCapability: FirebaseCapabilityDoc = {
     displayName: "Docs",
     minVersion: "1.0.0",
     docs: `📄 DOCS (AppacadabraDocs) — Google Sign-In required (consent shown on first use only)
-⚠️ **Acesso restrito:** \`getDoc()\` e \`appendText()\` funcionam **apenas com documentos criados por este app via \`createDoc()\`**. Não é possível acessar Google Docs externos do usuário — nem mesmo documentos que ele criou manualmente no Google Drive. Se o usuário mencionar uma planilha ou documento que já existe, explique que o app só pode acessar arquivos que ele mesmo gerou e ofereça criar um novo.
+⚠️ **Acesso restrito:** \`getDoc()\`, \`appendText()\`, \`setDoc()\` e \`watchDoc()\` funcionam **apenas com documentos criados por este app via \`createDoc()\`**. Não é possível acessar Google Docs externos do usuário — nem mesmo documentos que ele criou manualmente no Google Drive. Se o usuário mencionar um documento que já existe, explique que o app só pode acessar arquivos que ele mesmo gerou e ofereça criar um novo.
+
+**Operações básicas:**
 - \`createDoc(title, content, callback)\` — Creates a Google Doc with optional markdown content
   - \`content\`: optional markdown string. Supported: \`# H1\`, \`## H2\`, \`### H3\`, \`- bullet\`, \`**bold**\`, \`*italic*\`, plain paragraphs
   - **Callback data**: \`{ docId, url }\`
-- \`getDoc(docId, callback)\` — Reads document content as markdown (round-trip with \`createDoc\`)
-  - **Callback data**: \`{ title, content }\` (content is markdown string — headings, bullets, bold, italic preserved)
+- \`getDoc(docId, callback)\` — Reads document content as markdown
+  - **Callback data**: \`{ title, content }\` (content is a markdown string — headings, bullets, bold, italic preserved)
 - \`appendText(docId, text, callback)\` — Appends markdown text to the end of the document
   - **Callback data**: \`{ docId }\`
+- \`setDoc(docId, content, callback)\` — **Replaces** the entire document body with new markdown content
+  - Use when you want to rewrite or clear the document (e.g. save a new version of a report)
+  - After success, the active watcher (if any) skips the next poll to avoid a spurious change event
+  - Offline: write is queued and auto-replayed; callback receives \`{ queued: true }\`
+  - **Callback data**: \`{ docId }\` or \`{ queued: true }\`
 - \`generatePDF(content, type, callback)\` — Converts markdown or HTML to a styled PDF (base64)
   - \`content\`: markdown string or full HTML document
   - \`type\`: \`'markdown'\` (default, auto-styled) | \`'html'\` (used as-is)
   - **Callback data (string)**: Base64-encoded PDF — use with \`AppacadabraShare.shareFile(base64, 'application/pdf', 'doc.pdf', cb)\`
-- **Usage**:
-  \`\`\`js
-  AppacadabraDocs.createDoc("Patient Report",
-    \`# Maria Silva
-## Personal Info
-**Date:** 2026-03-26
-**Diagnosis:** Flu
 
-## Symptoms
-- Fever
-- Cough
-- Fatigue\`,
-    "onDocReady");
-  window.onDocReady = function(ok, data) {
-    if (!ok) return;
-    localStorage.setItem('reportDocId', data.docId);
-    showLink(data.url);
-  };
-  AppacadabraDocs.appendText(localStorage.getItem('reportDocId'),
-    "\\\\n## Follow-up\\\\nScheduled for **2026-04-01**", "onAppended");
-  \`\`\``,
+**Modo sync nativo (recomendado para documentos editados externamente):**
+
+Use \`watchDoc\` em spells tipo "editor colaborativo" ou "log compartilhado" onde o documento pode ser editado de fora (outro usuário ou device). A capability detecta mudanças e dispara o callback automaticamente.
+
+- \`watchDoc(docId, intervalMs, callbackName)\` — Starts polling for external changes
+  - Fires **immediately** with current content (\`initial: true\`), then only when title or content changes
+  - \`intervalMs\`: polling interval in ms (e.g. \`10000\` = every 10 s)
+  - **Callback data (ok, data)**:
+    - \`data.title\`: document title
+    - \`data.content\`: full document content as markdown string
+    - \`data.initial\`: \`true\` on first call — use to populate the editor
+    - \`data.cached\`: \`true\` when offline and data comes from last successful read
+  - Offline behaviour: fires with \`{ cached: true, ...lastKnownData }\`; if no cache: \`ok=false, { offline: true }\`
+- \`stopWatchDoc(docId, callbackName)\` — Stops polling
+  - **Callback data**: \`{ stopped: true }\`
+
+**⚠️ REGRA:** Use \`watchDoc\` + \`setDoc\` para edição colaborativa. Use \`appendText\` + \`getDoc\` para docs de insert-only (diários, logs). Não salve \`lastSyncTimestamp\` no localStorage — o diff fica na capability.
+
+**Usage (sync nativo):**
+\`\`\`js
+// 1. Ao abrir: carrega conteúdo atual (ou cache offline)
+AppacadabraDocs.watchDoc(localStorage.getItem('docId'), 10000, 'onDocChanged');
+window.onDocChanged = function(ok, data) {
+  if (!ok) { if (data.offline) showBanner('Sem conexão'); return; }
+  if (data.cached) showBanner('Conteúdo offline');
+  editor.setValue(data.content);   // data.initial = true na primeira chamada
+};
+
+// 2. Salvar nova versão completa (enfileira offline automaticamente)
+AppacadabraDocs.setDoc(localStorage.getItem('docId'), editor.getValue(), 'onSaved');
+window.onSaved = function(ok, data) {
+  if (data.queued) showBanner('Salvando quando voltar a internet');
+};
+
+// 3. Só acrescentar (sem reescrever tudo)
+AppacadabraDocs.appendText(localStorage.getItem('docId'), '\\\\n## Nova Seção\\\\nConteúdo', 'done');
+
+// 4. Parar ao fechar a tela
+AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
+\`\`\``,
 };
 
 export default docsCapability;
