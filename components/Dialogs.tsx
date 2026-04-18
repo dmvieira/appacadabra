@@ -29,6 +29,7 @@ interface ChatDialogProps {
 export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend, initialText }: ChatDialogProps) {
     const [text, setText] = useState('');
     const [textBeforeSpeech, setTextBeforeSpeech] = useState('');
+    const [isSending, setIsSending] = useState(false);
     const { isListening, transcript, startListening, stopListening } = useSpeechToText();
 
     // Update text when speech recognition gives results (replace, not append)
@@ -49,12 +50,17 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend, in
     }, [visible]);
 
     const handleSend = async () => {
-        if (text.trim() && !isGenerating) {
-            const result = await onSend(text.trim());
-            // Clear text only if result is explicitly true or undefined (void), 
-            // but if it returns false (error), keep text.
-            if (result !== false) {
-                setText('');
+        if (text.trim() && !isGenerating && !isSending) {
+            setIsSending(true);
+            try {
+                const result = await onSend(text.trim());
+                // Clear text only if result is explicitly true or undefined (void),
+                // but if it returns false (error), keep text.
+                if (result !== false) {
+                    setText('');
+                }
+            } finally {
+                setIsSending(false);
             }
         }
     };
@@ -129,9 +135,9 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend, in
                         )}
                         {!isGenerating && (
                             <TouchableOpacity
-                                style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
+                                style={[styles.sendBtn, (!text.trim() || isSending) && styles.sendBtnDisabled]}
                                 onPress={handleSend}
-                                disabled={!text.trim()}
+                                disabled={!text.trim() || isSending}
                             >
                                 <Text style={styles.sendText}>{t('send')}</Text>
                             </TouchableOpacity>
