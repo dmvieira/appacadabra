@@ -223,7 +223,7 @@ describe('getInjectedJS contract', () => {
         camera: ['AppacadabraCamera', 'takePhoto', 'recordVideo'],
         audio: ['AppacadabraAudio', 'recordStart', 'speak'],
         forms: ['AppacadabraForms', 'createForm', 'getResponses', 'watchResponses', 'stopWatchResponses'],
-        docs: ['AppacadabraDocs', 'createDoc', 'generatePDF', 'setDoc', 'watchDoc', 'stopWatchDoc'],
+        docs: ['AppacadabraDocs', 'createDoc', 'convert', 'setDoc', 'watchDoc', 'stopWatchDoc'],
         sheets: ['AppacadabraSheets', 'createSheet', 'appendRows', 'watchSheet', 'stopWatchSheet', 'setRows'],
         ai: ['AppacadabraAI', 'generate', 'similarity'],
     };
@@ -781,6 +781,72 @@ describe('Google capabilities — sync (sheets, docs, forms)', () => {
         expect(injectSpy).not.toHaveBeenCalled();
     });
 
+    it('SHEETS_WATCH re-watch: does not fire callback when data unchanged', async () => {
+        const rows = [['Name', 'Age'], ['Alice', '30']];
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ values: rows }));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+
+        // First watch — populates snapshot
+        await cap.handleMessage('SHEETS_WATCH', { sheetId: 'sid-rewatch', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+        await flushPromises();
+        injectSpy.mockClear();
+
+        // Re-watch with identical data
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ values: rows }));
+        await cap.handleMessage('SHEETS_WATCH', { sheetId: 'sid-rewatch', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+        await flushPromises();
+
+        expect(injectSpy).not.toHaveBeenCalled();
+    });
+
+    it('SHEETS_WATCH re-watch: fires callback with diff when data changed', async () => {
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            values: [['Name', 'Age'], ['Alice', '30']],
+        }));
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+
+        // First watch
+        await cap.handleMessage('SHEETS_WATCH', { sheetId: 'sid-rewatch2', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+        await flushPromises();
+        injectSpy.mockClear();
+
+        // Re-watch with changed data (Bob added)
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            values: [['Name', 'Age'], ['Alice', '30'], ['Bob', '25']],
+        }));
+        await cap.handleMessage('SHEETS_WATCH', { sheetId: 'sid-rewatch2', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+        await flushPromises();
+
+        expect(injectSpy).toHaveBeenCalled();
+        const payload = parseInjectedPayload(injectSpy.mock.calls[0][0] as string);
+        expect(payload.initial).toBe(false);
+        expect(payload.rows.some((r: any) => r.Name === 'Bob')).toBe(true);
+        expect(payload.added).toEqual([{ Name: 'Bob', Age: '25' }]);
+    });
+
+    it('SHEETS_WATCH re-watch: preserves snapshot from previous watcher', async () => {
+        const initialRows = [{ Name: 'Alice', Age: '30' }];
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            values: [['Name', 'Age'], ['Alice', '30']],
+        }));
+
+        // First watch — builds snapshot
+        await cap.handleMessage('SHEETS_WATCH', { sheetId: 'sid-snap', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+        await flushPromises();
+
+        // Re-watch with same data — snapshot must be carried over to new watcher entry
+        (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({
+            values: [['Name', 'Age'], ['Alice', '30']],
+        }));
+        await cap.handleMessage('SHEETS_WATCH', { sheetId: 'sid-snap', intervalMs: 5000, callbackName: 'onChanged' }, ctx);
+
+        // Before doPoll completes, snapshot should already be the preserved one
+        const watcher = sheetsWatchers.get('1_sid-snap');
+        expect(watcher?.snapshot).toEqual(initialRows);
+
+        await flushPromises();
+    });
+
     it('SHEETS_STOP_WATCH: clears interval and returns stopped:true', async () => {
         const fakeInterval = setInterval(() => {}, 99999);
         sheetsWatchers.set('1_sid-stop', {
@@ -884,10 +950,27 @@ describeCapability('docs')('handleMessage — docs', () => {
         expect(JSON.parse(result!.result!)).toMatchObject({ docId: 'doc-1' });
     });
 
-    it('GENERATE_PDF: returns base64 string', async () => {
-        const result = await cap.handleMessage('GENERATE_PDF', { content: '# Hello', type: 'markdown' }, ctx);
+    it('CONVERT markdown→pdf: returns base64 string', async () => {
+        const result = await cap.handleMessage('CONVERT', { from: 'markdown', to: 'pdf', content: '# Hello' }, ctx);
         expect(result).toMatchObject({ success: true });
         expect(typeof result!.result).toBe('string');
+    });
+
+    it('CONVERT markdown→html: returns string', async () => {
+        const result = await cap.handleMessage('CONVERT', { from: 'markdown', to: 'html', content: '# Hello' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(typeof result!.result).toBe('string');
+    });
+
+    it('CONVERT html→markdown: returns string', async () => {
+        const result = await cap.handleMessage('CONVERT', { from: 'html', to: 'markdown', content: '<h1>Hello</h1>' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(typeof result!.result).toBe('string');
+    });
+
+    it('CONVERT unsupported: returns error', async () => {
+        const result = await cap.handleMessage('CONVERT', { from: 'markdown', to: 'docx', content: 'text' }, ctx);
+        expect(result).toMatchObject({ success: false });
     });
 
     it('DOCS_SET: replaces doc content and returns docId', async () => {

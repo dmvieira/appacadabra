@@ -27,6 +27,7 @@ export interface HandlerContext {
     appId: number | null;
     callbackName?: string;
     onJobCreated?: (jobId: string) => void;
+    isEditMode?: boolean;
 }
 
 export interface HandlerResult {

@@ -10,6 +10,17 @@ interface AlarmEntry { id: string; title: string; body: string; timeMs: number; 
 const alarmRegistry = new Map<number, Map<string, AlarmEntry>>();
 const alarmRegistryLoaded = new Set<number>();
 
+// Per-app serialization lock for write operations (prevents TOCTOU on notification limit)
+const notifyLocks = new Map<number, Promise<void>>();
+
+function withNotifyLock<T>(appId: number | null, fn: () => Promise<T>): Promise<T> {
+    const key = appId ?? 0;
+    const prev = notifyLocks.get(key) ?? Promise.resolve();
+    const task = prev.then(() => fn(), () => fn());
+    notifyLocks.set(key, task.then(() => undefined, () => undefined));
+    return task;
+}
+
 async function getAlarmRegistry(appId: number): Promise<Map<string, AlarmEntry>> {
     if (!alarmRegistry.has(appId)) alarmRegistry.set(appId, new Map());
     const reg = alarmRegistry.get(appId)!;
@@ -27,7 +38,7 @@ async function getAlarmRegistry(appId: number): Promise<Map<string, AlarmEntry>>
     return reg;
 }
 
-const MAX_NOTIFICATIONS_PER_SPELL = 10;
+const MAX_NOTIFICATIONS_PER_SPELL = 20;
 
 async function getSpellNotifications(appId: number | null) {
     if (!appId) return [];
@@ -89,7 +100,7 @@ export const notifyCapability: CapabilityModule = {
         'android.permission.POST_NOTIFICATIONS',
     ],
 
-    docs: `🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app (notifications + alarms combined). Use \`id\` to update existing notification.
+    docs: `🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 20 per app (notifications + alarms combined). Use \`id\` to update existing notification.
 - \`showNow(title, msg, callback)\` - Show notification immediately
     - **Return**: Notification ID (string)
 - \`schedule(title, msg, delayMinutes, callback, id?)\` - Schedule after delay
@@ -333,106 +344,122 @@ export const notifyCapability: CapabilityModule = {
             }
 
             case 'NOTIFY_SCHEDULE': {
-                const scheduleDate = new Date(data.timeMs || Date.now());
-                console.log(`[Bridge] Notify schedule: ${data.title} at ${scheduleDate.toISOString()}`);
+                if (ctx.isEditMode) {
+                    return { success: true, result: JSON.stringify({ skipped: true, reason: 'edit_mode' }) };
+                }
+                return await withNotifyLock(ctx.appId, async () => {
+                    const scheduleDate = new Date(data.timeMs || Date.now());
+                    console.log(`[Bridge] Notify schedule: ${data.title} at ${scheduleDate.toISOString()}`);
 
-                try {
-                    const schedulePerm = await Notifications.getPermissionsAsync();
-                    if (schedulePerm.status !== 'granted') {
-                        const { status } = await Notifications.requestPermissionsAsync();
-                        if (status !== 'granted') {
-                            return { success: false, result: 'Notification permission denied' };
-                        }
-                    }
-
-                    await Notifications.setNotificationChannelAsync(`spell-${ctx.appId}`, {
-                        name: `Spell ${ctx.appId}`,
-                        importance: Notifications.AndroidImportance.HIGH,
-                        vibrationPattern: [0, 250, 250, 250],
-                        lightColor: '#FF9500',
-                    });
-
-                    await cancelDuplicateNotification(ctx.appId, data.title, data.message);
-
-                    if (!data.id && await isAtNotificationLimit(ctx.appId)) {
-                        return { success: false, result: `Limit reached (max ${MAX_NOTIFICATIONS_PER_SPELL} notifications per spell)` };
-                    }
-
-                    const titleStr = typeof data.title === 'string' ? data.title : String(data.title || '');
-                    const bodyStr = typeof data.message === 'string' ? data.message : String(data.message || t('appName'));
-                    const appIdStr = ctx.appId ? String(ctx.appId) : '0';
-
-                    if (data.id) {
-                        try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
-                        if (ctx.appId) {
-                            const reg = await getAlarmRegistry(ctx.appId);
-                            if (reg.has(String(data.id))) {
-                                await NativeModules.AlarmModule.cancelAlarm(String(data.id));
-                                reg.delete(String(data.id));
-                                await db.deleteAlarm(ctx.appId, String(data.id)).catch(() => { });
+                    try {
+                        const schedulePerm = await Notifications.getPermissionsAsync();
+                        if (schedulePerm.status !== 'granted') {
+                            const { status } = await Notifications.requestPermissionsAsync();
+                            if (status !== 'granted') {
+                                return { success: false, result: 'Notification permission denied' };
                             }
                         }
-                    }
 
-                    if (data.isAlarm) {
-                        const alarmId = data.id ? String(data.id) : `alarm-${ctx.appId}-${Date.now()}`;
-                        await NativeModules.AlarmModule.scheduleAlarm(alarmId, titleStr, bodyStr, scheduleDate.getTime());
+                        await Notifications.setNotificationChannelAsync(`spell-${ctx.appId}`, {
+                            name: `Spell ${ctx.appId}`,
+                            importance: Notifications.AndroidImportance.HIGH,
+                            vibrationPattern: [0, 250, 250, 250],
+                            lightColor: '#FF9500',
+                        });
 
-                        if (ctx.appId) {
-                            const reg = await getAlarmRegistry(ctx.appId);
-                            reg.set(alarmId, { id: alarmId, title: titleStr, body: bodyStr, timeMs: scheduleDate.getTime(), isAlarm: true });
-                            await db.saveAlarm(ctx.appId, alarmId, titleStr, bodyStr, scheduleDate.getTime()).catch(() => { });
+                        await cancelDuplicateNotification(ctx.appId, data.title, data.message);
+
+                        let isExistingId = false;
+                        if (data.id) {
+                            if (ctx.appId) {
+                                const reg = await getAlarmRegistry(ctx.appId);
+                                isExistingId = reg.has(String(data.id));
+                            }
+                            if (!isExistingId) {
+                                const scheduled = await getSpellNotifications(ctx.appId);
+                                isExistingId = scheduled.some(n => n.identifier === String(data.id));
+                            }
+                        }
+                        if (!isExistingId && await isAtNotificationLimit(ctx.appId)) {
+                            return { success: false, result: `Limit reached (max ${MAX_NOTIFICATIONS_PER_SPELL} notifications per spell)` };
                         }
 
-                        markBackupDirty();
-                        return { success: true, result: alarmId };
-                    } else {
-                        const rawDelay = Math.floor((scheduleDate.getTime() - Date.now()) / 1000);
-                        const secondsDelay = Math.max(1, rawDelay);
-
-                        const safeTrigger: any = {
-                            type: 'timeInterval',
-                            seconds: Number(secondsDelay),
-                            repeats: false,
-                        };
-
-                        const safeContent: any = {
-                            title: String(titleStr),
-                            body: String(bodyStr),
-                        };
-
-                        if (appIdStr && appIdStr !== '0') {
-                            const channelId = 'spell-' + String(appIdStr);
-
-                            await Notifications.setNotificationChannelAsync(channelId, {
-                                name: data.title || `App ${appIdStr}`,
-                                importance: Notifications.AndroidImportance.DEFAULT,
-                            });
-
-                            safeContent.channelId = channelId;
-                            safeContent.badge = Number(appIdStr);
-                        }
-
-                        const request: any = {
-                            content: safeContent,
-                            trigger: safeTrigger,
-                        };
+                        const titleStr = typeof data.title === 'string' ? data.title : String(data.title || '');
+                        const bodyStr = typeof data.message === 'string' ? data.message : String(data.message || t('appName'));
+                        const appIdStr = ctx.appId ? String(ctx.appId) : '0';
 
                         if (data.id) {
-                            request.identifier = String(data.id);
+                            try { await Notifications.cancelScheduledNotificationAsync(data.id); } catch { }
+                            if (ctx.appId) {
+                                const reg = await getAlarmRegistry(ctx.appId);
+                                if (reg.has(String(data.id))) {
+                                    await NativeModules.AlarmModule.cancelAlarm(String(data.id));
+                                    reg.delete(String(data.id));
+                                    await db.deleteAlarm(ctx.appId, String(data.id)).catch(() => { });
+                                }
+                            }
                         }
 
-                        console.log(`[Bridge] CLEAN OBJECT ATTEMPT: ${JSON.stringify(request)}`);
+                        if (data.isAlarm) {
+                            const alarmId = data.id ? String(data.id) : `alarm-${ctx.appId}-${Date.now()}`;
+                            await NativeModules.AlarmModule.scheduleAlarm(alarmId, titleStr, bodyStr, scheduleDate.getTime());
 
-                        const identifier = await Notifications.scheduleNotificationAsync(request);
-                        markBackupDirty();
-                        return { success: true, result: identifier };
+                            if (ctx.appId) {
+                                const reg = await getAlarmRegistry(ctx.appId);
+                                reg.set(alarmId, { id: alarmId, title: titleStr, body: bodyStr, timeMs: scheduleDate.getTime(), isAlarm: true });
+                                await db.saveAlarm(ctx.appId, alarmId, titleStr, bodyStr, scheduleDate.getTime()).catch(() => { });
+                            }
+
+                            markBackupDirty();
+                            return { success: true, result: alarmId };
+                        } else {
+                            const rawDelay = Math.floor((scheduleDate.getTime() - Date.now()) / 1000);
+                            const secondsDelay = Math.max(1, rawDelay);
+
+                            const safeTrigger: any = {
+                                type: 'timeInterval',
+                                seconds: Number(secondsDelay),
+                                repeats: false,
+                            };
+
+                            const safeContent: any = {
+                                title: String(titleStr),
+                                body: String(bodyStr),
+                            };
+
+                            if (appIdStr && appIdStr !== '0') {
+                                const channelId = 'spell-' + String(appIdStr);
+
+                                await Notifications.setNotificationChannelAsync(channelId, {
+                                    name: data.title || `App ${appIdStr}`,
+                                    importance: Notifications.AndroidImportance.DEFAULT,
+                                });
+
+                                safeContent.channelId = channelId;
+                                safeContent.badge = Number(appIdStr);
+                            }
+
+                            const request: any = {
+                                content: safeContent,
+                                trigger: safeTrigger,
+                            };
+
+                            if (data.id) {
+                                request.identifier = String(data.id);
+                            }
+
+                            console.log(`[Bridge] CLEAN OBJECT ATTEMPT: ${JSON.stringify(request)}`);
+
+                            const identifier = await Notifications.scheduleNotificationAsync(request);
+                            markBackupDirty();
+                            return { success: true, result: identifier };
+                        }
+                    } catch (e) {
+                        console.error('[Bridge] NOTIFY_SCHEDULE Error:', e);
+                        const errorMessage = e instanceof Error ? e.message : String(e);
+                        return { success: false, result: errorMessage };
                     }
-                } catch (e) {
-                    console.error('[Bridge] NOTIFY_SCHEDULE Error:', e);
-                    const errorMessage = e instanceof Error ? e.message : String(e);
-                    return { success: false, result: errorMessage };
-                }
+                });
             }
 
             case 'NOTIFY_HAS_PERMISSION': {
@@ -474,6 +501,7 @@ export const notifyCapability: CapabilityModule = {
             }
 
             case 'NOTIFY_CANCEL': {
+                if (ctx.isEditMode) return { success: true, result: JSON.stringify({ skipped: true }) };
                 console.log(`[Bridge] Notify cancel: ${data.id}`);
                 try {
                     const idStr = String(data.id);
@@ -496,29 +524,32 @@ export const notifyCapability: CapabilityModule = {
             }
 
             case 'NOTIFY_CANCEL_ALL': {
-                console.log(`[Bridge] Notify cancel all for spell ${ctx.appId}`);
-                try {
-                    const spellToCancel = await getSpellNotifications(ctx.appId);
-                    console.log(`[Bridge] Found ${spellToCancel.length} notifications to cancel`);
-                    for (const n of spellToCancel) {
-                        await Notifications.cancelScheduledNotificationAsync(n.identifier);
-                    }
-                    let alarmCancelCount = 0;
-                    if (ctx.appId) {
-                        const reg = await getAlarmRegistry(ctx.appId);
-                        for (const alarmId of reg.keys()) {
-                            try { await NativeModules.AlarmModule.cancelAlarm(alarmId); } catch { }
-                            alarmCancelCount++;
+                if (ctx.isEditMode) return { success: true, result: JSON.stringify({ skipped: true }) };
+                return await withNotifyLock(ctx.appId, async () => {
+                    console.log(`[Bridge] Notify cancel all for spell ${ctx.appId}`);
+                    try {
+                        const spellToCancel = await getSpellNotifications(ctx.appId);
+                        console.log(`[Bridge] Found ${spellToCancel.length} notifications to cancel`);
+                        for (const n of spellToCancel) {
+                            await Notifications.cancelScheduledNotificationAsync(n.identifier);
                         }
-                        reg.clear();
-                        alarmRegistryLoaded.delete(ctx.appId);
-                        await db.deleteAllAlarmsForApp(ctx.appId).catch(() => { });
+                        let alarmCancelCount = 0;
+                        if (ctx.appId) {
+                            const reg = await getAlarmRegistry(ctx.appId);
+                            for (const alarmId of reg.keys()) {
+                                try { await NativeModules.AlarmModule.cancelAlarm(alarmId); } catch { }
+                                alarmCancelCount++;
+                            }
+                            reg.clear();
+                            alarmRegistryLoaded.delete(ctx.appId);
+                            await db.deleteAllAlarmsForApp(ctx.appId).catch(() => { });
+                        }
+                        markBackupDirty();
+                        return { success: true, result: `Cancelled ${spellToCancel.length} notifications and ${alarmCancelCount} alarms` };
+                    } catch (e) {
+                        return { success: false, result: e instanceof Error ? e.message : 'Error' };
                     }
-                    markBackupDirty();
-                    return { success: true, result: `Cancelled ${spellToCancel.length} notifications and ${alarmCancelCount} alarms` };
-                } catch (e) {
-                    return { success: false, result: e instanceof Error ? e.message : 'Error' };
-                }
+                });
             }
 
             default:

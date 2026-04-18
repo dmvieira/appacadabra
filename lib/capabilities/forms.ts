@@ -14,6 +14,26 @@ interface FormWatcher {
 
 export const activeWatchers = new Map<string, FormWatcher>();
 export const resourceCache = new Map<string, any[]>(); // formId → responses[]
+export const editModeLoadedKeys = new Set<string>();
+
+export function cleanupWatchersForApp(appId: number | null): void {
+    if (!appId) return;
+    const prefix = `${appId}_`;
+    for (const [key, watcher] of activeWatchers) {
+        if (key.startsWith(prefix)) {
+            clearInterval(watcher.interval);
+            activeWatchers.delete(key);
+        }
+    }
+}
+
+export function cleanupEditModeForApp(appId: number | null): void {
+    if (!appId) return;
+    const prefix = `${appId}_`;
+    for (const key of editModeLoadedKeys) {
+        if (key.startsWith(prefix)) editModeLoadedKeys.delete(key);
+    }
+}
 
 export function isNetworkError(e: unknown): boolean {
     return e instanceof TypeError && e.message.includes('Network');
@@ -30,9 +50,9 @@ export const formsCapability: CapabilityModule = {
     minVersion: '1.0.0',
 
     docs: `📋 FORMS (AppacadabraForms) — Google Sign-In required (consent shown on first use only)
-⚠️ **Acesso restrito:** \`getResponses()\`, \`updateForm()\` e \`watchResponses()\` funcionam **apenas com formulários criados por este app via \`createForm()\`**. Formulários externos não podem ser acessados por duas razões: (1) restrição de escopo OAuth \`drive.file\`; (2) o mapeamento de perguntas é armazenado internamente no momento da criação e não existe para formulários externos. Nunca sugira ao usuário usar um formulário Google existente.
+⚠️ **Restricted access:** \`getResponses()\`, \`updateForm()\` and \`watchResponses()\` work **only with forms created by this app via \`createForm()\`**. External forms cannot be accessed for two reasons: (1) OAuth scope restriction \`drive.file\`; (2) the question mapping is stored internally at creation time and does not exist for external forms. Never suggest the user use an existing Google Form.
 
-**Operações básicas:**
+**Basic operations:**
 - \`createForm(title, questions[], callback)\` — Creates a Google Form
   - \`questions\`: \`[{ type: "text"|"paragraph"|"radio"|"checkbox"|"dropdown", title: "...", options?: ["..."] }]\`
   - **Callback data**: \`{ formId, shareUrl }\`
@@ -41,9 +61,9 @@ export const formsCapability: CapabilityModule = {
 - \`getResponses(formId, callback)\` — Fetches all responses with human-readable answer labels
   - **Callback data**: \`{ responses: [{ responseId, submitTime, answers: { "Question title": "answer" } }] }\`
 
-**Modo sync nativo (recomendado — recebe novas respostas em tempo real):**
+**Native sync mode (recommended — receives new responses in real time):**
 
-Use \`watchResponses\` em spells de dashboard que precisam exibir respostas conforme chegam, sem o usuário ter de recarregar a página. A capability detecta responseIds novos e dispara o callback apenas quando há novidades.
+Use \`watchResponses\` in dashboard spells that need to display responses as they arrive, without the user having to reload the page. The capability detects new responseIds and fires the callback only when there are new entries.
 
 - \`watchResponses(formId, intervalMs, callbackName)\` — Starts polling for new responses
   - Fires **immediately** with all current responses (\`initial: true\`), then only when new ones arrive
@@ -71,30 +91,32 @@ Use \`watchResponses\` em spells de dashboard que precisam exibir respostas conf
   - \`"scale"\` — numeric range (\`low\` and \`high\` required): \`{ type: "scale", title: "Pain level", low: 1, high: 10, lowLabel: "No pain", highLabel: "Worst pain" }\`
   - \`"rating"\` — icon-based rating: \`{ type: "rating", title: "Rate your experience", level: 5, icon: "star" }\` — \`icon\`: \`"star"\` | \`"heart"\` | \`"thumb"\` (default: \`"star"\`, default level: \`5\`)
 
-**⚠️ REGRA:** Use \`watchResponses\` em vez de \`getResponses\` em qualquer spell que precise mostrar respostas ao vivo. Não use \`setInterval\` manual na spell — o polling fica na capability.
+**⚠️ RULE:** Use \`watchResponses\` instead of \`getResponses\` in any spell that needs to show live responses. Do not use a manual \`setInterval\` in the spell — polling is handled by the capability.
 
-**Usage (sync nativo):**
+**Usage (native sync):**
 \`\`\`js
-// 1. Ao abrir: carrega respostas existentes e fica ouvindo novas
+// 1. On open: loads existing responses and listens for new ones
 AppacadabraForms.watchResponses(localStorage.getItem('formId'), 15000, 'onResponses');
 window.onResponses = function(ok, data) {
-  if (!ok) { if (data.offline) showBanner('Sem conexão'); return; }
-  if (data.cached) showBanner('Dados offline');
-  if (data.initial) renderAll(data.responses);   // primeira chamada: mostra tudo
-  else data.newResponses.forEach(r => addRow(r)); // chamadas seguintes: só os novos
+  if (!ok) { if (data.offline) showBanner('No connection'); return; }
+  if (data.cached) showBanner('Offline data');
+  if (data.initial) renderAll(data.responses);        // first call: render everything
+  else data.newResponses.forEach(r => addRow(r));     // subsequent calls: only new ones
 };
 
-// 2. Parar ao fechar a tela
+// 2. Stop when closing the screen
 AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
 \`\`\``,
 
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraForms = {
     createForm: function(title, questions, callbackName) {
+      if (window.__IS_EDIT_MODE__) return;
       console.log('[AppacadabraForms.createForm] title:', title, 'questions:', questions.length, 'callback:', callbackName);
       sendMessage('FORMS_CREATE', { title, questions }, callbackName);
     },
     updateForm: function(formId, title, questions, callbackName) {
+      if (window.__IS_EDIT_MODE__) return;
       console.log('[AppacadabraForms.updateForm] formId:', formId, 'questions:', questions.length, 'callback:', callbackName);
       sendMessage('FORMS_UPDATE', { formId, title, questions }, callbackName);
     },
@@ -356,7 +378,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                 const key = `${ctx.appId}_${formId}`;
 
                 const existing = activeWatchers.get(key);
-                if (existing) clearInterval(existing.interval);
+                const existingSnapshot = existing?.snapshot ?? null;
 
                 const fetchResponses = async (token: string): Promise<any[]> => {
                     const stored = await AsyncStorage.getItem('appacadabra_forms_' + formId);
@@ -405,7 +427,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                         if (initial || prevSnapshot === null) {
                             // First call: fire with all responses
                             const allIds = new Set(responses.map((r: any) => r.responseId));
-                            if (watcher) watcher.snapshot = allIds;
+                            if (watcher && !ctx.isEditMode) watcher.snapshot = allIds;
                             const script = createCallbackScript(callbackName, true,
                                 JSON.stringify({ responses, newResponses: [], initial: true }));
                             ctx.webViewRef.current?.injectJavaScript(script);
@@ -430,10 +452,21 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                     }
                 };
 
-                const interval = setInterval(() => doPoll(false), intervalMs);
-                activeWatchers.set(key, { interval, webViewRef: ctx.webViewRef, callbackName, snapshot: null });
+                // Edit mode: one-shot fetch, no persistent interval
+                if (ctx.isEditMode) {
+                    if (editModeLoadedKeys.has(key)) {
+                        return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                    }
+                    editModeLoadedKeys.add(key);
+                    doPoll(true);
+                    return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                }
 
-                doPoll(true);
+                if (existing) clearInterval(existing.interval);
+                const interval = setInterval(() => doPoll(false), intervalMs);
+                activeWatchers.set(key, { interval, webViewRef: ctx.webViewRef, callbackName, snapshot: existingSnapshot });
+
+                doPoll(existingSnapshot === null);
 
                 return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
             }

@@ -1,9 +1,54 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
 import { marked } from 'marked';
+import TurndownService from 'turndown';
 import { createCallbackScript } from './mediaHelpers';
 import { requestGoogleScopes } from '../firebase';
 import { CapabilityModule, HandlerContext, HandlerResult, WebViewRef } from './types';
+
+// ============= Format Conversion Helpers =============
+
+const _td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced' });
+
+function sanitizeMarkdown(md: string): string {
+    return md
+        .replace(/([^\n])\n(---+\s*)$/gm, '$1\n\n$2')
+        .replace(/\*\*([^*\n]+?)(\s+)\*\*/g, '**$1**$2')
+        .replace(/\*([^*\n]+?)(\s+)\*/g, '*$1*$2');
+}
+
+async function markdownToHtml(md: string): Promise<string> {
+    return marked(sanitizeMarkdown(md)) as Promise<string>;
+}
+
+function htmlToMd(html: string): string {
+    return _td.turndown(html);
+}
+
+const DOC_STYLES = `
+  @page { margin: 40px 32px; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 0; color: #1a1a1a; line-height: 1.7; }
+  h1, h2, h3, h4 { color: #111; margin-top: 1.5em; page-break-after: avoid; }
+  h1 { font-size: 2em; border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+  h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.2em; }
+  p { margin: 0.8em 0; }
+  li { margin-bottom: 0.3em; }
+  pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; font-size: 0.9em; }
+  code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; }
+  pre code { background: none; padding: 0; }
+  blockquote { border-left: 4px solid #d0d7de; margin: 0; padding: 0 1em; color: #636c76; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #d0d7de; padding: 8px 12px; }
+  th { background: #f6f8fa; }
+  img { max-width: 100%; }
+  a { color: #0969da; }
+  ul, ol { padding-left: 1.5em; }
+  hr { border: none; border-top: 2px solid #eee; margin: 1.5em 0; }
+`;
+
+function wrapDocHtml(bodyHtml: string): string {
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${DOC_STYLES}</style></head><body>${bodyHtml}</body></html>`;
+}
 
 // ============= Google Docs Helpers =============
 
@@ -122,10 +167,16 @@ function docsToMarkdown(doc: any): string {
             if (!content) continue;
             const bold = run.textStyle?.bold ?? false;
             const italic = run.textStyle?.italic ?? false;
-            if (bold && italic) content = `**_${content}_**`;
-            else if (bold) content = `**${content}**`;
-            else if (italic) content = `*${content}*`;
-            lineText += content;
+            const trailing = content.match(/\s+$/)?.[0] ?? '';
+            const inner = trailing ? content.slice(0, -trailing.length) : content;
+            if (inner) {
+                if (bold && italic) lineText += `**_${inner}_**${trailing}`;
+                else if (bold)      lineText += `**${inner}**${trailing}`;
+                else if (italic)    lineText += `*${inner}*${trailing}`;
+                else                lineText += content;
+            } else {
+                lineText += content;
+            }
         }
 
         lines.push(prefix + lineText);
@@ -147,6 +198,26 @@ interface DocWatcher {
 
 export const activeWatchers = new Map<string, DocWatcher>();
 export const resourceCache = new Map<string, DocSnapshot>();
+export const editModeLoadedKeys = new Set<string>();
+
+export function cleanupWatchersForApp(appId: number | null): void {
+    if (!appId) return;
+    const prefix = `${appId}_`;
+    for (const [key, watcher] of activeWatchers) {
+        if (key.startsWith(prefix)) {
+            clearInterval(watcher.interval);
+            activeWatchers.delete(key);
+        }
+    }
+}
+
+export function cleanupEditModeForApp(appId: number | null): void {
+    if (!appId) return;
+    const prefix = `${appId}_`;
+    for (const key of editModeLoadedKeys) {
+        if (key.startsWith(prefix)) editModeLoadedKeys.delete(key);
+    }
+}
 
 interface PendingWrite { execute: () => Promise<void>; }
 export const writeQueue: PendingWrite[] = [];
@@ -186,9 +257,9 @@ export const docsCapability: CapabilityModule = {
     minVersion: '1.0.0',
 
     docs: `📄 DOCS (AppacadabraDocs) — Google Sign-In required (consent shown on first use only)
-⚠️ **Acesso restrito:** \`getDoc()\`, \`appendText()\`, \`setDoc()\` e \`watchDoc()\` funcionam **apenas com documentos criados por este app via \`createDoc()\`**. Não é possível acessar Google Docs externos do usuário — nem mesmo documentos que ele criou manualmente no Google Drive. Se o usuário mencionar um documento que já existe, explique que o app só pode acessar arquivos que ele mesmo gerou e ofereça criar um novo.
+⚠️ **Restricted access:** \`getDoc()\`, \`appendText()\`, \`setDoc()\` and \`watchDoc()\` work **only with documents created by this app via \`createDoc()\`**. Existing Google Docs from the user cannot be accessed — not even documents they created manually in Google Drive. If the user mentions an existing document, explain that the app can only access files it generated itself and offer to create a new one.
 
-**Operações básicas:**
+**Basic operations:**
 - \`createDoc(title, content, callback)\` — Creates a Google Doc with optional markdown content
   - \`content\`: optional markdown string. Supported: \`# H1\`, \`## H2\`, \`### H3\`, \`- bullet\`, \`**bold**\`, \`*italic*\`, plain paragraphs
   - **Callback data**: \`{ docId, url }\`
@@ -201,14 +272,16 @@ export const docsCapability: CapabilityModule = {
   - After success, the active watcher (if any) skips the next poll to avoid a spurious change event
   - Offline: write is queued and auto-replayed; callback receives \`{ queued: true }\`
   - **Callback data**: \`{ docId }\` or \`{ queued: true }\`
-- \`generatePDF(content, type, callback)\` — Converts markdown or HTML to a styled PDF (base64)
-  - \`content\`: markdown string or full HTML document
-  - \`type\`: \`'markdown'\` (default, auto-styled) | \`'html'\` (used as-is)
-  - **Callback data (string)**: Base64-encoded PDF — use with \`AppacadabraShare.shareFile(base64, 'application/pdf', 'doc.pdf', cb)\`
+- \`convert(from, to, content, callbackName)\` — Converts between formats (all async, callback-based)
+  - \`from\`: \`'markdown'\` | \`'html'\`
+  - \`to\`: \`'html'\` | \`'markdown'\` | \`'pdf'\`
+  - **Callback data**: string — HTML, markdown, or base64 PDF
+  - For \`to: 'pdf'\`: use \`AppacadabraShare.shareFile(base64, 'application/pdf', 'doc.pdf', cb)\`
+  - Markdown supported: H1–H3, bullets, bold, italic, tables, code blocks, blockquotes, \`---\` hr
 
-**Modo sync nativo (recomendado para documentos editados externamente):**
+**Native sync mode (recommended for documents edited externally):**
 
-Use \`watchDoc\` em spells tipo "editor colaborativo" ou "log compartilhado" onde o documento pode ser editado de fora (outro usuário ou device). A capability detecta mudanças e dispara o callback automaticamente.
+Use \`watchDoc\` in spells like "collaborative editor" or "shared log" where the document may be edited from outside (another user or device). The capability detects changes and fires the callback automatically.
 
 - \`watchDoc(docId, intervalMs, callbackName)\` — Starts polling for external changes
   - Fires **immediately** with current content (\`initial: true\`), then only when title or content changes
@@ -222,34 +295,55 @@ Use \`watchDoc\` em spells tipo "editor colaborativo" ou "log compartilhado" ond
 - \`stopWatchDoc(docId, callbackName)\` — Stops polling
   - **Callback data**: \`{ stopped: true }\`
 
-**⚠️ REGRA:** Use \`watchDoc\` + \`setDoc\` para edição colaborativa. Use \`appendText\` + \`getDoc\` para docs de insert-only (diários, logs). Não salve \`lastSyncTimestamp\` no localStorage — o diff fica na capability.
+**⚠️ RULE:** Use \`watchDoc\` + \`setDoc\` for collaborative editing. Use \`appendText\` + \`getDoc\` for insert-only docs (journals, logs). Do not save \`lastSyncTimestamp\` in localStorage — diffing is handled by the capability.
 
-**Usage (sync nativo):**
+**Usage (native sync):**
 \`\`\`js
-// 1. Ao abrir: carrega conteúdo atual (ou cache offline)
+// 1. On open: loads current content (or offline cache)
 AppacadabraDocs.watchDoc(localStorage.getItem('docId'), 10000, 'onDocChanged');
 window.onDocChanged = function(ok, data) {
-  if (!ok) { if (data.offline) showBanner('Sem conexão'); return; }
-  if (data.cached) showBanner('Conteúdo offline');
-  editor.setValue(data.content);   // data.initial = true na primeira chamada
+  if (!ok) { if (data.offline) showBanner('No connection'); return; }
+  if (data.cached) showBanner('Offline content');
+  editor.setValue(data.content);   // data.initial = true on first call
 };
 
-// 2. Salvar nova versão completa (enfileira offline automaticamente)
+// 2. Save a full new version (queued offline automatically)
 AppacadabraDocs.setDoc(localStorage.getItem('docId'), editor.getValue(), 'onSaved');
 window.onSaved = function(ok, data) {
-  if (data.queued) showBanner('Salvando quando voltar a internet');
+  if (data.queued) showBanner('Saving when connection returns');
 };
 
-// 3. Só acrescentar (sem reescrever tudo)
-AppacadabraDocs.appendText(localStorage.getItem('docId'), '\\n## Nova Seção\\nConteúdo', 'done');
+// 3. Append only (without rewriting everything)
+AppacadabraDocs.appendText(localStorage.getItem('docId'), '\\n## New Section\\nContent', 'done');
 
-// 4. Parar ao fechar a tela
+// 4. Stop when closing the screen
 AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
+
+// 5. WYSIWYG editor pattern (read → display editable → save back)
+AppacadabraDocs.watchDoc(localStorage.getItem('docId'), 10000, 'onDoc');
+const editor = document.getElementById('editor');
+editor.contentEditable = 'true';
+window.onDoc = function(ok, data) {
+  if (!ok) return;
+  AppacadabraDocs.convert('markdown', 'html', data.content, 'onRendered');
+};
+window.onRendered = function(ok, html) { editor.innerHTML = html; };
+function save() {
+  AppacadabraDocs.convert('html', 'markdown', editor.innerHTML, 'onConverted');
+}
+window.onConverted = function(ok, md) {
+  AppacadabraDocs.setDoc(localStorage.getItem('docId'), md, 'onSaved');
+};
 \`\`\``,
 
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraDocs = {
+    convert: function(from, to, content, callbackName) {
+      console.log('[AppacadabraDocs.convert]', from, '\\u2192', to);
+      sendMessage('CONVERT', { from: from, to: to, content: content }, callbackName);
+    },
     createDoc: function(title, content, callbackName) {
+      if (window.__IS_EDIT_MODE__) return;
       console.log('[AppacadabraDocs.createDoc] title:', title, 'callback:', callbackName);
       sendMessage('DOCS_CREATE', { title, content }, callbackName);
     },
@@ -258,10 +352,12 @@ AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
       sendMessage('DOCS_GET', { docId }, callbackName);
     },
     appendText: function(docId, text, callbackName) {
+      if (window.__IS_EDIT_MODE__) return;
       console.log('[AppacadabraDocs.appendText] docId:', docId, 'callback:', callbackName);
       sendMessage('DOCS_APPEND_TEXT', { docId, text }, callbackName);
     },
     setDoc: function(docId, content, callbackName) {
+      if (window.__IS_EDIT_MODE__) return;
       console.log('[AppacadabraDocs.setDoc] docId:', docId, 'callback:', callbackName);
       sendMessage('DOCS_SET', { docId, content }, callbackName);
     },
@@ -273,10 +369,6 @@ AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
       console.log('[AppacadabraDocs.stopWatchDoc] docId:', docId, 'callback:', callbackName);
       sendMessage('DOCS_STOP_WATCH', { docId }, callbackName);
     },
-    generatePDF: function(content, type, callbackName) {
-      console.log('[AppacadabraDocs.generatePDF] type:', type, 'callback:', callbackName);
-      sendMessage('GENERATE_PDF', { content, type: type || 'markdown' }, callbackName);
-    }
   };
 `,
 
@@ -491,7 +583,7 @@ AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
                 const key = `${ctx.appId}_${docId}`;
 
                 const existing = activeWatchers.get(key);
-                if (existing) clearInterval(existing.interval);
+                const existingSnapshot = existing?.snapshot ?? null;
 
                 const doPoll = async (initial: boolean) => {
                     try {
@@ -517,7 +609,7 @@ AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
                             || prev.content !== snap.content;
 
                         if (hasChanged) {
-                            if (watcher) watcher.snapshot = snap;
+                            if (watcher && !ctx.isEditMode) watcher.snapshot = snap;
                             const script = createCallbackScript(callbackName, true,
                                 JSON.stringify({ ...snap, initial }));
                             ctx.webViewRef.current?.injectJavaScript(script);
@@ -535,10 +627,21 @@ AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
                     }
                 };
 
-                const interval = setInterval(() => doPoll(false), intervalMs);
-                activeWatchers.set(key, { interval, webViewRef: ctx.webViewRef, callbackName, snapshot: null });
+                // Edit mode: one-shot fetch, no persistent interval
+                if (ctx.isEditMode) {
+                    if (editModeLoadedKeys.has(key)) {
+                        return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                    }
+                    editModeLoadedKeys.add(key);
+                    doPoll(true);
+                    return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                }
 
-                doPoll(true);
+                if (existing) clearInterval(existing.interval);
+                const interval = setInterval(() => doPoll(false), intervalMs);
+                activeWatchers.set(key, { interval, webViewRef: ctx.webViewRef, callbackName, snapshot: existingSnapshot });
+
+                doPoll(existingSnapshot === null);
 
                 return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
             }
@@ -554,47 +657,34 @@ AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
                 return { success: true, result: JSON.stringify({ stopped: true }) };
             }
 
-            case 'GENERATE_PDF': {
-                console.log('[Bridge] Generating PDF...');
+            case 'CONVERT': {
+                console.log(`[Bridge] Convert: ${data.from} → ${data.to}`);
+                const { from, to, content } = data;
+                if (!content) return { success: false, result: 'No content provided' };
                 try {
-                    const { content, type } = data;
-                    if (!content) {
-                        return { success: false, result: 'No content provided' };
+                    if (from === 'markdown' && to === 'html') {
+                        return { success: true, result: await markdownToHtml(String(content)) };
                     }
-                    const bodyHtml = type === 'html' ? null : await marked(String(content));
-                    const html = type === 'html'
-                        ? content
-                        : `<!DOCTYPE html><html><head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-                body { font-family: -apple-system, system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.7; }
-                h1, h2, h3, h4 { color: #111; margin-top: 1.5em; }
-                h1 { font-size: 2em; border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
-                h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.2em; }
-                p { margin: 0.8em 0; }
-                pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; font-size: 0.9em; }
-                code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
-                pre code { background: none; padding: 0; }
-                blockquote { border-left: 4px solid #d0d7de; margin: 0; padding: 0 1em; color: #636c76; }
-                table { border-collapse: collapse; width: 100%; }
-                th, td { border: 1px solid #d0d7de; padding: 8px 12px; }
-                th { background: #f6f8fa; }
-                img { max-width: 100%; }
-                a { color: #0969da; }
-                ul, ol { padding-left: 1.5em; }
-                hr { border: none; border-top: 1px solid #eee; }
-            </style>
-        </head><body>${bodyHtml}</body></html>`;
-                    const { uri } = await Print.printToFileAsync({ html });
-                    const base64 = await FileSystem.readAsStringAsync(uri, {
-                        encoding: FileSystem.EncodingType.Base64
-                    });
-                    await FileSystem.deleteAsync(uri, { idempotent: true });
-                    return { success: true, result: base64 };
+                    if (from === 'html' && to === 'markdown') {
+                        return { success: true, result: htmlToMd(String(content)) };
+                    }
+                    if (from === 'markdown' && to === 'pdf') {
+                        const bodyHtml = await markdownToHtml(String(content));
+                        const { uri } = await Print.printToFileAsync({ html: wrapDocHtml(bodyHtml) });
+                        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+                        await FileSystem.deleteAsync(uri, { idempotent: true });
+                        return { success: true, result: base64 };
+                    }
+                    if (from === 'html' && to === 'pdf') {
+                        const { uri } = await Print.printToFileAsync({ html: String(content) });
+                        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+                        await FileSystem.deleteAsync(uri, { idempotent: true });
+                        return { success: true, result: base64 };
+                    }
+                    return { success: false, result: `Unsupported conversion: ${from} → ${to}` };
                 } catch (e) {
-                    console.error('PDF generation error:', e);
-                    return { success: false, result: e instanceof Error ? e.message : 'PDF generation failed' };
+                    console.error('Convert error:', e);
+                    return { success: false, result: e instanceof Error ? e.message : 'Convert error' };
                 }
             }
 
