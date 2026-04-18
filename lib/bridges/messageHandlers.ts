@@ -17,7 +17,7 @@ import { NativeModules } from 'react-native';
 import * as db from '../database/db';
 import { ALL_CAPABILITIES } from '../capabilities/index';
 import { ExpandedStorageItem } from './injectedJS';
-import { updateStorageCache, removeFromStorageCache } from '../storageCache';
+import { updateStorageCache, removeFromStorageCache, getStorageFromCache } from '../storageCache';
 
 // State for Audio Recording
 let currentRecording: Audio.Recording | null = null;
@@ -484,12 +484,14 @@ export async function handleBridgeMessage(
                 if (isLargeBase64(data.value)) {
                     storedValue = await storeBlobToFile(ctx.appId, data.key, data.value);
                 }
-                await db.setStorageItem(ctx.appId, data.key, storedValue);
-                // Keep cache in sync so returning from background doesn't overwrite new data
-                updateStorageCache(ctx.appId, data.key, storedValue);
-                markBackupDirty();
-                const { DeviceEventEmitter } = require('react-native');
-                DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: ctx.appId });
+                const cached = getStorageFromCache(ctx.appId).find(i => i.key === data.key);
+                if (cached?.value !== storedValue) {
+                    await db.setStorageItem(ctx.appId, data.key, storedValue);
+                    updateStorageCache(ctx.appId, data.key, storedValue);
+                    markBackupDirty();
+                    const { DeviceEventEmitter } = require('react-native');
+                    DeviceEventEmitter.emit('STORAGE_UPDATED', { appId: ctx.appId });
+                }
                 result = 'OK';
             }
             break;

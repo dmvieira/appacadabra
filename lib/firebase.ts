@@ -670,6 +670,8 @@ export async function submitJob(action: Job['action'], payload: any): Promise<st
 
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
+const grantedScopeKeys = new Set<string>();
+
 // Configure Google Sign-In
 GoogleSignin.configure({
     scopes: ['https://www.googleapis.com/auth/drive.appdata'],
@@ -777,18 +779,24 @@ export async function getGoogleAccessToken(): Promise<string | null> {
  *  Returns access token, or null if user cancelled/denied.
  */
 export async function requestGoogleScopes(scopes: string[]): Promise<string | null> {
+    const scopeKey = scopes.slice().sort().join(',');
     try {
         const isSignedIn = await GoogleSignin.getCurrentUser() !== null;
         if (!isSignedIn) {
             await GoogleSignin.signIn();
+            grantedScopeKeys.delete(scopeKey);
         }
-        const userWithScopes = await GoogleSignin.addScopes({ scopes });
-        if (!userWithScopes) return null;
+        if (!grantedScopeKeys.has(scopeKey)) {
+            const userWithScopes = await GoogleSignin.addScopes({ scopes });
+            if (!userWithScopes) return null;
+            grantedScopeKeys.add(scopeKey);
+        }
         const tokens = await GoogleSignin.getTokens();
         return tokens.accessToken;
     } catch (e: any) {
         if (e.code === statusCodes.SIGN_IN_CANCELLED) return null;
         console.error('[requestGoogleScopes] failed:', e);
+        grantedScopeKeys.delete(scopeKey);
         return null;
     }
 }
