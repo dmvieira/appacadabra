@@ -32,7 +32,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AiLoadingBar from './components/AiLoadingBar';
 import QRScannerOverlay from './components/QRScannerOverlay';
 import { useBridgeUIStore } from './lib/bridgeUIStore';
+import { cleanupWatchersForApp as cleanupSheetsWatchers } from './lib/capabilities/sheets';
+import { cleanupWatchersForApp as cleanupDocsWatchers } from './lib/capabilities/docs';
+import { cleanupWatchersForApp as cleanupFormsWatchers } from './lib/capabilities/forms';
 import { ManaConfirmModal } from './components/ManaConfirmModal';
+import { LargePayloadConfirmModal } from './components/LargePayloadConfirmModal';
+
+function isLargeAiPayload(type: string, data: any): boolean {
+    if (type === 'AI_GENERATE_VIDEO') return true;
+    let chars = (data?.prompt?.length || 0);
+    if (data?.images) chars += data.images.reduce((s: number, i: string) => s + (i?.length || 0), 0);
+    if (data?.videos) chars += data.videos.reduce((s: number, v: string) => s + (v?.length || 0), 0);
+    if (data?.audios) chars += data.audios.reduce((s: number, a: string) => s + (a?.length || 0), 0);
+    return chars > 2_000_000;
+}
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -68,7 +81,9 @@ function RunnerContent({ appId }: Props) {
     const [isAtTop, setIsAtTop] = useState(true); // Helper to prevent conflicting scrolls
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
-    
+    const [aiElapsedSeconds, setAiElapsedSeconds] = useState(0);
+    const [aiIsLargePayload, setAiIsLargePayload] = useState(false);
+
     // Video Playback — use selector so store changes in other RunnerContent instances don't cause re-renders here
     const closeVideoPlayer = useBridgeUIStore(state => state.closeVideoPlayer);
     const videoPlayback = useBridgeUIStore(state => state.videoPlayback);
@@ -106,6 +121,18 @@ function RunnerContent({ appId }: Props) {
         checkDropBox();
     }, [checkDropBox]);
 
+    // Elapsed seconds timer for AI loading messages
+    useEffect(() => {
+        if (!isAiLoading) {
+            setAiElapsedSeconds(0);
+            setAiIsLargePayload(false);
+            return;
+        }
+        setAiElapsedSeconds(0);
+        const interval = setInterval(() => setAiElapsedSeconds(s => s + 1), 1000);
+        return () => clearInterval(interval);
+    }, [isAiLoading]);
+
     // Set global webViewRef for overlays
     useEffect(() => {
         if (webViewRef) {
@@ -131,8 +158,20 @@ function RunnerContent({ appId }: Props) {
             if ((store.webViewRef as any) === webViewRef) {
                 store.setWebViewRef(null as any);
             }
+            cleanupSheetsWatchers(appId);
+            cleanupDocsWatchers(appId);
+            cleanupFormsWatchers(appId);
         };
     }, [webViewRef]);
+
+    // Clean up watchers when WebView is recreated (pull-to-refresh)
+    const isFirstWebViewKeyRender = useRef(true);
+    useEffect(() => {
+        if (isFirstWebViewKeyRender.current) { isFirstWebViewKeyRender.current = false; return; }
+        cleanupSheetsWatchers(appId);
+        cleanupDocsWatchers(appId);
+        cleanupFormsWatchers(appId);
+    }, [webViewKey]);
 
     // Load app data
     const loadApp = useCallback(async () => {
@@ -381,7 +420,22 @@ function RunnerContent({ appId }: Props) {
                 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI'
             ].includes(type);
 
-            if (isAiCall) setIsAiLoading(true);
+            if (isAiCall) {
+                const largePayload = isLargeAiPayload(type, data);
+                if (largePayload) {
+                    const confirmed = await useBridgeUIStore.getState().requestLargePayloadConfirmation();
+                    if (!confirmed) {
+                        if (callbackName && webViewRef.current) {
+                            webViewRef.current.injectJavaScript(
+                                `if(window[${JSON.stringify(callbackName)}]){window[${JSON.stringify(callbackName)}](false,${JSON.stringify(t('manaConfirmCancelled'))});} true;`
+                            );
+                        }
+                        return;
+                    }
+                    setAiIsLargePayload(true);
+                }
+                setIsAiLoading(true);
+            }
 
             let handlerResult;
             try {
@@ -391,6 +445,7 @@ function RunnerContent({ appId }: Props) {
                     viewContainerRef: viewContainerRef,
                     appId: app?.id || null,
                     callbackName, // Pass callbackName for scanner/handlers
+                    isEditMode: false,
                 });
 
                 if (handlerResult.isFirstAiUse) {
@@ -641,7 +696,7 @@ function RunnerContent({ appId }: Props) {
                         <Text style={styles.updateBannerText}>✨ {t('newVersionAvailable')}</Text>
                     </TouchableOpacity>
                 )}
-                <AiLoadingBar visible={isAiLoading} />
+                <AiLoadingBar visible={isAiLoading} elapsedSeconds={aiElapsedSeconds} isLargePayload={aiIsLargePayload} />
                 <ScrollView
                     contentContainerStyle={{ flex: 1 }}
                     refreshControl={
@@ -764,6 +819,7 @@ function RunnerContent({ appId }: Props) {
 
 
             <QRScannerOverlay webviewRef={webViewRef} />
+            <LargePayloadConfirmModal />
 
             {/* Video Playback Modal */}
             {videoPlayback && (

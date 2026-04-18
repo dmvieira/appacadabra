@@ -1,12 +1,23 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native';
 import { colors } from '../lib/theme';
+import { t } from '../lib/i18n';
 
 interface AiLoadingBarProps {
     visible: boolean;
+    elapsedSeconds?: number;
+    isLargePayload?: boolean;
 }
 
-export const AiLoadingBar: React.FC<AiLoadingBarProps> = ({ visible }) => {
+function getLoadingMessage(elapsed: number, isLarge: boolean): string | null {
+    if (isLarge && elapsed < 8) return t('aiLoadingLargePayload');
+    if (elapsed >= 45) return t('aiLoadingTakingLong');
+    if (elapsed >= 20) return t('aiLoadingStillWorking');
+    if (elapsed >= 8) return t('aiLoadingThinking');
+    return null;
+}
+
+export const AiLoadingBar: React.FC<AiLoadingBarProps> = ({ visible, elapsedSeconds = 0, isLargePayload = false }) => {
     const { width: screenWidth } = useWindowDimensions();
     const translateX = useRef(new Animated.Value(-screenWidth * 0.4)).current;
 
@@ -31,6 +42,8 @@ export const AiLoadingBar: React.FC<AiLoadingBarProps> = ({ visible }) => {
 
     if (!visible) return null;
 
+    const msg = getLoadingMessage(elapsedSeconds, isLargePayload);
+
     return (
         <View style={styles.container}>
             <Animated.View
@@ -41,6 +54,9 @@ export const AiLoadingBar: React.FC<AiLoadingBarProps> = ({ visible }) => {
                     },
                 ]}
             />
+            {msg && (
+                <Text style={styles.label}>{msg}</Text>
+            )}
         </View>
     );
 };
@@ -54,13 +70,25 @@ const styles = StyleSheet.create({
         height: 3,
         backgroundColor: 'rgba(0,0,0,0.05)',
         zIndex: 10000,
-        overflow: 'hidden',
+        overflow: 'visible',
     },
     bar: {
         width: '40%',
         height: '100%',
         backgroundColor: colors.primary,
         borderRadius: 2,
+    },
+    label: {
+        position: 'absolute',
+        top: 3,
+        left: 0,
+        right: 0,
+        textAlign: 'center',
+        fontSize: 11,
+        color: '#fff',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingVertical: 2,
+        paddingHorizontal: 8,
     },
 });
 

@@ -234,10 +234,12 @@ describeCapability('docs')('AppacadabraDocs', () => {
         expect(msg.data.text).toBe('extra text');
     });
 
-    it('generatePDF → GENERATE_PDF', () => {
-        sb.AppacadabraDocs.generatePDF('# Title', 'markdown', 'cb');
+    it('convert → CONVERT', () => {
+        sb.AppacadabraDocs.convert('markdown', 'pdf', '# Title', 'cb');
         const msg = getLastMessage(postMessage);
-        expect(msg.type).toBe('GENERATE_PDF');
+        expect(msg.type).toBe('CONVERT');
+        expect(msg.data.from).toBe('markdown');
+        expect(msg.data.to).toBe('pdf');
     });
 });
 

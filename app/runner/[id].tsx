@@ -46,12 +46,24 @@ import { t, getWebViewTranslations } from '../../lib/i18n';
 import QRScannerOverlay from '../../components/QRScannerOverlay';
 import { useManaStore } from '../../lib/manaStore';
 import { reloadStorageForApp, getStorageFromCache } from '../../lib/storageCache';
+import { cleanupWatchersForApp as cleanupSheetsWatchers, cleanupEditModeForApp as cleanupSheetsEditMode } from '../../lib/capabilities/sheets';
+import { cleanupWatchersForApp as cleanupDocsWatchers, cleanupEditModeForApp as cleanupDocsEditMode } from '../../lib/capabilities/docs';
+import { cleanupWatchersForApp as cleanupFormsWatchers, cleanupEditModeForApp as cleanupFormsEditMode } from '../../lib/capabilities/forms';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EditorOnboarding from '../../components/EditorOnboarding';
 import { logEditorTabOpened, logEditorAiEditSubmitted, logEditorVersionRestored, logEditorVersionDeleted } from '../../lib/analytics';
 import { ensureViewportMeta } from '../../lib/htmlUtils';
 
 const EDITOR_ONBOARDING_KEY = 'appacadabra_editor_onboarding_seen';
+
+function isLargeAiPayload(type: string, data: any): boolean {
+    if (type === 'AI_GENERATE_VIDEO') return true;
+    let chars = (data?.prompt?.length || 0);
+    if (data?.images) chars += data.images.reduce((s: number, i: string) => s + (i?.length || 0), 0);
+    if (data?.videos) chars += data.videos.reduce((s: number, v: string) => s + (v?.length || 0), 0);
+    if (data?.audios) chars += data.audios.reduce((s: number, a: string) => s + (a?.length || 0), 0);
+    return chars > 2_000_000;
+}
 
 // AI_MEDIA_EXT, AI_MEDIA_MIME, saveAiMediaToFile, buildBlobMarker imported from messageHandlers
 
@@ -237,6 +249,18 @@ export default function RunnerScreen() {
         }
     }, [isFocused]);
 
+    // Track elapsed seconds during AI loading
+    useEffect(() => {
+        if (!isAiLoading) {
+            setAiElapsedSeconds(0);
+            setAiIsLargePayload(false);
+            return;
+        }
+        setAiElapsedSeconds(0);
+        const interval = setInterval(() => setAiElapsedSeconds(s => s + 1), 1000);
+        return () => clearInterval(interval);
+    }, [isAiLoading]);
+
     // Cleanup all media when leaving screen or app goes to background
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextState) => {
@@ -247,8 +271,20 @@ export default function RunnerScreen() {
         return () => {
             subscription.remove();
             cleanupAllMedia();
+            cleanupSheetsWatchers(Number(id)); cleanupSheetsEditMode(Number(id));
+            cleanupDocsWatchers(Number(id)); cleanupDocsEditMode(Number(id));
+            cleanupFormsWatchers(Number(id)); cleanupFormsEditMode(Number(id));
         };
     }, []);
+
+    // Clean up watchers when WebView is recreated (pull-to-refresh or error reload)
+    const isFirstWebViewKeyRenderRunner = useRef(true);
+    useEffect(() => {
+        if (isFirstWebViewKeyRenderRunner.current) { isFirstWebViewKeyRenderRunner.current = false; return; }
+        cleanupSheetsWatchers(Number(id)); cleanupSheetsEditMode(Number(id));
+        cleanupDocsWatchers(Number(id)); cleanupDocsEditMode(Number(id));
+        cleanupFormsWatchers(Number(id)); cleanupFormsEditMode(Number(id));
+    }, [webViewKey, id]);
 
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -262,6 +298,8 @@ export default function RunnerScreen() {
     const [storageClearedPending, setStorageClearedPending] = useState(false);
     const [showFirstAiUseModal, setShowFirstAiUseModal] = useState(false);
     const [isAiLoading, setIsAiLoading] = useState(false);
+    const [aiElapsedSeconds, setAiElapsedSeconds] = useState(0);
+    const [aiIsLargePayload, setAiIsLargePayload] = useState(false);
     const [lastUrl, setLastUrl] = useState<string | null>(null);
     const isRestoring = useRef(true); // Prevent infinite reload loops from window.location.replace
 
@@ -484,8 +522,10 @@ export default function RunnerScreen() {
             }
         });
         const sub2 = DeviceEventEmitter.addListener('STORAGE_UPDATED', ({ appId: updId }: { appId: number }) => {
-            if (updId === appId) {
-                // For individual updates, we can sync silently and smoothly
+            if (updId === appId && !isEditMode) {
+                // For individual updates, we can sync silently and smoothly.
+                // Skip in edit mode: injecting JS from a runner's storage write would
+                // dismiss the Android keyboard and cause layout flashes across the app.
                 applyStorageReload();
             }
         });
@@ -493,7 +533,7 @@ export default function RunnerScreen() {
             sub1.remove();
             sub2.remove();
         };
-    }, [id, applyStorageReload]);
+    }, [id, applyStorageReload, isEditMode]);
 
     // React to store updates (e.g. async job finished)
     useEffect(() => {
@@ -987,7 +1027,22 @@ export default function RunnerScreen() {
                         'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
                     ].includes(type);
 
-                    if (isAiAction && !isEditMode) setIsAiLoading(true);
+                    if (isAiAction && !isEditMode) {
+                        const largePayload = isLargeAiPayload(type, data);
+                        if (largePayload) {
+                            const confirmed = await useBridgeUIStore.getState().requestLargePayloadConfirmation();
+                            if (!confirmed) {
+                                if (callbackName && webViewRef.current) {
+                                    webViewRef.current.injectJavaScript(
+                                        `if(window[${JSON.stringify(callbackName)}]){window[${JSON.stringify(callbackName)}](false,${JSON.stringify(t('manaConfirmCancelled'))});} true;`
+                                    );
+                                }
+                                return;
+                            }
+                            setAiIsLargePayload(true);
+                        }
+                        setIsAiLoading(true);
+                    }
 
                     // Pre-save pending cache entry BEFORE job starts so recovery works on reload
                     if (isAiAction && !isEditMode && app?.id && callbackName) {
@@ -1012,6 +1067,7 @@ export default function RunnerScreen() {
                             appId: app?.id || null,
                             callbackName,
                             onJobCreated,
+                            isEditMode,
                         });
                         if (handlerResult.handled) {
                             success = handlerResult.success;
@@ -1355,7 +1411,7 @@ export default function RunnerScreen() {
 
             {/* WebView wrapped in ScrollView for Pull-to-Refresh */}
             <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>
-                <AiLoadingBar visible={isAiLoading} />
+                <AiLoadingBar visible={isAiLoading} elapsedSeconds={aiElapsedSeconds} isLargePayload={aiIsLargePayload} />
                 <ScrollView
                     refreshControl={
                         !isEditMode ? (

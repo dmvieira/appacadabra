@@ -9,6 +9,7 @@ import { t } from '../lib/i18n';
 import ShareReceiver from '../components/ShareReceiver';
 import { ManaShop } from '../components/ManaShop';
 import { ManaConfirmModal } from '../components/ManaConfirmModal';
+import { LargePayloadConfirmModal } from '../components/LargePayloadConfirmModal';
 import { useManaStore } from '../lib/manaStore';
 import { Toast } from '../components/Toast';
 import { useAppStore } from '../lib/store';
@@ -249,6 +250,7 @@ export default function RootLayout() {
             <ShareReceiver />
             <ManaShop />
             <ManaConfirmModal />
+            <LargePayloadConfirmModal />
             <ToastComponent />
         </>
     );
