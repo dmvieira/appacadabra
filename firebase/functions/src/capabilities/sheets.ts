@@ -10,9 +10,9 @@ const sheetsCapability: FirebaseCapabilityDoc = {
     displayName: "Sheets",
     minVersion: "1.0.0",
     docs: `📊 SHEETS (AppacadabraSheets) — Google Sign-In required (consent shown on first use only)
-⚠️ **Acesso restrito:** \`getRows()\`, \`appendRows()\`, \`watchSheet()\` e \`setRows()\` funcionam **apenas com planilhas criadas por este app via \`createSheet()\`**. Não é possível acessar Google Sheets existentes do usuário. Se o usuário quiser usar "sua planilha de vendas" ou similar, explique a limitação e ofereça criar uma nova planilha dedicada dentro do app.
+⚠️ **Restricted access:** \`getRows()\`, \`appendRows()\`, \`watchSheet()\` and \`setRows()\` work **only with spreadsheets created by this app via \`createSheet()\`**. Existing Google Sheets from the user cannot be accessed. If the user wants to use "their sales spreadsheet" or similar, explain the limitation and offer to create a new dedicated spreadsheet inside the app.
 
-**Modo simples (insert-only, sem sync):**
+**Simple mode (insert-only, no sync):**
 - \`createSheet(title, headers[], callback)\` — Creates a Google Spreadsheet
   - \`headers\`: optional column headers written to row 1 (e.g. \`["Name", "Date", "Status"]\`)
   - **Callback data**: \`{ sheetId, url }\`
@@ -22,9 +22,9 @@ const sheetsCapability: FirebaseCapabilityDoc = {
 - \`getRows(sheetId, callback)\` — Reads all data; first row treated as headers
   - **Callback data**: \`{ headers: ["Name","Date"], rows: [{ "Name": "Alice", "Date": "2026-03-26" }, ...] }\`
 
-**Modo sync nativo (recomendado — sem campos de controle na planilha):**
+**Native sync mode (recommended — no control columns in the spreadsheet):**
 
-Use \`watchSheet\` + \`setRows\` em spells que precisam exibir ou editar dados que podem ser alterados externamente (por outras pessoas ou outros devices). A capability controla todo o cache e detecção de diff — a spell só precisa renderizar e salvar.
+Use \`watchSheet\` + \`setRows\` in spells that need to display or edit data that may be changed externally (by other people or other devices). The capability handles all caching and diff detection — the spell only needs to render and save.
 
 - \`watchSheet(sheetId, intervalMs, callbackName)\` — Starts polling for external changes
   - Fires **immediately** with current data (\`initial: true\`), then only when rows change
@@ -46,25 +46,38 @@ Use \`watchSheet\` + \`setRows\` em spells que precisam exibir ou editar dados q
   - Offline: queued and auto-replayed when connection returns; callback receives \`{ queued: true }\`
   - **Callback data**: \`{ rowsWritten: N }\` or \`{ queued: true }\`
 
-**⚠️ REGRA:** Nunca adicione colunas de controle (\`__modified_at__\`, \`__sync__\`) à planilha — o diff fica na capability. Use \`appendRows\` + \`getRows\` apenas para spells de insert-only (logs, checklists sem edição).
+**⚠️ RULE:** Never add control columns (\`__modified_at__\`, \`__sync__\`) to the spreadsheet — diffing is handled by the capability. Use \`appendRows\` + \`getRows\` only for insert-only spells (logs, checklists without editing).
 
-**Usage (sync nativo):**
+**Usage (native sync):**
 \`\`\`js
-// 1. Ao abrir: popula automaticamente com dados atuais (ou cache offline)
+// 1. watchSheet: full render on initial load, incremental updates after
 AppacadabraSheets.watchSheet(localStorage.getItem('sheetId'), 5000, 'onChanged');
 window.onChanged = function(ok, data) {
-  if (!ok) { if (data.offline) showBanner('Sem conexão'); return; }
-  if (data.cached) showBanner('Dados offline');
-  renderTable(data.headers, data.rows);   // data.initial = true na primeira chamada
+  if (!ok) { if (data.offline) showBanner('No connection'); return; }
+  if (data.cached) showBanner('Offline data');
+  if (data.initial) {
+    renderTable(data.headers, data.rows);   // full render only on first call
+  } else {
+    // Incremental updates: add/modify/remove rows without re-rendering everything
+    data.added.forEach(row => appendRowToTable(row));
+    data.changed.forEach(row => updateRowInTable(row));
+    data.deleted.forEach(row => removeRowFromTable(row));
+  }
 };
 
-// 2. Salvar mudanças (enfileira offline automaticamente)
-AppacadabraSheets.setRows(localStorage.getItem('sheetId'), state.rows, 'onSaved');
+// 2. setRows: optimistic update — update in-memory state BEFORE saving
+function saveRows(rows) {
+  state.rows = rows;
+  renderTable(state.headers, state.rows);    // update UI immediately (optimistic)
+  AppacadabraSheets.setRows(localStorage.getItem('sheetId'), rows, 'onSaved'); // persist to Sheets
+  // Note: onChanged will NOT fire after setRows (internal mechanism prevents it)
+  // Use localStorage only for app data that does NOT live in the spreadsheet (e.g. sheetId, settings)
+}
 window.onSaved = function(ok, data) {
-  if (data.queued) showBanner('Salvando quando voltar a internet');
+  if (data.queued) showBanner('Saving when connection returns');
 };
 
-// 3. Parar ao fechar a tela
+// 3. Stop when closing the screen
 AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
 \`\`\``,
 };

@@ -9,7 +9,7 @@ const notifyCapability: FirebaseCapabilityDoc = {
     id: "notify",
     displayName: "Notify",
     minVersion: "1.0.0",
-    docs: `🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 10 per app (notifications + alarms combined). Use \`id\` to update existing notification.
+    docs: `🔔 NOTIFICATION (AppacadabraNotify) **Native Protection**: Auto-deduplicates identical title+body. Max 20 per app (notifications + alarms combined). Use \`id\` to update existing notification.
 - \`showNow(title, msg, callback)\` - Show notification immediately
     - **Return**: Notification ID (string)
 - \`schedule(title, msg, delayMinutes, callback, id?)\` - Schedule after delay

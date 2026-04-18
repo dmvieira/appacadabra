@@ -76,11 +76,13 @@
     "react-native-webview": "13.15.0",
     "share-intent": "file:modules/share-intent",
     "shortcuts": "file:./modules/shortcuts",
+    "turndown": "^7.2.4",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
+    "@types/turndown": "^5.0.6",
     "expo-build-properties": "^1.0.10",
     "expo-health-connect": "^0.1.1",
     "fs-extra": "^11.3.3",

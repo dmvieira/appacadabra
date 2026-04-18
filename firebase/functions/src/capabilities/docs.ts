@@ -10,9 +10,9 @@ const docsCapability: FirebaseCapabilityDoc = {
     displayName: "Docs",
     minVersion: "1.0.0",
     docs: `📄 DOCS (AppacadabraDocs) — Google Sign-In required (consent shown on first use only)
-⚠️ **Acesso restrito:** \`getDoc()\`, \`appendText()\`, \`setDoc()\` e \`watchDoc()\` funcionam **apenas com documentos criados por este app via \`createDoc()\`**. Não é possível acessar Google Docs externos do usuário — nem mesmo documentos que ele criou manualmente no Google Drive. Se o usuário mencionar um documento que já existe, explique que o app só pode acessar arquivos que ele mesmo gerou e ofereça criar um novo.
+⚠️ **Restricted access:** \`getDoc()\`, \`appendText()\`, \`setDoc()\` and \`watchDoc()\` work **only with documents created by this app via \`createDoc()\`**. Existing Google Docs from the user cannot be accessed — not even documents they created manually in Google Drive. If the user mentions an existing document, explain that the app can only access files it generated itself and offer to create a new one.
 
-**Operações básicas:**
+**Basic operations:**
 - \`createDoc(title, content, callback)\` — Creates a Google Doc with optional markdown content
   - \`content\`: optional markdown string. Supported: \`# H1\`, \`## H2\`, \`### H3\`, \`- bullet\`, \`**bold**\`, \`*italic*\`, plain paragraphs
   - **Callback data**: \`{ docId, url }\`
@@ -25,14 +25,16 @@ const docsCapability: FirebaseCapabilityDoc = {
   - After success, the active watcher (if any) skips the next poll to avoid a spurious change event
   - Offline: write is queued and auto-replayed; callback receives \`{ queued: true }\`
   - **Callback data**: \`{ docId }\` or \`{ queued: true }\`
-- \`generatePDF(content, type, callback)\` — Converts markdown or HTML to a styled PDF (base64)
-  - \`content\`: markdown string or full HTML document
-  - \`type\`: \`'markdown'\` (default, auto-styled) | \`'html'\` (used as-is)
-  - **Callback data (string)**: Base64-encoded PDF — use with \`AppacadabraShare.shareFile(base64, 'application/pdf', 'doc.pdf', cb)\`
+- \`convert(from, to, content, callbackName)\` — Converts between formats (all async, callback-based)
+  - \`from\`: \`'markdown'\` | \`'html'\`
+  - \`to\`: \`'html'\` | \`'markdown'\` | \`'pdf'\`
+  - **Callback data**: string — HTML, markdown, or base64 PDF
+  - For \`to: 'pdf'\`: use \`AppacadabraShare.shareFile(base64, 'application/pdf', 'doc.pdf', cb)\`
+  - Markdown supported: H1–H3, bullets, bold, italic, tables, code blocks, blockquotes, \`---\` hr
 
-**Modo sync nativo (recomendado para documentos editados externamente):**
+**Native sync mode (recommended for documents edited externally):**
 
-Use \`watchDoc\` em spells tipo "editor colaborativo" ou "log compartilhado" onde o documento pode ser editado de fora (outro usuário ou device). A capability detecta mudanças e dispara o callback automaticamente.
+Use \`watchDoc\` in spells like "collaborative editor" or "shared log" where the document may be edited from outside (another user or device). The capability detects changes and fires the callback automatically.
 
 - \`watchDoc(docId, intervalMs, callbackName)\` — Starts polling for external changes
   - Fires **immediately** with current content (\`initial: true\`), then only when title or content changes
@@ -46,29 +48,45 @@ Use \`watchDoc\` em spells tipo "editor colaborativo" ou "log compartilhado" ond
 - \`stopWatchDoc(docId, callbackName)\` — Stops polling
   - **Callback data**: \`{ stopped: true }\`
 
-**⚠️ REGRA:** Use \`watchDoc\` + \`setDoc\` para edição colaborativa. Use \`appendText\` + \`getDoc\` para docs de insert-only (diários, logs). Não salve \`lastSyncTimestamp\` no localStorage — o diff fica na capability.
+**⚠️ RULE:** Use \`watchDoc\` + \`setDoc\` for collaborative editing. Use \`appendText\` + \`getDoc\` for insert-only docs (journals, logs). Do not save \`lastSyncTimestamp\` in localStorage — diffing is handled by the capability.
 
-**Usage (sync nativo):**
+**Usage (native sync):**
 \`\`\`js
-// 1. Ao abrir: carrega conteúdo atual (ou cache offline)
+// 1. On open: loads current content (or offline cache)
 AppacadabraDocs.watchDoc(localStorage.getItem('docId'), 10000, 'onDocChanged');
 window.onDocChanged = function(ok, data) {
-  if (!ok) { if (data.offline) showBanner('Sem conexão'); return; }
-  if (data.cached) showBanner('Conteúdo offline');
-  editor.setValue(data.content);   // data.initial = true na primeira chamada
+  if (!ok) { if (data.offline) showBanner('No connection'); return; }
+  if (data.cached) showBanner('Offline content');
+  editor.setValue(data.content);   // data.initial = true on first call
 };
 
-// 2. Salvar nova versão completa (enfileira offline automaticamente)
+// 2. Save a full new version (queued offline automatically)
 AppacadabraDocs.setDoc(localStorage.getItem('docId'), editor.getValue(), 'onSaved');
 window.onSaved = function(ok, data) {
-  if (data.queued) showBanner('Salvando quando voltar a internet');
+  if (data.queued) showBanner('Saving when connection returns');
 };
 
-// 3. Só acrescentar (sem reescrever tudo)
-AppacadabraDocs.appendText(localStorage.getItem('docId'), '\\\\n## Nova Seção\\\\nConteúdo', 'done');
+// 3. Append only (without rewriting everything)
+AppacadabraDocs.appendText(localStorage.getItem('docId'), '\\\\n## New Section\\\\nContent', 'done');
 
-// 4. Parar ao fechar a tela
+// 4. Stop when closing the screen
 AppacadabraDocs.stopWatchDoc(localStorage.getItem('docId'), 'done');
+
+// 5. WYSIWYG editor pattern (read → display editable → save back)
+AppacadabraDocs.watchDoc(localStorage.getItem('docId'), 10000, 'onDoc');
+const editor = document.getElementById('editor');
+editor.contentEditable = 'true';
+window.onDoc = function(ok, data) {
+  if (!ok) return;
+  AppacadabraDocs.convert('markdown', 'html', data.content, 'onRendered');
+};
+window.onRendered = function(ok, html) { editor.innerHTML = html; };
+function save() {
+  AppacadabraDocs.convert('html', 'markdown', editor.innerHTML, 'onConverted');
+}
+window.onConverted = function(ok, md) {
+  AppacadabraDocs.setDoc(localStorage.getItem('docId'), md, 'onSaved');
+};
 \`\`\``,
 };
 
