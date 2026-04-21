@@ -48,6 +48,7 @@
     "expo-local-authentication": "~17.0.8",
     "expo-localization": "^17.0.8",
     "expo-location": "^19.0.8",
+    "expo-mail-composer": "~15.0.8",
     "expo-network": "~8.0.8",
     "expo-notifications": "~0.32.15",
     "expo-print": "~15.0.8",

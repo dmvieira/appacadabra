@@ -583,6 +583,14 @@ export const translations = {
         firstAiUseTitle: 'Congratulations!',
         firstAiUseMessage: 'Congratulations on your first AI use! To see everything generated in a spell, check the spell data in its menu.',
         firstAiUseLink: 'Spell data',
+
+        // Bug Report
+        reportBug: 'Report Bug',
+        reportBugSub: 'Help us improve',
+        reportBugTitle: 'Report a Bug',
+        reportBugPlaceholder: 'Describe the problem...',
+        reportBugAttach: 'Attach spell (optional)',
+        reportBugNoEmail: 'No email app found. Send your report to:',
     },
     pt: {
 
@@ -1161,6 +1169,14 @@ export const translations = {
         firstAiUseTitle: 'Parabéns!',
         firstAiUseMessage: 'Parabéns pelo primeiro uso de IA! Para ver tudo que gerou num feitiço veja os dados do feitiço no menu dele.',
         firstAiUseLink: 'dados do feitiço',
+
+        // Bug Report
+        reportBug: 'Relatar bug',
+        reportBugSub: 'Ajude-nos a melhorar',
+        reportBugTitle: 'Relatar um bug',
+        reportBugPlaceholder: 'Descreva o problema...',
+        reportBugAttach: 'Anexar spell (opcional)',
+        reportBugNoEmail: 'Nenhum app de email encontrado. Envie seu relato para:',
     },
     es: {
 
@@ -1703,6 +1719,14 @@ export const translations = {
         firstAiUseTitle: '¡Felicidades!',
         firstAiUseMessage: '¡Felicidades por tu primer uso de IA! Para ver todo lo que se generó en un hechizo, consulta los datos del hechizo en su menú.',
         firstAiUseLink: 'datos del hechizo',
+
+        // Bug Report
+        reportBug: 'Reportar error',
+        reportBugSub: 'Ayúdanos a mejorar',
+        reportBugTitle: 'Reportar un error',
+        reportBugPlaceholder: 'Describe el problema...',
+        reportBugAttach: 'Adjuntar spell (opcional)',
+        reportBugNoEmail: 'No se encontró app de email. Envía tu reporte a:',
     },
     fr: {
 
@@ -2244,6 +2268,14 @@ export const translations = {
         firstAiUseTitle: 'Félicitations !',
         firstAiUseMessage: 'Félicitations pour votre première utilisation de l\'IA ! Pour voir tout ce qui a été généré dans un sort, consultez les données du sort dans son menu.',
         firstAiUseLink: 'données du sort',
+
+        // Bug Report
+        reportBug: 'Signaler un bug',
+        reportBugSub: 'Aidez-nous à améliorer',
+        reportBugTitle: 'Signaler un bug',
+        reportBugPlaceholder: 'Décrivez le problème...',
+        reportBugAttach: 'Joindre un spell (optionnel)',
+        reportBugNoEmail: 'Aucune app e-mail trouvée. Envoyez votre rapport à :',
     },
     de: {
 
@@ -2715,6 +2747,14 @@ export const translations = {
         firstAiUseTitle: 'Herzlichen Glückwunsch!',
         firstAiUseMessage: 'Herzlichen Glückwunsch zu deiner ersten KI-Nutzung! Um alles zu sehen, was in einem Zauberspruch generiert wurde, sieh dir die Zauberspruchdaten in seinem Menü an.',
         firstAiUseLink: 'Zauber-Daten',
+
+        // Bug Report
+        reportBug: 'Fehler melden',
+        reportBugSub: 'Hilf uns zu verbessern',
+        reportBugTitle: 'Fehler melden',
+        reportBugPlaceholder: 'Problem beschreiben...',
+        reportBugAttach: 'Spell anhängen (optional)',
+        reportBugNoEmail: 'Keine E-Mail-App gefunden. Senden Sie Ihren Bericht an:',
     },
     it: {
 
@@ -3186,6 +3226,14 @@ export const translations = {
         editorObRetry: 'Rivedi il tutorial',
         editorObTabHint: 'Questa è la scheda che useremo ora:',
         editorReplayTutorial: 'Tutorial',
+
+        // Bug Report
+        reportBug: 'Segnala bug',
+        reportBugSub: 'Aiutaci a migliorare',
+        reportBugTitle: 'Segnala un bug',
+        reportBugPlaceholder: 'Descrivi il problema...',
+        reportBugAttach: 'Allega spell (opzionale)',
+        reportBugNoEmail: 'Nessuna app email trovata. Invia la tua segnalazione a:',
     },
     ja: {
 
@@ -3637,6 +3685,14 @@ export const translations = {
         firstAiUseTitle: 'おめでとうございます！',
         firstAiUseMessage: 'AIの初使用おめでとうございます！呪文内で生成された内容を確認するには、メニューの「呪文データ」をご覧ください。',
         firstAiUseLink: '呪文データ',
+
+        // Bug Report
+        reportBug: 'バグを報告',
+        reportBugSub: '改善にご協力ください',
+        reportBugTitle: 'バグを報告する',
+        reportBugPlaceholder: '問題を説明してください...',
+        reportBugAttach: 'スペルを添付 (任意)',
+        reportBugNoEmail: 'メールアプリが見つかりません。レポートを送信してください:',
     },
     // Chinese (Simplified)
     zh: {
@@ -4093,6 +4149,14 @@ export const translations = {
         firstAiUseTitle: '恭喜！',
         firstAiUseMessage: '恭喜您完成首次 AI 交互！要查看法术中生成的所有内容，请在菜单中查看法术数据。',
         firstAiUseLink: '法术数据',
+
+        // Bug Report
+        reportBug: '报告问题',
+        reportBugSub: '帮助我们改进',
+        reportBugTitle: '报告一个问题',
+        reportBugPlaceholder: '描述问题...',
+        reportBugAttach: '附加法术（可选）',
+        reportBugNoEmail: '未找到邮件应用。请将报告发送至:',
     },
     // Korean
     ko: {
@@ -4549,6 +4613,14 @@ export const translations = {
         firstAiUseTitle: '축하합니다!',
         firstAiUseMessage: '첫 AI 사용을 축하합니다! 주문에서 생성된 모든 내용을 보려면 메뉴의 주문 데이터를 확인하세요.',
         firstAiUseLink: '주문 데이터',
+
+        // Bug Report
+        reportBug: '버그 신고',
+        reportBugSub: '개선에 도움을 주세요',
+        reportBugTitle: '버그 신고하기',
+        reportBugPlaceholder: '문제를 설명해 주세요...',
+        reportBugAttach: '스펠 첨부 (선택)',
+        reportBugNoEmail: '이메일 앱을 찾을 수 없습니다. 보고서를 보내주세요:',
     },
     // Arabic
     ar: {
@@ -5005,6 +5077,14 @@ export const translations = {
         firstAiUseTitle: 'تهانينا!',
         firstAiUseMessage: 'تهانينا على أول استخدام لك للذكاء الاصطناعي! لرؤية كل ما تم إنشاؤه في تعويذة، راجع بيانات التعويذة في قائمتها.',
         firstAiUseLink: 'بيانات التعويذة',
+
+        // Bug Report
+        reportBug: 'الإبلاغ عن خطأ',
+        reportBugSub: 'ساعدنا في التحسين',
+        reportBugTitle: 'الإبلاغ عن خطأ',
+        reportBugPlaceholder: 'صف المشكلة...',
+        reportBugAttach: 'إرفاق تعويذة (اختياري)',
+        reportBugNoEmail: 'لم يتم العثور على تطبيق بريد. أرسل تقريرك إلى:',
     },
     // Hindi
     hi: {
@@ -5461,6 +5541,14 @@ export const translations = {
         firstAiUseTitle: 'बधाई हो!',
         firstAiUseMessage: 'आपके पहले AI उपयोग पर बधाई! मंत्र में जो कुछ भी उत्पन्न हुआ है उसे देखने के लिए, उसके मेनू में मंत्र डेटा देखें।',
         firstAiUseLink: 'मंत्र डेटा',
+
+        // Bug Report
+        reportBug: 'बग रिपोर्ट करें',
+        reportBugSub: 'हमें बेहतर बनाने में मदद करें',
+        reportBugTitle: 'बग की रिपोर्ट करें',
+        reportBugPlaceholder: 'समस्या का वर्णन करें...',
+        reportBugAttach: 'स्पेल संलग्न करें (वैकल्पिक)',
+        reportBugNoEmail: 'कोई ईमेल ऐप नहीं मिला। अपनी रिपोर्ट यहाँ भेजें:',
     },
     // Russian
     ru: {
@@ -5917,6 +6005,14 @@ export const translations = {
         firstAiUseTitle: 'Поздравляем!',
         firstAiUseMessage: 'Поздравляем с первым использованием ИИ! Чтобы увидеть всё, что было создано в заклинании, просмотрите данные заклинания в его меню.',
         firstAiUseLink: 'данные заклинания',
+
+        // Bug Report
+        reportBug: 'Сообщить об ошибке',
+        reportBugSub: 'Помогите нам стать лучше',
+        reportBugTitle: 'Сообщить об ошибке',
+        reportBugPlaceholder: 'Опишите проблему...',
+        reportBugAttach: 'Прикрепить заклинание (необязательно)',
+        reportBugNoEmail: 'Почтовое приложение не найдено. Отправьте отчёт на:',
     },
     // Turkish
     tr: {
@@ -6373,6 +6469,14 @@ export const translations = {
         apply: 'Uygula',
         back: 'Geri',
         manualEditLog: 'Manuel düzenleme',
+
+        // Bug Report
+        reportBug: 'Hata Bildir',
+        reportBugSub: 'Geliştirmemize yardım edin',
+        reportBugTitle: 'Hata Bildir',
+        reportBugPlaceholder: 'Sorunu açıklayın...',
+        reportBugAttach: 'Spell ekle (isteğe bağlı)',
+        reportBugNoEmail: 'E-posta uygulaması bulunamadı. Raporunuzu gönderin:',
     },
     // Dutch
     nl: {
@@ -6830,6 +6934,14 @@ export const translations = {
         firstAiUseTitle: 'Gefeliciteerd!',
         firstAiUseMessage: 'Gefeliciteerd met je eerste gebruik van AI! Om alles te zien wat er in een spreuk is gegenereerd, bekijk je de spreukgegevens in het menu.',
         firstAiUseLink: 'spreukgegevens',
+
+        // Bug Report
+        reportBug: 'Bug melden',
+        reportBugSub: 'Help ons verbeteren',
+        reportBugTitle: 'Bug melden',
+        reportBugPlaceholder: 'Beschrijf het probleem...',
+        reportBugAttach: 'Spell bijvoegen (optioneel)',
+        reportBugNoEmail: 'Geen e-mailapp gevonden. Stuur je rapport naar:',
     },
     // Polish
     pl: {
@@ -7289,6 +7401,14 @@ export const translations = {
         firstAiUseTitle: 'Gratulacje!',
         firstAiUseMessage: 'Gratulacje z okazji pierwszego użycia AI! Aby zobaczyć wszystko, co zostało wygenerowane w zaklęciu, sprawdź dane zaklęcia w jego menu.',
         firstAiUseLink: 'dane zaklęcia',
+
+        // Bug Report
+        reportBug: 'Zgłoś błąd',
+        reportBugSub: 'Pomóż nam się poprawić',
+        reportBugTitle: 'Zgłoś błąd',
+        reportBugPlaceholder: 'Opisz problem...',
+        reportBugAttach: 'Dołącz spell (opcjonalnie)',
+        reportBugNoEmail: 'Nie znaleziono aplikacji e-mail. Wyślij raport na:',
     },
     // Vietnamese
     vi: {
@@ -7748,6 +7868,14 @@ export const translations = {
         firstAiUseTitle: 'Chúc mừng!',
         firstAiUseMessage: 'Chúc mừng bạn đã lần đầu sử dụng AI thành công! Để xem tất cả những gì đã tạo trong một câu chú, hãy xem dữ liệu câu chú trong menu của nó.',
         firstAiUseLink: 'dữ liệu câu chú',
+
+        // Bug Report
+        reportBug: 'Báo cáo lỗi',
+        reportBugSub: 'Giúp chúng tôi cải thiện',
+        reportBugTitle: 'Báo cáo một lỗi',
+        reportBugPlaceholder: 'Mô tả vấn đề...',
+        reportBugAttach: 'Đính kèm spell (tuỳ chọn)',
+        reportBugNoEmail: 'Không tìm thấy ứng dụng email. Gửi báo cáo của bạn tới:',
     },
     // Thai
     th: {
@@ -8207,6 +8335,14 @@ export const translations = {
         firstAiUseTitle: 'ขอแสดงความยินดี!',
         firstAiUseMessage: 'ขอแสดงความยินดีกับการใช้งาน AI ครั้งแรกของคุณ! หากต้องการดูทุกสิ่งที่สร้างขึ้นในคาถา ให้ดูที่ข้อมูลคาถาในเมนูของมัน',
         firstAiUseLink: 'ข้อมูลคาถา',
+
+        // Bug Report
+        reportBug: 'รายงานข้อผิดพลาด',
+        reportBugSub: 'ช่วยเราปรับปรุง',
+        reportBugTitle: 'รายงานข้อผิดพลาด',
+        reportBugPlaceholder: 'อธิบายปัญหา...',
+        reportBugAttach: 'แนบสเปล (ไม่บังคับ)',
+        reportBugNoEmail: 'ไม่พบแอปอีเมล ส่งรายงานของคุณไปที่:',
     },
 };
 

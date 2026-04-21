@@ -11,6 +11,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    FlatList,
 } from 'react-native';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -388,6 +389,128 @@ export function ConfirmDialog({
         </Modal>
     );
 }
+
+interface BugReportApp { id: number; name: string; code: string; }
+
+interface BugReportDialogProps {
+    visible: boolean;
+    apps: BugReportApp[];
+    onDismiss: () => void;
+    onSend: (comment: string, selectedApp: BugReportApp | null) => Promise<void>;
+}
+
+export function BugReportDialog({ visible, apps, onDismiss, onSend }: BugReportDialogProps) {
+    const [comment, setComment] = useState('');
+    const [selectedApp, setSelectedApp] = useState<BugReportApp | null>(null);
+    const [isSending, setIsSending] = useState(false);
+
+    useEffect(() => {
+        if (!visible) {
+            setComment('');
+            setSelectedApp(null);
+            setIsSending(false);
+        }
+    }, [visible]);
+
+    const handleSend = async () => {
+        if (!comment.trim() || isSending) return;
+        setIsSending(true);
+        try {
+            await onSend(comment.trim(), selectedApp);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
+                <View style={styles.dialog}>
+                    <Text style={styles.title}>{t('reportBugTitle')}</Text>
+
+                    <TextInput
+                        style={[styles.input, { minHeight: 100, textAlignVertical: 'top' }]}
+                        value={comment}
+                        onChangeText={setComment}
+                        placeholder={t('reportBugPlaceholder')}
+                        placeholderTextColor="#6B7280"
+                        multiline
+                        autoFocus
+                    />
+
+                    {apps.length > 0 && (
+                        <View style={bugStyles.attachSection}>
+                            <Text style={bugStyles.attachLabel}>{t('reportBugAttach')}</Text>
+                            <FlatList
+                                data={apps}
+                                keyExtractor={a => String(a.id)}
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ gap: 8 }}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={[bugStyles.chip, selectedApp?.id === item.id && bugStyles.chipSelected]}
+                                        onPress={() => setSelectedApp(prev => prev?.id === item.id ? null : item)}
+                                    >
+                                        <Text style={[bugStyles.chipText, selectedApp?.id === item.id && bugStyles.chipTextSelected]} numberOfLines={1}>
+                                            {item.name}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
+                    )}
+
+                    <View style={styles.buttons}>
+                        <TouchableOpacity style={styles.cancelBtn} onPress={onDismiss} disabled={isSending}>
+                            <Text style={styles.cancelText}>{t('cancel')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.sendBtn, (!comment.trim() || isSending) && styles.sendBtnDisabled]}
+                            onPress={handleSend}
+                            disabled={!comment.trim() || isSending}
+                        >
+                            <Text style={styles.sendText}>{isSending ? '...' : t('send')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </KeyboardAvoidingView>
+        </Modal>
+    );
+}
+
+const bugStyles = StyleSheet.create({
+    attachSection: {
+        marginTop: 12,
+    },
+    attachLabel: {
+        color: '#9CA3AF',
+        fontSize: 12,
+        fontWeight: '600',
+        marginBottom: 8,
+    },
+    chip: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#374151',
+        backgroundColor: '#1F2937',
+        maxWidth: 140,
+    },
+    chipSelected: {
+        borderColor: '#7C3AED',
+        backgroundColor: 'rgba(124,58,237,0.2)',
+    },
+    chipText: {
+        color: '#9CA3AF',
+        fontSize: 13,
+    },
+    chipTextSelected: {
+        color: '#A78BFA',
+        fontWeight: '600',
+    },
+});
 
 const styles = StyleSheet.create({
     overlay: {

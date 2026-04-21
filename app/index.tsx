@@ -33,7 +33,9 @@ import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
 import { EmptySearchState } from '../components/EmptySearchState';
-import { ChatDialog, ConfirmDialog } from '../components/Dialogs';
+import { ChatDialog, ConfirmDialog, BugReportDialog } from '../components/Dialogs';
+import * as MailComposer from 'expo-mail-composer';
+import Constants from 'expo-constants';
 import { Onboarding } from '../components/Onboarding';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import SignOutModal from '../components/SignOutModal';
@@ -114,6 +116,7 @@ export default function HomeScreen() {
     const [createDialogInitialText, setCreateDialogInitialText] = useState<string | undefined>(undefined);
     const [deleteTarget, setDeleteTarget] = useState<GeneratedApp | null>(null);
     const [showMenu, setShowMenu] = useState(false);
+    const [showBugReport, setShowBugReport] = useState(false);
     const [isPicking, setIsPicking] = useState(false);
     const [showLegal, setShowLegal] = useState(false);
     const [legalTab, setLegalTab] = useState<'privacy' | 'terms'>('privacy');
@@ -774,6 +777,32 @@ export default function HomeScreen() {
         }
     };
 
+    const handleSendBugReport = async (comment: string, selectedApp: { name: string; code: string } | null) => {
+        const user = firebase.getCurrentUser();
+        const version = Constants.expoConfig?.version ?? '?';
+        const userName = user?.displayName ?? 'Anonymous';
+        const userEmail = user?.email ?? 'anonymous';
+        const spellLine = selectedApp ? `\nSpell: ${selectedApp.name}` : '';
+        const body = `App Version: ${version}\nUser: ${userName} (${userEmail})${spellLine}\n\n--- Description ---\n${comment}`;
+        const attachments: string[] = [];
+        if (selectedApp) {
+            const path = FileSystem.cacheDirectory + 'bug_spell.html';
+            await FileSystem.writeAsStringAsync(path, selectedApp.code, { encoding: FileSystem.EncodingType.UTF8 });
+            attachments.push(path);
+        }
+        const available = await MailComposer.isAvailableAsync();
+        if (available) {
+            await MailComposer.composeAsync({
+                recipients: ['support@appacadabra.ai'],
+                subject: '[Bug Report] Appacadabra',
+                body,
+                attachments,
+            });
+        } else {
+            Alert.alert(t('reportBugNoEmail'), 'support@appacadabra.ai');
+        }
+    };
+
     const handleExport = () => {
         setShowMenu(false);
         // Direct call - global backup always includes data
@@ -1228,6 +1257,13 @@ export default function HomeScreen() {
                                     <Text style={styles.sheetItemTitle}>{t('replayOnboarding')}</Text>
                                 </View>
                             </TouchableOpacity>
+                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowAdvanced(false); setShowBugReport(true); }} accessibilityLabel={t('reportBug')} accessibilityRole="menuitem">
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🐛</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('reportBug')}</Text>
+                                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('reportBugSub')}</Text>
+                                </View>
+                            </TouchableOpacity>
                             <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowAdvanced(false); setShowLegal(true); }} accessibilityLabel={t('legal')} accessibilityRole="menuitem">
                                 <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📜</Text></View>
                                 <View style={{ flex: 1 }}>
@@ -1336,6 +1372,13 @@ export default function HomeScreen() {
                 onDismiss={() => { if (!isGenerating) { setShowCreateDialog(false); setCreateDialogInitialText(undefined); } }}
                 onSend={handleCreateApp}
                 initialText={createDialogInitialText}
+            />
+
+            <BugReportDialog
+                visible={showBugReport}
+                apps={apps}
+                onDismiss={() => setShowBugReport(false)}
+                onSend={handleSendBugReport}
             />
 
             <ConfirmDialog
