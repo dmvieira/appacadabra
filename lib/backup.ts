@@ -84,13 +84,13 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
         }
 
         // Collect scheduled notifications for this app
-        let notifications: { identifier: string; title: string; body: string; fireDate: number }[] = [];
+        let notifications: { identifier: string; title: string; body: string; fireDate: number; isAlarm?: boolean }[] = [];
         // Collect mana events for this app
         let manaEvents: { amount: number; timestamp: number }[] = [];
         if (includeStorage) {
+            const now = Date.now();
             try {
                 const allNotifs = await Notifications.getAllScheduledNotificationsAsync();
-                const now = Date.now();
                 allNotifs.forEach(n => {
                     const content = n.content as any;
                     const isThisApp =
