@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
-import { marked } from 'marked';
+import { marked, type Token, type Tokens } from 'marked';
 import TurndownService from 'turndown';
 import { createCallbackScript } from './mediaHelpers';
 import { requestGoogleScopes } from '../firebase';
@@ -8,21 +8,38 @@ import { CapabilityModule, HandlerContext, HandlerResult, WebViewRef } from './t
 
 // ============= Format Conversion Helpers =============
 
-const _td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced' });
+const _td = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', codeBlockStyle: 'fenced', emDelimiter: '*' });
+_td.remove(['script', 'style']);
+_td.addRule('force-em', {
+    filter: ['em', 'i'],
+    replacement: (content: string) => { const c = content.trim(); return c ? `*${c}*` : content; },
+});
+_td.addRule('force-strong', {
+    filter: ['strong', 'b'],
+    replacement: (content: string) => { const c = content.trim(); return c ? `**${c}**` : content; },
+});
 
 function sanitizeMarkdown(md: string): string {
     return md
         .replace(/([^\n])\n(---+\s*)$/gm, '$1\n\n$2')
-        .replace(/\*\*([^*\n]+?)(\s+)\*\*/g, '**$1**$2')
-        .replace(/\*([^*\n]+?)(\s+)\*/g, '*$1*$2');
+        .replace(/\*\*([^*\n]+?)\*\*/g, (_, c) => `**${c.trim()}**`)
+        .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, (_, c) => `*${c.trim()}*`);
 }
 
 async function markdownToHtml(md: string): Promise<string> {
     return marked(sanitizeMarkdown(md)) as Promise<string>;
 }
 
+// Metro's browser field remaps turndown → turndown.browser.cjs.js which relies on
+// document.createElement (unavailable in React Native). Pre-parsing with domino gives
+// turndown a DOM node instead of a string, so it skips its internal HTML parser entirely.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const _domino = require('@mixmark-io/domino');
+
 function htmlToMd(html: string): string {
-    return _td.turndown(html);
+    const doc = _domino.createDocument(html) as { body: Element };
+    const raw = _td.turndown(doc.body as unknown as HTMLElement);
+    return raw.replace(/\\([*_`\[\]()#.!|>~])/g, '$1');
 }
 
 const DOC_STYLES = `
@@ -52,56 +69,38 @@ function wrapDocHtml(bodyHtml: string): string {
 
 // ============= Google Docs Helpers =============
 
-function parseInlineStyles(text: string): Array<{ text: string; bold: boolean; italic: boolean }> {
-    const segments: Array<{ text: string; bold: boolean; italic: boolean }> = [];
-    const re = /(\*\*(.+?)\*\*)|(\*(.+?)\*)/g;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-            segments.push({ text: text.slice(lastIndex, match.index), bold: false, italic: false });
+type Segment = { text: string; bold: boolean; italic: boolean };
+
+function extractInlineSegments(tokens: Token[], bold = false, italic = false): Segment[] {
+    const out: Segment[] = [];
+    for (const tok of tokens) {
+        if (tok.type === 'strong') {
+            out.push(...extractInlineSegments((tok as Tokens.Strong).tokens, true, italic));
+        } else if (tok.type === 'em') {
+            out.push(...extractInlineSegments((tok as Tokens.Em).tokens, bold, true));
+        } else if (tok.type === 'text') {
+            const t = tok as Tokens.Text;
+            if (t.tokens?.length) {
+                out.push(...extractInlineSegments(t.tokens, bold, italic));
+            } else {
+                out.push({ text: t.text, bold, italic });
+            }
+        } else if (tok.type === 'codespan' || tok.type === 'escape') {
+            out.push({ text: (tok as Tokens.Codespan | Tokens.Escape).text, bold, italic });
         }
-        if (match[1]) {
-            segments.push({ text: match[2], bold: true, italic: false });
-        } else if (match[3]) {
-            segments.push({ text: match[4], bold: false, italic: true });
-        }
-        lastIndex = re.lastIndex;
     }
-    if (lastIndex < text.length) {
-        segments.push({ text: text.slice(lastIndex), bold: false, italic: false });
-    }
-    return segments.filter(s => s.text.length > 0);
+    return out;
 }
 
 function buildDocsRequests(markdownText: string, startIndex: number): { requests: any[]; endIndex: number } {
-    const lines = markdownText.split('\n');
+    const blockTokens = marked.lexer(markdownText);
     const requests: any[] = [];
     let cursor = startIndex;
 
-    for (const rawLine of lines) {
-        let lineText = rawLine;
-        let paragraphStyle: string | null = null;
-        let isBullet = false;
-
-        if (lineText.startsWith('### ')) {
-            paragraphStyle = 'HEADING_3';
-            lineText = lineText.slice(4);
-        } else if (lineText.startsWith('## ')) {
-            paragraphStyle = 'HEADING_2';
-            lineText = lineText.slice(3);
-        } else if (lineText.startsWith('# ')) {
-            paragraphStyle = 'HEADING_1';
-            lineText = lineText.slice(2);
-        } else if (lineText.startsWith('- ')) {
-            isBullet = true;
-            lineText = lineText.slice(2);
-        }
-
+    function insertLine(segments: Segment[], paragraphStyle: string | null, isBullet: boolean) {
         const lineStart = cursor;
-        const segments = parseInlineStyles(lineText);
-
         for (const seg of segments) {
+            if (!seg.text) continue;
             requests.push({ insertText: { location: { index: cursor }, text: seg.text } });
             if (seg.bold || seg.italic) {
                 requests.push({
@@ -114,10 +113,8 @@ function buildDocsRequests(markdownText: string, startIndex: number): { requests
             }
             cursor += seg.text.length;
         }
-
         requests.push({ insertText: { location: { index: cursor }, text: '\n' } });
         cursor += 1;
-
         if (paragraphStyle) {
             requests.push({
                 updateParagraphStyle: {
@@ -127,7 +124,6 @@ function buildDocsRequests(markdownText: string, startIndex: number): { requests
                 },
             });
         }
-
         if (isBullet) {
             requests.push({
                 createParagraphBullets: {
@@ -136,6 +132,23 @@ function buildDocsRequests(markdownText: string, startIndex: number): { requests
                 },
             });
         }
+    }
+
+    for (const tok of blockTokens) {
+        if (tok.type === 'heading') {
+            const h = tok as Tokens.Heading;
+            const style = (['HEADING_1', 'HEADING_2', 'HEADING_3'] as const)[h.depth - 1] ?? null;
+            insertLine(extractInlineSegments(h.tokens), style, false);
+        } else if (tok.type === 'paragraph') {
+            insertLine(extractInlineSegments((tok as Tokens.Paragraph).tokens), null, false);
+        } else if (tok.type === 'list') {
+            for (const item of (tok as Tokens.List).items) {
+                const firstTok = item.tokens[0];
+                const inlineToks = firstTok?.tokens ?? (firstTok ? [firstTok] : []);
+                insertLine(extractInlineSegments(inlineToks), null, true);
+            }
+        }
+        // space and other block types are skipped
     }
 
     return { requests, endIndex: cursor };
@@ -170,7 +183,7 @@ function docsToMarkdown(doc: any): string {
             const trailing = content.match(/\s+$/)?.[0] ?? '';
             const inner = trailing ? content.slice(0, -trailing.length) : content;
             if (inner) {
-                if (bold && italic) lineText += `**_${inner}_**${trailing}`;
+                if (bold && italic) lineText += `***${inner}***${trailing}`;
                 else if (bold)      lineText += `**${inner}**${trailing}`;
                 else if (italic)    lineText += `*${inner}*${trailing}`;
                 else                lineText += content;
@@ -676,7 +689,14 @@ window.onConverted = function(ok, md) {
                         return { success: true, result: base64 };
                     }
                     if (from === 'html' && to === 'pdf') {
-                        const { uri } = await Print.printToFileAsync({ html: String(content) });
+                        const paginationStyle = `<style>@page{margin:40px 32px;}h1,h2,h3,h4{page-break-after:avoid;break-after:avoid;}</style>`;
+                        let html = String(content);
+                        if (/<head[^>]*>/i.test(html)) {
+                            html = html.replace(/(<head[^>]*>)/i, `$1${paginationStyle}`);
+                        } else {
+                            html = paginationStyle + html;
+                        }
+                        const { uri } = await Print.printToFileAsync({ html });
                         const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
                         await FileSystem.deleteAsync(uri, { idempotent: true });
                         return { success: true, result: base64 };

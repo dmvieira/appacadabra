@@ -89,9 +89,6 @@ jest.mock('react-native-health-connect', () => ({
     SdkAvailabilityStatus: { SDK_AVAILABLE: 3 },
 }));
 
-jest.mock('marked', () => ({
-    marked: jest.fn((s: string) => s),
-}));
 
 jest.mock('expo-linking', () => ({
     openURL: jest.fn(() => Promise.resolve()),
@@ -950,27 +947,99 @@ describeCapability('docs')('handleMessage — docs', () => {
         expect(JSON.parse(result!.result!)).toMatchObject({ docId: 'doc-1' });
     });
 
-    it('CONVERT markdown→pdf: returns base64 string', async () => {
-        const result = await cap.handleMessage('CONVERT', { from: 'markdown', to: 'pdf', content: '# Hello' }, ctx);
+    // ─── CONVERT: content correctness ────────────────────────────────────────
+
+    it('CONVERT markdown→html: produces HTML tags for headings and paragraphs', async () => {
+        const result = await cap.handleMessage('CONVERT', {
+            from: 'markdown', to: 'html',
+            content: '# Title\n\nParagraph with **bold** and *italic*.\n\n- item A\n- item B',
+        }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(typeof result!.result).toBe('string');
+        expect(result!.deferredCallback).toBeFalsy(); // callback must fire from runner
+        const html = result!.result!;
+        expect(html).toMatch(/<h1[^>]*>/i);
+        expect(html).toMatch(/<strong[^>]*>/i);
+        expect(html).toMatch(/<em[^>]*>/i);
+        expect(html).toMatch(/<ul[^>]*>/i);
+        expect(html).toContain('Title');
+        expect(html).toContain('bold');
     });
 
-    it('CONVERT markdown→html: returns string', async () => {
-        const result = await cap.handleMessage('CONVERT', { from: 'markdown', to: 'html', content: '# Hello' }, ctx);
+    it('CONVERT html→markdown: produces atx headings and preserves text', async () => {
+        const result = await cap.handleMessage('CONVERT', {
+            from: 'html', to: 'markdown',
+            content: '<h1>Title</h1><p>Para with <strong>bold</strong> and <em>italic</em>.</p><ul><li>A</li><li>B</li></ul>',
+        }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(typeof result!.result).toBe('string');
+        expect(result!.deferredCallback).toBeFalsy(); // callback must fire from runner
+        const md = result!.result!;
+        expect(md).toMatch(/^# Title/m);
+        expect(md).toContain('**bold**');
+        expect(md).toContain('*italic*');
+        expect(md).toMatch(/-\s+A/);
+        expect(md).toMatch(/-\s+B/);
     });
 
-    it('CONVERT html→markdown: returns string', async () => {
-        const result = await cap.handleMessage('CONVERT', { from: 'html', to: 'markdown', content: '<h1>Hello</h1>' }, ctx);
+    it('CONVERT html→markdown: strips script and style tags', async () => {
+        const result = await cap.handleMessage('CONVERT', {
+            from: 'html', to: 'markdown',
+            content: '<script>alert("xss")</script><p>Safe text</p><style>body{color:red}</style>',
+        }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(typeof result!.result).toBe('string');
+        const md = result!.result!;
+        expect(md).not.toContain('alert');
+        expect(md).not.toContain('color:red');
+        expect(md).toContain('Safe text');
     });
 
-    it('CONVERT unsupported: returns error', async () => {
+    it('CONVERT html→markdown roundtrip: markdown→html→markdown preserves structure', async () => {
+        const original = '# Heading\n\nParagraph with **bold** text.\n\n- item one\n- item two';
+        const toHtml = await cap.handleMessage('CONVERT', { from: 'markdown', to: 'html', content: original }, ctx);
+        expect(toHtml).toMatchObject({ success: true });
+        const backToMd = await cap.handleMessage('CONVERT', { from: 'html', to: 'markdown', content: toHtml!.result! }, ctx);
+        expect(backToMd).toMatchObject({ success: true });
+        const md = backToMd!.result!;
+        expect(md).toMatch(/^# Heading/m);
+        expect(md).toContain('bold');
+        expect(md).toContain('item one');
+    });
+
+    it('CONVERT markdown→pdf: returns non-empty base64 and no deferredCallback', async () => {
+        const result = await cap.handleMessage('CONVERT', { from: 'markdown', to: 'pdf', content: '# Hello\n\nWorld' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(result!.deferredCallback).toBeFalsy();
+        expect(result!.result!.length).toBeGreaterThan(0);
+    });
+
+    it('CONVERT html→pdf: returns non-empty base64 and no deferredCallback', async () => {
+        const result = await cap.handleMessage('CONVERT', { from: 'html', to: 'pdf', content: '<h1>Hello</h1><p>World</p>' }, ctx);
+        expect(result).toMatchObject({ success: true });
+        expect(result!.deferredCallback).toBeFalsy();
+        expect(result!.result!.length).toBeGreaterThan(0);
+    });
+
+    it('CONVERT empty content: returns error', async () => {
+        const result = await cap.handleMessage('CONVERT', { from: 'html', to: 'markdown', content: '' }, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+
+    it('CONVERT missing content: returns error', async () => {
+        const result = await cap.handleMessage('CONVERT', { from: 'html', to: 'markdown' }, ctx);
+        expect(result).toMatchObject({ success: false });
+    });
+
+    it('CONVERT unsupported format: returns error with message', async () => {
         const result = await cap.handleMessage('CONVERT', { from: 'markdown', to: 'docx', content: 'text' }, ctx);
         expect(result).toMatchObject({ success: false });
+        expect(result!.result).toContain('docx');
+    });
+
+    it('CONVERT does not call injectJavaScript — callback is fired by runner', async () => {
+        const injectSpy = ctx.webViewRef.current!.injectJavaScript as jest.Mock;
+        injectSpy.mockClear();
+        await cap.handleMessage('CONVERT', { from: 'html', to: 'markdown', content: '<p>test</p>' }, ctx);
+        // The capability itself must NOT inject the callback — that is the runner's responsibility
+        expect(injectSpy).not.toHaveBeenCalled();
     });
 
     it('DOCS_SET: replaces doc content and returns docId', async () => {
