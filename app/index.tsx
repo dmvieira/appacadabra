@@ -36,6 +36,7 @@ import { EmptySearchState } from '../components/EmptySearchState';
 import { ChatDialog, ConfirmDialog, BugReportDialog } from '../components/Dialogs';
 import * as MailComposer from 'expo-mail-composer';
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import { Onboarding } from '../components/Onboarding';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import SignOutModal from '../components/SignOutModal';
@@ -779,11 +780,17 @@ export default function HomeScreen() {
 
     const handleSendBugReport = async (comment: string, selectedApp: { name: string; code: string } | null) => {
         const user = firebase.getCurrentUser();
-        const version = Constants.expoConfig?.version ?? '?';
-        const userName = user?.displayName ?? 'Anonymous';
+        const appVersion = Constants.expoConfig?.version ?? '?';
         const userEmail = user?.email ?? 'anonymous';
         const spellLine = selectedApp ? `\nSpell: ${selectedApp.name}` : '';
-        const body = `App Version: ${version}\nUser: ${userName} (${userEmail})${spellLine}\n\n--- Description ---\n${comment}`;
+        const deviceInfo = [
+            `Device: ${Device.manufacturer ?? '?'} ${Device.modelName ?? '?'}`,
+            `OS: ${Device.osName ?? Platform.OS} ${Device.osVersion ?? Platform.Version}`,
+            `Android API: ${Platform.OS === 'android' ? Platform.Version : 'N/A'}`,
+            `RAM: ${Device.totalMemory ? Math.round(Device.totalMemory / 1024 / 1024 / 1024 * 10) / 10 + ' GB' : '?'}`,
+            `Physical device: ${Device.isDevice ? 'Yes' : 'No (emulator)'}`,
+        ].join('\n');
+        const body = `App Version: ${appVersion}\nUser: ${userEmail}${spellLine}\n\n--- Device ---\n${deviceInfo}\n\n--- Description ---\n${comment}`;
         const attachments: string[] = [];
         if (selectedApp) {
             const path = FileSystem.cacheDirectory + 'bug_spell.html';
