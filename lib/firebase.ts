@@ -672,6 +672,14 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 const grantedScopeKeys = new Set<string>();
 
+// Serializes all GoogleSignin operations — getTokens/addScopes are not concurrent-safe.
+let _googleSigninQueue: Promise<any> = Promise.resolve();
+function withGoogleSigninLock<T>(fn: () => Promise<T>): Promise<T> {
+    const result = _googleSigninQueue.then(fn, fn);
+    _googleSigninQueue = result.catch(() => {});
+    return result;
+}
+
 // Configure Google Sign-In
 GoogleSignin.configure({
     scopes: ['https://www.googleapis.com/auth/drive.appdata'],
@@ -763,14 +771,16 @@ export function isGoogleUser(): boolean {
 }
 
 /** Get the Google OAuth access token for API calls (e.g. Drive) */
-export async function getGoogleAccessToken(): Promise<string | null> {
-    try {
-        const tokens = await GoogleSignin.getTokens();
-        return tokens.accessToken;
-    } catch (e) {
-        console.warn('[Firebase] Failed to get Google access token:', e);
-        return null;
-    }
+export function getGoogleAccessToken(): Promise<string | null> {
+    return withGoogleSigninLock(async () => {
+        try {
+            const tokens = await GoogleSignin.getTokens();
+            return tokens.accessToken;
+        } catch (e) {
+            console.warn('[Firebase] Failed to get Google access token:', e);
+            return null;
+        }
+    });
 }
 
 /** Request additional Google OAuth scopes lazily (incremental auth).
@@ -778,27 +788,29 @@ export async function getGoogleAccessToken(): Promise<string | null> {
  *  If already signed in: requests only the new scopes via incremental consent.
  *  Returns access token, or null if user cancelled/denied.
  */
-export async function requestGoogleScopes(scopes: string[]): Promise<string | null> {
-    const scopeKey = scopes.slice().sort().join(',');
-    try {
-        const isSignedIn = await GoogleSignin.getCurrentUser() !== null;
-        if (!isSignedIn) {
-            await GoogleSignin.signIn();
+export function requestGoogleScopes(scopes: string[]): Promise<string | null> {
+    return withGoogleSigninLock(async () => {
+        const scopeKey = scopes.slice().sort().join(',');
+        try {
+            const isSignedIn = await GoogleSignin.getCurrentUser() !== null;
+            if (!isSignedIn) {
+                await GoogleSignin.signIn();
+                grantedScopeKeys.delete(scopeKey);
+            }
+            if (!grantedScopeKeys.has(scopeKey)) {
+                const userWithScopes = await GoogleSignin.addScopes({ scopes });
+                if (!userWithScopes) return null;
+                grantedScopeKeys.add(scopeKey);
+            }
+            const tokens = await GoogleSignin.getTokens();
+            return tokens.accessToken;
+        } catch (e: any) {
+            if (e.code === statusCodes.SIGN_IN_CANCELLED) return null;
+            console.error('[requestGoogleScopes] failed:', e);
             grantedScopeKeys.delete(scopeKey);
+            return null;
         }
-        if (!grantedScopeKeys.has(scopeKey)) {
-            const userWithScopes = await GoogleSignin.addScopes({ scopes });
-            if (!userWithScopes) return null;
-            grantedScopeKeys.add(scopeKey);
-        }
-        const tokens = await GoogleSignin.getTokens();
-        return tokens.accessToken;
-    } catch (e: any) {
-        if (e.code === statusCodes.SIGN_IN_CANCELLED) return null;
-        console.error('[requestGoogleScopes] failed:', e);
-        grantedScopeKeys.delete(scopeKey);
-        return null;
-    }
+    });
 }
 
 // Re-export existing listeners
