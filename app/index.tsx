@@ -46,7 +46,7 @@ import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
 import { t, getCurrentLanguage } from '../lib/i18n';
 import { ManaDisplay } from '../components/ManaDisplay';
 import * as db from '../lib/database/db';
-import { exportSingleApp, importSpellByNameFromData, readBackupFile, BackupData } from '../lib/backup';
+import { exportSingleApp, importSpellByNameFromData, readBackupFile, BackupData, createBackup } from '../lib/backup';
 import * as firebase from '../lib/firebase';
 import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useManaStore } from '../lib/manaStore';
@@ -778,7 +778,7 @@ export default function HomeScreen() {
         }
     };
 
-    const handleSendBugReport = async (comment: string, selectedApp: { name: string; code: string } | null) => {
+    const handleSendBugReport = async (comment: string, selectedApp: { id: number; name: string; code: string } | null, includeStorage: boolean = false) => {
         const user = firebase.getCurrentUser();
         const appVersion = Constants.expoConfig?.version ?? '?';
         const userEmail = user?.email ?? 'anonymous';
@@ -796,6 +796,12 @@ export default function HomeScreen() {
             const path = FileSystem.cacheDirectory + 'bug_spell.html';
             await FileSystem.writeAsStringAsync(path, selectedApp.code, { encoding: FileSystem.EncodingType.UTF8 });
             attachments.push(path);
+            if (includeStorage) {
+                const backup = await createBackup(true, selectedApp.id);
+                const jsonPath = FileSystem.cacheDirectory + 'bug_spell_data.json';
+                await FileSystem.writeAsStringAsync(jsonPath, JSON.stringify(backup, null, 2), { encoding: FileSystem.EncodingType.UTF8 });
+                attachments.push(jsonPath);
+            }
         }
         const available = await MailComposer.isAvailableAsync();
         if (available) {

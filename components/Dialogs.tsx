@@ -396,18 +396,20 @@ interface BugReportDialogProps {
     visible: boolean;
     apps: BugReportApp[];
     onDismiss: () => void;
-    onSend: (comment: string, selectedApp: BugReportApp | null) => Promise<void>;
+    onSend: (comment: string, selectedApp: BugReportApp | null, includeStorage: boolean) => Promise<void>;
 }
 
 export function BugReportDialog({ visible, apps, onDismiss, onSend }: BugReportDialogProps) {
     const [comment, setComment] = useState('');
     const [selectedApp, setSelectedApp] = useState<BugReportApp | null>(null);
+    const [includeStorage, setIncludeStorage] = useState(false);
     const [isSending, setIsSending] = useState(false);
 
     useEffect(() => {
         if (!visible) {
             setComment('');
             setSelectedApp(null);
+            setIncludeStorage(false);
             setIsSending(false);
         }
     }, [visible]);
@@ -416,7 +418,8 @@ export function BugReportDialog({ visible, apps, onDismiss, onSend }: BugReportD
         if (!comment.trim() || isSending) return;
         setIsSending(true);
         try {
-            await onSend(comment.trim(), selectedApp);
+            await onSend(comment.trim(), selectedApp, includeStorage);
+            onDismiss();
         } finally {
             setIsSending(false);
         }
@@ -450,7 +453,11 @@ export function BugReportDialog({ visible, apps, onDismiss, onSend }: BugReportD
                                 renderItem={({ item }) => (
                                     <TouchableOpacity
                                         style={[bugStyles.chip, selectedApp?.id === item.id && bugStyles.chipSelected]}
-                                        onPress={() => setSelectedApp(prev => prev?.id === item.id ? null : item)}
+                                        onPress={() => {
+                                            const next = selectedApp?.id === item.id ? null : item;
+                                            setSelectedApp(next);
+                                            if (!next) setIncludeStorage(false);
+                                        }}
                                     >
                                         <Text style={[bugStyles.chipText, selectedApp?.id === item.id && bugStyles.chipTextSelected]} numberOfLines={1}>
                                             {item.name}
@@ -458,6 +465,14 @@ export function BugReportDialog({ visible, apps, onDismiss, onSend }: BugReportD
                                     </TouchableOpacity>
                                 )}
                             />
+                            {selectedApp && (
+                                <TouchableOpacity style={bugStyles.checkboxRow} onPress={() => setIncludeStorage(v => !v)}>
+                                    <View style={[bugStyles.checkbox, includeStorage && bugStyles.checkboxChecked]}>
+                                        {includeStorage && <Text style={bugStyles.checkmark}>✓</Text>}
+                                    </View>
+                                    <Text style={bugStyles.checkboxLabel}>{t('reportBugIncludeStorage')}</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
 
@@ -509,6 +524,35 @@ const bugStyles = StyleSheet.create({
     chipTextSelected: {
         color: '#A78BFA',
         fontWeight: '600',
+    },
+    checkboxRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 10,
+        gap: 8,
+    },
+    checkbox: {
+        width: 18,
+        height: 18,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: '#374151',
+        backgroundColor: '#1F2937',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxChecked: {
+        borderColor: '#7C3AED',
+        backgroundColor: 'rgba(124,58,237,0.3)',
+    },
+    checkmark: {
+        color: '#A78BFA',
+        fontSize: 12,
+        lineHeight: 14,
+    },
+    checkboxLabel: {
+        color: '#9CA3AF',
+        fontSize: 13,
     },
 });
 

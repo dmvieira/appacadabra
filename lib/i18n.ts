@@ -590,6 +590,7 @@ export const translations = {
         reportBugTitle: 'Report a Bug',
         reportBugPlaceholder: 'Describe the problem...',
         reportBugAttach: 'Attach spell (optional)',
+        reportBugIncludeStorage: 'Include spell data',
         reportBugNoEmail: 'No email app found. Send your report to:',
     },
     pt: {
@@ -1176,6 +1177,7 @@ export const translations = {
         reportBugTitle: 'Relatar um bug',
         reportBugPlaceholder: 'Descreva o problema...',
         reportBugAttach: 'Anexar spell (opcional)',
+        reportBugIncludeStorage: 'Incluir dados do feitiço',
         reportBugNoEmail: 'Nenhum app de email encontrado. Envie seu relato para:',
     },
     es: {
@@ -1726,6 +1728,7 @@ export const translations = {
         reportBugTitle: 'Reportar un error',
         reportBugPlaceholder: 'Describe el problema...',
         reportBugAttach: 'Adjuntar spell (opcional)',
+        reportBugIncludeStorage: 'Incluir datos del hechizo',
         reportBugNoEmail: 'No se encontró app de email. Envía tu reporte a:',
     },
     fr: {
@@ -2275,6 +2278,7 @@ export const translations = {
         reportBugTitle: 'Signaler un bug',
         reportBugPlaceholder: 'Décrivez le problème...',
         reportBugAttach: 'Joindre un spell (optionnel)',
+        reportBugIncludeStorage: 'Inclure les données du sort',
         reportBugNoEmail: 'Aucune app e-mail trouvée. Envoyez votre rapport à :',
     },
     de: {
@@ -2754,6 +2758,7 @@ export const translations = {
         reportBugTitle: 'Fehler melden',
         reportBugPlaceholder: 'Problem beschreiben...',
         reportBugAttach: 'Spell anhängen (optional)',
+        reportBugIncludeStorage: 'Zauberdaten einschließen',
         reportBugNoEmail: 'Keine E-Mail-App gefunden. Senden Sie Ihren Bericht an:',
     },
     it: {
@@ -3233,6 +3238,7 @@ export const translations = {
         reportBugTitle: 'Segnala un bug',
         reportBugPlaceholder: 'Descrivi il problema...',
         reportBugAttach: 'Allega spell (opzionale)',
+        reportBugIncludeStorage: "Includi dati dell'incantesimo",
         reportBugNoEmail: 'Nessuna app email trovata. Invia la tua segnalazione a:',
     },
     ja: {
@@ -3692,6 +3698,7 @@ export const translations = {
         reportBugTitle: 'バグを報告する',
         reportBugPlaceholder: '問題を説明してください...',
         reportBugAttach: 'スペルを添付 (任意)',
+        reportBugIncludeStorage: 'スペルデータを含める',
         reportBugNoEmail: 'メールアプリが見つかりません。レポートを送信してください:',
     },
     // Chinese (Simplified)
@@ -4156,6 +4163,7 @@ export const translations = {
         reportBugTitle: '报告一个问题',
         reportBugPlaceholder: '描述问题...',
         reportBugAttach: '附加法术（可选）',
+        reportBugIncludeStorage: '包含法术数据',
         reportBugNoEmail: '未找到邮件应用。请将报告发送至:',
     },
     // Korean
@@ -4620,6 +4628,7 @@ export const translations = {
         reportBugTitle: '버그 신고하기',
         reportBugPlaceholder: '문제를 설명해 주세요...',
         reportBugAttach: '스펠 첨부 (선택)',
+        reportBugIncludeStorage: '스펠 데이터 포함',
         reportBugNoEmail: '이메일 앱을 찾을 수 없습니다. 보고서를 보내주세요:',
     },
     // Arabic
@@ -5084,6 +5093,7 @@ export const translations = {
         reportBugTitle: 'الإبلاغ عن خطأ',
         reportBugPlaceholder: 'صف المشكلة...',
         reportBugAttach: 'إرفاق تعويذة (اختياري)',
+        reportBugIncludeStorage: 'تضمين بيانات التعويذة',
         reportBugNoEmail: 'لم يتم العثور على تطبيق بريد. أرسل تقريرك إلى:',
     },
     // Hindi
@@ -5548,6 +5558,7 @@ export const translations = {
         reportBugTitle: 'बग की रिपोर्ट करें',
         reportBugPlaceholder: 'समस्या का वर्णन करें...',
         reportBugAttach: 'स्पेल संलग्न करें (वैकल्पिक)',
+        reportBugIncludeStorage: 'स्पेल डेटा शामिल करें',
         reportBugNoEmail: 'कोई ईमेल ऐप नहीं मिला। अपनी रिपोर्ट यहाँ भेजें:',
     },
     // Russian
@@ -6012,6 +6023,7 @@ export const translations = {
         reportBugTitle: 'Сообщить об ошибке',
         reportBugPlaceholder: 'Опишите проблему...',
         reportBugAttach: 'Прикрепить заклинание (необязательно)',
+        reportBugIncludeStorage: 'Включить данные заклинания',
         reportBugNoEmail: 'Почтовое приложение не найдено. Отправьте отчёт на:',
     },
     // Turkish
@@ -6476,6 +6488,7 @@ export const translations = {
         reportBugTitle: 'Hata Bildir',
         reportBugPlaceholder: 'Sorunu açıklayın...',
         reportBugAttach: 'Spell ekle (isteğe bağlı)',
+        reportBugIncludeStorage: 'Spell verilerini ekle',
         reportBugNoEmail: 'E-posta uygulaması bulunamadı. Raporunuzu gönderin:',
     },
     // Dutch
@@ -6941,6 +6954,7 @@ export const translations = {
         reportBugTitle: 'Bug melden',
         reportBugPlaceholder: 'Beschrijf het probleem...',
         reportBugAttach: 'Spell bijvoegen (optioneel)',
+        reportBugIncludeStorage: 'Speldata opnemen',
         reportBugNoEmail: 'Geen e-mailapp gevonden. Stuur je rapport naar:',
     },
     // Polish
@@ -7408,6 +7422,7 @@ export const translations = {
         reportBugTitle: 'Zgłoś błąd',
         reportBugPlaceholder: 'Opisz problem...',
         reportBugAttach: 'Dołącz spell (opcjonalnie)',
+        reportBugIncludeStorage: 'Uwzględnij dane zaklęcia',
         reportBugNoEmail: 'Nie znaleziono aplikacji e-mail. Wyślij raport na:',
     },
     // Vietnamese
@@ -7875,6 +7890,7 @@ export const translations = {
         reportBugTitle: 'Báo cáo một lỗi',
         reportBugPlaceholder: 'Mô tả vấn đề...',
         reportBugAttach: 'Đính kèm spell (tuỳ chọn)',
+        reportBugIncludeStorage: 'Bao gồm dữ liệu spell',
         reportBugNoEmail: 'Không tìm thấy ứng dụng email. Gửi báo cáo của bạn tới:',
     },
     // Thai
@@ -8342,6 +8358,7 @@ export const translations = {
         reportBugTitle: 'รายงานข้อผิดพลาด',
         reportBugPlaceholder: 'อธิบายปัญหา...',
         reportBugAttach: 'แนบสเปล (ไม่บังคับ)',
+        reportBugIncludeStorage: 'รวมข้อมูลสเปล',
         reportBugNoEmail: 'ไม่พบแอปอีเมล ส่งรายงานของคุณไปที่:',
     },
 };

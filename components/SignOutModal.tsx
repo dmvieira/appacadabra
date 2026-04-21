@@ -1,26 +1,31 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { t } from '../lib/i18n';
 import { useManaStore } from '../lib/manaStore';
 
 interface SignOutModalProps {
     visible: boolean;
     onClose: () => void;
-    onSelectKeep: () => void;
-    onSelectClear: () => void;
+    onSelectKeep: () => Promise<void>;
+    onSelectClear: () => Promise<void>;
 }
 
 const SignOutModal: React.FC<SignOutModalProps> = ({ visible, onClose, onSelectKeep, onSelectClear }) => {
     const { balance } = useManaStore();
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (!visible) setIsLoading(false);
+    }, [visible]);
 
     return (
         <Modal
             visible={visible}
             transparent={true}
             animationType="slide"
-            onRequestClose={onClose}
+            onRequestClose={isLoading ? undefined : onClose}
         >
-            <Pressable style={styles.overlay} onPress={onClose}>
+            <Pressable style={styles.overlay} onPress={isLoading ? undefined : onClose}>
                 <View style={styles.sheetContainer}>
                     <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
                         <View style={styles.header}>
@@ -36,8 +41,10 @@ const SignOutModal: React.FC<SignOutModalProps> = ({ visible, onClose, onSelectK
                             {/* Keep Locally Option */}
                             <TouchableOpacity
                                 style={styles.optionCard}
-                                onPress={() => {
-                                    onSelectKeep();
+                                disabled={isLoading}
+                                onPress={async () => {
+                                    setIsLoading(true);
+                                    try { await onSelectKeep(); } finally { setIsLoading(false); }
                                     onClose();
                                 }}
                             >
@@ -53,8 +60,10 @@ const SignOutModal: React.FC<SignOutModalProps> = ({ visible, onClose, onSelectK
                             {/* Clear All Option */}
                             <TouchableOpacity
                                 style={[styles.optionCard, styles.clearCard]}
-                                onPress={() => {
-                                    onSelectClear();
+                                disabled={isLoading}
+                                onPress={async () => {
+                                    setIsLoading(true);
+                                    try { await onSelectClear(); } finally { setIsLoading(false); }
                                     onClose();
                                 }}
                             >
@@ -74,9 +83,14 @@ const SignOutModal: React.FC<SignOutModalProps> = ({ visible, onClose, onSelectK
                             </Text>
                         </View>
 
-                        <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                        <TouchableOpacity style={styles.cancelButton} onPress={onClose} disabled={isLoading}>
                             <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
                         </TouchableOpacity>
+                        {isLoading && (
+                            <View style={styles.loadingOverlay}>
+                                <ActivityIndicator size="large" color="#8b5cf6" />
+                            </View>
+                        )}
                     </Pressable>
                 </View>
             </Pressable>
@@ -197,6 +211,13 @@ const styles = StyleSheet.create({
     cancelButtonText: {
         fontSize: 16,
         color: '#6b6b8a',
+    },
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
 
