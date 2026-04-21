@@ -1,170 +1,191 @@
 ## Version Name
-Spell Recovery & Purchase Reliability
+Bug Reports & Document Tools
 
 <en-US>
-• Restore deleted spells — recover any spell you accidentally removed
-• Fixed backup sync not working on first use
-• Fixed importing a spell that was previously deleted
-• Mana is now automatically refunded if a purchase fails to complete
-• Improved Google account sign-in prompt
+• Report bugs from the settings menu with optional spell attachment
+• Bug reports can include spell data (localStorage) for easier debugging
+• Docs capability: convert between Markdown, HTML and PDF
+• Warning before sending very large content to AI
+• Fixed: duplicate spell creation on rapid taps
+• Fixed: bold/italic formatting in Markdown conversion
 </en-US>
 
 <ar>
-• استعادة التعاويذ المحذوفة — استرجع أي تعويذة أزلتها بالخطأ
-• إصلاح مزامنة النسخ الاحتياطي عند الاستخدام الأول
-• إصلاح استيراد تعويذة كانت محذوفة مسبقاً
-• استرداد تلقائي للـ Mana إذا فشلت عملية الشراء
-• تحسين وصف شاشة ربط حساب Google
+• أبلغ عن الأخطاء من قائمة الإعدادات مع إرفاق تعويذة اختياري
+• يمكن لتقارير الأخطاء تضمين بيانات التعويذة لتسهيل التصحيح
+• Docs: تحويل بين Markdown وHTML وPDF
+• تحذير قبل إرسال محتوى كبير جداً إلى الذكاء الاصطناعي
+• تم الإصلاح: إنشاء تعويذة مكررة عند النقر السريع
+• تم الإصلاح: تنسيق الخط العريض/المائل في تحويل Markdown
 </ar>
 
 <de-DE>
-• Gelöschte Spells wiederherstellen — versehentlich entfernte Spells zurückholen
-• Fehler bei der ersten Backup-Synchronisierung behoben
-• Import eines zuvor gelöschten Spells funktioniert wieder
-• Mana wird automatisch erstattet, wenn ein Kauf nicht abgeschlossen werden kann
-• Verbesserter Google-Konto-Anmeldedialog
+• Fehler aus dem Einstellungsmenü melden mit optionalem Zauber-Anhang
+• Fehlerberichte können Zauberdaten zur einfacheren Fehlersuche enthalten
+• Docs: Konvertierung zwischen Markdown, HTML und PDF
+• Warnung vor dem Senden sehr großer Inhalte an die KI
+• Behoben: Doppelte Zauber-Erstellung bei schnellem Tippen
+• Behoben: Fett-/Kursivformatierung bei Markdown-Konvertierung
 </de-DE>
 
 <es-419>
-• Restaura spells eliminados — recupera cualquier spell que hayas borrado por error
-• Corrección de la sincronización de copia de seguridad en el primer uso
-• Corrección al importar un spell previamente eliminado
-• El Mana se reembolsa automáticamente si una compra no se completa
-• Descripción mejorada en el inicio de sesión con Google
+• Reporta errores desde el menú de configuración con adjunto de spell opcional
+• Los reportes de error pueden incluir datos del hechizo para facilitar el debug
+• Docs: convierte entre Markdown, HTML y PDF
+• Aviso antes de enviar contenido muy grande a la IA
+• Corregido: creación duplicada de spell al tocar rápido
+• Corregido: formato negrita/cursiva en conversión Markdown
 </es-419>
 
 <es-ES>
-• Restaura spells eliminados — recupera cualquier spell que hayas borrado por error
-• Corrección de la sincronización de copia de seguridad en el primer uso
-• Corrección al importar un spell previamente eliminado
-• El Mana se reembolsa automáticamente si una compra no se completa
-• Descripción mejorada en el inicio de sesión con Google
+• Reporta errores desde el menú de configuración con adjunto de spell opcional
+• Los reportes de error pueden incluir datos del hechizo para facilitar el debug
+• Docs: convierte entre Markdown, HTML y PDF
+• Aviso antes de enviar contenido muy grande a la IA
+• Corregido: creación duplicada de spell al tocar rápido
+• Corregido: formato negrita/cursiva en conversión Markdown
 </es-ES>
 
 <es-US>
-• Restaura spells eliminados — recupera cualquier spell que hayas borrado por error
-• Corrección de la sincronización de copia de seguridad en el primer uso
-• Corrección al importar un spell previamente eliminado
-• El Mana se reembolsa automáticamente si una compra no se completa
-• Descripción mejorada en el inicio de sesión con Google
+• Reporta errores desde el menú de configuración con adjunto de spell opcional
+• Los reportes de error pueden incluir datos del hechizo para facilitar el debug
+• Docs: convierte entre Markdown, HTML y PDF
+• Aviso antes de enviar contenido muy grande a la IA
+• Corregido: creación duplicada de spell al tocar rápido
+• Corregido: formato negrita/cursiva en conversión Markdown
 </es-US>
 
 <fr-CA>
-• Restaure les sorts supprimés — récupère tout sort supprimé par erreur
-• Correction de la synchronisation de sauvegarde lors de la première utilisation
-• Correction de l'importation d'un sort précédemment supprimé
-• Le Mana est automatiquement remboursé si un achat ne se termine pas
-• Description améliorée de la connexion au compte Google
+• Signalez des bugs depuis le menu paramètres avec une pièce jointe de sort optionnelle
+• Les rapports de bug peuvent inclure les données du sort pour faciliter le débogage
+• Docs : conversion entre Markdown, HTML et PDF
+• Avertissement avant d'envoyer un très grand contenu à l'IA
+• Corrigé : création en double d'un sort en tapotant rapidement
+• Corrigé : formatage gras/italique dans la conversion Markdown
 </fr-CA>
 
 <fr-FR>
-• Restaure les sorts supprimés — récupère tout sort supprimé par erreur
-• Correction de la synchronisation de sauvegarde lors de la première utilisation
-• Correction de l'importation d'un sort précédemment supprimé
-• Le Mana est automatiquement remboursé si un achat ne se termine pas
-• Description améliorée de la connexion au compte Google
+• Signalez des bugs depuis le menu paramètres avec une pièce jointe de sort optionnelle
+• Les rapports de bug peuvent inclure les données du sort pour faciliter le débogage
+• Docs : conversion entre Markdown, HTML et PDF
+• Avertissement avant d'envoyer un très grand contenu à l'IA
+• Corrigé : création en double d'un sort en tapotant rapidement
+• Corrigé : formatage gras/italique dans la conversion Markdown
 </fr-FR>
 
 <hi-IN>
-• हटाए गए स्पेल्स को पुनर्स्थापित करें — गलती से हटाए गए किसी भी स्पेल को वापस पाएं
-• पहले उपयोग में बैकअप सिंक न होने की समस्या ठीक की
-• पहले से हटाए गए स्पेल को इंपोर्ट करने की समस्या ठीक की
-• अगर खरीदारी पूरी नहीं होती तो Mana अपने आप वापस मिलेगा
-• Google खाता साइन-इन प्रॉम्प्ट बेहतर किया गया
+• सेटिंग्स मेनू से बग रिपोर्ट करें, वैकल्पिक स्पेल अटैचमेंट के साथ
+• बग रिपोर्ट में डीबगिंग के लिए स्पेल डेटा शामिल करें
+• Docs: Markdown, HTML और PDF के बीच रूपांतरण
+• AI को बहुत बड़ा कंटेंट भेजने से पहले चेतावनी
+• ठीक किया: तेज़ टैप पर स्पेल का दोहरा निर्माण
+• ठीक किया: Markdown रूपांतरण में बोल्ड/इटैलिक फ़ॉर्मेटिंग
 </hi-IN>
 
 <it-IT>
-• Ripristina gli spell eliminati — recupera qualsiasi spell rimosso per errore
-• Risolto il problema con la sincronizzazione del backup al primo utilizzo
-• Risolto l'importazione di uno spell precedentemente eliminato
-• Il Mana viene rimborsato automaticamente se un acquisto non va a buon fine
-• Migliorata la descrizione del prompt di accesso Google
+• Segnala bug dal menu impostazioni con allegato incantesimo opzionale
+• I report di bug possono includere i dati dell'incantesimo per un debug più facile
+• Docs: converti tra Markdown, HTML e PDF
+• Avviso prima di inviare contenuto molto grande all'IA
+• Risolto: creazione duplicata di incantesimo con tap rapidi
+• Risolto: formattazione grassetto/corsivo nella conversione Markdown
 </it-IT>
 
 <ja-JP>
-• 削除したスペルを復元 — 誤って削除したスペルをいつでも取り戻せます
-• 初回バックアップ同期が動作しない問題を修正
-• 以前削除したスペルのインポートができない問題を修正
-• 購入が完了しない場合、Manaが自動的に返金されます
-• Googleアカウントのサインインプロンプトの説明を改善
+• 設定メニューからバグを報告、スペルの添付も可能
+• バグレポートにスペルデータを含めてデバッグを簡単に
+• Docs: Markdown・HTML・PDF間の変換に対応
+• 大きなコンテンツをAIに送る前に警告を表示
+• 修正: 素早いタップによるスペルの二重作成
+• 修正: Markdown変換での太字・斜体フォーマット
 </ja-JP>
 
 <ko-KR>
-• 삭제된 스펠 복원 — 실수로 삭제한 스펠을 언제든지 되찾을 수 있습니다
-• 첫 번째 사용 시 백업 동기화 오류 수정
-• 이전에 삭제된 스펠 가져오기 오류 수정
-• 구매가 완료되지 않을 경우 Mana가 자동으로 환불됩니다
-• Google 계정 로그인 안내 문구 개선
+• 설정 메뉴에서 버그 신고, 스펠 첨부 선택 가능
+• 버그 보고서에 스펠 데이터 포함으로 디버그 간편화
+• Docs: Markdown, HTML, PDF 간 변환 지원
+• AI에 매우 큰 콘텐츠 전송 전 경고
+• 수정: 빠른 탭으로 인한 스펠 중복 생성
+• 수정: Markdown 변환에서 굵게/기울임 서식
 </ko-KR>
 
 <nl-NL>
-• Verwijderde spells herstellen — herstel elke per ongeluk verwijderde spell
-• Fout bij eerste back-upsynchronisatie opgelost
-• Importeren van een eerder verwijderde spell werkt nu correct
-• Mana wordt automatisch teruggestort als een aankoop niet voltooid wordt
-• Verbeterde beschrijving bij Google-accountaanmelding
+• Meld bugs via het instellingenmenu met optionele spell-bijlage
+• Bugrapporten kunnen spelldata bevatten voor eenvoudiger debuggen
+• Docs: converteer tussen Markdown, HTML en PDF
+• Waarschuwing voor het versturen van zeer grote inhoud naar AI
+• Opgelost: dubbele spellaanmaak bij snel tikken
+• Opgelost: vet/cursief opmaak bij Markdown-conversie
 </nl-NL>
 
 <pl-PL>
-• Przywracanie usuniętych zaklęć — odzyskaj każde przypadkowo usunięte zaklęcie
-• Naprawiono synchronizację kopii zapasowej przy pierwszym użyciu
-• Naprawiono importowanie wcześniej usuniętego zaklęcia
-• Mana jest automatycznie zwracana, jeśli zakup nie zostanie ukończony
-• Ulepszony opis monitu logowania przez Google
+• Zgłaszaj błędy z menu ustawień z opcjonalnym załącznikiem zaklęcia
+• Raporty błędów mogą zawierać dane zaklęcia do łatwiejszego debugowania
+• Docs: konwersja między Markdown, HTML i PDF
+• Ostrzeżenie przed wysłaniem bardzo dużej treści do AI
+• Naprawiono: podwójne tworzenie zaklęcia przy szybkim tapnięciu
+• Naprawiono: formatowanie pogrubienia/kursywy w konwersji Markdown
 </pl-PL>
 
 <pt-BR>
-• Restaure spells deletados — recupere qualquer spell removido por engano
-• Corrigida a sincronização do backup no primeiro uso
-• Corrigida a importação de spell que havia sido deletado anteriormente
-• O Mana é reembolsado automaticamente se uma compra não for concluída
-• Descrição da tela de login com Google aprimorada
+• Relate bugs pelo menu de configurações com anexo de feitiço opcional
+• Relatórios de bug podem incluir dados do feitiço para facilitar o debug
+• Docs: converter entre Markdown, HTML e PDF
+• Aviso antes de enviar conteúdo muito grande para a IA
+• Corrigido: criação duplicada de feitiço em toques rápidos
+• Corrigido: formatação negrito/itálico na conversão de Markdown
 </pt-BR>
 
 <pt-PT>
-• Restaure spells eliminados — recupere qualquer spell removido por engano
-• Corrigida a sincronização do backup na primeira utilização
-• Corrigida a importação de spell que tinha sido eliminado anteriormente
-• O Mana é reembolsado automaticamente se uma compra não for concluída
-• Descrição do ecrã de login com Google melhorada
+• Reporte bugs pelo menu de definições com anexo de feitiço opcional
+• Os relatórios de bug podem incluir dados do feitiço para facilitar o debug
+• Docs: converter entre Markdown, HTML e PDF
+• Aviso antes de enviar conteúdo muito grande para a IA
+• Corrigido: criação duplicada de feitiço em toques rápidos
+• Corrigido: formatação negrito/itálico na conversão de Markdown
 </pt-PT>
 
 <ru-RU>
-• Восстановление удалённых спеллов — верните случайно удалённый спелл
-• Исправлена синхронизация резервной копии при первом использовании
-• Исправлен импорт ранее удалённого спелла
-• Mana возвращается автоматически, если покупка не завершена
-• Улучшено описание экрана входа через Google
+• Сообщайте об ошибках из меню настроек с опциональным прикреплением заклинания
+• Отчёты об ошибках могут включать данные заклинания для отладки
+• Docs: конвертация между Markdown, HTML и PDF
+• Предупреждение перед отправкой очень большого контента в ИИ
+• Исправлено: двойное создание заклинания при быстрых нажатиях
+• Исправлено: форматирование жирного/курсива при конвертации Markdown
 </ru-RU>
 
 <th>
-• กู้คืน Spell ที่ถูกลบ — นำ Spell ที่ลบโดยไม่ตั้งใจกลับมาได้ทุกเมื่อ
-• แก้ไขการซิงก์สำรองข้อมูลที่ไม่ทำงานในครั้งแรก
-• แก้ไขการนำเข้า Spell ที่เคยถูกลบไปก่อนหน้า
-• Mana จะถูกคืนโดยอัตโนมัติหากการซื้อไม่สำเร็จ
-• ปรับปรุงคำอธิบายหน้าล็อกอินด้วย Google
+• รายงานบักจากเมนูตั้งค่า พร้อมแนบสเปลได้
+• รายงานบักสามารถรวมข้อมูลสเปลเพื่อช่วยดีบักได้
+• Docs: แปลงระหว่าง Markdown, HTML และ PDF
+• คำเตือนก่อนส่งเนื้อหาขนาดใหญ่มากไปยัง AI
+• แก้ไข: สเปลถูกสร้างซ้ำเมื่อแตะเร็ว
+• แก้ไข: รูปแบบตัวหนา/เอียงในการแปลง Markdown
 </th>
 
 <tr-TR>
-• Silinen büyüleri geri yükle — yanlışlıkla kaldırdığın herhangi bir büyüyü kurtar
-• İlk kullanımda yedekleme senkronizasyonu sorununu düzelttik
-• Daha önce silinmiş bir büyünün içe aktarılması düzeltildi
-• Satın alma tamamlanamazsa Mana otomatik olarak iade edilir
-• Google hesabı giriş açıklaması iyileştirildi
+• Ayarlar menüsünden hata bildirin, isteğe bağlı spell eki ile
+• Hata raporları artık spell verisi içerebilir, debug kolaylaşır
+• Docs: Markdown, HTML ve PDF arasında dönüştürme
+• AI'ya çok büyük içerik göndermeden önce uyarı
+• Düzeltildi: hızlı dokununca spell'in iki kez oluşturulması
+• Düzeltildi: Markdown dönüşümünde kalın/italik biçimlendirme
 </tr-TR>
 
 <vi>
-• Khôi phục spell đã xóa — lấy lại bất kỳ spell nào bị xóa nhầm
-• Sửa lỗi đồng bộ sao lưu không hoạt động lần đầu dùng
-• Sửa lỗi nhập spell đã bị xóa trước đó
-• Mana sẽ tự động hoàn tiền nếu giao dịch mua không hoàn thành
-• Cải thiện mô tả màn hình đăng nhập Google
+• Báo cáo lỗi từ menu cài đặt, có thể đính kèm spell tùy chọn
+• Báo cáo lỗi có thể bao gồm dữ liệu spell để dễ debug hơn
+• Docs: chuyển đổi giữa Markdown, HTML và PDF
+• Cảnh báo trước khi gửi nội dung rất lớn cho AI
+• Đã sửa: tạo spell trùng lặp khi chạm nhanh
+• Đã sửa: định dạng in đậm/nghiêng trong chuyển đổi Markdown
 </vi>
 
 <zh-CN>
-• 恢复已删除的法术 — 找回任何意外删除的法术
-• 修复首次使用时备份同步失败的问题
-• 修复导入先前已删除法术时的问题
-• 如果购买未能完成，魔法值将自动退还
-• 改进了 Google 账号登录提示的描述
+• 从设置菜单报告错误，可选附加法术
+• 错误报告可包含法术数据，方便调试
+• Docs：支持Markdown、HTML和PDF之间的转换
+• 向AI发送超大内容前的警告提示
+• 修复：快速点击导致法术重复创建
+• 修复：Markdown转换中的加粗/斜体格式
 </zh-CN>
