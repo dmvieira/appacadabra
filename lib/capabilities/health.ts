@@ -76,7 +76,7 @@ const mapSleepStage = (stage: number): string => {
 export const healthCapability: CapabilityModule = {
     id: 'health',
     displayName: 'Health',
-    minVersion: '1.0.0',
+    minVersion: '2.0.0',
     androidPermissions: [
         'android.permission.health.READ_STEPS',
         'android.permission.health.READ_HEART_RATE',

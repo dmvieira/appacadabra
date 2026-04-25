@@ -53,8 +53,8 @@ describe('buildSystemInstructions', () => {
         expect(result).toContain(SYSTEM_PREAMBLE);
     });
 
-    it('includes docs for all capabilities with version 1.0.0', () => {
-        const result = buildSystemInstructions('1.0.0', ALL_CAPABILITIES);
+    it('includes docs for all capabilities with version 2.0.0', () => {
+        const result = buildSystemInstructions('2.0.0', ALL_CAPABILITIES);
         for (const cap of ALL_CAPABILITIES) {
             expect(result).toContain(cap.docs);
         }

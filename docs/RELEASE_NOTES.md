@@ -1,191 +1,170 @@
 ## Version Name
-Bug Reports & Document Tools
+Health & Fitness Integration
 
 <en-US>
-• Report bugs from the settings menu with optional spell attachment
-• Bug reports can include spell data (localStorage) for easier debugging
+• New: Health capability — read steps, heart rate, exercise, sleep and calories via Health Connect
+• Spells can now access health data with user permission
+• Report bugs from settings menu with optional spell attachment
 • Docs capability: convert between Markdown, HTML and PDF
-• Warning before sending very large content to AI
 • Fixed: duplicate spell creation on rapid taps
-• Fixed: bold/italic formatting in Markdown conversion
 </en-US>
 
 <ar>
+• جديد: ميزة الصحة — قراءة الخطوات ومعدل ضربات القلب والتمارين والنوم والسعرات عبر Health Connect
+• يمكن للتعويذات الآن الوصول إلى بيانات الصحة بإذن المستخدم
 • أبلغ عن الأخطاء من قائمة الإعدادات مع إرفاق تعويذة اختياري
-• يمكن لتقارير الأخطاء تضمين بيانات التعويذة لتسهيل التصحيح
 • Docs: تحويل بين Markdown وHTML وPDF
-• تحذير قبل إرسال محتوى كبير جداً إلى الذكاء الاصطناعي
 • تم الإصلاح: إنشاء تعويذة مكررة عند النقر السريع
-• تم الإصلاح: تنسيق الخط العريض/المائل في تحويل Markdown
 </ar>
 
 <de-DE>
+• Neu: Health-Funktion — Schritte, Herzfrequenz, Sport, Schlaf und Kalorien via Health Connect
+• Zauber können nun mit Nutzerberechtigung auf Gesundheitsdaten zugreifen
 • Fehler aus dem Einstellungsmenü melden mit optionalem Zauber-Anhang
-• Fehlerberichte können Zauberdaten zur einfacheren Fehlersuche enthalten
 • Docs: Konvertierung zwischen Markdown, HTML und PDF
-• Warnung vor dem Senden sehr großer Inhalte an die KI
 • Behoben: Doppelte Zauber-Erstellung bei schnellem Tippen
-• Behoben: Fett-/Kursivformatierung bei Markdown-Konvertierung
 </de-DE>
 
 <es-419>
+• Nuevo: Capacidad de salud — pasos, frecuencia cardíaca, ejercicio, sueño y calorías via Health Connect
+• Los spells ahora pueden acceder a datos de salud con permiso del usuario
 • Reporta errores desde el menú de configuración con adjunto de spell opcional
-• Los reportes de error pueden incluir datos del hechizo para facilitar el debug
 • Docs: convierte entre Markdown, HTML y PDF
-• Aviso antes de enviar contenido muy grande a la IA
 • Corregido: creación duplicada de spell al tocar rápido
-• Corregido: formato negrita/cursiva en conversión Markdown
 </es-419>
 
 <es-ES>
+• Nuevo: Capacidad de salud — pasos, frecuencia cardíaca, ejercicio, sueño y calorías via Health Connect
+• Los spells ahora pueden acceder a datos de salud con permiso del usuario
 • Reporta errores desde el menú de configuración con adjunto de spell opcional
-• Los reportes de error pueden incluir datos del hechizo para facilitar el debug
 • Docs: convierte entre Markdown, HTML y PDF
-• Aviso antes de enviar contenido muy grande a la IA
 • Corregido: creación duplicada de spell al tocar rápido
-• Corregido: formato negrita/cursiva en conversión Markdown
 </es-ES>
 
 <es-US>
+• Nuevo: Capacidad de salud — pasos, frecuencia cardíaca, ejercicio, sueño y calorías via Health Connect
+• Los spells ahora pueden acceder a datos de salud con permiso del usuario
 • Reporta errores desde el menú de configuración con adjunto de spell opcional
-• Los reportes de error pueden incluir datos del hechizo para facilitar el debug
 • Docs: convierte entre Markdown, HTML y PDF
-• Aviso antes de enviar contenido muy grande a la IA
 • Corregido: creación duplicada de spell al tocar rápido
-• Corregido: formato negrita/cursiva en conversión Markdown
 </es-US>
 
 <fr-CA>
+• Nouveau : Fonctionnalité Santé — pas, fréquence cardiaque, exercice, sommeil et calories via Health Connect
+• Les sorts peuvent maintenant accéder aux données de santé avec l'autorisation de l'utilisateur
 • Signalez des bugs depuis le menu paramètres avec une pièce jointe de sort optionnelle
-• Les rapports de bug peuvent inclure les données du sort pour faciliter le débogage
 • Docs : conversion entre Markdown, HTML et PDF
-• Avertissement avant d'envoyer un très grand contenu à l'IA
 • Corrigé : création en double d'un sort en tapotant rapidement
-• Corrigé : formatage gras/italique dans la conversion Markdown
 </fr-CA>
 
 <fr-FR>
+• Nouveau : Fonctionnalité Santé — pas, fréquence cardiaque, exercice, sommeil et calories via Health Connect
+• Les sorts peuvent maintenant accéder aux données de santé avec l'autorisation de l'utilisateur
 • Signalez des bugs depuis le menu paramètres avec une pièce jointe de sort optionnelle
-• Les rapports de bug peuvent inclure les données du sort pour faciliter le débogage
 • Docs : conversion entre Markdown, HTML et PDF
-• Avertissement avant d'envoyer un très grand contenu à l'IA
 • Corrigé : création en double d'un sort en tapotant rapidement
-• Corrigé : formatage gras/italique dans la conversion Markdown
 </fr-FR>
 
 <hi-IN>
+• नया: हेल्थ फीचर — Health Connect से कदम, हृदय गति, व्यायाम, नींद और कैलोरी पढ़ें
+• स्पेल अब उपयोगकर्ता की अनुमति से स्वास्थ्य डेटा एक्सेस कर सकते हैं
 • सेटिंग्स मेनू से बग रिपोर्ट करें, वैकल्पिक स्पेल अटैचमेंट के साथ
-• बग रिपोर्ट में डीबगिंग के लिए स्पेल डेटा शामिल करें
 • Docs: Markdown, HTML और PDF के बीच रूपांतरण
-• AI को बहुत बड़ा कंटेंट भेजने से पहले चेतावनी
 • ठीक किया: तेज़ टैप पर स्पेल का दोहरा निर्माण
-• ठीक किया: Markdown रूपांतरण में बोल्ड/इटैलिक फ़ॉर्मेटिंग
 </hi-IN>
 
 <it-IT>
+• Novità: Funzione Salute — passi, frequenza cardiaca, esercizio, sonno e calorie via Health Connect
+• Gli incantesimi possono ora accedere ai dati sanitari con il permesso dell'utente
 • Segnala bug dal menu impostazioni con allegato incantesimo opzionale
-• I report di bug possono includere i dati dell'incantesimo per un debug più facile
 • Docs: converti tra Markdown, HTML e PDF
-• Avviso prima di inviare contenuto molto grande all'IA
 • Risolto: creazione duplicata di incantesimo con tap rapidi
-• Risolto: formattazione grassetto/corsivo nella conversione Markdown
 </it-IT>
 
 <ja-JP>
+• 新機能: ヘルス機能 — Health Connectで歩数・心拍数・運動・睡眠・カロリーを取得
+• スペルがユーザー許可のもと健康データにアクセス可能に
 • 設定メニューからバグを報告、スペルの添付も可能
-• バグレポートにスペルデータを含めてデバッグを簡単に
 • Docs: Markdown・HTML・PDF間の変換に対応
-• 大きなコンテンツをAIに送る前に警告を表示
 • 修正: 素早いタップによるスペルの二重作成
-• 修正: Markdown変換での太字・斜体フォーマット
 </ja-JP>
 
 <ko-KR>
+• 신기능: 헬스 기능 — Health Connect로 걸음 수, 심박수, 운동, 수면, 칼로리 읽기
+• 이제 스펠이 사용자 권한으로 건강 데이터에 접근 가능
 • 설정 메뉴에서 버그 신고, 스펠 첨부 선택 가능
-• 버그 보고서에 스펠 데이터 포함으로 디버그 간편화
 • Docs: Markdown, HTML, PDF 간 변환 지원
-• AI에 매우 큰 콘텐츠 전송 전 경고
 • 수정: 빠른 탭으로 인한 스펠 중복 생성
-• 수정: Markdown 변환에서 굵게/기울임 서식
 </ko-KR>
 
 <nl-NL>
+• Nieuw: Gezondheids-functie — stappen, hartslag, sport, slaap en calorieën via Health Connect
+• Spells kunnen nu met gebruikerstoestemming gezondheidsdata lezen
 • Meld bugs via het instellingenmenu met optionele spell-bijlage
-• Bugrapporten kunnen spelldata bevatten voor eenvoudiger debuggen
 • Docs: converteer tussen Markdown, HTML en PDF
-• Waarschuwing voor het versturen van zeer grote inhoud naar AI
 • Opgelost: dubbele spellaanmaak bij snel tikken
-• Opgelost: vet/cursief opmaak bij Markdown-conversie
 </nl-NL>
 
 <pl-PL>
+• Nowość: Funkcja zdrowia — kroki, tętno, ćwiczenia, sen i kalorie przez Health Connect
+• Zaklęcia mogą teraz uzyskiwać dostęp do danych zdrowotnych za zgodą użytkownika
 • Zgłaszaj błędy z menu ustawień z opcjonalnym załącznikiem zaklęcia
-• Raporty błędów mogą zawierać dane zaklęcia do łatwiejszego debugowania
 • Docs: konwersja między Markdown, HTML i PDF
-• Ostrzeżenie przed wysłaniem bardzo dużej treści do AI
 • Naprawiono: podwójne tworzenie zaklęcia przy szybkim tapnięciu
-• Naprawiono: formatowanie pogrubienia/kursywy w konwersji Markdown
 </pl-PL>
 
 <pt-BR>
+• Novo: Capacidade de Saúde — leia passos, frequência cardíaca, exercício, sono e calorias via Health Connect
+• Feitiços agora podem acessar dados de saúde com permissão do usuário
 • Relate bugs pelo menu de configurações com anexo de feitiço opcional
-• Relatórios de bug podem incluir dados do feitiço para facilitar o debug
 • Docs: converter entre Markdown, HTML e PDF
-• Aviso antes de enviar conteúdo muito grande para a IA
 • Corrigido: criação duplicada de feitiço em toques rápidos
-• Corrigido: formatação negrito/itálico na conversão de Markdown
 </pt-BR>
 
 <pt-PT>
+• Novo: Capacidade de Saúde — leia passos, frequência cardíaca, exercício, sono e calorias via Health Connect
+• Feitiços podem agora aceder a dados de saúde com permissão do utilizador
 • Reporte bugs pelo menu de definições com anexo de feitiço opcional
-• Os relatórios de bug podem incluir dados do feitiço para facilitar o debug
 • Docs: converter entre Markdown, HTML e PDF
-• Aviso antes de enviar conteúdo muito grande para a IA
 • Corrigido: criação duplicada de feitiço em toques rápidos
-• Corrigido: formatação negrito/itálico na conversão de Markdown
 </pt-PT>
 
 <ru-RU>
+• Новое: функция Здоровье — шаги, пульс, тренировки, сон и калории через Health Connect
+• Заклинания теперь могут получать данные о здоровье с разрешения пользователя
 • Сообщайте об ошибках из меню настроек с опциональным прикреплением заклинания
-• Отчёты об ошибках могут включать данные заклинания для отладки
 • Docs: конвертация между Markdown, HTML и PDF
-• Предупреждение перед отправкой очень большого контента в ИИ
 • Исправлено: двойное создание заклинания при быстрых нажатиях
-• Исправлено: форматирование жирного/курсива при конвертации Markdown
 </ru-RU>
 
 <th>
+• ใหม่: ฟีเจอร์สุขภาพ — อ่านก้าวเดิน อัตราหัวใจ การออกกำลังกาย การนอน และแคลอรี่ผ่าน Health Connect
+• สเปลสามารถเข้าถึงข้อมูลสุขภาพได้เมื่อได้รับอนุญาตจากผู้ใช้
 • รายงานบักจากเมนูตั้งค่า พร้อมแนบสเปลได้
-• รายงานบักสามารถรวมข้อมูลสเปลเพื่อช่วยดีบักได้
 • Docs: แปลงระหว่าง Markdown, HTML และ PDF
-• คำเตือนก่อนส่งเนื้อหาขนาดใหญ่มากไปยัง AI
 • แก้ไข: สเปลถูกสร้างซ้ำเมื่อแตะเร็ว
-• แก้ไข: รูปแบบตัวหนา/เอียงในการแปลง Markdown
 </th>
 
 <tr-TR>
+• Yeni: Sağlık özelliği — Health Connect ile adım, nabız, egzersiz, uyku ve kalori okuma
+• Speller artık kullanıcı izniyle sağlık verilerine erişebilir
 • Ayarlar menüsünden hata bildirin, isteğe bağlı spell eki ile
-• Hata raporları artık spell verisi içerebilir, debug kolaylaşır
 • Docs: Markdown, HTML ve PDF arasında dönüştürme
-• AI'ya çok büyük içerik göndermeden önce uyarı
 • Düzeltildi: hızlı dokununca spell'in iki kez oluşturulması
-• Düzeltildi: Markdown dönüşümünde kalın/italik biçimlendirme
 </tr-TR>
 
 <vi>
+• Mới: Tính năng sức khỏe — đọc bước chân, nhịp tim, tập luyện, giấc ngủ và calo qua Health Connect
+• Spell giờ có thể truy cập dữ liệu sức khỏe với quyền của người dùng
 • Báo cáo lỗi từ menu cài đặt, có thể đính kèm spell tùy chọn
-• Báo cáo lỗi có thể bao gồm dữ liệu spell để dễ debug hơn
 • Docs: chuyển đổi giữa Markdown, HTML và PDF
-• Cảnh báo trước khi gửi nội dung rất lớn cho AI
 • Đã sửa: tạo spell trùng lặp khi chạm nhanh
-• Đã sửa: định dạng in đậm/nghiêng trong chuyển đổi Markdown
 </vi>
 
 <zh-CN>
+• 新功能：健康功能 — 通过 Health Connect 读取步数、心率、运动、睡眠和卡路里
+• 法术现在可在用户授权下访问健康数据
 • 从设置菜单报告错误，可选附加法术
-• 错误报告可包含法术数据，方便调试
 • Docs：支持Markdown、HTML和PDF之间的转换
-• 向AI发送超大内容前的警告提示
 • 修复：快速点击导致法术重复创建
-• 修复：Markdown转换中的加粗/斜体格式
 </zh-CN>

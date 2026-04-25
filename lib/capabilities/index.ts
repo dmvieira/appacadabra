@@ -15,9 +15,7 @@ import { CapabilityModule } from './types';
  * The sync script removes their permissions from app.json and AndroidManifest.xml.
  * Re-enable by uncommenting the id.
  */
-export const DISABLED_CAPABILITIES = new Set<string>([
-    'health', // Pending Google Play approval for health permissions
-]);
+export const DISABLED_CAPABILITIES = new Set<string>([]);
 import { clipboardCapability } from './clipboard';
 import { shareCapability } from './share';
 import { screenCapability } from './screen';
