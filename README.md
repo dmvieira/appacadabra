@@ -1,114 +1,60 @@
-# Appacadabra 🪄
+# Appacadabra
 
-**"Appacadabra"** (formerly "App Gen") is a powerful **AI Tool Generator** built with React Native (Expo) and Google Gemini. It allows users to describe a utility or tool in natural language (e.g., "A Pomodoro timer with space theme") and instantly generates a fully functional, persistent micro-app tailored to their device.
+Gerador de micro-apps com IA. O usuário descreve o que quer e o app gera um HTML/CSS/JS completo que roda dentro de uma WebView com acesso a APIs nativas via bridge.
 
-## Core Features 🚀
+---
 
--   **Text-to-Tool**: Uses **Gemini 3 Flash Preview** (via Firebase Cloud Functions) to generate HTML/CSS/JS tools.
--   **Native Bridge**: Generated tools can access native device features:
-    -   **Contacts**: Pick contacts directly from the generated tool.
-    -   **Shortcuts**: Receive "Run Tool" intent shortcuts on Android home screen.
-    -   **Biometrics**: Native authentication support.
-    -   **Haptics & Sensors**: Access device vibration and sensors.
--   **Async Job Queue**: Handles complex tool generation (creation/editing) in the background without timeouts, notifying the user when ready.
--   **Local Persistence**: Tools are stored locally (SQLite/FileSystem) and persist offline.
--   **Smart Editing**: Edit tools using natural language ("Make the button blue") or visual context.
--   **Direct Share**: Tools appear as share targets for other apps.
+## E2E Tests (Maestro)
 
-## Technology Stack 🛠️
+### Pré-requisito — instalar Maestro (uma vez)
 
--   **Frontend**: React Native, Expo, TypeScript, Zustand (State), NativeWind (Styles).
--   **Backend**: Firebase (Auth, Firestore, Cloud Functions).
--   **AI**: Google Gemini API (Vertex AI / Studio) via Cloud Functions.
--   **Native Modules**: Custom Expo Config Plugins (`plugins/withAppacadabraNative.js`) for Android Manifest/Kotlin tweaks.
+**Windows:** Já instalado em `C:\maestro`. Certifique-se de que `C:\maestro\bin` está no PATH.
 
-## Architecture 🏗️
+**Mac/Linux:**
+```bash
+curl -Ls "https://get.maestro.mobile.dev" | bash
+```
 
-### 1. The "Spell" Engine (Generation)
--   **Client**: Submits a "Job" to Firestore `jobs` collection.
--   **Server**: `processSpellJob` Cloud Function triggers, calls complex Gemini pipelines (Planner -> Coder -> Validator).
--   **Result**: Code is compressed (GZIP) and stored in the Job document. Client polls/listens and updates local SQLite.
+---
 
-### 2. The "Wand" (Runtime)
--   Tools run in a simplified `WebView` environment.
--   A **Native Bridge** (`window.Appacadabra`) injects JavaScript APIs that communicate with React Native via `postMessage`.
--   Security is handled via strict CSP and sandboxing.
+### Fluxo completo com emulador (estado limpo)
 
-## Getting Started 🏁
+```powershell
+# 1. Subir o emulador (aguarda boot automaticamente)
+powershell -File .maestro/start-emulator.ps1
 
-### Prerequisites
--   Node.js > 20
--   JDK 17
--   Android Studio (for Android Emulator)
--   Firebase CLI (`npm install -g firebase-tools`)
+# 2. Instalar o app no emulador (em outro terminal)
+npm run android
 
-### Installation
+# 3. Rodar todos os flows
+npm run test:e2e
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/your-username/appacadabra.git
-    cd appacadabra
-    ```
+# Ou um flow específico
+npm run test:e2e:flow .maestro/flows/02_report_bug.yaml
+```
 
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    # or
-    yarn install
-    ```
+O emulador `appacadabra_test` (Pixel 6 / Android 14) já está configurado sem lock screen e com estado limpo (`clearState: true` em cada flow zera os dados do app antes de cada teste).
 
-3.  **Environment Setup**:
-    -   Create `.env` with your keys (see `.env.example`).
-    -   Login to Firebase: `firebase login`.
+---
 
-4.  **Run Locally**:
-    ```bash
-    # Run the React Native app
-    npx expo start --clear
+### Flows disponíveis
 
-    # Run Cloud Functions locally (optional)
-    cd firebase/functions
-    npm run serve
-    ```
+| Flow | O que valida |
+|------|-------------|
+| `01_home_sanity.yaml` | App abre, título e botão de criar feitiço visíveis |
+| `02_report_bug.yaml` | Menu → Relatar bug → digitar → Enviar → modal fecha |
+| `03_sign_out_keep.yaml` | Menu → Avançado → Sair → Manter → banner de sucesso *(requer login)* |
 
-5.  **Build for Android**:
-    
-    > ⚠️ **IMPORTANT**: Always use `npm run prebuild` or `npm run prebuild:clean` instead of calling `npx expo prebuild` directly. This ensures the `local.properties` file (containing Android SDK path) is properly regenerated.
+---
 
-    ```bash
-    # First time or after clean:
-    npm run prebuild:clean
-    
-    # Subsequent prebuilds (faster):
-    npm run prebuild
-    
-    # Build release APK:
-    cd android
-    ./gradlew assembleRelease
-    cd ..
-    
-    # Install on connected device:
-    adb install -r android/app/build/outputs/apk/release/app-release.apk
-    ```
+### Verificação visual (Vision AI)
 
-    **Quick Build & Install (PowerShell)**:
-    ```powershell
-    cd android; .\gradlew.bat assembleRelease; cd ..; & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r android/app/build/outputs/apk/release/app-release.apk
-    ```
+Para validar comportamentos visuais difíceis de capturar em YAML (ex: spinner apareceu, modal fechou):
 
+```bash
+npm run vision:check "O modal de bug report está fechado?"
+npm run vision:check "Is a loading spinner visible on screen?"
+npm run vision:check "Is the success banner 'Signed out' visible?"
+```
 
-## Project Structure 📂
-
--   `app/`: Expo Router pages (UI).
--   `components/`: Reusable React Native components.
--   `lib/`:
-    -   `api/`: AI and Backend wrappers.
-    -   `bridges/`: Native Bridge logic (Contacts, System, etc.).
-    -   `database/`: SQLite interactions.
--   `docs/`: Project documentation and Store compliance info.
--   `firebase/`: Cloud Functions and Firestore rules.
--   `plugins/`: Custom Expo Config Plugins (Kotlin/XML modifiers).
-
-## Contributing 🤝
-
-Contributions are welcome! Please read `docs/CONTRIBUTING.md` (if available) or submit a PR.
+A chave Gemini é buscada automaticamente via Firebase Secrets. Requer `firebase login`.

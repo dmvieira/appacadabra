@@ -16,6 +16,8 @@
     "test:e2e": "node .maestro/scripts/setup-device.js && maestro test .maestro/flows/",
     "test:e2e:flow": "node .maestro/scripts/setup-device.js && maestro test",
     "vision:check": "node .maestro/scripts/vision_check.js",
+    "test:e2e:clean": "node .maestro/scripts/clean.js",
+    "test:e2e:clean:all": "node .maestro/scripts/clean.js --all",
     "prepare": "husky"
   },
   "dependencies": {

@@ -1,0 +1,17 @@
+appId: ai.appacadabra.app
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      label: "Opções"
+    timeout: 300000
+- tapOn: "⋮"
+- assertVisible: "Relatar bug"
+- tapOn: "Relatar bug"
+- assertVisible: "Relatar um bug"
+- tapOn:
+    text: "Descreva o problema..."
+- inputText: "E2E test: validando fluxo de relato de bug"
+- tapOn: "Enviar"
+- assertNotVisible: "Relatar um bug"

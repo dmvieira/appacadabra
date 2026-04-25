@@ -1,0 +1,39 @@
+# Requires: support@appacadabra.ai added to emulator (Settings → Accounts → Google)
+# Requires: setup-device.js run first (clean state, app pre-launched)
+appId: ai.appacadabra.app
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      label: "Opções"
+    timeout: 300000
+
+# --- LOGIN ---
+- tapOn:
+    label: "⚡"
+- assertVisible: "Entrar com Google"
+- tapOn:
+    label: "Entrar com Google"
+# Native Google account picker (Android system UI via UIAutomator)
+- extendedWaitUntil:
+    visible: "support@appacadabra.ai"
+    timeout: 15000
+- tapOn: "support@appacadabra.ai"
+# "Continuar" button appears on some Android versions
+- tapOn:
+    text: "Continuar"
+    optional: true
+# Verify logged-in state — "Sem login" chip disappears from ManaShop
+- assertNotVisible: "Sem login"
+
+# --- LOGOUT ---
+- tapOn: "⋮"
+- assertVisible: "Avançado"
+- tapOn: "Avançado"
+- assertVisible: "Sair da conta"
+- tapOn: "Sair da conta"
+- assertVisible: "Manter no celular"
+- tapOn: "Manter no celular"
+- assertVisible: "Você saiu"
+- assertNotVisible: "Manter no celular"

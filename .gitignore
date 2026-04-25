@@ -52,6 +52,9 @@ ios_launch.log
 # android/
 android/app/build/
 android/build/
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/res/drawable-*/node_modules_*
+android/app/src/main/res/raw/
 modules/*/android/build/
 modules/*/ios/build/
 *.iml
@@ -100,3 +103,9 @@ firebase/functions/lib.zip
 firebase/functions/firebase-debug.log*
 firebase/functions/firebase-debug.*.log*
 website/.firebase/
+
+# =====================
+# Maestro E2E
+# =====================
+.maestro/screenshots/
+.maestro/reports/
