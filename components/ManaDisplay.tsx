@@ -14,7 +14,7 @@ export function ManaDisplay({ onPress }: { onPress?: () => void }) {
     };
 
     return (
-        <TouchableOpacity style={styles.container} onPress={handlePress}>
+        <TouchableOpacity style={styles.container} onPress={handlePress} accessibilityLabel="Mana" accessibilityRole="button">
             <Text style={styles.icon}>⚡</Text>
             <Text style={styles.text}>
                 {(Math.floor(balance * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}

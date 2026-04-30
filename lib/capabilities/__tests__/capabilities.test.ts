@@ -1332,6 +1332,8 @@ describeCapability('forms')('handleMessage — forms', () => {
     });
 
     it('FORMS_GET_RESPONSES offline without cache: returns offline:true', async () => {
+        // Reset getItem so loadFormsCache returns null (no persisted responses)
+        require('@react-native-async-storage/async-storage').getItem.mockResolvedValue(null);
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('FORMS_GET_RESPONSES', { formId: 'form-nocache' }, ctx);
         expect(result).toMatchObject({ success: false });

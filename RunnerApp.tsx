@@ -23,6 +23,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Video, ResizeMode } from 'expo-av';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, ExpandedStorageItem } from './lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, AI_MEDIA_MIME, buildBlobMarker } from './lib/bridges/messageHandlers';
+import { saveAiResultToCache } from './lib/bridges/aiCacheUtils';
 import * as db from './lib/database/db';
 import { colors } from './lib/theme';
 import { GeneratedApp } from './lib/database/types';
@@ -509,33 +510,23 @@ function RunnerContent({ appId }: Props) {
                     }
                 }
                 if (app?.id && callbackName && AI_CACHE_TYPES.has(type)) {
-                    try {
-                        aiCacheId = await db.saveWebviewAiCache({
-                            appId: app.id, callbackName, action: type,
-                            requestData: JSON.stringify(data),
-                            result: cacheResult, mediaLocalPath,
-                            creditsUsed: handlerResult.creditsUsed ?? 0,
-                            success: handlerResult.success ? 1 : 0,
-                        });
-                    } catch (cacheErr) {
-                        console.warn('[RunnerApp] Failed to cache AI response:', cacheErr);
-                    }
+                    aiCacheId = await saveAiResultToCache({
+                        type, success: handlerResult.success,
+                        result: cacheResult, mediaLocalPath,
+                        creditsUsed: handlerResult.creditsUsed ?? 0,
+                        appId: app.id, callbackName, requestData: data,
+                    });
                 }
             }
 
-            if (type === 'AI_GENERATE' && handlerResult.success && handlerResult.result && app?.id && callbackName) {
-                try {
-                    aiCacheId = await db.saveWebviewAiCache({
-                        appId: app.id, callbackName, action: type,
-                        requestData: JSON.stringify(data),
-                        result: handlerResult.result,
-                        mediaLocalPath: undefined,
-                        creditsUsed: handlerResult.creditsUsed ?? 0,
-                        success: 1,
-                    });
-                } catch (cacheErr) {
-                    console.warn('[RunnerApp] Failed to cache AI_GENERATE response:', cacheErr);
-                }
+            if (app?.id && callbackName) {
+                const textId = await saveAiResultToCache({
+                    type, success: handlerResult.success,
+                    result: handlerResult.result,
+                    creditsUsed: handlerResult.creditsUsed ?? 0,
+                    appId: app.id, callbackName, requestData: data,
+                });
+                if (textId !== null) aiCacheId = textId;
             }
 
             // Send callback if needed, unless deferred (e.g. scanner)

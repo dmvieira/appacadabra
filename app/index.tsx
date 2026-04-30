@@ -76,7 +76,6 @@ export default function HomeScreen() {
         openApp,
         updateAppDescription,
         updateAppIcon,
-        incrementAppManaCost,
         exportBackup,
         importBackup,
         importOnboardingSpell,
@@ -97,6 +96,7 @@ export default function HomeScreen() {
         lastFailedPrompt,
         clearLastFailedPrompt,
         clearAppStorage,
+        generateAndSaveAppIcon,
     } = useAppStore();
 
     const [showSignOutModal, setShowSignOutModal] = useState(false);
@@ -718,29 +718,9 @@ export default function HomeScreen() {
                 creationPrompt = first?.instruction || '';
             }
             const prompt = `App icon for "${setupTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} REALLY simple, colorful, minimalist icon for a mobile app. No text. No border. No frame. No outline. No padding. No drop shadow. No background ring. No decorative edge. The icon fills the entire canvas edge to edge.`;
-            const result = await firebase.generateSpellLogoGen(prompt);
-            const base64Image = result.text;
-            const creditsUsed = result.creditsUsed || 0;
-            if (base64Image) {
-                const iconDir = `${FileSystem.documentDirectory}icons/`;
-                const dirInfo = await FileSystem.getInfoAsync(iconDir);
-                if (!dirInfo.exists) {
-                    await FileSystem.makeDirectoryAsync(iconDir, { intermediates: true });
-                }
-                const iconPath = `${iconDir}ai_icon_${setupTarget.id}_${Date.now()}.png`;
-
-                if (base64Image.startsWith('http')) {
-                    await FileSystem.downloadAsync(base64Image, iconPath);
-                } else {
-                    await FileSystem.writeAsStringAsync(iconPath, base64Image, {
-                        encoding: FileSystem.EncodingType.Base64,
-                    });
-                }
-
-                await updateAppIcon(setupTarget.id, iconPath);
+            const { iconPath, creditsUsed } = await generateAndSaveAppIcon(setupTarget.id, prompt);
+            if (iconPath) {
                 if (creditsUsed > 0) {
-                    await incrementAppManaCost(setupTarget.id, creditsUsed);
-                    // Force mana balance refresh from server
                     firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => { });
                 }
                 logIconGenerated('setup', creditsUsed);

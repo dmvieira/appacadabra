@@ -39,6 +39,19 @@ export function isNetworkError(e: unknown): boolean {
     return e instanceof TypeError && e.message.includes('Network');
 }
 
+const FORMS_CACHE_PREFIX = 'appacadabra_forms_responses_cache_';
+
+async function loadFormsCache(formId: string): Promise<any[] | null> {
+    try {
+        const raw = await AsyncStorage.getItem(FORMS_CACHE_PREFIX + formId);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+function saveFormsCache(formId: string, data: any[]): void {
+    AsyncStorage.setItem(FORMS_CACHE_PREFIX + formId, JSON.stringify(data))?.catch(() => {});
+}
+
 const FORMS_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 const FORMS_API = 'https://forms.googleapis.com/v1/forms';
 
@@ -352,20 +365,21 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                         headers: { Authorization: `Bearer ${token}` },
                     });
                     if (!respRes.ok) {
+                        const cached = resourceCache.get(formId) ?? await loadFormsCache(formId);
+                        if (cached) return { success: true, result: JSON.stringify({ responses: cached, cached: true }) };
                         return { success: false, result: `Failed to fetch responses: ${respRes.status} ${await respRes.text()}` };
                     }
                     const respData = await respRes.json();
                     const rawResponses: any[] = respData.responses || [];
                     const responses = parseResponses(rawResponses, schemaMap);
                     resourceCache.set(formId, responses);
+                    saveFormsCache(formId, responses);
 
                     return { success: true, result: JSON.stringify({ responses }) };
                 } catch (e) {
-                    if (isNetworkError(e)) {
-                        const cached = resourceCache.get(data.formId);
-                        if (cached) return { success: true, result: JSON.stringify({ responses: cached, cached: true }) };
-                        return { success: false, result: JSON.stringify({ offline: true }) };
-                    }
+                    const cached = resourceCache.get(data.formId) ?? await loadFormsCache(data.formId);
+                    if (cached) return { success: true, result: JSON.stringify({ responses: cached, cached: true }) };
+                    if (isNetworkError(e)) return { success: false, result: JSON.stringify({ offline: true }) };
                     return { success: false, result: e instanceof Error ? e.message : 'Forms get responses error' };
                 }
             }
@@ -409,7 +423,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                         const token = await requestGoogleScopes(FORMS_SCOPES);
                         if (!token) {
                             if (initial) {
-                                const cached = resourceCache.get(formId);
+                                const cached = resourceCache.get(formId) ?? await loadFormsCache(formId);
                                 const script = cached
                                     ? createCallbackScript(callbackName, true, JSON.stringify({ responses: cached, newResponses: [], initial: true, cached: true }))
                                     : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
@@ -420,6 +434,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
 
                         const responses = await fetchResponses(token);
                         resourceCache.set(formId, responses);
+                        saveFormsCache(formId, responses);
 
                         const watcher = activeWatchers.get(key);
                         const prevSnapshot = watcher?.snapshot ?? null;
@@ -442,8 +457,8 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                             }
                         }
                     } catch (e) {
-                        if (isNetworkError(e) && initial) {
-                            const cached = resourceCache.get(formId);
+                        if (initial) {
+                            const cached = resourceCache.get(formId) ?? await loadFormsCache(formId);
                             const script = cached
                                 ? createCallbackScript(callbackName, true, JSON.stringify({ responses: cached, newResponses: [], initial: true, cached: true }))
                                 : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));

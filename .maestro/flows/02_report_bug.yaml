@@ -15,3 +15,10 @@ appId: ai.appacadabra.app
 - inputText: "E2E test: validando fluxo de relato de bug"
 - tapOn: "Enviar"
 - assertNotVisible: "Relatar um bug"
+# Email compose may have opened — bring app back to foreground
+- launchApp:
+    stopApp: false
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Appacadabra"
+    timeout: 90000

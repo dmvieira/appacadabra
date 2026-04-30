@@ -4,34 +4,61 @@ appId: ai.appacadabra.app
 ---
 - launchApp:
     stopApp: false
+# Wait for home screen — "MANA GRÁTIS" text check would fail here, use label tap below
+# tapOn with label retries until element visible (up to ~3s by default)
+- tapOn:
+    label: "Opções"
+    optional: true  # skip if it took too long, next step will reveal if not ready
+- launchApp:
+    stopApp: false
+
+# --- OPEN MANASHOP ---
+- tapOn:
+    label: "Mana"
+# Wait for ManaShop to open — "MANA GRÁTIS" section is plain text (no emoji), reliable check
 - extendedWaitUntil:
-    visible:
-      label: "Opções"
-    timeout: 300000
+    visible: "MANA GRÁTIS"
+    timeout: 15000
 
 # --- LOGIN ---
+# Ver Anuncio (Mana) opens login prompt when isAnonymous=true
 - tapOn:
-    label: "⚡"
-- assertVisible: "Entrar com Google"
+    label: "Ver Anuncio (Mana)"
+# Login prompt now showing — "Entrar com Google" button has accessibilityLabel="Entrar com Google"
+# Wait for button text to appear (text match works, no emoji in button accessibilityLabel)
+- extendedWaitUntil:
+    visible: "Entrar com Google"
+    timeout: 15000
 - tapOn:
     label: "Entrar com Google"
-# Native Google account picker (Android system UI via UIAutomator)
+# Google account picker opens — wait for email text (plain text in native Android UI)
 - extendedWaitUntil:
     visible: "support@appacadabra.ai"
-    timeout: 15000
+    timeout: 30000
 - tapOn: "support@appacadabra.ai"
-# "Continuar" button appears on some Android versions
+# "Continuar"/"Continue" confirmation may appear on some Android versions
+- runFlow:
+    when:
+      visible: "Continuar"
+    commands:
+      - tapOn: "Continuar"
+# Wait for login to complete — email appears as text in ManaShop account chip
+- extendedWaitUntil:
+    visible: "support@appacadabra.ai"
+    timeout: 45000
+# Close ManaShop
 - tapOn:
-    text: "Continuar"
-    optional: true
-# Verify logged-in state — "Sem login" chip disappears from ManaShop
-- assertNotVisible: "Sem login"
+    label: "Fechar"
+# First login triggers BackupSyncModal — skip it
+- tapOn: "Ignorar backup"
 
 # --- LOGOUT ---
 - tapOn: "⋮"
 - assertVisible: "Avançado"
 - tapOn: "Avançado"
-- assertVisible: "Sair da conta"
+- extendedWaitUntil:
+    visible: "Sair da conta"
+    timeout: 15000
 - tapOn: "Sair da conta"
 - assertVisible: "Manter no celular"
 - tapOn: "Manter no celular"

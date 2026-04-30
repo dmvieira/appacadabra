@@ -136,19 +136,11 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await addColumn('webview_ai_cache', 'jobId', 'TEXT');
     await addColumn('webview_ai_cache', 'resultMediaMime', 'TEXT');
 
-    // Dedup + add unique index on (appId, callbackName) for INSERT OR REPLACE behavior
+    // Drop the unique index on (appId, callbackName) so repeated AI calls accumulate as history
     try {
-        await database.execAsync(`
-            DELETE FROM webview_ai_cache
-            WHERE id NOT IN (
-                SELECT MAX(id) FROM webview_ai_cache GROUP BY appId, callbackName
-            );
-        `);
-        await database.execAsync(
-            `CREATE UNIQUE INDEX IF NOT EXISTS idx_wac_appId_callbackName ON webview_ai_cache(appId, callbackName);`
-        );
+        await database.execAsync(`DROP INDEX IF EXISTS idx_wac_appId_callbackName;`);
     } catch (e) {
-        console.log('[DB] Migration error (webview_ai_cache unique index):', e);
+        console.log('[DB] Migration error (drop webview_ai_cache unique index):', e);
     }
 
     await database.execAsync(`
@@ -540,7 +532,7 @@ export async function saveWebviewAiCache(entry: {
 }): Promise<number> {
     const database = await getDatabase();
     const r = await database.runAsync(
-        `INSERT OR REPLACE INTO webview_ai_cache
+        `INSERT INTO webview_ai_cache
          (appId, callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
         [entry.appId, entry.callbackName, entry.action,
@@ -559,7 +551,7 @@ export async function saveWebviewAiCachePending(
 ): Promise<number> {
     const database = await getDatabase();
     const r = await database.runAsync(
-        `INSERT OR REPLACE INTO webview_ai_cache
+        `INSERT INTO webview_ai_cache
          (appId, callbackName, action, result, delivered, success, createdAt)
          VALUES (?, ?, ?, '', 0, 0, ?)`,
         [appId, callbackName, action, Date.now()]

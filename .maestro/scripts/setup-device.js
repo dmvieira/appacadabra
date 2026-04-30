@@ -44,7 +44,15 @@ const ADB = findAdb();
     console.log(`  Connected: ${devices[0].split('\t')[0]}`);
 
     console.log('→ Clearing app data...');
-    adb(`shell pm clear ${PACKAGE}`);
+    // pm clear may fail with NullPointerException if system services are still starting up after boot
+    for (let attempt = 1; attempt <= 5; attempt++) {
+        try { adb(`shell pm clear ${PACKAGE}`); break; }
+        catch (e) {
+            if (attempt === 5) throw e;
+            console.log(`  pm clear failed (system not ready), retrying in 5s... (${attempt}/5)`);
+            await sleep(5000);
+        }
+    }
 
     console.log('→ Granting runtime permissions...');
     const PERMISSIONS = [

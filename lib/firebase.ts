@@ -717,21 +717,39 @@ export async function signInWithGoogle() {
 export async function linkWithGoogle() {
     try {
         await GoogleSignin.hasPlayServices();
-        const response = await GoogleSignin.signIn();
 
-        if (response.type === 'cancelled') {
-            throw new Error('Sign in cancelled');
+        // Try silent first — avoids native picker when Play Services has a cached session
+        let idToken: string | null = null;
+        try {
+            const silent = await GoogleSignin.signInSilently();
+            idToken = silent.data?.idToken ?? null;
+        } catch {
+            // No cached session — fall through to interactive sign-in
         }
 
-        const idToken = response.data?.idToken;
+        if (!idToken) {
+            const response = await GoogleSignin.signIn();
+            if (response.type === 'cancelled') {
+                throw new Error('Sign in cancelled');
+            }
+            idToken = response.data?.idToken ?? null;
+        }
 
-        if (!idToken) throw new Error('No ID token found from Google Sign-In');
+        if (!idToken) throw new Error('No ID token from Google Sign-In');
 
         const googleCredential = GoogleAuthProvider.credential(idToken);
         const user = firebaseAuth().currentUser;
 
         if (user) {
-            return await linkWithCredential(user, googleCredential);
+            try {
+                return await linkWithCredential(user, googleCredential);
+            } catch (linkError: any) {
+                if (linkError.code === 'auth/credential-already-in-use') {
+                    // Account already exists — sign in directly with the same credential
+                    return await signInWithCredential(firebaseAuth(), googleCredential);
+                }
+                throw linkError;
+            }
         } else {
             throw new Error('No current user to link');
         }

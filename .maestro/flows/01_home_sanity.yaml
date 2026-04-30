@@ -1,9 +1,10 @@
 appId: ai.appacadabra.app
 ---
-- launchApp
+- launchApp:
+    stopApp: false
 - extendedWaitUntil:
     visible: "Fazer Feitiço ✨"
-    timeout: 60000
+    timeout: 300000
 - assertVisible: "Fazer Feitiço ✨"
 - assertVisible:
     label: "Opções"

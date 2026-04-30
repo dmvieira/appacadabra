@@ -2,9 +2,23 @@ import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
 import { marked, type Token, type Tokens } from 'marked';
 import TurndownService from 'turndown';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createCallbackScript } from './mediaHelpers';
 import { requestGoogleScopes } from '../firebase';
 import { CapabilityModule, HandlerContext, HandlerResult, WebViewRef } from './types';
+
+const DOCS_CACHE_PREFIX = 'appacadabra_docs_cache_';
+
+async function loadDocsCache(docId: string): Promise<{ title: string; content: string } | null> {
+    try {
+        const raw = await AsyncStorage.getItem(DOCS_CACHE_PREFIX + docId);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+function saveDocsCache(docId: string, data: { title: string; content: string }): void {
+    AsyncStorage.setItem(DOCS_CACHE_PREFIX + docId, JSON.stringify(data))?.catch(() => {});
+}
 
 // ============= Format Conversion Helpers =============
 
@@ -436,14 +450,13 @@ window.onConverted = function(ok, md) {
 
                     const snap = await fetchDocSnapshot(data.docId, token);
                     resourceCache.set(data.docId, snap);
+                    saveDocsCache(data.docId, snap);
                     await flushWriteQueue();
                     return { success: true, result: JSON.stringify(snap) };
                 } catch (e) {
-                    if (isNetworkError(e)) {
-                        const cached = resourceCache.get(data.docId);
-                        if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
-                        return { success: false, result: JSON.stringify({ offline: true }) };
-                    }
+                    const cached = resourceCache.get(data.docId) ?? await loadDocsCache(data.docId);
+                    if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
+                    if (isNetworkError(e)) return { success: false, result: JSON.stringify({ offline: true }) };
                     return { success: false, result: e instanceof Error ? e.message : 'Docs get error' };
                 }
             }
@@ -603,7 +616,7 @@ window.onConverted = function(ok, md) {
                         const token = await requestGoogleScopes(DOCS_SCOPES);
                         if (!token) {
                             if (initial) {
-                                const cached = resourceCache.get(docId);
+                                const cached = resourceCache.get(docId) ?? await loadDocsCache(docId);
                                 const script = cached
                                     ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true }))
                                     : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
@@ -614,6 +627,7 @@ window.onConverted = function(ok, md) {
 
                         const snap = await fetchDocSnapshot(docId, token);
                         resourceCache.set(docId, snap);
+                        saveDocsCache(docId, snap);
 
                         const watcher = activeWatchers.get(key);
                         const prev = watcher?.snapshot ?? null;
@@ -630,8 +644,8 @@ window.onConverted = function(ok, md) {
 
                         await flushWriteQueue();
                     } catch (e) {
-                        if (isNetworkError(e) && initial) {
-                            const cached = resourceCache.get(docId);
+                        if (initial) {
+                            const cached = resourceCache.get(docId) ?? await loadDocsCache(docId);
                             const script = cached
                                 ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true }))
                                 : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));

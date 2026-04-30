@@ -1,6 +1,20 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createCallbackScript } from './mediaHelpers';
 import { requestGoogleScopes } from '../firebase';
 import { CapabilityModule, HandlerContext, HandlerResult, WebViewRef } from './types';
+
+const SHEETS_CACHE_PREFIX = 'appacadabra_sheets_cache_';
+
+async function loadSheetsCache(sheetId: string): Promise<{ headers: string[]; rows: Record<string, string>[] } | null> {
+    try {
+        const raw = await AsyncStorage.getItem(SHEETS_CACHE_PREFIX + sheetId);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+function saveSheetsCache(sheetId: string, data: { headers: string[]; rows: Record<string, string>[] }): void {
+    AsyncStorage.setItem(SHEETS_CACHE_PREFIX + sheetId, JSON.stringify(data))?.catch(() => {});
+}
 
 type Row = Record<string, string>;
 
@@ -283,6 +297,8 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                         headers: { Authorization: `Bearer ${token}` },
                     });
                     if (!getRes.ok) {
+                        const cached = resourceCache.get(data.sheetId) ?? await loadSheetsCache(data.sheetId);
+                        if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
                         return { success: false, result: `Failed to get rows: ${getRes.status} ${await getRes.text()}` };
                     }
                     const getData = await getRes.json();
@@ -298,14 +314,13 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                         }, {})
                     );
                     resourceCache.set(data.sheetId, { headers, rows });
+                    saveSheetsCache(data.sheetId, { headers, rows });
                     await flushWriteQueue();
                     return { success: true, result: JSON.stringify({ headers, rows }) };
                 } catch (e) {
-                    if (isNetworkError(e)) {
-                        const cached = resourceCache.get(data.sheetId);
-                        if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
-                        return { success: false, result: JSON.stringify({ offline: true }) };
-                    }
+                    const cached = resourceCache.get(data.sheetId) ?? await loadSheetsCache(data.sheetId);
+                    if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
+                    if (isNetworkError(e)) return { success: false, result: JSON.stringify({ offline: true }) };
                     return { success: false, result: e instanceof Error ? e.message : 'Sheets get rows error' };
                 }
             }
@@ -325,7 +340,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                         const token = await requestGoogleScopes(SHEETS_SCOPES);
                         if (!token) {
                             if (initial) {
-                                const cached = resourceCache.get(sheetId);
+                                const cached = resourceCache.get(sheetId) ?? await loadSheetsCache(sheetId);
                                 const script = cached
                                     ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true, added: [], changed: [], deleted: [] }))
                                     : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
@@ -347,6 +362,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                         );
 
                         resourceCache.set(sheetId, { headers, rows });
+                        saveSheetsCache(sheetId, { headers, rows });
 
                         const watcher = activeWatchers.get(key);
 
@@ -370,14 +386,12 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
 
                         await flushWriteQueue();
                     } catch (e) {
-                        if (isNetworkError(e)) {
-                            if (initial) {
-                                const cached = resourceCache.get(sheetId);
-                                const script = cached
-                                    ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true, added: [], changed: [], deleted: [] }))
-                                    : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
-                                ctx.webViewRef.current?.injectJavaScript(script);
-                            }
+                        if (initial) {
+                            const cached = resourceCache.get(sheetId) ?? await loadSheetsCache(sheetId);
+                            const script = cached
+                                ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true, added: [], changed: [], deleted: [] }))
+                                : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                            ctx.webViewRef.current?.injectJavaScript(script);
                         }
                     }
                 };

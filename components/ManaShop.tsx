@@ -342,35 +342,7 @@ export function ManaShop() {
             setShowLoginPrompt(false);
         } catch (e: any) {
             console.error(e);
-            if (e.message && (e.message.includes('credential-already-in-use') || e.code === 'auth/credential-already-in-use')) {
-                Alert.alert(
-                    t('account'),
-                    t('accountConflict'),
-                    [
-                        { text: t('cancel'), style: 'cancel' },
-                        {
-                            text: t('signInGoogle'), onPress: async () => {
-                                const anonBalance = useManaStore.getState().balance;
-                                try {
-                                    await firebase.signInWithGoogle();
-                                    await refreshUser();
-                                    if (anonBalance > 0) {
-                                        await firebase.addCredits(anonBalance, 'device_merge');
-                                    }
-                                    getHardwareId().then(id => {
-                                        if (id) firebase.claimInstallBonus(id).catch(() => { });
-                                    });
-                                    setShowLoginPrompt(false);
-                                } catch (err) {
-                                    Alert.alert(t('error'), t('signInFailed'));
-                                }
-                            }
-                        }
-                    ]
-                );
-            } else {
-                setLoginError(e.message || t('linkError'));
-            }
+            setLoginError(e.message || t('linkError'));
         } finally {
             setIsSigningIn(false);
         }

@@ -96,6 +96,7 @@ interface AppState {
     clearSharedContent: () => void;
     _processCompletedJob: (job: Job) => Promise<void>;
     _processFailedJob: (job: Job) => void;
+    generateAndSaveAppIcon: (appId: number, prompt: string) => Promise<{ iconPath: string; creditsUsed: number }>;
     reorderApp: (appId: number, direction: 'up' | 'down') => Promise<void>;
     wipeAllData: () => Promise<void>;
 }
@@ -737,6 +738,39 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.warn('Failed to increment app mana cost:', error);
         }
+    },
+
+    generateAndSaveAppIcon: async (appId: number, prompt: string): Promise<{ iconPath: string; creditsUsed: number }> => {
+        const result = await firebase.generateSpellLogoGen(prompt);
+        const base64Image = result.text;
+        const creditsUsed = result.creditsUsed || 0;
+
+        if (!base64Image) {
+            return { iconPath: '', creditsUsed: 0 };
+        }
+
+        const iconDir = `${FileSystem.documentDirectory}icons/`;
+        const dirInfo = await FileSystem.getInfoAsync(iconDir);
+        if (!dirInfo.exists) {
+            await FileSystem.makeDirectoryAsync(iconDir, { intermediates: true });
+        }
+        const iconPath = `${iconDir}ai_icon_${appId}_${Date.now()}.png`;
+
+        if (base64Image.startsWith('http')) {
+            await FileSystem.downloadAsync(base64Image, iconPath);
+        } else {
+            await FileSystem.writeAsStringAsync(iconPath, base64Image, {
+                encoding: FileSystem.EncodingType.Base64,
+            });
+        }
+
+        await get().updateAppIcon(appId, iconPath);
+
+        if (creditsUsed > 0) {
+            await get().incrementAppManaCost(appId, creditsUsed);
+        }
+
+        return { iconPath, creditsUsed };
     },
 
     updateAppCode: async (id: number, code: string, instruction?: string) => {

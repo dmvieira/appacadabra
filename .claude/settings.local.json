@@ -98,7 +98,20 @@
       "PowerShell(maestro test *)",
       "PowerShell(Get-Process | Where-Object { $_.Id -eq 51964 } | Select-Object Name, Id, Path)",
       "Bash(npx react-native *)",
-      "PowerShell(Get-Content *)"
+      "PowerShell(Get-Content *)",
+      "Bash(/c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb devices *)",
+      "Bash(\"/c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb\" wait-for-device *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(\"/c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb\" devices *)",
+      "Bash(\"/c/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb\" reverse *)",
+      "Bash(%USERPROFILE%\\\\.maestro\\\\maestro\\\\bin\\\\maestro.bat test *)",
+      "Bash(/c/Users/vivia/.maestro/maestro/bin/maestro test *)",
+      "Bash(C:/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb.exe devices *)",
+      "Bash(C:/Users/vivia/AppData/Local/Android/Sdk/emulator/emulator.exe *)",
+      "Bash(C:/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb.exe shell *)",
+      "Bash(C:/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb.exe kill-server *)",
+      "Bash(C:/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb.exe start-server *)",
+      "Bash(awk '{print $NF}')"
     ]
   }
 }
