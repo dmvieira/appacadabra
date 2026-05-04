@@ -2,7 +2,9 @@
 
 ---
 
-## Part 10: The Quality Assurance Department — Taming the Machine
+## Part 11: The Quality Assurance Department — Taming the Machine
+
+Ten departments. A product live in production, generating apps for real users, processing real payments, distributed across multiple markets with a running content engine telling the world it existed. Everything had been built. Almost nothing had been systematically validated at scale. The QA Department was the last to be assembled — and the one that had to retroactively prove that the other ten had done their jobs.
 
 *"Testing shows the presence, not the absence, of bugs."*
 — Edsger W. Dijkstra, 1969
@@ -90,46 +92,14 @@ This full stack did not exist at the start of the project. It was assembled incr
 The **QA Agent** was the final agent configured, and it had access to the outputs of every other agent in the system.
 
 Its **MCPs** included:
-- A **Test Coverage Analyzer MCP**: given the current codebase, identify user flows not covered by existing Maestro flows and generate scaffolding for the missing tests
-- A **Accessibility Audit Skill**: run automated accessibility checks against our WCAG AA requirements and generate a report flagged by severity
-- A **Regression Suite Generator MCP**: given a new feature's Engineering Agent output, automatically generate the corresponding Maestro flows before the feature reaches production
-- A **Flakiness Detector Plugin**: identify tests that produce inconsistent results across repeated runs and generate a diagnostic report with root cause hypotheses
-- A **Security Scanner MCP**: run static analysis and dependency audit on every CI build and surface vulnerabilities with remediation recommendations
+- A **Test Coverage Check MCP** (`/test-coverage-check`): given the current codebase, identify user flows not covered by existing Maestro flows and generate scaffolding for the missing tests, prioritized by user-facing impact
+- A **E2E Test Generator MCP** (`/gen-e2e-tests`): given a new feature's Engineering Agent output, automatically generate the corresponding Maestro YAML flows before the feature reaches production — grounded in the app's accessibility label map
+- A **Security Scanner MCP** (`/security-scan`): run static analysis (ESLint security rules, Android Lint) and dependency audit (npm audit, Gradle checker) on the current codebase and surface vulnerabilities with severity ratings and remediation recommendations
 
-The QA Agent closed the loop. Engineering Agent produces code → QA Agent produces tests → Release Agent manages deployment → Analytics Agent monitors production → QA Agent triggers regression suite on anomaly detection.
+The QA Agent closed the loop. Engineering Agent produces code → QA Agent produces tests → Release Agent manages deployment → Analytics Agent monitors production → QA Agent triggers the regression suite when anomalies are detected.
 
-The company's operational loop was automated.
+The company's operational cycle was automated.
 
 ---
 
-## Conclusion: What This Experiment Actually Proved
-
-Four months. Ten departments. One founder. One hundred decisions I couldn't have made without AI. Dozens of decisions I couldn't have fully validated with it.
-
-Let me be direct about what this experiment proved and what it didn't.
-
-**What it proved:**
-
-AI can compress the time to build a company by an order of magnitude. The departments that historically required specialized human teams — Strategy, Design, UX, Legal, Finance, Analytics, Release, International Strategy — can be stood up by a sufficiently capable solo founder with the right AI tooling in a fraction of the traditional time.
-
-The **agent + plugin + skills + MCP** architecture is, I believe, the key unlock that most AI productivity writing misses. It's not about using AI to answer questions. It's about building AI agents that understand your company — your stack, your voice, your constraints, your decisions — and can act within that context automatically. Each department wasn't just staffed by AI. It was encoded into a living system that would continue operating, automatically, the next time the same type of work was needed.
-
-**What it didn't prove:**
-
-AI does not eliminate the need for human judgment. If anything, it accelerates you into it. Every department I built required me to act as a senior leader in a discipline I hadn't formally studied — making strategic decisions, evaluating expert output, accepting calculated risk. AI gave me better information, faster. It didn't make the decisions for me.
-
-The validation gap is real. For departments where I had expertise (engineering, product architecture, technical decision-making), AI was a force multiplier. For departments where I lacked expertise (legal, design nuance, cross-cultural consumer psychology), AI was a capable but imperfect partner, and I was a CEO making decisions with incomplete certainty. That is not a comfortable position. It is also the only honest one.
-
-**What comes next:**
-
-The infrastructure I built — ten agents, dozens of skills, a network of MCPs connecting them — is not a four-month project. It is the beginning of a company's operating system. As Appacadabra grows, as new features are built, as new markets are entered, the agents evolve with it. Each new task that gets done through an agent, captured as a skill, and formalized as an MCP, makes the system slightly more capable and slightly more specifically *Appacadabra*.
-
-This is the new model of the software company. Not a team of humans with AI assistants. Not autonomous AI with a human supervisor. But a human CEO operating a constellation of specialized AI agents, each one deeply configured to serve the company's specific context, each one extending the founder's capability into domains they couldn't previously reach.
-
-It is more difficult than it sounds. It is more possible than most people believe.
-
-And it is just beginning.
-
----
-
-*The Appacadabra Chronicles is a 10-part series documenting the AI-driven construction of a full software company. Parts 1 through 10 cover Strategy, Branding & Design, UX/Product, Engineering & Localization, Finance, Legal, Data Analytics & DevOps, Release Management, International Strategy, and Quality Assurance.*
+*Eleven departments. Eleven agents. Twenty-seven executable commands. The conclusion that follows steps back from the individual departments and maps the full architecture that emerged — the complete constellation of what was built, how the pieces connect, and what it means for the companies that come after.*

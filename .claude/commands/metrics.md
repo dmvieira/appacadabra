@@ -19,29 +19,34 @@ Use `mcp__plugin_firebase_firebase__firestore_query_collection` on `users`:
 
 ### 2. Spell creation volume
 Query `jobs` collection:
-- Filter `action == "create"` and `status == "completed"` and `createdAt > [period start]`
+- Filter `action == "create"` and `status == "completed"` (two equality filters — no index needed), limit 200
+- Filter results in memory by `createdAt` for the requested period
 - Count → **spells created this period**
 - Average `result.creditsUsed` → **avg mana per spell**
 
 ### 3. Edit activity
 Query `jobs` collection:
-- Filter `action == "edit"` and `status == "completed"` → **spell edits**
+- Filter `action == "edit"` and `status == "completed"`, limit 200
+- Filter results in memory by `createdAt` for the period
 - Edit/create ratio → **engagement depth signal** (>1 edits per create = users iterating)
 
 ### 4. Failure rates
 Query `jobs`:
-- Filter `status == "failed"` grouped by `action`
-- Compute failure rate per action type
+- Filter `status == "failed"`, limit 100 — check timestamps in results, group by `action`
+- Query `status == "completed"`, limit 200 — use as denominator
+- Compute failure rate per action type from results
 
 ### 5. Mana consumption
-Query `users/{uid}/usageLogs` (sample across users if too many):
-- Sum `creditsUsed` by `action` → **which operations consume most mana**
-- Sum `creditsUsed` by `modelId` → **cost distribution by model**
+Use `jobs` collection as proxy (subcollection `users/{uid}/usageLogs` requires knowing each UID — not viable for aggregation):
+- Query `status == "completed"`, limit 200 — sum `result.creditsUsed` grouped by `action` → **which operations consume most mana**
+- Note: per-model breakdown (`modelId`) is only available in `usageLogs`. To get it, query `users/{uid}/usageLogs` for the top 3–5 most active users (UIDs from step 1) and extrapolate.
 
 ### 6. Revenue signals
-Query `users/{uid}/creditLogs`:
-- Filter `type == "purchase"` → **paying users and purchase volume**
-- Avg `amount` per purchase → **ARPU signal**
+`users/{uid}/creditLogs` is a subcollection — requires UIDs known upfront. Approach:
+- Query `users` where `creditsUsed > 0`, limit 20 — get UIDs of active users
+- For each UID, query `users/{uid}/creditLogs` with `type == "purchase"` → count purchases and avg `amount`
+- Report paying users count and avg purchase amount from sampled UIDs
+- Note: this is a sample (top 20 active users), not exhaustive
 
 ## Output format
 

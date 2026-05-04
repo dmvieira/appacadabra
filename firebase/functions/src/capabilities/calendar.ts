@@ -12,8 +12,8 @@ const calendarCapability: FirebaseCapabilityDoc = {
     docs: `📅 CALENDAR (AppacadabraCalendar)
 - \`createEvent(title, desc, startMs, endMs, callback)\`
 - \`createEventWithReminder(title, desc, startMs, endMs, minutes, callback)\`
-- \`getEvents(startMs, endMs, callback)\`
-    - **Return**: JSON String of event objects \`[{id, title, startDate, endDate, allDay, location, notes, calendarId, calendarName, attendees: [{name, email, status, isCurrentUser}]}, ...]\`
+- \`getEvents(startMs, endMs, callback)\` - Callback: \`callback(success, data)\`
+    - **data** is an already-parsed Array (do NOT JSON.parse): \`[{id, title, startDate, endDate, allDay, location, notes, calendarId, calendarName, attendees: [{name, email, status, isCurrentUser}]}, ...]\`
 - \`deleteEvent(eventId, callback)\`
     - **Return**: "Event deleted" (string)
 - **Return for create**: "Calendar opened" (string)`,

@@ -10,17 +10,23 @@ const healthCapability: FirebaseCapabilityDoc = {
     displayName: "Health",
     minVersion: "2.0.0",
     docs: `💪 HEALTH (AppacadabraHealth)
-- \`getSteps(startMs, endMs, callback)\` - Get step count
-    - **Return**: JSON Object: \`{ "totalSteps": number, "records": [{ "startTime": "ISO String", "endTime": "ISO String", "count": number }] }\`
-- \`getHeartRate(startMs, endMs, callback)\` - Get heart rate
-    - **Return**: JSON Array of objects: \`[{ "startTime": "ISO String", "endTime": "ISO String", "samples": [{ "time": "ISO String", "beatsPerMinute": number }] }]\`
-- \`getExercise(startMs, endMs, callback)\` - Get exercise sessions. **Crucial**:
-    - **Return**: JSON Array: \`[{ "startTime": "ISO", "endTime": "ISO", "exerciseTypeName": "ROWING"|"WALKING"|..., "exerciseType": number, "title": string|null (often null! use typeName), "notes": string|null, "metadata": {...} }]\`
+⚠️ **CRITICAL**: All Health callbacks receive **already-parsed JavaScript objects/arrays**, NOT JSON strings. Do NOT call JSON.parse() on the result — it will throw an error. Use the data directly: \`data.totalSteps\`, \`data[0].startTime\`, etc.
+- \`getSteps(startMs, endMs, callback)\` - Get step count. Callback: \`callback(success, data)\`
+    - **data** is an Object: \`{ totalSteps: number, records: [{ startTime: "ISO String", endTime: "ISO String", count: number }] }\`
+    - Example: \`var steps = data.totalSteps;\`
+- \`getHeartRate(startMs, endMs, callback)\` - Get heart rate. Callback: \`callback(success, data)\`
+    - **data** is an Array: \`[{ startTime: "ISO String", endTime: "ISO String", samples: [{ time: "ISO String", beatsPerMinute: number }] }]\`
+    - Example: \`var bpm = data[0].samples[0].beatsPerMinute;\`
+- \`getExercise(startMs, endMs, callback)\` - Get exercise sessions. Callback: \`callback(success, data)\`. **Crucial**:
+    - **data** is an Array: \`[{ startTime: "ISO", endTime: "ISO", exerciseTypeName: "ROWING"|"WALKING"|..., exerciseType: number, title: string|null (often null! use typeName), notes: string|null, metadata: {...} }]\`
     - **Note**: \`title\` is often null. Display \`exerciseTypeName\` as label. \`exerciseType\` 46 is "ROWING". Ignore internal metadata.
-- \`getSleep(startMs, endMs, callback)\` - Get sleep sessions
-    - **Return**: JSON Array of objects: \`[{ "startTime": "ISO String", "endTime": "ISO String", "title": string|null, "notes": string|null, "stages": [{ "startTime": "ISO String", "endTime": "ISO String", "stage": "AWAKE"|"LIGHT"|"DEEP"|"REM"|"UNKNOWN" }] }]\`
-- \`getCalories(startMs, endMs, callback)\` - Get calories burned (Active + Basal)
-    - **Return**: JSON Object: \`{ "totalCalories": number, "records": [{ "startTime": "ISO", "endTime": "ISO", "energy": { "inKilocalories": number } }] }\``,
+    - Example: \`data.forEach(function(e) { console.log(e.exerciseTypeName); });\`
+- \`getSleep(startMs, endMs, callback)\` - Get sleep sessions. Callback: \`callback(success, data)\`
+    - **data** is an Array: \`[{ startTime: "ISO String", endTime: "ISO String", title: string|null, notes: string|null, stages: [{ startTime: "ISO String", endTime: "ISO String", stage: "AWAKE"|"LIGHT"|"DEEP"|"REM"|"UNKNOWN" }] }]\`
+    - Example: \`var deepMinutes = data[0].stages.filter(function(s) { return s.stage === "DEEP"; }).length;\`
+- \`getCalories(startMs, endMs, callback)\` - Get calories burned (Active + Basal). Callback: \`callback(success, data)\`
+    - **data** is an Object: \`{ totalCalories: number, records: [{ startTime: "ISO", endTime: "ISO", energy: { inKilocalories: number } }] }\`
+    - Example: \`var kcal = data.totalCalories;\``,
 };
 
 export default healthCapability;

@@ -111,8 +111,8 @@ export const notifyCapability: CapabilityModule = {
     - **Return**: Alarm ID (string)
 - \`alarmAt(title, msg, timeMs, callback, id?)\` - Schedule alarm at specific time (rings even on silent)
     - **Return**: Alarm ID (string)
-- \`getScheduled(callback)\` - List pending notifications and alarms
-    - **Return**: JSON \`[{id, title, body, trigger: { type: "timeInterval"|"date", value: number }, isAlarm: boolean}]\` (value is seconds for interval, or timestamp for date)
+- \`getScheduled(callback)\` - List pending notifications and alarms. Callback: \`callback(success, data)\`
+    - **data** is an already-parsed Array (do NOT JSON.parse): \`[{id, title, body, trigger: { type: "timeInterval"|"date", value: number }, isAlarm: boolean}]\` (value is seconds for interval, or timestamp for date)
 - \`cancel(id, callback)\` - Cancel notification or alarm by ID
     - **Return**: "Cancelled" (string)
 - \`cancelAll(callback)\` - Cancel all notifications and alarms from this app

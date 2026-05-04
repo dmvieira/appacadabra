@@ -44,35 +44,30 @@ But when Codex drafts a Privacy Policy clause about GDPR Article 13 obligations?
 
 I had to act as CEO of departments I had never formally studied. I had to develop a meta-skill: *knowing how to critically evaluate expert output without being an expert yourself.* This is, incidentally, what good executives do. AI didn't eliminate that need. It accelerated me into it.
 
-### How This Actually Worked: Agents, Not Open Crawling
+### The Strategy Agent and Its Decision Framework
 
-One important clarification before we go further — because the architecture matters.
+The Strategy Agent that emerged from this department was built around a specific problem: how do you make consequential decisions about a product you've never built before, in a domain you can't fully evaluate, against a deadline you can't extend?
 
-This was not an autonomous pipeline. This was not agentic open crawling where an AI roams freely and produces outputs with no human in the loop. Approaches like that would leave the company with **zero validation layer**, and you cannot build a real company on zero validation.
+I encoded four questions that I found myself asking — and that the AI needed to ask alongside me — every time a major decision came up:
 
-What I built was a system of **directed requests to specialized AI agents** — each one configured, connected, and extended specifically for Appacadabra.
+- **The 4-Month Test**: Given our available time, is this feasible? Not "could a large team do this" but "can one founder with AI support do this in the window?"
+- **The Skateboard Test**: What's the minimum version of this that moves? What is the skateboard before the Tesla?
+- **The Validation Gap**: What is the largest decision in this choice that I cannot evaluate myself? Where do I need external signal before committing?
+- **The Pivot Path**: If this direction fails in six weeks, what's the fallback? Is there one?
 
-For each department I built in this series, I also created a **custom AI agent** for that area. And as I performed tasks through that agent, I generated **plugins with skills and MCPs (Model Context Protocols)** that codified what I had learned into reusable, company-specific automation. The next time a task in that domain needed to be done, the agent could handle it automatically — not generically, but *knowing* Appacadabra: our stack, our policies, our constraints, our voice.
+These four questions, applied consistently across the 12 positioning angles I tested, the technology stack decision, and every feature prioritization that followed, produced what a good strategy process always produces: *constraints that liberate*. Once you know what you're building, for whom, in what timeframe, and with what fallback, every downstream decision becomes faster.
 
-Think of it like building institutional knowledge as executable code. Traditional companies spend years encoding their processes into wikis, runbooks, and SOPs. I was encoding them into living agents that could act on them.
+The Strategy Agent held these constraints as persistent context. Every strategic question that came later — should we add this feature, should we enter this market, should we change this pricing tier — was answered against what had already been decided. Not overruled by it. Tested against it.
 
-The Strategy Agent came first. Its plugins included our product positioning framework, our decision criteria for feature prioritization, and our constraint model for the 4-month timeline. Every strategic question after that was answered in the context of what we had already decided.
-
-### The Thread That Connects All Ten Chapters
-
-Each subsequent part of this series is a department. But read together, they tell a different story: the story of a **company assembling itself**, one agent at a time.
-
-Strategy defined the map. Design gave it a face. UX/Product shaped the experience. Engineering built the machine. Finance made it economically real. Legal made it defensible. Analytics made it legible. Release made it available. International made it borderless. QA made it trustworthy.
-
-Remove any one department and the company collapses. Add AI to all of them and the timeline compresses from years to months. But the human — the founder, the CEO, the person reading this — never leaves the room. They are the constant validation layer that no autonomous pipeline can replace.
-
-*Next: The Design Department — and what Vertex AI taught me about having taste without having training.*
+*The map existed. Now the company needed a face. In Part 2, Vertex AI takes the role of creative studio — and the most important question turns out not to be "can AI design?" but "do you know what you want?"*
 
 ---
 
 ---
 
-## Part 2: The Branding & Design Department — Forging Identity with Vertex AI
+## Part 2: The Branding Department — Forging Identity with Vertex AI
+
+Strategy had given Appacadabra a direction: native Android, four-month window, AI as the staffing model. A positioning angle that had survived twelve rounds of stress-testing. What it hadn't given us yet was a face — and a company without a face is not a company. It is a business plan.
 
 There is a story about Steve Jobs that has been told so many times it has become mythology. In 1984, during the Mac development, Jobs reportedly flew to Xerox PARC, saw the graphical user interface, and immediately understood it would change computing forever — not because he was a computer scientist, but because he had taste. He had spent a decade studying calligraphy, Bauhaus design principles, and what makes things *feel* right.
 
@@ -90,7 +85,7 @@ I needed a third path.
 
 ### Vertex AI as the Creative Studio
 
-I brought **Vertex AI** in as my Design Department. What this meant in practice: structured creative briefs, iterative generation cycles, and rigorous evaluation of outputs against the brand positioning that the Strategy Department had already defined in Part 1.
+I brought **Vertex AI** in as my Branding Department. What this meant in practice: structured creative briefs, iterative generation cycles, and rigorous evaluation of outputs against the brand positioning that the Strategy Department had already defined in Part 1.
 
 The brief was specific: the visual identity of Appacadabra needed to communicate *magic, precision, and accessibility* simultaneously. The name itself — a play on "Abracadabra" and "App" — already encoded a personality. The AI needed to extend that personality into a visual language.
 
@@ -110,17 +105,15 @@ I had to make confident decisions without complete information. What I discovere
 
 Vertex AI made me a Creative Director by producing options of sufficient quality that my decisions felt real, not arbitrary.
 
-### The Design Agent and Its Skills
+### The Branding Agent and Its Skills
 
 This was also the point where the pattern that would define this entire project took shape.
 
-After completing the initial brand work with Vertex AI, I built the **Design Agent** — a specialized agent configured with Appacadabra's full visual identity as context. I then generated **plugins and MCPs** that encoded our design decisions as executable constraints:
+After completing the initial brand work with Vertex AI, I built the **Branding Agent** — a specialized agent configured with Appacadabra's full visual identity as context. I then generated **plugins and MCPs** that encoded our design decisions as executable constraints:
 
-- A **Brand Consistency Skill** that could evaluate new assets against the established color palette, typography system, and logo usage rules
-- A **Visual Brief Generator MCP** that could take a product feature description and produce a structured design brief in our brand voice
-- An **Asset Review Plugin** that would flag outputs not compliant with our WCAG contrast requirements
+- A **Visual Brief Generator MCP** (`/design-brief`) that takes a product feature description or asset request and produces a structured design brief in Appacadabra's brand voice — including color and typography constraints from `lib/theme.ts`, WCAG AA accessibility requirements, dimension specs, evaluation criteria, and a production-ready prompt for Vertex AI image generation
 
-The next time I needed a new promotional banner, an in-app illustration, or a social media template, the Design Agent could produce it already knowing what Appacadabra looks like — not generic output, but on-brand output. The agent learned the company's aesthetic DNA and held it.
+The next time I needed a new promotional banner, an in-app illustration, or a social media template, the Branding Agent could produce it already knowing what Appacadabra looks like — not generic output, but on-brand output. The agent learned the company's aesthetic DNA and held it.
 
 ### The Real Unlock: Taste, Not Tool
 
@@ -137,6 +130,8 @@ That shift has massive implications for who can build a company. A solo technica
 ---
 
 ## Part 3: The UX/Product Department — Fast UI Mockups with Claude
+
+The brand existed: a color system, a visual language, a name that encoded personality. Vertex AI had produced outputs that a design studio would have been proud to ship. But a brand that lives only in style guides is not yet a product. It needed screens — and before screens, it needed a harder question: *Does this flow actually work when a real person tries to use it?*
 
 In 2001, Jeff Hawkins — the inventor of the PalmPilot — famously walked around with a wooden block in his pocket. The block was roughly the size and shape of what he imagined a handheld computer should be. He would pull it out during meetings, pretend to tap on it, and ask himself: *Is this actually useful? Would I really do this?*
 
@@ -183,12 +178,9 @@ And here's the key point: **as a software engineer, I could validate native Andr
 The UX Agent that emerged from this department was particularly powerful.
 
 Its **MCPs** included:
-- A **Screen Specification MCP** that could take a user story ("As a new user, I want to understand what Appacadabra does before I commit to signing up") and produce a structured screen spec: required information hierarchy, key actions, empty states, error states
-- A **Prototype Generator Skill** that knew our HTML/CSS component library and could produce new screen mockups consistent with existing ones
-- An **Accessibility Audit Plugin** that could evaluate generated HTML against WCAG 2.1 and our target WCAG AA compliance level
-- A **Native Translation Skill** that could take a finalized HTML prototype and produce Jetpack Compose equivalents using our established component vocabulary
+- A **Screen Specification MCP** (`/screen-spec`) that takes a user story and produces a structured screen spec: information hierarchy, key actions, empty states, error states, navigation behavior, Zustand/DB/Firebase data requirements, and a browser-testable HTML mockup scaffold — all grounded in Appacadabra's Expo Router navigation structure and `lib/theme.ts` design tokens
 
-Every subsequent product decision in the project ran through this agent. New features were prototyped in HTML, validated against our UX principles, then translated to native. The agent knew the product well enough to flag when a proposed screen contradicted an established pattern — before any code was written.
+Every subsequent product decision in the project ran through this agent. New features were specified through `/screen-spec`, the resulting HTML scaffold validated in the browser, and then implemented natively against the agreed spec. The agent knew the product's navigation structure and data layer well enough to produce screen specs that required minimal revision before build.
 
 ### What This Taught Me About Where AI Excels
 

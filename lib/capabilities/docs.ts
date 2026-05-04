@@ -656,10 +656,6 @@ window.onConverted = function(ok, md) {
 
                 // Edit mode: one-shot fetch, no persistent interval
                 if (ctx.isEditMode) {
-                    if (editModeLoadedKeys.has(key)) {
-                        return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
-                    }
-                    editModeLoadedKeys.add(key);
                     doPoll(true);
                     return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
                 }

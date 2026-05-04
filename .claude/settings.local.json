@@ -111,7 +111,16 @@
       "Bash(C:/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb.exe shell *)",
       "Bash(C:/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb.exe kill-server *)",
       "Bash(C:/Users/vivia/AppData/Local/Android/Sdk/platform-tools/adb.exe start-server *)",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "WebFetch(domain:openrouter.ai)",
+      "Bash(npm audit *)",
+      "mcp__plugin_firebase_firebase__firestore_list_indexes",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npx @mcpservers/openrouterai --version)",
+      "Bash(firebase secrets:set OPENROUTER_API_KEY)",
+      "Bash(firebase functions:secrets:set OPENROUTER_API_KEY)",
+      "Bash(firebase functions:secrets:set OPENROUTER_API_KEY --project appacadabra-bee0f)",
+      "Bash(dir \"C:\\\\dev\\\\appacadabra\\\\lib\")"
     ]
   }
 }

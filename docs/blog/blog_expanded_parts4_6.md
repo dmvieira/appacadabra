@@ -4,6 +4,8 @@
 
 ## Part 4: The Engineering & Localization Teams — A Polyglot Tech Stack
 
+Strategy had defined the product. Design had given it identity. UX had validated its flows in a browser, screen by screen, before a single line of native code was written. Three departments had produced documents, mockups, and constraints — but not a working app. That changes in Part 4.
+
 In 1986, Frederick Brooks published an essay that would become one of the most cited texts in software engineering: *"No Silver Bullet — Essence and Accidents of Software Engineering."* His central thesis: there is no single technique, tool, or methodology that will dramatically improve programmer productivity across all dimensions. The essence of software — its complexity, changeability, invisibility, conformity — resists any single solution.
 
 Nearly forty years later, I believe AI has changed the terms of this argument. But Brooks's deeper point still holds: **the dangerous trap is believing you've found the silver bullet.** The moment you start routing every engineering challenge through a single AI model, you've already lost.
@@ -36,11 +38,11 @@ The Engineering Agent's routing layer became one of the most valuable assets in 
 The **Engineering Agent** was the most complex agent in the system, and the most consequential.
 
 Its **Skills and MCPs** included:
-- A **Code Review Skill** that evaluated generated code against our established architecture patterns (SOLID principles, our specific folder structure, our error handling conventions)
-- A **Dependency Audit MCP** that cross-referenced any new package against our existing dependency tree to catch conflicts before they reached the build
-- A **Stack Router MCP** that classified incoming engineering tasks and dispatched them to the appropriate AI model with the right context injected
-- A **Test Generation Skill** that, given a new function or component, could auto-generate unit test scaffolding in our established testing style (Jest for the JS layer, JUnit for the Android native layer)
-- A **Firebase Schema Validator** that validated Firestore document structures against our type definitions
+- A **Code Review MCP** (`/code-review`) that evaluated generated code against our established architecture patterns (SOLID principles, our specific folder structure, our error handling conventions)
+- A **Dependency Audit MCP** (`/dependency-audit`) that cross-referenced any new package against our existing dependency tree to catch conflicts before they reached the build
+- A **Stack Router MCP** (`/stack-router`) that classified incoming engineering tasks and dispatched them to the appropriate AI model — Claude for full-stack TypeScript/React Native, Gemini for Android-native depth, GPT OSS for bulk localization — with the right context injected for each
+- A **Test Generation MCP** (`/gen-tests`) that, given a new function or component, auto-generated unit test scaffolding in our established testing style (Jest for the JS layer, JUnit for the Android native layer)
+- A **Schema Validator MCP** (`/validate-schema`) that validated Firestore document structures and SQLite schema migrations against our TypeScript type definitions
 
 The cumulative effect: by the midpoint of the project, a significant portion of engineering scaffolding happened automatically. New features were generated already conforming to our architecture. Tests were generated alongside implementation. The Engineering Agent didn't just write code — it wrote code that *looked* like the rest of the codebase, because it had been trained on the codebase.
 
@@ -54,7 +56,7 @@ The workflow: extract all UI strings into a JSON key-value manifest, pass batche
 
 This is not a perfect validation method. I want to be honest about that. Back-translation catches semantic errors but misses cultural connotation, humor register, and regional idiom. The honest acknowledgment: **this was a calculated acceptance of imperfect validation in exchange for global reach that would otherwise have been impossible.**
 
-The Localization MCP that emerged from this work could, given any new UI string added in English, automatically generate the full locale set, apply the back-translation verification, flag strings with confidence below a threshold, and queue them for manual review. What had been a multi-week project at a well-funded startup became a pipeline that ran in minutes.
+The **Locale String MCP** (`/add-locale-string`) that emerged from this work could, given any new UI string key added in English, automatically generate translations across all 17 supported locales, apply back-translation verification, flag strings with confidence below a threshold, and insert them into `lib/i18n.ts` with consistent formatting. What had been a multi-week project at a well-funded startup became a pipeline that ran in minutes.
 
 *The product could now be built in any language. The question became: could the business survive long enough to need that capability? That question sent me to the Finance Department.*
 
@@ -63,6 +65,8 @@ The Localization MCP that emerged from this work could, given any new UI string 
 ---
 
 ## Part 5: The Finance Department — Engineering "Mana"
+
+The Engineering Department had produced a working product: a native Android app that could generate mini-apps from text descriptions, run them locally, and bridge to device capabilities through a custom WebView. It was technically impressive. Whether it was financially viable was a completely separate question — one that I had been deliberately deferring until I had a real product to price.
 
 There is a scene in the HBO series *Silicon Valley* where the founder of Pied Piper realizes, after building a technically magnificent product, that he has no idea whether his business model actually works. He had optimized for compression ratios. He had not optimized for revenue.
 
@@ -115,10 +119,7 @@ This was pure code — and therefore something I could validate with full confid
 The **Finance Agent** was built to make the ongoing financial health of the company legible without requiring me to rebuild the model from scratch every time a variable changed.
 
 Its **MCPs** included:
-- A **Cost Impact Calculator MCP**: given a proposed new AI feature, estimate its per-user cost impact and flag if it breaks the mana margin structure
-- A **Pricing Sensitivity Skill**: run a scenario analysis on proposed pricing changes and output the revenue delta across user cohorts
-- A **Unit Economics Dashboard MCP**: pull live usage data from Firebase and map it against the financial model to show real-time contribution margin per user
-- A **Mana Calibration Plugin**: given the current API pricing for each model, recalculate the mana cost of each feature to maintain target margins
+- A **Mana Calibration MCP** (`/mana-calibrate`): given the current API pricing for each model and observed token consumption from Firestore usage logs, recalculate the mana cost of each feature to maintain target margins — outputting a ready-to-apply diff against the current cost constants
 
 The Finance Agent meant that pricing decisions — which in a traditional startup would require a CFO, a financial analyst, and a board conversation — could be simulated and evaluated in minutes, with Appacadabra-specific data already loaded.
 
@@ -129,6 +130,8 @@ The Finance Agent meant that pricing decisions — which in a traditional startu
 ---
 
 ## Part 6: The Legal Department — Navigating Compliance with Claude Opus
+
+The financial model was sound. The Mana system had passed every scenario the model could generate. The product worked, had a price, and had been built for scale. What it didn't yet have was a legal foundation — and an app without one is a single Play Store policy review away from disappearing entirely.
 
 Paul Graham, in his essay *"Do Things That Don't Scale,"* argues that early-stage founders should do uncomfortable, manual things precisely because they don't scale. The point: before you can automate something, you have to understand it well enough to know what you're automating.
 
@@ -192,10 +195,8 @@ This protocol doesn't replace a qualified attorney. But it transforms the engage
 The **Legal Agent** became the compliance backbone of the company.
 
 Its **Skills and MCPs** included:
-- A **Compliance Change Monitor MCP**: configured to track regulatory updates (GDPR guidance documents from EU supervisory authorities, LGPD ANPD rulings, FTC guidance on AI) and flag implications for our existing documents
-- A **Feature Compliance Audit Skill**: given a description of a new product feature, generate a compliance checklist — what new data processing does this introduce? What disclosures might need updating? What consent mechanisms are required?
-- A **Third-Party Processor Registry MCP**: maintain a live inventory of every third-party service we use, their DPA status, their data transfer mechanisms, and their current GDPR adequacy status
-- A **Policy Diff Generator Plugin**: given a proposed change to the Privacy Policy, generate a plain-language summary of what changed and flag whether user re-consent is required
+- A **Feature Compliance Audit MCP** (`/compliance-check`): given a description of a new product feature, generate a compliance checklist — what new data processing does this introduce? What disclosures might need updating? What consent mechanisms are required? Evaluated against GDPR, LGPD, and COPPA obligations specific to Appacadabra's privacy-first architecture
+- A **Policy Diff MCP** (`/policy-diff`): given a proposed change to the Privacy Policy or Terms of Service, generate a plain-language summary of what changed, flag whether user re-consent is required, and identify any internal contradictions introduced by the change
 
 The Legal Agent meant that as Appacadabra evolved — as new AI models were integrated, as new features were built — the compliance layer evolved with it, not months later when a lawyer finally reviewed it.
 

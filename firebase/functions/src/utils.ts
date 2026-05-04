@@ -90,6 +90,12 @@ const USD_PRICING: Record<string, {
         inputPerMToken: 0.15,
         outputPerMToken: 0,
     },
+    // OpenRouter models — inherit same pricing as the Gemini models they replace
+    'google/gemma-4-31b-it': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
+    'google/gemma-4-31b-it:online': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
+    'openai/gpt-oss-120b:free': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30 },
+    'google/gemma-4-26b-a4b-it': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
+    'google/gemma-4-26b-a4b-it:online': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
 };
 
 const USD_IMAGE_PER_UNIT = 0.04;
@@ -500,4 +506,57 @@ export function computeManaCost(type: string, data: any): { mana: string; value:
         default:
             return { mana: '~1', value: 1.0 };
     }
+}
+
+// ============= AI RESPONSE HELPERS =============
+
+export function extractText(result: any): string {
+    // OpenAI / OpenRouter format
+    if (result?.choices) {
+        const text = result.choices[0]?.message?.content;
+        if (!text) {
+            const reason = result.choices[0]?.finish_reason;
+            console.warn(`[extractText] Empty response. finish_reason: ${reason ?? 'unknown'}`);
+        }
+        return text || '';
+    }
+    // Gemini format
+    try {
+        const text = result.text;
+        if (!text) {
+            const finishReason = result.candidates?.[0]?.finishReason;
+            console.warn(`[extractText] Empty response. finishReason: ${finishReason}`);
+        }
+        return text || "";
+    } catch (e) {
+        const finishReason = result?.candidates?.[0]?.finishReason;
+        console.warn(`[extractText] result.text threw: ${e}. finishReason: ${finishReason}`);
+        return "";
+    }
+}
+
+export function getUsage(result: any): { promptTokens: number; responseTokens: number; thoughtsTokens: number; totalTokens: number } {
+    // OpenAI / OpenRouter format
+    if (result?.usage?.prompt_tokens !== undefined) {
+        const thoughtsTokens = result.usage.completion_tokens_details?.reasoning_tokens || 0;
+        if (thoughtsTokens > 0) console.log(`[THINKING] ${thoughtsTokens} thinking tokens`);
+        return {
+            promptTokens: result.usage.prompt_tokens || 0,
+            responseTokens: result.usage.completion_tokens || 0,
+            thoughtsTokens,
+            totalTokens: result.usage.total_tokens || 0,
+        };
+    }
+    // Gemini format
+    const usage = result.usageMetadata;
+    const cachedTokens = usage?.cachedContentTokenCount || 0;
+    if (cachedTokens > 0) console.log(`[CACHE HIT] ${cachedTokens} tokens from cache`);
+    const thoughtsTokens = usage?.thoughtsTokenCount || 0;
+    if (thoughtsTokens > 0) console.log(`[THINKING] ${thoughtsTokens} thinking tokens`);
+    return {
+        promptTokens: usage?.promptTokenCount || 0,
+        responseTokens: usage?.candidatesTokenCount || 0,
+        thoughtsTokens,
+        totalTokens: usage?.totalTokenCount || 0,
+    };
 }

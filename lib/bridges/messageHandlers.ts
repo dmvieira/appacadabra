@@ -414,6 +414,7 @@ export interface HandlerContext {
     appId: number | null;
     callbackName?: string; // Callback name from the message wrapper
     onJobCreated?: (jobId: string) => void; // Called when Firestore job doc is created
+    isEditMode?: boolean; // Whether the WebView is in edit mode
 }
 
 export interface HandlerResult {
@@ -451,7 +452,8 @@ export async function handleBridgeMessage(
 
         // Conditional log to WebView to avoid flooding (only if forced or first/50th event)
         if (ctx.webViewRef.current) {
-            ctx.webViewRef.current.injectJavaScript(`console.log(${JSON.stringify(fullMsg)}); true;`);
+            const escaped = JSON.stringify(fullMsg).replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+            ctx.webViewRef.current.injectJavaScript(`console.log(${escaped}); true;`);
         }
     };
 

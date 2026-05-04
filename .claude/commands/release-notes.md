@@ -7,7 +7,7 @@ Generate user-facing release notes for the next Play Store release in Appacadabr
 1. Run `git log --oneline $(git describe --tags --abbrev=0)..HEAD` to get commits since last tag.
    If a version/range was provided as argument, use that instead.
 2. Read `docs/RELEASE_NOTES.md` for the existing format and tone.
-3. Read `docs/PLAY_STORE_TRANSLATIONS.md` for the 20 supported languages and their locale codes.
+3. Read `docs/PLAY_STORE_TRANSLATIONS.md` for the 17 supported languages and their locale codes.
 
 ## Brand voice rules
 - Tone: magical, playful, empowering — matches the "spell casting" metaphor
@@ -17,7 +17,7 @@ Generate user-facing release notes for the next Play Store release in Appacadabr
 
 ## Output format
 
-Produce release notes in ALL 20 supported languages (as listed in `docs/PLAY_STORE_TRANSLATIONS.md`).
+Produce release notes in ALL 17 supported languages (as listed in `docs/PLAY_STORE_TRANSLATIONS.md`).
 
 Format:
 ```

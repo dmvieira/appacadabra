@@ -16,6 +16,8 @@ Recalculate Appacadabra's mana costs based on current AI API pricing.
 
 ## Analysis to perform
 
+**⚠️ Nota:** `gemini-3.1-flash-image-preview` (usado em Logo Gen, Image Gen, webview_ai_image) pode estar ausente do dicionário `USD_PRICING` em `utils.ts`. Se o custo aparecer como $0 ou não for encontrado, adicionar a entrada de pricing antes de usar esta calibração. Verificar `firebase/functions/src/utils.ts` na chave `USD_PRICING`.
+
 For each AI operation, calculate:
 
 | Operation | Model | Estimated tokens (avg) | Current cost (USD) | Current cost (mana) | Margin at current mana price |

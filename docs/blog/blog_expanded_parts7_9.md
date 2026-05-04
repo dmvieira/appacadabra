@@ -4,6 +4,8 @@
 
 ## Part 7: Data Analytics & DevOps — Cloud Infrastructure Friction
 
+Six departments. A company that existed on paper, in code, in financial models, and in legal documents. Appacadabra was real — but invisible to itself. No one was watching what was happening inside it. No one was measuring whether the decisions made in the first six departments were actually working in practice. That was about to change.
+
 There is a concept in reliability engineering called **observability** — the degree to which you can infer the internal state of a system from its external outputs. In traditional software operations, observability is achieved through three pillars: logs, metrics, and traces. Building this infrastructure — the agents, dashboards, alerting pipelines, and on-call runbooks — is itself a significant engineering discipline.
 
 In the modern AI-first enterprise, observability has a fourth dimension: **the AI layer that interprets the first three.**
@@ -35,10 +37,10 @@ The Analytics Agent had become my intelligence function: always aware of what wa
 ### The Analytics Agent and Its Skills
 
 The **Analytics Agent's MCPs** included:
-- A **Metrics Interpreter MCP**: connected to Firebase Analytics and Firestore, capable of answering natural-language questions about product behavior
-- A **Cohort Analysis Skill**: segment users by behavior, acquisition channel, subscription tier, and engagement depth
-- A **Anomaly Detection Plugin**: monitor key metrics (DAU, mana consumption rate, crash-free sessions, revenue per user) and surface statistically significant deviations
-- A **Investor Narrative Generator Skill**: take current metrics and produce structured summaries formatted for investor communications
+- A **Metrics MCP** (`/metrics`): query Firestore (`jobs`, `users`, `usageLogs`, `creditLogs`) to produce a structured product metrics report — active users, spell creation volume, failure rates, mana consumption breakdown, and revenue signals — for any requested period
+- A **Cohort Analysis MCP** (`/cohort-analysis`): segment users from Firestore by behavior (power users, paying users, churned, new) and analyze engagement depth, mana consumption, and conversion timing per cohort
+- A **Anomaly Detection MCP** (`/anomaly-detect`): compare the last 24h of Firestore and Cloud Function log data against a 7-day rolling baseline, flag deviations exceeding 2 standard deviations, and assign severity levels with root cause hypotheses
+- A **Investor Summary MCP** (`/investor-summary`): pull current Firestore metrics and produce a structured investor-facing narrative — growth trajectory, retention signals, unit economics, and market benchmarks — ready for a pitch context
 
 ### Where AI Broke: The DevOps Wall
 
@@ -66,6 +68,8 @@ The lesson: **AI saves you from architectural complexity. It does not save you f
 ---
 
 ## Part 8: Release Management — The App Store Maze with Gemini
+
+The product was running. Analytics were flowing. Metrics were legible. Appacadabra existed as a complete, observable system — and it existed entirely on a development device that no user could access. Getting from that state to "available on the Play Store" turned out to be one of the most unexpectedly complex transitions in the entire project.
 
 William Gibson wrote that "the street finds its own uses for things." In technology, this tends to mean that the processes built around a platform develop their own complexity, entirely independent of the underlying technology's complexity.
 
@@ -108,20 +112,22 @@ This staged approach is standard practice at mature companies — it's how Googl
 The **Release Agent** became the operational interface between the engineering output and the public-facing product.
 
 Its **MCPs** included:
-- A **Policy Compliance Checklist MCP**: before each submission, run through the current policy requirements relevant to our app category and flag any new requirements since the last release
-- A **Metadata Generator Skill**: produce app listing copy variations, A/B test hypotheses for title/description combinations, and localized metadata for each supported language
-- A **Release Notes Generator MCP**: given the Engineering Agent's changelog output, produce user-facing release notes in our brand voice, localized for each market
-- A **Rollout Monitor Plugin**: connected to Play Console API, track staged rollout health metrics (crash-free rate, ANR rate, rating delta) and recommend rollout acceleration or halt based on defined thresholds
+- A **Release Checklist MCP** (`/release-checklist`): generate a pre-submission checklist covering Play Store policy compliance, version bump verification, data safety form accuracy, and staged rollout configuration for the current release
+- A **App Metadata MCP** (`/app-metadata`): produce app store listing copy variations — title, short description, full description — calibrated for the app's keyword clusters and localized for each supported market
+- A **Release Notes MCP** (`/release-notes`): given a git diff or changelog, produce user-facing release notes in Appacadabra's brand voice, localized across all 17 supported languages
+- A **Rollout Health Check MCP** (`/rollout-check`): query Firebase Cloud Function logs and Firestore job data to assess production health — job failure rate, mana refund anomalies, crash signals — and output a go/no-go rollout verdict with supporting data
 
 The Release Agent transformed launch from an event into a pipeline — a repeatable, managed process rather than a sprint of manual configuration and hope.
 
-*Appacadabra was live. But "live" in one country is not the same as "available to the world." Part 9 addresses the question that every product reaching viability must eventually answer: where do you grow next, and how?*
+*The app was live in staged rollout. The pipeline was running. But available and known are two different things — and a product that exists without being talked about does not yet exist in the market. In Part 9, we staff the department that bridges that gap: Marketing.*
 
 ---
 
 ---
 
-## Part 9: International Strategy — Conquering Asia with Deepseek
+## Part 10: International Strategy — Conquering New Markets
+
+The Marketing Department had made the product visible: content was flowing, X threads were reaching builders, LinkedIn articles were building credibility. Analytics were confirming that real users were creating real spells, consuming real mana, and returning. The product worked — in one market, in one primary language, reaching one demographic. The marketing was working in that same market. The next question was inevitable: where else does this work, and what has to change when we try to find out?
 
 In 1983, Theodore Levitt published an article in the Harvard Business Review titled *"The Globalization of Markets."* His central argument: technology was creating a world of homogenized consumer needs, and companies that recognized this would dominate by offering standardized, globally consistent products at lower prices than locally adapted competitors.
 
@@ -166,11 +172,9 @@ The International Strategy Agent integrated with the Localization MCP from Part 
 The **International Agent** became the company's geopolitical intelligence function.
 
 Its **MCPs** included:
-- A **Market Entry Readiness MCP**: given a target country, produce a structured assessment of regulatory requirements, distribution infrastructure, cultural adaptation needs, and competitive landscape
-- A **Glocalization Audit Skill**: evaluate any new product feature against the cultural contexts of our active markets and flag adaptations required for each
-- A **Compliance Tracker MCP**: monitor regulatory developments in each active market (new PIPL guidance, India's DPDP Act implementation, Thailand's PDPA enforcement) and surface implications for Appacadabra
-- A **Regional Growth Dashboard Plugin**: connected to Firebase Analytics with geographic segmentation, track activation, retention, and revenue metrics by market against our go-to-market hypotheses
+- A **Market Entry MCP** (`/market-entry`): given a target country, produce a structured assessment of regulatory requirements, distribution infrastructure, cultural adaptation needs, competitive landscape, and a prioritized action plan for market entry
+- A **Glocalization Check MCP** (`/glocalization-check`): evaluate any new product feature or UI copy against the cultural contexts of our active markets and flag adaptations required for each — covering UX patterns, tone of voice, regulatory implications, and localization gaps
 
 The International Agent meant that expansion decisions — which market to enter next, which adaptations to prioritize, which channels to activate — could be informed by structured intelligence rather than instinct.
 
-*Ten departments built. Nine agents configured. One remains: the most technically demanding challenge of the entire project — automating the validation of a product I had built with a machine, using another machine. Part 10: QA.*
+*Ten departments built. Ten agents configured. One remains: the most technically demanding challenge of the entire project — automating the validation of a product I had built with a machine, using another machine. Part 11: QA.*

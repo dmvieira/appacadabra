@@ -399,11 +399,6 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                 // Edit mode: one-shot fetch, não cria watcher persistente para não
                 // interferir com o watcher do RunnerActivity que pode estar ativo.
                 if (ctx.isEditMode) {
-                    if (editModeLoadedKeys.has(key)) {
-                        // Já carregado nessa sessão de edit — não re-injeta para evitar flash
-                        return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
-                    }
-                    editModeLoadedKeys.add(key);
                     doPoll(true);
                     return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
                 }

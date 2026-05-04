@@ -88,7 +88,9 @@ function escapeForJsInject(str: string): string {
         .replace(/\r/g, '\\r')
         .replace(/\t/g, '\\t')
         .replace(/\u2028/g, '\\u2028')
-        .replace(/\u2029/g, '\\u2029');
+        .replace(/\u2029/g, '\\u2029')
+        .replace(/`/g, '\\`')
+        .replace(/\$\{/g, '\\${');
 }
 
 /**
@@ -215,6 +217,9 @@ export default function RunnerScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
+    // Edit mode states (declare early for use in effects)
+    const isEditMode = edit === 'true';
+
     // On Android, spells always run inside RunnerActivity (separate task/window).
     // This expo-router screen is only valid on Android in edit mode.
     // If it ever mounts in run mode on Android (URL leak from expo-router internals), go back immediately.
@@ -271,9 +276,17 @@ export default function RunnerScreen() {
         return () => {
             subscription.remove();
             cleanupAllMedia();
-            cleanupSheetsWatchers(Number(id)); cleanupSheetsEditMode(Number(id));
-            cleanupDocsWatchers(Number(id)); cleanupDocsEditMode(Number(id));
-            cleanupFormsWatchers(Number(id)); cleanupFormsEditMode(Number(id));
+            if (isEditMode) {
+                // Edit mode: only clear edit-mode state, preserve runner watchers
+                cleanupSheetsEditMode(Number(id));
+                cleanupDocsEditMode(Number(id));
+                cleanupFormsEditMode(Number(id));
+            } else {
+                // Run mode: full cleanup
+                cleanupSheetsWatchers(Number(id)); cleanupSheetsEditMode(Number(id));
+                cleanupDocsWatchers(Number(id)); cleanupDocsEditMode(Number(id));
+                cleanupFormsWatchers(Number(id)); cleanupFormsEditMode(Number(id));
+            }
         };
     }, []);
 
@@ -281,10 +294,18 @@ export default function RunnerScreen() {
     const isFirstWebViewKeyRenderRunner = useRef(true);
     useEffect(() => {
         if (isFirstWebViewKeyRenderRunner.current) { isFirstWebViewKeyRenderRunner.current = false; return; }
-        cleanupSheetsWatchers(Number(id)); cleanupSheetsEditMode(Number(id));
-        cleanupDocsWatchers(Number(id)); cleanupDocsEditMode(Number(id));
-        cleanupFormsWatchers(Number(id)); cleanupFormsEditMode(Number(id));
-    }, [webViewKey, id]);
+        if (isEditMode) {
+            // Edit mode: only clear edit-mode state, don't kill the runner's active watchers
+            cleanupSheetsEditMode(Number(id));
+            cleanupDocsEditMode(Number(id));
+            cleanupFormsEditMode(Number(id));
+        } else {
+            // Run mode: full cleanup of both watchers and edit-mode state
+            cleanupSheetsWatchers(Number(id)); cleanupSheetsEditMode(Number(id));
+            cleanupDocsWatchers(Number(id)); cleanupDocsEditMode(Number(id));
+            cleanupFormsWatchers(Number(id)); cleanupFormsEditMode(Number(id));
+        }
+    }, [webViewKey, id, isEditMode]);
 
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -306,9 +327,6 @@ export default function RunnerScreen() {
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);
 
-    // Edit mode states
-    const isEditMode = edit === 'true';
-    const isShareMode = share === 'true';
 
     // Saved localStorage items
     const [savedStorage, setSavedStorage] = useState<ExpandedStorageItem[]>([]);

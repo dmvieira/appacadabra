@@ -113,8 +113,14 @@ export default function RootLayout() {
             lastHandledNotificationTapId = tapId || String(appId);
 
             if (notificationType === 'app_created') {
+                const status = content?.data?.status;
                 try {
-                    router.replace({ pathname: '/', params: { setupAppId: String(appId) } });
+                    if (status === 'failed') {
+                        // App was never created — don't pass a nonexistent setupAppId
+                        router.replace('/');
+                    } else {
+                        router.replace({ pathname: '/', params: { setupAppId: String(appId) } });
+                    }
                 } catch {
                     // If navigator isn't ready yet, initial route is listing anyway.
                 }

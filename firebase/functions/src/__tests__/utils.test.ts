@@ -2,9 +2,11 @@ import {
     applyPatches,
     extractHtml,
     extractJson,
+    extractText,
     fixCallbackPatterns,
     calculateCostUsd,
     computeManaCost,
+    getUsage,
     sanitizeForFirestore,
     withRetry,
     Patch,
@@ -289,7 +291,7 @@ describe('sanitizeForFirestore', () => {
     });
 
     it('filters out function values from objects', () => {
-        expect(sanitizeForFirestore({ fn: () => {}, val: 1 })).toEqual({ val: 1 });
+        expect(sanitizeForFirestore({ fn: () => { }, val: 1 })).toEqual({ val: 1 });
     });
 
     it('sanitizes nested plain objects', () => {
@@ -362,5 +364,168 @@ describe('withRetry', () => {
 
         await expect(withRetry(fn, 2)).rejects.toThrow('Something went wrong');
         expect(calls).toBe(1);
+    });
+});
+
+// ============= extractText =============
+
+describe('extractText', () => {
+    it('returns text from OpenAI/OpenRouter format (choices)', () => {
+        const result = { choices: [{ message: { content: 'hello world' }, finish_reason: 'stop' }] };
+        expect(extractText(result)).toBe('hello world');
+    });
+
+    it('returns empty string when OpenAI content is null', () => {
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+        const result = { choices: [{ message: { content: null }, finish_reason: 'length' }] };
+        expect(extractText(result)).toBe('');
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('finish_reason: length'));
+        warnSpy.mockRestore();
+    });
+
+    it('returns empty string when OpenAI choices array is empty', () => {
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+        const result = { choices: [] };
+        expect(extractText(result)).toBe('');
+        warnSpy.mockRestore();
+    });
+
+    it('returns text from Gemini format (result.text)', () => {
+        const result = { text: 'gemini response' };
+        expect(extractText(result)).toBe('gemini response');
+    });
+
+    it('returns empty string when Gemini text is empty', () => {
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+        const result = { text: '', candidates: [{ finishReason: 'MAX_TOKENS' }] };
+        expect(extractText(result)).toBe('');
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('MAX_TOKENS'));
+        warnSpy.mockRestore();
+    });
+
+    it('catches exception when result.text getter throws', () => {
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+        const result = Object.defineProperty({}, 'text', { get() { throw new Error('boom'); } });
+        expect(extractText(result)).toBe('');
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('result.text threw'));
+        warnSpy.mockRestore();
+    });
+
+    it('returns empty string for null input', () => {
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { });
+        expect(extractText(null)).toBe('');
+        warnSpy.mockRestore();
+    });
+});
+
+// ============= getUsage =============
+
+describe('getUsage', () => {
+    it('returns correct fields from OpenAI/OpenRouter format', () => {
+        const result = {
+            usage: { prompt_tokens: 100, completion_tokens: 200, total_tokens: 300 },
+        };
+        expect(getUsage(result)).toEqual({
+            promptTokens: 100,
+            responseTokens: 200,
+            thoughtsTokens: 0,
+            totalTokens: 300,
+        });
+    });
+
+    it('captures reasoning_tokens as thoughtsTokens in OpenAI format', () => {
+        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => { });
+        const result = {
+            usage: {
+                prompt_tokens: 50,
+                completion_tokens: 150,
+                total_tokens: 200,
+                completion_tokens_details: { reasoning_tokens: 40 },
+            },
+        };
+        const u = getUsage(result);
+        expect(u.thoughtsTokens).toBe(40);
+        expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('40 thinking tokens'));
+        logSpy.mockRestore();
+    });
+
+    it('returns thoughtsTokens 0 when reasoning_tokens absent in OpenAI format', () => {
+        const result = { usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 } };
+        expect(getUsage(result).thoughtsTokens).toBe(0);
+    });
+
+    it('returns correct fields from Gemini format', () => {
+        const result = {
+            usageMetadata: {
+                promptTokenCount: 500,
+                candidatesTokenCount: 300,
+                thoughtsTokenCount: 0,
+                totalTokenCount: 800,
+            },
+        };
+        expect(getUsage(result)).toEqual({
+            promptTokens: 500,
+            responseTokens: 300,
+            thoughtsTokens: 0,
+            totalTokens: 800,
+        });
+    });
+
+    it('captures thoughtsTokenCount in Gemini format', () => {
+        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => { });
+        const result = {
+            usageMetadata: {
+                promptTokenCount: 100,
+                candidatesTokenCount: 50,
+                thoughtsTokenCount: 30,
+                totalTokenCount: 180,
+            },
+        };
+        const u = getUsage(result);
+        expect(u.thoughtsTokens).toBe(30);
+        expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('30 thinking tokens'));
+        logSpy.mockRestore();
+    });
+
+    it('returns all zeros for empty Gemini usageMetadata', () => {
+        expect(getUsage({})).toEqual({
+            promptTokens: 0,
+            responseTokens: 0,
+            thoughtsTokens: 0,
+            totalTokens: 0,
+        });
+    });
+});
+
+// ============= calculateCostUsd — OpenRouter model IDs =============
+
+describe('calculateCostUsd — OpenRouter models', () => {
+    const usage = { promptTokens: 1_000_000, responseTokens: 1_000_000 };
+
+    it('calculates non-zero cost for google/gemma-4-31b-it:online (SPELL_S)', () => {
+        const cost = calculateCostUsd('google/gemma-4-31b-it:online', usage);
+        expect(cost).toBeGreaterThan(0);
+        expect(cost).toBe(calculateCostUsd('google/gemma-4-31b-it', usage));
+    });
+
+    it('calculates non-zero cost for openai/gpt-oss-120b:free (SUGGEST)', () => {
+        const cost = calculateCostUsd('openai/gpt-oss-120b:free', usage);
+        expect(cost).toBeGreaterThan(0);
+    });
+
+    it('calculates non-zero cost for google/gemma-4-26b-a4b-it (WEBVIEW)', () => {
+        const cost = calculateCostUsd('google/gemma-4-26b-a4b-it', usage);
+        expect(cost).toBeGreaterThan(0);
+    });
+
+    it('includes searchPerQuery cost for google/gemma-4-26b-a4b-it:online', () => {
+        const baseModel = 'google/gemma-4-26b-a4b-it:online';
+        const withSearch = calculateCostUsd(baseModel, usage, { searchQueries: 1 });
+        const withoutSearch = calculateCostUsd(baseModel, usage, { searchQueries: 0 });
+        expect(withSearch).toBeGreaterThan(withoutSearch);
+    });
+
+    it('returns 0 for unknown model ID', () => {
+        expect(calculateCostUsd('unknown/model', usage)).toBe(0);
     });
 });

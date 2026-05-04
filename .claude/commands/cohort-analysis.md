@@ -17,17 +17,19 @@ Use `mcp__plugin_firebase_firebase__firestore_query_collection` to build each co
 
 ### Cohort A: Power users
 Criteria: `creditsUsed > [75th percentile of all users]`
+- Query `users` ordered by `creditsUsed` DESC, limit 50 — top consumers
 - How much of total mana consumption do they account for? (top 20% rule)
-- What's their job failure rate vs. average?
-- What actions do they use most? (from usageLogs)
+- What's their job failure rate? Query `jobs` where `userId IN [power_user_uids]` and `status == "failed"`
+- What actions do they use most? For top 5 UIDs, query `users/{uid}/usageLogs` individually — group by `action`
 - Risk: do they consume enough mana to be unit-economics positive?
 
 ### Cohort B: Paid users
-Criteria: exists `creditLogs` with `type == "purchase"`
-- How many paying users exist?
-- Average purchase amount
-- Avg `creditsUsed` vs. non-paying users (do paying users engage more?)
-- Conversion timing: how many days/spells before first purchase?
+**Note:** `creditLogs` is a subcollection — cannot filter `users` by "has a purchase" directly.
+Proxy approach:
+- Query `users` where `creditsUsed > 10`, limit 50 — likely candidates
+- For each UID, query `users/{uid}/creditLogs` with `type == "purchase"` — confirm who actually purchased
+- From confirmed purchasers: average `amount`, average `creditsUsed`, days from `createdAt` to first purchase
+- Conversion timing: compare user `createdAt` to first `creditLogs` entry `createdAt`
 
 ### Cohort C: Churned users (at risk)
 Criteria: `lastActive < [30 days ago]` AND `creditsUsed > 0` (had activity, now gone)

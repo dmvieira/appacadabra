@@ -191,7 +191,6 @@ export default function HomeScreen() {
         if (lastFailedPrompt?.type === 'create') {
             setCreateDialogInitialText(lastFailedPrompt.text);
             setShowCreateDialog(true);
-            clearLastFailedPrompt();
         }
     }, [lastFailedPrompt]);
 
@@ -460,6 +459,7 @@ export default function HomeScreen() {
     }, [searchQuery, apps]);
 
     const handleCreateApp = async (description: string) => {
+        clearLastFailedPrompt();
         logSpellCreateSubmitted(apps.length === 0);
         // Double check mana before submitting (though button should be intercepted)
         if (balance <= 0) {
@@ -616,6 +616,7 @@ export default function HomeScreen() {
     // --- Setup modal handlers ---
     const handleSetupSave = async () => {
         if (!setupTarget) return;
+        const targetApp = setupTarget;
         const targetId = setupTarget.id;
         if (setupName.trim() && setupName.trim() !== setupTarget.name) {
             await renameApp(setupTarget.id, setupName.trim());
@@ -623,18 +624,30 @@ export default function HomeScreen() {
         if (setupDescription !== (setupTarget.shortDescription || '')) {
             await updateAppDescription(setupTarget.id, setupDescription);
         }
-        // Don't mark spell_setup_done here — let SpellSetup (biometric/homescreen) handle it
         setSetupTarget(null);
-        // Show coach marks if this was the first spell
-        maybeStartCoach(targetId);
         markBackupDirty();
+
+        if (setupMode === 'create') {
+            // After creating a new spell, go straight to the SpellSetup
+            // (biometric/homescreen) flow, which then opens the runner.
+            // Refresh the app object to pick up any name/icon changes.
+            const freshApp = useAppStore.getState().apps.find(a => a.id === targetId) ?? targetApp;
+            setFirstRunSetupTarget(freshApp);
+        } else {
+            // Edit mode — just return to listing
+            maybeStartCoach(targetId);
+        }
     };
 
     const handleSetupSkip = async () => {
+        const targetApp = setupTarget;
         const targetId = setupTarget?.id;
         setSetupTarget(null);
-        if (targetId) {
-            // Don't mark spell_setup_done here — let SpellSetup (biometric/homescreen) handle it
+        if (targetId && setupMode === 'create' && targetApp) {
+            // Even when skipping, go straight to the SpellSetup → runner flow
+            const freshApp = useAppStore.getState().apps.find(a => a.id === targetId) ?? targetApp;
+            setFirstRunSetupTarget(freshApp);
+        } else if (targetId) {
             maybeStartCoach(targetId);
         }
     };
@@ -1047,8 +1060,8 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                 )}
 
-                {/* Backup restore success banner */}
-                {(restoredCount > 0 || isRestoring) && (
+                {/* Backup restore success banner — only shown as fallback when no backup mode configured */}
+                {(restoredCount > 0 || isRestoring) && (backupMode === null || backupMode === 'none') && (
                     <TouchableOpacity
                         style={[styles.restoreBanner, isRestoring && { opacity: 0.8 }]}
                         onPress={isRestoring ? undefined : clearRestoredCount}
@@ -1087,22 +1100,45 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                 )}
 
-                {/* Active backup status banner */}
-                {(!isAnonymous && (backupMode === 'google_drive' || backupMode === 'local_folder') && restoredCount === 0) && (
-                    <View style={styles.backupActiveBanner}>
-                        <Text style={styles.backupActiveBannerEmoji}>{backupMode === 'google_drive' ? '☁️' : '📁'}</Text>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.backupActiveBannerTitle}>{t('backupActive')}</Text>
-                            <Text style={styles.backupActiveBannerText}>
-                                {t(backupMode === 'local_folder' ? 'backupActiveLocalDesc' : 'backupActiveDesc')}
-                                {lastBackupAt && (
-                                    <> {'\n'}<Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                                        {t('lastBackupAtLabel', { date: new Date(lastBackupAt).toLocaleString(getCurrentLanguage(), { dateStyle: 'medium', timeStyle: 'medium' }) })}
-                                    </Text></>
-                                )}
-                            </Text>
+                {/* Active backup status banner — always shown when backup is configured, absorbs restore state in-place */}
+                {(!isAnonymous && (backupMode === 'google_drive' || backupMode === 'local_folder')) && (
+                    isRestoring || restoredCount > 0 ? (
+                        <TouchableOpacity
+                            style={styles.backupActiveBanner}
+                            onPress={restoredCount > 0 ? clearRestoredCount : undefined}
+                            activeOpacity={restoredCount > 0 ? 0.8 : 1}
+                            disabled={isRestoring}
+                        >
+                            {isRestoring ? (
+                                <ActivityIndicator size="small" color={colors.success} style={{ marginRight: spacing.md }} />
+                            ) : (
+                                <Text style={styles.backupActiveBannerEmoji}>✅</Text>
+                            )}
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.backupActiveBannerTitle}>
+                                    {isRestoring ? t('restoringSpells') : t('backupRestoredCount', { count: restoredCount })}
+                                </Text>
+                                <Text style={styles.backupActiveBannerText}>
+                                    {isRestoring ? t('pleaseWait') : t('backupRestoredDesc')}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.backupActiveBanner}>
+                            <Text style={styles.backupActiveBannerEmoji}>{backupMode === 'google_drive' ? '☁️' : '📁'}</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.backupActiveBannerTitle}>{t('backupActive')}</Text>
+                                <Text style={styles.backupActiveBannerText}>
+                                    {t(backupMode === 'local_folder' ? 'backupActiveLocalDesc' : 'backupActiveDesc')}
+                                    {lastBackupAt && (
+                                        <> {'\n'}<Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                                            {t('lastBackupAtLabel', { date: new Date(lastBackupAt).toLocaleString(getCurrentLanguage(), { dateStyle: 'medium', timeStyle: 'medium' }) })}
+                                        </Text></>
+                                    )}
+                                </Text>
+                            </View>
                         </View>
-                    </View>
+                    )
                 )}
             </View>
 
@@ -1362,7 +1398,7 @@ export default function HomeScreen() {
                 visible={showCreateDialog}
                 title={t('createTitle')}
                 isGenerating={isGenerating}
-                onDismiss={() => { if (!isGenerating) { setShowCreateDialog(false); setCreateDialogInitialText(undefined); } }}
+                onDismiss={() => { if (!isGenerating) { setShowCreateDialog(false); setCreateDialogInitialText(undefined); clearLastFailedPrompt(); } }}
                 onSend={handleCreateApp}
                 initialText={createDialogInitialText}
             />

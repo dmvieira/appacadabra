@@ -354,7 +354,7 @@ export default function SpellDataScreen() {
         }
         // Primitive value — check if linked to a relic
         const valStr = typeof val === 'string' ? val : String(val);
-        const isHuge = valStr.length > 5000;
+        const isHuge = valStr.length > 20000;
 
         // Always run relic check (O(n relics), fast regardless of value size)
         const linked = relics.find(r =>
@@ -390,19 +390,26 @@ export default function SpellDataScreen() {
                 ? valStr.slice(5, valStr.indexOf(';'))
                 : 'data';
             return (
-                <View style={styles.valueRow}>
-                    <Text style={styles.valueText}>[{mimeLabel}]</Text>
+                <TouchableOpacity 
+                    style={styles.valueRow} 
+                    onPress={() => setTextModal({ visible: true, content: valStr })}
+                >
+                    <Text style={[styles.valueText, { color: colors.primary }]}>[{mimeLabel} — {Math.round(valStr.length / 1024)}KB]</Text>
                     {linked && (
                         <View style={styles.linkedBadge}>
                             <Text style={styles.linkedBadgeText}>#{Math.abs(linked.id)}</Text>
                         </View>
                     )}
-                </View>
+                </TouchableOpacity>
             );
         }
 
         return (
-            <View style={styles.valueRow}>
+            <TouchableOpacity 
+                style={styles.valueRow}
+                onPress={valStr.length > 100 ? () => setTextModal({ visible: true, content: valStr }) : undefined}
+                disabled={valStr.length <= 100}
+            >
                 <Text style={styles.valueText}>
                     "{valStr}"
                 </Text>
@@ -411,7 +418,7 @@ export default function SpellDataScreen() {
                         <Text style={styles.linkedBadgeText}>#{Math.abs(linked.id)}</Text>
                     </View>
                 )}
-            </View>
+            </TouchableOpacity>
         );
     };
 

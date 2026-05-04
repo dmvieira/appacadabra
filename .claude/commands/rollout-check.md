@@ -15,12 +15,14 @@ Look for:
 - Any new error patterns not seen in previous runs
 
 ### Step 2: Job failure rate (Firestore)
-Use `mcp__plugin_firebase_firebase__firestore_query_collection` to query the `jobs` collection:
-- Filter by `status == "failed"` and `createdAt > [24 hours ago timestamp]`
-- Count failed jobs vs. total jobs in the same window
-- Group by `action` (create, edit, app_icon, webview_ai_*)
+Use `mcp__plugin_firebase_firebase__firestore_query_collection` to query the `jobs` collection.
 
-Calculate: **failure rate = failed_jobs / total_jobs × 100%**
+**Note:** No composite index exists for `status + createdAt`. Use single-field queries:
+- Query `status == "failed"` (equality only, limit 50) — check `createdAt` timestamps in results to count those from last 24h
+- Query `status == "completed"` (equality only, limit 100) — same timestamp check for total denominator
+- Group failed results by `action` (create, edit, app_icon, webview_ai_*)
+
+Calculate: **failure rate = failed_last_24h / total_last_24h × 100%**
 
 Thresholds:
 - < 2%: 🟢 GREEN — proceed with rollout
@@ -28,8 +30,8 @@ Thresholds:
 - > 5%: 🔴 RED — halt rollout, investigate
 
 ### Step 3: Mana refund anomalies
-Query `jobs` collection for jobs with `status == "failed"` in the last 24h.
-Check if any have `preDeductedMana > 0` in their error logs (indicates a refund was attempted).
+From the failed jobs already fetched in Step 2, check results with `createdAt` in the last 24h.
+Check if any have `preDeductedMana > 0` in their fields (indicates a refund was attempted).
 Cross-reference with function logs for `CRITICAL: Failed to refund` entries.
 
 Any critical refund failure = 🔴 RED regardless of other metrics.

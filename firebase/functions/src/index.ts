@@ -11,11 +11,11 @@ import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData 
 import { getStorage } from "firebase-admin/storage";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
-import { GoogleGenAI, VideoGenerationReferenceType, Type, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, VideoGenerationReferenceType, Type } from "@google/genai";
+import OpenAI from 'openai';
 
 import * as zlib from 'zlib';
 import {
-    SYSTEM_PREAMBLE,
     CONVERT_PROJECT_PROMPT,
     // Unified 2-Step Prompts
     UNIFIED_CREATE_PLANNER_PROMPT,
@@ -34,8 +34,10 @@ import {
     calcVideoMana,
     extractHtml,
     extractJson,
+    extractText,
     fixCallbackPatterns,
     applyPatches,
+    getUsage,
     withRetry,
     computeManaCost,
     MANA_VALUE_USD,
@@ -45,52 +47,31 @@ import {
 initializeApp();
 const db = getFirestore();
 
+// Constants
+const DEFAULT_TIMEOUT_MS = 480000;
+
 // Initialize Gemini AI (API key from environment)
 const API_KEY = process.env.GEMINI_API_KEY || "";
 let _ai: GoogleGenAI | null = null;
-function getAI(): GoogleGenAI { return _ai ?? (_ai = new GoogleGenAI({ apiKey: API_KEY, httpOptions: { timeout: 300000 } })); }
+function getAI(): GoogleGenAI { return _ai ?? (_ai = new GoogleGenAI({ apiKey: API_KEY, httpOptions: { timeout: DEFAULT_TIMEOUT_MS } })); }
 
-// Main model config (reused for all create/edit/convert calls)
-const MAIN_MODEL_CONFIG = {
-    tools: [{ googleSearch: {} }],
-    thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
-};
-
-
-// Config for cached calls — tools must not be repeated here (they live in the cache)
-const CACHED_MAIN_MODEL_CONFIG = {
-    thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
-};
-
-// Context Caching for system instructions (~1,800 tokens)
-// Cache read: 25% of input price → significant savings at volume.
-// One cache entry per active app version — at any time only 2-3 versions are live.
-const CACHE_TTL_S = 3600;                          // 1 hour TTL
-const CACHE_RENEW_BEFORE_MS = 5 * 60 * 1000;      // renew 5 min before expiry
-
-interface SysCacheEntry { cache: any; expiresAt: number; }
-const _sysCacheMap = new Map<string, SysCacheEntry>();
-
-async function getOrCreateSysCacheForVersion(appVersion: string): Promise<string> {
-    const now = Date.now();
-    const entry = _sysCacheMap.get(appVersion);
-    if (!entry || now > entry.expiresAt - CACHE_RENEW_BEFORE_MS) {
-        console.log(`[CACHE] Creating/renewing cache for appVersion=${appVersion}...`);
-        const instructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
-        const cache = await getAI().caches.create({
-            model: 'models/gemini-3-flash-preview',
-            config: {
-                systemInstruction: instructions,
-                tools: [{ googleSearch: {} }],
-                ttl: `${CACHE_TTL_S}s`,
-            },
-        });
-        _sysCacheMap.set(appVersion, { cache, expiresAt: now + CACHE_TTL_S * 1000 });
-        console.log(`[CACHE] Cache created for ${appVersion}: ${cache.name}`);
-        return cache.name!;
-    }
-    return entry.cache.name!;
+// Initialize OpenRouter client (OpenAI-compatible)
+const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
+let _or: OpenAI | null = null;
+function getOR(): OpenAI {
+    return _or ?? (_or = new OpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: OPENROUTER_API_KEY,
+        timeout: DEFAULT_TIMEOUT_MS,
+        defaultHeaders: { 'X-OpenRouter-Cache': 'true' },
+    }));
 }
+
+const MODELS = {
+    SPELL_S: 'google/gemma-4-31b-it:online',   // create/edit/convert (web search always on)
+    SUGGEST: 'openai/gpt-oss-120b:free',            // suggestSpells
+    WEBVIEW: 'google/gemma-4-26b-a4b-it',      // webview_ai
+} as const;
 
 
 
@@ -150,7 +131,7 @@ const RATE_LIMITS = {
     CALLS_PER_MINUTE: 30, // Increased
     TOKENS_PER_MINUTE: 500000, // Increased
     COOLDOWN_MS: 60000,
-    SUGGEST_SPELLS_DAILY: 10,
+    SUGGEST_SPELLS_DAILY: 50,
 };
 
 interface RateLimitData {
@@ -245,41 +226,6 @@ interface PreviousEdit {
 
 // Pricing Constants
 const FIXED_COST_CREATE_EDIT = 1.0;
-
-// Helper to get text from response
-function extractText(result: any): string {
-    try {
-        const text = result.text;
-        if (!text) {
-            const finishReason = result.candidates?.[0]?.finishReason;
-            console.warn(`[extractText] Empty response. finishReason: ${finishReason}`);
-        }
-        return text || "";
-    } catch (e) {
-        const finishReason = result?.candidates?.[0]?.finishReason;
-        console.warn(`[extractText] result.text threw: ${e}. finishReason: ${finishReason}`);
-        return "";
-    }
-}
-
-// Helper to get usage metadata
-function getUsage(result: any): { promptTokens: number; responseTokens: number; thoughtsTokens: number; totalTokens: number } {
-    const usage = result.usageMetadata;
-    const cachedTokens = usage?.cachedContentTokenCount || 0;
-    if (cachedTokens > 0) {
-        console.log(`[CACHE HIT] ${cachedTokens} tokens from cache`);
-    }
-    const thoughtsTokens = usage?.thoughtsTokenCount || 0;
-    if (thoughtsTokens > 0) {
-        console.log(`[THINKING] ${thoughtsTokens} thinking tokens`);
-    }
-    return {
-        promptTokens: usage?.promptTokenCount || 0,
-        responseTokens: usage?.candidatesTokenCount || 0,
-        thoughtsTokens,
-        totalTokens: usage?.totalTokenCount || 0,
-    };
-}
 
 // Helper to infer JSON Schema from a data example (robustness)
 function inferSchema(data: any): any {
@@ -463,7 +409,7 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
     {
         region: "southamerica-east1",
         enforceAppCheck: false,
-        secrets: ["GEMINI_API_KEY"],
+        secrets: ["GEMINI_API_KEY", "OPENROUTER_API_KEY"],
     },
     async (request) => {
         if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
@@ -471,7 +417,8 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
         if (!query?.trim()) throw new HttpsError("invalid-argument", "Query required");
 
         const ALLOWED_LANGUAGES = ['pt-BR', 'en-US', 'es-ES', 'fr-FR', 'de-DE', 'ja-JP', 'zh-CN', 'ko-KR', 'it-IT', 'ru-RU', 'ar-SA', 'hi-IN', 'nl-NL', 'pl-PL', 'tr-TR', 'vi-VN', 'th-TH', 'id-ID'];
-        const safeLanguage = ALLOWED_LANGUAGES.includes(language) ? language : 'en-US';
+        // Accept both full tags ("pt-BR") and short codes ("pt") sent by the client
+        const safeLanguage = ALLOWED_LANGUAGES.find(l => l === language || l.startsWith(language + '-')) ?? 'en-US';
 
         const uid = request.auth.uid;
         const userRef = db.collection("users").doc(uid);
@@ -483,34 +430,38 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
             const limitError = await checkDailyRateLimit(userRef, transaction, userDoc.data()!);
             if (limitError) throw new HttpsError("resource-exhausted", limitError);
 
-            const prompt = `You are helping users of Appacadabra, an app that creates mini AI-powered tools called "spells".
-The user searched for "${query.trim()}" but found no results.
-Suggest exactly 2 spell ideas related to "${query.trim()}".
-Respond in language: ${safeLanguage}.
-For each suggestion:
-- title: short name (3–5 words)
-- description: one sentence written as a prompt for the AI to create it, starting with an action verb.`;
-
-            const result = await withRetry(() => getAI().models.generateContent({
-                model: "gemini-2.5-flash-lite",
-                contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                title: { type: Type.STRING },
-                                description: { type: Type.STRING },
+            const result = await withRetry(() => getOR().chat.completions.create({
+                model: MODELS.SUGGEST,
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are helping users of Appacadabra, an app that creates mini AI-powered tools called "spells". You MUST respond entirely in ${safeLanguage} — titles and descriptions must be in ${safeLanguage}.`,
+                    },
+                    {
+                        role: 'user',
+                        content: `The user searched for "${query.trim()}" but found no results. Suggest exactly 2 spell ideas related to "${query.trim()}". For each: title (3–5 words) and description (one sentence starting with an action verb, written as a prompt for an AI to create the spell).`,
+                    },
+                ],
+                response_format: {
+                    type: 'json_schema',
+                    json_schema: {
+                        name: 'suggestions',
+                        schema: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    title: { type: 'string' },
+                                    description: { type: 'string' },
+                                },
+                                required: ['title', 'description'],
                             },
-                            required: ["title", "description"],
                         },
                     },
                 },
             }));
 
-            const suggestions = JSON.parse(result.text!);
+            const suggestions = JSON.parse(result.choices[0].message.content!);
             return { suggestions };
         });
     }
@@ -594,8 +545,8 @@ export const processSpellJob = onDocumentCreated(
         document: "jobs/{jobId}",
         region: "southamerica-east1",
         memory: "512MiB",
-        timeoutSeconds: 540, // 9 minutes (thinkingLevel: high needs more time)
-        secrets: ["GEMINI_API_KEY"],
+        timeoutSeconds: 540,
+        secrets: ["GEMINI_API_KEY", "OPENROUTER_API_KEY"],
     },
     async (event) => {
         const snapshot = event.data;
@@ -740,52 +691,35 @@ export const processSpellJob = onDocumentCreated(
                         totalUsage.responseTokens += u.responseTokens;
                         totalUsage.thoughtsTokens += u.thoughtsTokens;
                         totalUsage.totalTokens += u.totalTokens;
-                        totalUsage.cachedTokens += result.usageMetadata?.cachedContentTokenCount || 0;
+                        totalUsage.cachedTokens += result.usage?.prompt_tokens_details?.cached_tokens
+                            || result.usageMetadata?.cachedContentTokenCount || 0;
                     };
 
-                    let sysCacheName: string | null = null;
-                    try { sysCacheName = await getOrCreateSysCacheForVersion(appVersion); }
-                    catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back:`, cacheErr); }
+                    const sysInstructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
 
-                    const callModel = async (p: string, fullPromptFallback: string) => {
-                        const timeoutPromise = new Promise((_, reject) =>
-                            setTimeout(() => reject(new Error('AI Generation Timeout (300s)')), 300000)
+                    const callModel = async (content: string) => {
+                        const timeoutPromise = new Promise<never>((_, reject) =>
+                            setTimeout(() => reject(new Error(`AI Generation Timeout (${DEFAULT_TIMEOUT_MS / 1000}s)`)), DEFAULT_TIMEOUT_MS)
                         );
-
                         const generationPromise = withRetry(async () => {
-                            if (sysCacheName) {
-                                const result = await getAI().models.generateContent({
-                                    model: 'models/gemini-3-flash-preview',
-                                    contents: p,
-                                    config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: sysCacheName },
-                                });
-                                const text = extractText(result);
-                                if (!text) {
-                                    const finishReason = result.candidates?.[0]?.finishReason;
-                                    throw new Error(`Empty AI response (finishReason: ${finishReason ?? 'unknown'})`);
-                                }
-                                return result;
-                            }
-                            const result = await getAI().models.generateContent({
-                                model: 'models/gemini-3-flash-preview',
-                                contents: fullPromptFallback,
-                                config: MAIN_MODEL_CONFIG,
+                            const res = await getOR().chat.completions.create({
+                                model: MODELS.SPELL_S,
+                                messages: [
+                                    { role: 'system', content: sysInstructions },
+                                    { role: 'user', content: content },
+                                ],
                             });
-                            const text = extractText(result);
-                            if (!text) {
-                                const finishReason = result.candidates?.[0]?.finishReason;
-                                throw new Error(`Empty AI response (finishReason: ${finishReason ?? 'unknown'})`);
-                            }
-                            return result;
+                            const text = extractText(res);
+                            if (!text) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
+                            return res;
                         });
-
                         return Promise.race([generationPromise, timeoutPromise]) as Promise<any>;
                     };
 
                     // Stage 1: Planning
                     console.log(`[Job ${jobId}] Stage 1: Planning...`);
                     const plannerPrompt = `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
-                    const planResult = await callModel(plannerPrompt, `${SYSTEM_PREAMBLE}\n\n${plannerPrompt}`);
+                    const planResult = await callModel(plannerPrompt);
                     addUsage(planResult);
                     const appPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Plan created:`, JSON.stringify(appPlan).substring(0, 200) + '...');
@@ -793,7 +727,7 @@ export const processSpellJob = onDocumentCreated(
                     // Stage 2: Coding
                     console.log(`[Job ${jobId}] Stage 2: Coding...`);
                     const codePrompt = `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
-                    const codeResult = await callModel(codePrompt, `${SYSTEM_PREAMBLE}\n\n${codePrompt}`);
+                    const codeResult = await callModel(codePrompt);
                     addUsage(codeResult);
 
                     resultText = fixCallbackPatterns(extractHtml(extractText(codeResult)));
@@ -822,7 +756,7 @@ export const processSpellJob = onDocumentCreated(
                         // Audit fix
                         auditLog.fixPrompt = fixPrompt;
 
-                        const fixResult = await callModel(fixPrompt, fixPrompt);
+                        const fixResult = await callModel(fixPrompt);
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         if (!resultText) throw new Error("AI returned empty response");
@@ -837,6 +771,7 @@ export const processSpellJob = onDocumentCreated(
 
                     if (allErrors.length > 0) throw new Error(`App generation failed: ${allErrors[0]?.message || 'Unknown'}`);
                     usage = totalUsage;
+                    logModelId = MODELS.SPELL_S;
 
                     // Extract App Name from Title
                     const titleMatch = resultText.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -853,7 +788,8 @@ export const processSpellJob = onDocumentCreated(
                         totalUsage.responseTokens += u.responseTokens;
                         totalUsage.thoughtsTokens += u.thoughtsTokens;
                         totalUsage.totalTokens += u.totalTokens;
-                        totalUsage.cachedTokens += result.usageMetadata?.cachedContentTokenCount || 0;
+                        totalUsage.cachedTokens += result.usage?.prompt_tokens_details?.cached_tokens
+                            || result.usageMetadata?.cachedContentTokenCount || 0;
                     };
 
                     const normalizedCode = currentCode.replace(/\r\n/g, "\n");
@@ -871,43 +807,31 @@ export const processSpellJob = onDocumentCreated(
                         ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(item => `- localStorage["${item.key}"]: ${JSON.stringify(item.schema)}`).join('\n')}\n`
                         : '';
 
-                    let editCacheName: string | null = null;
-                    try { editCacheName = await getOrCreateSysCacheForVersion(appVersion); }
-                    catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back:`, cacheErr); }
+                    const editSysInstructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
 
-                    const callEditModel = async (p: string, fullPromptFallback: string) => {
-                        return withRetry(async () => {
-                            if (editCacheName) {
-                                const result = await getAI().models.generateContent({
-                                    model: 'models/gemini-3-flash-preview',
-                                    contents: p,
-                                    config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: editCacheName },
-                                });
-                                const text = extractText(result);
-                                if (!text) {
-                                    const finishReason = result.candidates?.[0]?.finishReason;
-                                    throw new Error(`Empty AI response (finishReason: ${finishReason ?? 'unknown'})`);
-                                }
-                                return result;
-                            }
-                            const result = await getAI().models.generateContent({
-                                model: 'models/gemini-3-flash-preview',
-                                contents: fullPromptFallback,
-                                config: MAIN_MODEL_CONFIG,
+                    const callEditModel = async (content: string) => {
+                        const timeoutPromise = new Promise<never>((_, reject) =>
+                            setTimeout(() => reject(new Error(`AI Generation Timeout (${DEFAULT_TIMEOUT_MS / 1000}s)`)), DEFAULT_TIMEOUT_MS)
+                        );
+                        const generationPromise = withRetry(async () => {
+                            const res = await getOR().chat.completions.create({
+                                model: MODELS.SPELL_S,
+                                messages: [
+                                    { role: 'system', content: editSysInstructions },
+                                    { role: 'user', content: content },
+                                ],
                             });
-                            const text = extractText(result);
-                            if (!text) {
-                                const finishReason = result.candidates?.[0]?.finishReason;
-                                throw new Error(`Empty AI response (finishReason: ${finishReason ?? 'unknown'})`);
-                            }
-                            return result;
+                            const text = extractText(res);
+                            if (!text) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
+                            return res;
                         });
+                        return Promise.race([generationPromise, timeoutPromise]) as Promise<any>;
                     };
 
                     // Stage 1: Plan
                     console.log(`[Job ${jobId}] Stage 1: Planning Edit...`);
                     const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const planResult = await callEditModel(planPrompt, `${SYSTEM_PREAMBLE}\n\n${planPrompt}`);
+                    const planResult = await callEditModel(planPrompt);
                     addUsage(planResult);
                     const editPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Edit Plan:`, JSON.stringify(editPlan, null, 2));
@@ -915,7 +839,7 @@ export const processSpellJob = onDocumentCreated(
                     // Stage 2: Patch
                     console.log(`[Job ${jobId}] Stage 2: Patching...`);
                     const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const patchResult = await callEditModel(patchPrompt, `${SYSTEM_PREAMBLE}\n\n${patchPrompt}`);
+                    const patchResult = await callEditModel(patchPrompt);
                     addUsage(patchResult);
                     const patchResponse = extractJson(extractText(patchResult));
 
@@ -942,7 +866,7 @@ export const processSpellJob = onDocumentCreated(
                         // Audit fix
                         auditLog.fixPrompt = fixPrompt;
 
-                        const fixResult = await callEditModel(fixPrompt, fixPrompt);
+                        const fixResult = await callEditModel(fixPrompt);
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         if (!resultText) throw new Error("AI returned empty response");
@@ -957,7 +881,7 @@ export const processSpellJob = onDocumentCreated(
                     if (editAllErrors.length > 0) throw new Error(`Edit failed: ${editAllErrors[0]?.message}`);
 
                     usage = totalUsage;
-                    // For edits, we don't strictly need appName, client knows it.
+                    logModelId = MODELS.SPELL_S;
                     break;
                 }
 
@@ -967,33 +891,26 @@ export const processSpellJob = onDocumentCreated(
 
                     const framework = frameworkHint || "web project";
                     const convertPrompt = `${CONVERT_PROJECT_PROMPT}\n\nFramework: ${framework}\n\nSOURCE:\n${sourceCode}`;
+                    const convertSysInstructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
 
-                    let convertResult: any;
-                    let convCacheName: string | null = null;
-                    try { convCacheName = await getOrCreateSysCacheForVersion(appVersion); }
-                    catch (cacheErr) { console.warn(`[Job ${jobId}] [CACHE] Falling back for convert:`, cacheErr); }
-
-                    if (convCacheName) {
-                        convertResult = await withRetry(() => getAI().models.generateContent({
-                            model: 'models/gemini-3-flash-preview',
-                            contents: convertPrompt,
-                            config: { ...CACHED_MAIN_MODEL_CONFIG, cachedContent: convCacheName },
-                        }));
-                    } else {
-                        convertResult = await withRetry(() => getAI().models.generateContent({
-                            model: 'models/gemini-3-flash-preview',
-                            contents: `${SYSTEM_PREAMBLE}\n\n${convertPrompt}`,
-                            config: MAIN_MODEL_CONFIG,
-                        }));
-                    }
+                    const convertResult = await withRetry(() => getOR().chat.completions.create({
+                        model: MODELS.SPELL_S,
+                        messages: [
+                            { role: 'system', content: convertSysInstructions },
+                            { role: 'user', content: convertPrompt },
+                        ],
+                    }));
 
                     const convU = getUsage(convertResult);
-                    usage = { ...convU, cachedTokens: convertResult.usageMetadata?.cachedContentTokenCount || 0 };
+                    usage = {
+                        ...convU,
+                        cachedTokens: convertResult.usage?.prompt_tokens_details?.cached_tokens || 0,
+                    };
                     resultText = fixCallbackPatterns(extractHtml(extractText(convertResult)));
                     if (!resultText) throw new Error("AI returned empty response");
 
                     creditsUsed = FIXED_COST_CREATE_EDIT;
-                    logModelId = 'gemini-3-flash-preview';
+                    logModelId = MODELS.SPELL_S;
                     break;
                 }
 
@@ -1062,70 +979,53 @@ export const processSpellJob = onDocumentCreated(
                     let tools = requestedTools || [];
                     if (useSearch && !tools.includes('googleSearch')) tools.push('googleSearch');
 
-                    const modelId = requestedModel || 'gemini-3-flash-preview';
+                    // googleSearch and googleMaps both map to :online suffix in OpenRouter
+                    const useOnline = tools.includes('googleSearch') || tools.includes('googleMaps');
+                    const baseModel = requestedModel || MODELS.WEBVIEW;
+                    const effectiveModel = useOnline ? `${baseModel}:online` : baseModel;
 
-                    console.log(`[Job ${jobId}] [WEBVIEW_AI] Model: ${modelId}, Tools: ${tools}`);
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI] Model: ${effectiveModel}, Tools: ${tools}`);
 
-                    // Build tools config
-                    const toolConfig: any[] = [];
-                    if (tools.includes('googleSearch')) toolConfig.push({ googleSearch: {} });
-                    if (tools.includes('googleMaps')) toolConfig.push({ googleMaps: {} });
-
-                    // Build Parts
-                    const parts: any[] = [prompt];
+                    // Build multimodal user content (Gemma supports image and audio via OpenRouter)
+                    const userContent: any[] = [{ type: 'text', text: prompt }];
                     if (resolvedImages?.length) {
                         for (const img of resolvedImages) {
-                            parts.push({ inlineData: { mimeType: "image/jpeg", data: img } });
-                        }
-                    }
-                    if (resolvedVideos?.length) {
-                        for (const vid of resolvedVideos) {
-                            parts.push({ inlineData: { mimeType: "video/mp4", data: vid } });
+                            userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } });
                         }
                     }
                     if (resolvedAudios?.length) {
                         for (const aud of resolvedAudios) {
-                            parts.push({ inlineData: { mimeType: "audio/wav", data: aud } });
+                            userContent.push({ type: 'input_audio', input_audio: { data: aud, format: 'wav' } });
                         }
                     }
-
-                    // Model Config
-                    const genConfig: any = { maxOutputTokens: 65536 };
-                    if (schema) {
-                        genConfig.responseMimeType = "application/json";
-                        if (!(schema as any).type) {
-                            genConfig.responseSchema = inferSchema(schema);
-                        } else {
-                            genConfig.responseSchema = schema;
-                        }
+                    if (resolvedVideos?.length) {
+                        console.warn(`[Job ${jobId}] [WEBVIEW_AI] Video inputs not supported via OpenRouter — ignored`);
                     }
 
-                    const result = await withRetry(() => getAI().models.generateContent({
-                        model: modelId,
-                        contents: parts,
-                        config: {
-                            ...genConfig,
-                            thinkingConfig: modelId.includes('gemini-3')
-                                ? { thinkingLevel: toolConfig.length > 0 ? ThinkingLevel.MINIMAL : ThinkingLevel.HIGH }
-                                : { thinkingBudget: modelId.includes('2.5-flash-lite') ? 24576 : 32768 },
-                            tools: toolConfig.length > 0 ? toolConfig : undefined,
-                        },
+                    const resolvedSchema = schema
+                        ? (!(schema as any).type ? inferSchema(schema) : schema)
+                        : undefined;
+
+                    const result = await withRetry(() => getOR().chat.completions.create({
+                        model: effectiveModel,
+                        messages: [{ role: 'user', content: userContent }],
+                        max_tokens: 65536,
+                        ...(resolvedSchema ? {
+                            response_format: {
+                                type: 'json_schema',
+                                json_schema: { name: 'response', schema: resolvedSchema as any, strict: false },
+                            },
+                        } : {}),
                     }));
 
-                    usage = sanitizeForFirestore({
-                        promptTokens: Math.max(0, Number(result.usageMetadata?.promptTokenCount) || 0),
-                        responseTokens: Math.max(0, Number(result.usageMetadata?.candidatesTokenCount) || 0),
-                        thoughtsTokens: Math.max(0, Number(result.usageMetadata?.thoughtsTokenCount) || 0),
-                        totalTokens: Math.max(0, Number(result.usageMetadata?.totalTokenCount) || 0),
-                        cachedTokens: Math.max(0, Number(result.usageMetadata?.cachedContentTokenCount) || 0),
-                    });
+                    usage = sanitizeForFirestore(getUsage(result));
 
                     resultText = extractText(result);
 
                     // AUDIT LOG
-                    auditLog.rawAiResponse = (resultText || "").substring(0, 10000); // Capture more
+                    auditLog.rawAiResponse = (resultText || "").substring(0, 10000);
                     auditLog.schemaProvided = !!schema;
-                    auditLog.modelUsed = modelId;
+                    auditLog.modelUsed = effectiveModel;
 
                     // If a schema was requested, ensure the response is clean JSON
                     if (schema && resultText) {
@@ -1136,7 +1036,6 @@ export const processSpellJob = onDocumentCreated(
                         } catch (e: any) {
                             console.warn(`[Job ${jobId}] [WEBVIEW_AI] JSON extraction failed:`, e.message);
                             auditLog.extractionError = e.message;
-                            // Add snippet to error for immediate visibility in UI
                             const snippet = resultText.length > 200 ? resultText.substring(0, 200) + "..." : resultText;
                             throw new Error(`JSON Extraction Failed: ${e.message} | Raw: ${snippet}`);
                         }
@@ -1147,29 +1046,17 @@ export const processSpellJob = onDocumentCreated(
                         throw new Error("AI returned empty response");
                     }
 
-                    // Count actual tool calls from grounding metadata
-                    const groundingMeta = result.candidates?.[0]?.groundingMetadata;
-                    const actualSearchQueries = (groundingMeta as any)?.webSearchQueries?.length ?? 0;
-                    const groundingChunks = (groundingMeta as any)?.groundingChunks ?? [];
-                    const actualMapsQueries = groundingChunks.some(
-                        (c: any) => c?.retrievedContext?.uri?.includes('maps.googleapis') ||
-                            c?.web?.uri?.includes('maps.google')
-                    ) ? 1 : 0;
+                    // Count search queries from OpenRouter annotations
+                    const annots = (result.choices[0].message as any).annotations ?? [];
+                    const actualSearchQueries = annots.filter((a: any) => a.type === 'url_citation').length;
 
-                    // Resolve model ID for pricing lookup
-                    const pricingModelId = modelId.includes('gemini-2.5-flash-lite') ? 'gemini-2.5-flash-lite'
-                        : modelId.includes('gemini-2.5-flash') ? 'gemini-2.5-flash'
-                            : 'gemini-3-flash-preview';
-
-                    const waiCostUsd = calculateCostUsd(pricingModelId, usage, {
+                    const waiCostUsd = calculateCostUsd(effectiveModel, usage, {
                         searchQueries: actualSearchQueries,
-                        mapsQueries: actualMapsQueries,
                     });
                     creditsUsed = waiCostUsd / MANA_VALUE_USD;
 
-                    logModelId = modelId;
+                    logModelId = effectiveModel;
                     logExtras.searchQueries = actualSearchQueries;
-                    if (actualMapsQueries > 0) logExtras.mapsQueries = actualMapsQueries;
                     break;
                 }
 
@@ -1578,7 +1465,7 @@ export const processSpellJob = onDocumentCreated(
                         responseTokens: usage.responseTokens,
                         thoughtsTokens: usage.thoughtsTokens,
                         totalTokens: usage.totalTokens,
-                        cachedTokens: usage.cachedTokens,
+                        cachedTokens: usage.cachedTokens ?? 0,
                         costUsd,
                         creditsUsed,
                         timestamp: FieldValue.serverTimestamp(),

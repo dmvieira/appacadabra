@@ -46,10 +46,34 @@ Once configured, use the `gemini` MCP for:
 
 ---
 
-### Route → Localization Pipeline (`/add-locale-string`)
-**Trigger:** Adding new UI strings, translating existing strings, back-translation verification, locale file updates
+### Route → OpenRouter MCP (bulk translation — 5+ strings)
+**Trigger:** Re-translating multiple existing strings, locale file sweep, back-translation verification across all languages
 
-**Action:** Use `/add-locale-string` with the key and English source text. Claude handles all 17 languages natively with high quality — no external model needed for this use case.
+**To enable**, add to `.claude/settings.json` under `mcpServers`:
+```json
+"openrouter": {
+  "command": "npx",
+  "args": ["-y", "@mcpservers/openrouterai"],
+  "env": { "OPENROUTER_API_KEY": "sk-or-..." }
+}
+```
+
+**Package:** `@mcpservers/openrouterai@2.3.0` — confirmed installable. Exposes `chat_completion`, `search_models`, `get_model_info`.
+
+**When configured**, call `openrouter__chat_completion` with:
+- **model primário:** `google/gemma-4-26b-a4b-it`
+- **model alternativo:** `openai/gpt-oss-120b`
+- System prompt must include: Appacadabra's magic/spell tone, the 17 target locales, back-translation instructions for JA, AR, HI, KO
+- Pass all source strings in a single batch request; request output as JSON keyed by locale code
+
+**Without OpenRouter MCP:** Fall back to `/add-locale-string` (Claude) with a note that cost will be higher for large batches.
+
+---
+
+### Route → Localization Pipeline (`/add-locale-string`)
+**Trigger:** Adding a single new UI string key, one-off translation, adding a new i18n entry
+
+**Action:** Use `/add-locale-string` with the key and English source text. Claude handles all 17 languages natively with high quality for single strings.
 
 ---
 

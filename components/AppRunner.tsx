@@ -830,6 +830,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                         webViewRef: webViewRef as React.RefObject<WebView>,
                         appId: app?.id || null,
                         callbackName,
+                        isEditMode: mode === 'edit',
                     });
                     if (handlerResult.handled) {
                         success = handlerResult.success;

@@ -593,7 +593,9 @@ export function createCallbackScript(callbackName: string, success: boolean, dat
     .replace(/\r/g, '\\r')
     .replace(/\t/g, '\\t')
     .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
+    .replace(/\u2029/g, '\\u2029')
+    .replace(/`/g, '\\`')
+    .replace(/\$\{/g, '\\${');
 
   return `
     (function() {
@@ -669,13 +671,17 @@ export function createStorageRestoreScript(items: ExpandedStorageItem[]): string
       const k = JSON.stringify(i.blobCallbackName!);
       const v = JSON.stringify(i.blobDataUri!);
       const fullMarker = JSON.stringify(i.value);
-      return `try { window.__APPACADABRA_BLOB_CACHE__[${k}] = ${v}; window.__APPACADABRA_BLOB_CACHE__[${fullMarker}] = ${v}; window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {}; window.__APPACADABRA_MARKER_CACHE__[${k}] = ${fullMarker}; } catch(e) {}`;
+      // Escape backticks and ${ since this will be injected into a backtick template
+      const entry = `try { window.__APPACADABRA_BLOB_CACHE__[${k}] = ${v}; window.__APPACADABRA_BLOB_CACHE__[${fullMarker}] = ${v}; window.__APPACADABRA_MARKER_CACHE__ = window.__APPACADABRA_MARKER_CACHE__ || {}; window.__APPACADABRA_MARKER_CACHE__[${k}] = ${fullMarker}; } catch(e) {}`;
+      return entry.replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
     }).join('\n        ');
 
   const restoreStatements = items.map(item => {
     const k = JSON.stringify(item.key);
     const v = JSON.stringify(item.value); // marker for new blobs, dataUri for old blobs, plain string otherwise
-    return `try { localStorage.setItem(${k}, ${v}); console.log('[Storage] Restored: ' + ${k}); } catch(e) { console.error('[Storage] Failed: ' + ${k}, e); }`;
+    // Escape backticks and ${ since this will be injected into a backtick template
+    const stmt = `try { localStorage.setItem(${k}, ${v}); console.log('[Storage] Restored: ' + ${k}); } catch(e) { console.error('[Storage] Failed: ' + ${k}, e); }`;
+    return stmt.replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
   }).join('\n        ');
 
   return `

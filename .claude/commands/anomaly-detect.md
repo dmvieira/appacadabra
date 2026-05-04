@@ -9,14 +9,14 @@ This command queries Firestore for recent data (last 48h) and compares it agains
 ## Query sequence — execute using Firebase MCP
 
 ### Signal 1: Job failure rate spike
-```
-Recent window: jobs created in last 24h
-Baseline window: jobs created 2–9 days ago (daily average)
-```
 
 Use `mcp__plugin_firebase_firebase__firestore_query_collection` on `jobs`:
-- Query `status == "failed"` with `createdAt` in recent window → recent failure count
-- Query `status == "failed"` with `createdAt` in baseline window → baseline daily average
+- Query `status == "failed"` (equality only, limit 100) — check `createdAt` in results to split into recent (last 24h) vs. baseline (2–9 days ago)
+- Query `status == "completed"` (equality only, limit 200) — same timestamp split for denominators
+
+**Note:** No composite index for `status + createdAt`. Time-window filtering must be done from returned results, not as a Firestore filter.
+
+Compute: recent failure rate and 7-day daily average failure rate from the result sets.
 
 **Anomaly:** Recent failure rate > 2× baseline daily average
 **Severity:** 🔴 CRITICAL if > 10% absolute, 🟡 WARNING if > 5%
@@ -24,9 +24,9 @@ Use `mcp__plugin_firebase_firebase__firestore_query_collection` on `jobs`:
 ---
 
 ### Signal 2: Mana consumption drop (engagement cliff)
-Query `users/{uid}/usageLogs` (or `jobs` with `result.creditsUsed`):
-- Sum `creditsUsed` for last 24h
-- Compare to 7-day daily average
+Use `jobs` collection as proxy (`users/{uid}/usageLogs` requires per-UID queries — not viable for aggregate):
+- Query `status == "completed"`, limit 200 — sum `result.creditsUsed` from results, filter by `createdAt` for last 24h vs. 7-day baseline
+- Compare totals
 
 **Anomaly:** Today's consumption < 50% of daily average
 **Interpretation:** Users stopped generating — could be outage, bad UX change, or content moderation block
@@ -34,10 +34,13 @@ Query `users/{uid}/usageLogs` (or `jobs` with `result.creditsUsed`):
 ---
 
 ### Signal 3: Credit purchase drop (revenue signal)
-Query `users/{uid}/creditLogs` where `type == "purchase"`:
-- Count purchases in last 24h vs. 7-day daily average
+`users/{uid}/creditLogs` is a subcollection — cannot aggregate across all users without UIDs.
+Proxy approach:
+- Query `users` where `creditsUsed > 50` (likely purchasers), limit 20 — get UIDs
+- For each UID, query `users/{uid}/creditLogs` with `type == "purchase"` and check `createdAt` in last 24h vs. baseline
+- This is a sampled signal, not exhaustive
 
-**Anomaly:** 0 purchases when daily average > 0
+**Anomaly:** 0 purchases in sample when baseline average > 0
 **Note:** Weekends naturally lower — check day-of-week before alarming
 
 ---
