@@ -105,6 +105,20 @@ The workflow:
 
 This staged approach is standard practice at mature companies — it's how Google itself rolls out Chrome updates. For a solo founder, having AI guide the implementation of this level of release discipline was a meaningful upgrade.
 
+```mermaid
+flowchart LR
+    DEV[Build] --> INT["Internal Testing\nDev team only"]
+    INT --> ALPHA["Closed Alpha\nTargeted testers"]
+    ALPHA --> BETA["Open Beta\nPublic opt-in"]
+    BETA --> P5["Production 5%"]
+    P5 -->|"✓ No regressions"| P20["Production 20%"]
+    P20 -->|"✓ No regressions"| P50["Production 50%"]
+    P50 -->|"✓ No regressions"| P100["Production 100%"]
+    P5 -->|"⚠ Anomaly detected"| HALT["Rollout halted\nRollback if needed"]
+    P20 --> HALT
+    P50 --> HALT
+```
+
 **Metadata Optimization**: App store listing copy (title, short description, full description) is effectively SEO for mobile apps — it determines discoverability in Play Store search. Gemini generated and iterated on listing copy calibrated for the specific keyword clusters relevant to Appacadabra's use cases.
 
 ### The Release Agent and Its Skills

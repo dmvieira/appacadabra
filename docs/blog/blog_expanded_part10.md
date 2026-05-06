@@ -85,6 +85,18 @@ Appacadabra's testing pyramid:
 
 **Security Layer**: Static analysis (ESLint security rules, Android Lint) and dependency vulnerability scanning (npm audit, Gradle dependency checker) running on every CI push.
 
+```mermaid
+graph BT
+    UNIT["⚡ Unit Tests\nJest · JUnit\nPure business logic\nMany · Fast · Cheap"]
+    INT["🔗 Integration Tests\nFirebase emulator\nCloud Function behavior\nFewer · Slower"]
+    E2E["🎭 E2E Tests — Maestro\nCritical user journeys\nReal device / emulator\nFew · High-value"]
+    SEC["🔒 Security Layer\nESLint · Android Lint · npm audit\nRuns on every CI push"]
+
+    UNIT --> INT
+    INT --> E2E
+    E2E --> SEC
+```
+
 This full stack did not exist at the start of the project. It was assembled incrementally as each layer became available and as the Engineering Agent's skills expanded. By the time the QA department was "complete," the automation running on every merge to main was doing the work that would have required a QA team of three to four people to do manually.
 
 ### The QA Agent and Its Skills

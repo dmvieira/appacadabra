@@ -33,6 +33,21 @@ No single AI model navigates all of these with equal depth. I learned this throu
 
 The Engineering Agent's routing layer became one of the most valuable assets in the project: a configuration that would receive a task, classify it by domain, and route it to the appropriate model. Not as magic — as deliberate architecture.
 
+```mermaid
+graph TD
+    TASK[Incoming Engineering Task] --> ROUTER{"/stack-router\nTask Classifier"}
+
+    ROUTER -->|"TypeScript · React Native\nFirebase · Architecture"| CLAUDE["Claude\nSonnet / Opus"]
+    ROUTER -->|"Android lifecycle\nKotlin · Hardware permissions"| GEMINI["Gemini\nAndroid-native depth"]
+    ROUTER -->|"≥5 locale strings\nBulk translation"| GPT["GPT OSS 120B\nvia OpenRouter MCP"]
+    ROUTER -->|"Live Firestore data\nCloud Function logs"| FIREBASE["Firebase MCP\nDirect data access"]
+
+    CLAUDE --> OUTPUT["Code · Tests · Docs"]
+    GEMINI --> OUTPUT
+    GPT --> I18N["lib/i18n.ts\n17 locales updated"]
+    FIREBASE --> OUTPUT
+```
+
 ### Building the Engineering Agent
 
 The **Engineering Agent** was the most complex agent in the system, and the most consequential.
@@ -53,6 +68,19 @@ Localization is one of the least discussed but most expensive engineering discip
 My **Localization Team** was staffed by **GPT OSS 120B** — an open-source model chosen specifically for its cost efficiency at scale. Running translation jobs across hundreds of strings in multiple languages simultaneously requires a model that can handle high-volume, repetitive inference cheaply, not one optimized for deep reasoning.
 
 The workflow: extract all UI strings into a JSON key-value manifest, pass batches through the model with a system prompt that included Appacadabra's tone of voice guidelines, and regenerate the locale files. For languages I could partially evaluate (Spanish, Portuguese), I could spot-check directly. For languages I couldn't (Japanese, Korean, Arabic), I used a **reverse-prompting technique**: take the AI-translated string and ask a separate model to back-translate it into English, then evaluate whether the meaning and tone had survived the round trip.
+
+```mermaid
+flowchart LR
+    EN[English string] --> TRANS["GPT OSS 120B\nbulk translation"]
+    TRANS --> ALL[17 locale strings]
+    ALL --> CHECK{"Language\nevaluable?"}
+    CHECK -- "PT · ES · others\nfounder can read" --> SPOT[Direct spot-check]
+    CHECK -- "JA · AR · HI · KO" --> BACK["Back-translate\nto English"]
+    BACK --> EVAL{"Meaning + tone\nsurvived?"}
+    EVAL -- "Yes ≥90%" --> PASS["✓ Insert into i18n.ts"]
+    EVAL -- "No < 90%" --> FLAG["⚠ Flag for review"]
+    SPOT --> PASS
+```
 
 This is not a perfect validation method. I want to be honest about that. Back-translation catches semantic errors but misses cultural connotation, humor register, and regional idiom. The honest acknowledgment: **this was a calculated acceptance of imperfect validation in exchange for global reach that would otherwise have been impossible.**
 
@@ -107,6 +135,19 @@ What emerged was our **Mana system**.
 The Appacadabra implementation: users receive a base mana allocation with their subscription tier. Each AI generation consumes a defined mana amount calibrated to its actual API cost plus margin. Mana can be expanded through in-app purchase bundles. The system is transparent to the user (they always know their remaining capacity), gamified (spending mana feels like using a resource, not paying a fee), and profitable (every unit of mana issued has been paid for).
 
 The financial model demonstrated that this structure could sustain profitability across all reasonable user scenarios, including scenarios where 20% of users were in the top usage decile — the scenario that kills most subscription AI products.
+
+```mermaid
+graph LR
+    SUB["User subscribes\nor buys mana bundle"] --> BAL["Mana balance\ncredited to Firestore"]
+    BAL --> REQ["User makes\nAI generation request"]
+    REQ --> GATE{"Cloud Function:\nMana guard check"}
+    GATE -- "Insufficient mana" --> WALL["Paywall shown\nManaShop opens"]
+    GATE -- "Sufficient mana" --> CALL["Gemini API call"]
+    CALL -- "Success + creditsUsed > 0" --> DEDUCT["db.incrementManaCost\nmana deducted"]
+    CALL -- Failure --> SAFE["No deduction\nMana preserved"]
+    DEDUCT --> BAL
+    WALL --> SUB
+```
 
 ### From Model to Implementation
 

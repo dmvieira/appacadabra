@@ -10,11 +10,11 @@ As in: "I built an autonomous AI agent that runs my business." As in: "I set it 
 
 This series is not that story.
 
-What I built over four months — starting from a blank document and ending with a live Android app on the Play Store, serving users across multiple countries — was something more interesting and more difficult than autonomy. It was a **collaboration architecture**: a system where AI agents handled the execution of specialized work across every company department, and a human founder handled the strategic decisions, the validation, and the connective tissue that no AI can yet provide.
+What I built over four months of nights and weekends — while holding down a full-time job, starting from a blank document and ending with a live Android app on the Play Store, serving users across multiple countries — was something more interesting and more difficult than autonomy. It was a **collaboration architecture**: a system where AI agents handled the execution of specialized work across every company department, and a human founder handled the strategic decisions, the validation, and the connective tissue that no AI can yet provide.
 
 The company is **Appacadabra**. The product: a native Android app that lets users describe what they want — in plain language — and generates a fully functional mini-app for them, running locally on their device, powered by Google's Gemini API. Part app generator, part magic wand.
 
-The constraint that shaped everything: **four months**, working alone.
+The constraint that shaped everything: **four months of nights and weekends**, working alone, with a full-time job running in parallel.
 
 ### The Central Question
 
@@ -35,6 +35,13 @@ For each department I built, I also built a **specialized AI agent** — not a g
 As I completed work through each agent, I codified what I learned into **Skills** — reusable command patterns — and **MCPs** (Model Context Protocols) — structured protocols that connect the agent to live systems: Firestore, Firebase logs, the Play Store, our codebase. By the end of the four months, eleven agents and twenty-seven executable commands held the institutional knowledge of the company in a form that could act on it.
 
 Think of it like this: traditional companies spend years encoding their processes into wikis, runbooks, and SOPs that gather dust. I was encoding them into living agents that could execute them. Every task that passed through an agent, captured as a skill, and formalized as an MCP, made the system slightly more capable and slightly more specifically *Appacadabra*.
+
+```mermaid
+graph LR
+    A["🧠 Specialized Agent\nknows your company"] --> B["⚡ Skills\nreusable commands"]
+    B --> C["🔌 MCPs\nlive system access"]
+    C --> D["🏢 Company OS\ninstitutional knowledge\nthat can act"]
+```
 
 This is the new model of the software company. Not a team of humans with AI assistants. Not autonomous AI with a human supervisor. A human CEO operating a constellation of specialized AI agents, each one deeply configured to serve the company's specific context.
 

@@ -4,7 +4,7 @@
 
 ## Part 1: The Strategy Room — The 4-Month AI Challenge
 
-There's a famous quote attributed to Dwight Eisenhower: *"Plans are worthless, but planning is everything."* He was describing the chaos of war — where no plan survives first contact with the enemy. Building a startup from scratch, alone, in four months, felt remarkably similar.
+There's a famous quote attributed to Dwight Eisenhower: *"Plans are worthless, but planning is everything."* He was describing the chaos of war — where no plan survives first contact with the enemy. Building a startup from scratch, alone, in four months of nights and weekends — while employed full-time — felt remarkably similar.
 
 The company I set out to build was **Appacadabra** — a native mobile app ecosystem built on top of AI generation. Not a side project. A full company: with strategy, branding, engineering, finance, legal, analytics, release management, international expansion, and quality assurance. Every department. Every discipline. Staffed primarily by AI.
 
@@ -56,6 +56,19 @@ I encoded four questions that I found myself asking — and that the AI needed t
 - **The Pivot Path**: If this direction fails in six weeks, what's the fallback? Is there one?
 
 These four questions, applied consistently across the 12 positioning angles I tested, the technology stack decision, and every feature prioritization that followed, produced what a good strategy process always produces: *constraints that liberate*. Once you know what you're building, for whom, in what timeframe, and with what fallback, every downstream decision becomes faster.
+
+```mermaid
+flowchart TD
+    D[Major Decision] --> Q1{"4-Month Test\nIs this feasible\nin our window?"}
+    Q1 -- No --> KILL[Discard or descope]
+    Q1 -- Yes --> Q2{"Skateboard Test\nWhat's the minimum\nversion that moves?"}
+    Q2 --> SCOPE[Define MVP scope]
+    SCOPE --> Q3{"Validation Gap\nWhat can't I evaluate\nmyself?"}
+    Q3 --> EXT[Identify external signal needed]
+    EXT --> Q4{"Pivot Path\nIf this fails in 6 weeks,\nwhat's the fallback?"}
+    Q4 -- No fallback --> WARN[Flag as high-risk]
+    Q4 -- Fallback exists --> GO[Commit and build]
+```
 
 The Strategy Agent held these constraints as persistent context. Every strategic question that came later — should we add this feature, should we enter this market, should we change this pricing tier — was answered against what had already been decided. Not overruled by it. Tested against it.
 

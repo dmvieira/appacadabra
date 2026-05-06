@@ -4,7 +4,7 @@
 
 ## The Architecture of an AI-Native Company
 
-Four months. Eleven departments. One founder. One hundred decisions I couldn't have made without AI. Dozens of decisions I couldn't have fully validated with it.
+Four months of nights and weekends — while employed full-time. Eleven departments. One founder. One hundred decisions I couldn't have made without AI. Dozens of decisions I couldn't have fully validated with it.
 
 This is not a satisfying place to end. It doesn't resolve cleanly into a productivity metric or a startup playbook. But it's the honest account — and in a space where most AI content tends toward either uncritical enthusiasm or reflexive skepticism, honesty might be the most useful thing this series can offer.
 
