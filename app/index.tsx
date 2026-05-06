@@ -1082,7 +1082,7 @@ export default function HomeScreen() {
                 {balance <= 0 && (
                     <TouchableOpacity
                         style={styles.manaWarningBanner}
-                        onPress={() => isAnonymous ? setShowOnboarding(true) : openShop()}
+                        onPress={() => openShop()}
                         activeOpacity={0.8}
                     >
                         <Text style={styles.manaWarningEmoji}>⚡</Text>
