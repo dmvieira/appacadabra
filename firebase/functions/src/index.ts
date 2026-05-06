@@ -24,6 +24,7 @@ import {
     UNIFIED_EDIT_MIGRATE_PROMPT,
 } from "./prompts";
 import { buildSystemInstructions, ALL_CAPABILITIES } from "./capabilities/index";
+import { buildPlannerSystemInstructions, getCapabilitiesByApiNames } from "./capabilities/helpers";
 import { validateGeneratedCode, generateFixPrompt } from "./codeValidator";
 import { validateWithExecution } from "./executionValidator";
 import { NOTIF_I18N } from "./i18n";
@@ -713,9 +714,9 @@ export const processSpellJob = onDocumentCreated(
                             || result.usageMetadata?.cachedContentTokenCount || 0;
                     };
 
-                    const sysInstructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+                    const plannerSysInstructions = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
 
-                    const callModel = async (content: string) => {
+                    const callModel = async (content: string, sysInstr: string = plannerSysInstructions) => {
                         const timeoutPromise = new Promise<never>((_, reject) =>
                             setTimeout(() => reject(new Error(`AI Generation Timeout (${DEFAULT_TIMEOUT_MS / 1000}s)`)), DEFAULT_TIMEOUT_MS)
                         );
@@ -723,7 +724,7 @@ export const processSpellJob = onDocumentCreated(
                             const res = await getOR().chat.completions.create({
                                 model: MODELS.SPELL_S,
                                 messages: [
-                                    { role: 'system', content: sysInstructions },
+                                    { role: 'system', content: sysInstr },
                                     { role: 'user', content: content },
                                 ],
                                 ...OR_REASONING_HIGH,
@@ -736,7 +737,7 @@ export const processSpellJob = onDocumentCreated(
                         return Promise.race([generationPromise, timeoutPromise]) as Promise<any>;
                     };
 
-                    // Stage 1: Planning
+                    // Stage 1: Planning (compact capability list — no full docs)
                     console.log(`[Job ${jobId}] Stage 1: Planning...`);
                     const plannerPrompt = `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
                     const planResult = await callModel(plannerPrompt);
@@ -744,10 +745,19 @@ export const processSpellJob = onDocumentCreated(
                     const appPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Plan created:`, JSON.stringify(appPlan).substring(0, 200) + '...');
 
-                    // Stage 2: Coding
+                    // Build creator system instructions with full docs for selected capabilities only
+                    const selectedCaps = getCapabilitiesByApiNames(
+                        (appPlan?.technicalRequirements?.apis ?? []).map((a: any) => a.name),
+                        appVersion,
+                        ALL_CAPABILITIES,
+                    );
+                    const creatorSysInstructions = buildSystemInstructions(appVersion, selectedCaps);
+                    console.log(`[Job ${jobId}] Capabilities: ${selectedCaps.map(c => c.id).join(', ')} (${selectedCaps.length}/${ALL_CAPABILITIES.length})`);
+
+                    // Stage 2: Coding (full docs for selected capabilities only)
                     console.log(`[Job ${jobId}] Stage 2: Coding...`);
                     const codePrompt = `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
-                    const codeResult = await callModel(codePrompt);
+                    const codeResult = await callModel(codePrompt, creatorSysInstructions);
                     addUsage(codeResult);
 
                     resultText = fixCallbackPatterns(extractHtml(extractText(codeResult)));
@@ -776,7 +786,7 @@ export const processSpellJob = onDocumentCreated(
                         // Audit fix
                         auditLog.fixPrompt = fixPrompt;
 
-                        const fixResult = await callModel(fixPrompt);
+                        const fixResult = await callModel(fixPrompt, creatorSysInstructions);
                         addUsage(fixResult);
                         resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
                         if (!resultText) throw new Error("AI returned empty response");
@@ -812,7 +822,16 @@ export const processSpellJob = onDocumentCreated(
                             || result.usageMetadata?.cachedContentTokenCount || 0;
                     };
 
-                    const normalizedCode = currentCode.replace(/\r\n/g, "\n");
+                    // Self-heal corrupted stored code (e.g. from old extractHtml fence-matching bug)
+                    let rawCode = currentCode;
+                    if (rawCode && !rawCode.trimStart().startsWith('<')) {
+                        const recovered = extractHtml(rawCode);
+                        if (recovered && recovered.trimStart().startsWith('<')) {
+                            rawCode = recovered;
+                            console.log(`[Job ${jobId}] Auto-recovered corrupted spell code (${currentCode.length} → ${rawCode.length} chars)`);
+                        }
+                    }
+                    const normalizedCode = rawCode.replace(/\r\n/g, "\n");
                     const codeLines = normalizedCode.split("\n");
                     console.log(`[Job ${jobId}] Editing code: ${codeLines.length} lines, ${normalizedCode.length} chars`);
                     const numberedCode = codeLines.map((line: string, i: number) => `${i + 1}| ${line}`).join("\n");
@@ -827,9 +846,10 @@ export const processSpellJob = onDocumentCreated(
                         ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(item => `- localStorage["${item.key}"]: ${JSON.stringify(item.schema)}`).join('\n')}\n`
                         : '';
 
-                    const editSysInstructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+                    const editPlannerSysInstructions = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
+                    const editPatcherSysInstructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
 
-                    const callEditModel = async (content: string) => {
+                    const callEditModel = async (content: string, sysInstr: string = editPatcherSysInstructions) => {
                         const timeoutPromise = new Promise<never>((_, reject) =>
                             setTimeout(() => reject(new Error(`AI Generation Timeout (${DEFAULT_TIMEOUT_MS / 1000}s)`)), DEFAULT_TIMEOUT_MS)
                         );
@@ -837,7 +857,7 @@ export const processSpellJob = onDocumentCreated(
                             const res = await getOR().chat.completions.create({
                                 model: MODELS.SPELL_S,
                                 messages: [
-                                    { role: 'system', content: editSysInstructions },
+                                    { role: 'system', content: sysInstr },
                                     { role: 'user', content: content },
                                 ],
                                 ...OR_REASONING_HIGH,
@@ -850,10 +870,10 @@ export const processSpellJob = onDocumentCreated(
                         return Promise.race([generationPromise, timeoutPromise]) as Promise<any>;
                     };
 
-                    // Stage 1: Plan
+                    // Stage 1: Plan (compact capability list — planner only needs to know what's available)
                     console.log(`[Job ${jobId}] Stage 1: Planning Edit...`);
                     const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const planResult = await callEditModel(planPrompt);
+                    const planResult = await callEditModel(planPrompt, editPlannerSysInstructions);
                     addUsage(planResult);
                     const editPlan = extractJson(extractText(planResult));
                     console.log(`[Job ${jobId}] Edit Plan:`, JSON.stringify(editPlan, null, 2));
