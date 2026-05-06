@@ -502,10 +502,14 @@ describe('getUsage', () => {
 describe('calculateCostUsd — OpenRouter models', () => {
     const usage = { promptTokens: 1_000_000, responseTokens: 1_000_000 };
 
-    it('calculates non-zero cost for google/gemma-4-31b-it:online (SPELL_S)', () => {
-        const cost = calculateCostUsd('google/gemma-4-31b-it:online', usage);
+    it('calculates non-zero cost for google/gemma-4-31b-it', () => {
+        const cost = calculateCostUsd('google/gemma-4-31b-it', usage);
         expect(cost).toBeGreaterThan(0);
-        expect(cost).toBe(calculateCostUsd('google/gemma-4-31b-it', usage));
+    });
+
+    it('calculates non-zero cost for deepseek/deepseek-v4-flash (SPELL_S)', () => {
+        const cost = calculateCostUsd('deepseek/deepseek-v4-flash', usage);
+        expect(cost).toBeGreaterThan(0);
     });
 
     it('calculates non-zero cost for openai/gpt-oss-120b:free (SUGGEST)', () => {
@@ -518,11 +522,24 @@ describe('calculateCostUsd — OpenRouter models', () => {
         expect(cost).toBeGreaterThan(0);
     });
 
-    it('includes searchPerQuery cost for google/gemma-4-26b-a4b-it:online', () => {
-        const baseModel = 'google/gemma-4-26b-a4b-it:online';
-        const withSearch = calculateCostUsd(baseModel, usage, { searchQueries: 1 });
-        const withoutSearch = calculateCostUsd(baseModel, usage, { searchQueries: 0 });
+    it('includes searchPerQuery cost for google/gemma-4-26b-a4b-it', () => {
+        const withSearch = calculateCostUsd('google/gemma-4-26b-a4b-it', usage, { searchQueries: 1 });
+        const withoutSearch = calculateCostUsd('google/gemma-4-26b-a4b-it', usage, { searchQueries: 0 });
         expect(withSearch).toBeGreaterThan(withoutSearch);
+    });
+
+    it('calculates non-zero cost for google/gemini-3.1-flash-lite-preview (WEBVIEW_AUDIO)', () => {
+        const cost = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage);
+        expect(cost).toBeGreaterThan(0);
+    });
+
+    it('includes audioInputPerMToken cost for WEBVIEW_AUDIO model', () => {
+        const withAudio = calculateCostUsd(
+            'google/gemini-3.1-flash-lite-preview',
+            { promptTokens: 0, responseTokens: 0 },
+            { audioTokens: 1_000_000 },
+        );
+        expect(withAudio).toBeGreaterThan(0);
     });
 
     it('returns 0 for unknown model ID', () => {

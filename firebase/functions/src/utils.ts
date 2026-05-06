@@ -90,12 +90,12 @@ const USD_PRICING: Record<string, {
         inputPerMToken: 0.15,
         outputPerMToken: 0,
     },
-    // OpenRouter models — inherit same pricing as the Gemini models they replace
+    // OpenRouter models
     'google/gemma-4-31b-it': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
-    'google/gemma-4-31b-it:online': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
     'openai/gpt-oss-120b:free': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30 },
     'google/gemma-4-26b-a4b-it': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
-    'google/gemma-4-26b-a4b-it:online': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
+    'deepseek/deepseek-v4-flash': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
+    'google/gemini-3.1-flash-lite-preview': { inputPerMToken: 0.50, outputPerMToken: 3.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014, mapsPerQuery: 0.025 },
 };
 
 const USD_IMAGE_PER_UNIT = 0.04;
@@ -417,11 +417,16 @@ export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promis
         } catch (e: any) {
             lastError = e;
             const msg: string = e?.message || '';
+            const status: number | undefined = e?.status ?? e?.response?.status;
             const isRetryable =
                 msg.includes('DEADLINE_EXCEEDED') ||
                 msg.includes('UNAVAILABLE') ||
                 e?.cause?.code === 'UND_ERR_HEADERS_TIMEOUT' ||
-                msg.includes('UND_ERR_HEADERS_TIMEOUT');
+                msg.includes('UND_ERR_HEADERS_TIMEOUT') ||
+                status === 500 ||
+                status === 502 ||
+                status === 503 ||
+                status === 529; // OpenRouter overloaded
 
             if (isRetryable && attempt < maxRetries) {
                 const delay = Math.pow(2, attempt) * 1000;

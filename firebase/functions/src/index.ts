@@ -68,11 +68,16 @@ function getOR(): OpenAI {
 }
 
 const MODELS = {
-    SPELL_S: 'google/gemma-4-31b-it:online',   // create/edit/convert (web search always on)
+    SPELL_S: 'deepseek/deepseek-v4-flash',          // create/edit/convert
     SUGGEST: 'openai/gpt-oss-120b:free',            // suggestSpells
-    WEBVIEW: 'google/gemma-4-26b-a4b-it',      // webview_ai
+    WEBVIEW: 'google/gemma-4-26b-a4b-it',           // webview_ai (text/image)
+    WEBVIEW_AUDIO: 'google/gemini-3.1-flash-lite-preview', // webview_ai with audio input
 } as const;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const OR_REASONING_HIGH: any = { reasoning: { effort: 'high' } };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const OR_WEB_SEARCH: any = { tools: [{ type: 'openrouter:web_search' }] };
 
 
 // ============= COMPRESSION UTILS =============
@@ -461,7 +466,20 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
                 },
             }));
 
-            const suggestions = JSON.parse(result.choices[0].message.content!);
+            const content = result.choices[0]?.message?.content;
+            if (!content) throw new HttpsError("internal", "AI returned no suggestions. Please try again.");
+            let suggestions: Array<{ title: string; description: string }>;
+            try {
+                const parsed = JSON.parse(content);
+                suggestions = Array.isArray(parsed)
+                    ? parsed.map(s => ({
+                        title: String(s?.title ?? ''),
+                        description: String(s?.description ?? ''),
+                    }))
+                    : [];
+            } catch {
+                throw new HttpsError("internal", "AI returned malformed suggestions. Please try again.");
+            }
             return { suggestions };
         });
     }
@@ -708,6 +726,8 @@ export const processSpellJob = onDocumentCreated(
                                     { role: 'system', content: sysInstructions },
                                     { role: 'user', content: content },
                                 ],
+                                ...OR_REASONING_HIGH,
+                                ...OR_WEB_SEARCH,
                             });
                             const text = extractText(res);
                             if (!text) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
@@ -820,6 +840,8 @@ export const processSpellJob = onDocumentCreated(
                                     { role: 'system', content: editSysInstructions },
                                     { role: 'user', content: content },
                                 ],
+                                ...OR_REASONING_HIGH,
+                                ...OR_WEB_SEARCH,
                             });
                             const text = extractText(res);
                             if (!text) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
@@ -899,6 +921,8 @@ export const processSpellJob = onDocumentCreated(
                             { role: 'system', content: convertSysInstructions },
                             { role: 'user', content: convertPrompt },
                         ],
+                        ...OR_REASONING_HIGH,
+                        ...OR_WEB_SEARCH,
                     }));
 
                     const convU = getUsage(convertResult);
@@ -979,10 +1003,8 @@ export const processSpellJob = onDocumentCreated(
                     let tools = requestedTools || [];
                     if (useSearch && !tools.includes('googleSearch')) tools.push('googleSearch');
 
-                    // googleSearch and googleMaps both map to :online suffix in OpenRouter
-                    const useOnline = tools.includes('googleSearch') || tools.includes('googleMaps');
-                    const baseModel = requestedModel || MODELS.WEBVIEW;
-                    const effectiveModel = useOnline ? `${baseModel}:online` : baseModel;
+                    const useWebSearch = tools.includes('googleSearch') || tools.includes('googleMaps');
+                    const effectiveModel = requestedModel || (resolvedAudios?.length ? MODELS.WEBVIEW_AUDIO : MODELS.WEBVIEW);
 
                     console.log(`[Job ${jobId}] [WEBVIEW_AI] Model: ${effectiveModel}, Tools: ${tools}`);
 
@@ -1010,6 +1032,7 @@ export const processSpellJob = onDocumentCreated(
                         model: effectiveModel,
                         messages: [{ role: 'user', content: userContent }],
                         max_tokens: 65536,
+                        ...(useWebSearch ? OR_WEB_SEARCH : {}),
                         ...(resolvedSchema ? {
                             response_format: {
                                 type: 'json_schema',
@@ -1046,9 +1069,7 @@ export const processSpellJob = onDocumentCreated(
                         throw new Error("AI returned empty response");
                     }
 
-                    // Count search queries from OpenRouter annotations
-                    const annots = (result.choices[0].message as any).annotations ?? [];
-                    const actualSearchQueries = annots.filter((a: any) => a.type === 'url_citation').length;
+                    const actualSearchQueries = (result.usage as any)?.web_search_requests ?? 0;
 
                     const waiCostUsd = calculateCostUsd(effectiveModel, usage, {
                         searchQueries: actualSearchQueries,
@@ -1586,7 +1607,7 @@ export const uploadMedia = onCall({
 
 export const claimInstallBonus = onCall({ region: 'southamerica-east1' }, async (request) => {
     const uid = request.auth?.uid;
-    const bonus = 0;
+    const bonus = 2;
     if (!uid) throw new HttpsError('unauthenticated', 'Not authenticated');
 
     const hardwareId: string | undefined = request.data?.hardwareId;
