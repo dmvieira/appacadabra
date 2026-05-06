@@ -125,7 +125,16 @@
       "WebFetch(domain:dmvieira.github.io)",
       "WebFetch(domain:diogomunaro.com)",
       "Read(//c/dev/dmvieira.github.io/theme/js//**)",
-      "Read(//c/dev/dmvieira.github.io/theme/js/**)"
+      "Read(//c/dev/dmvieira.github.io/theme/js/**)",
+      "Bash(npx firebase-tools *)",
+      "Read(//c/Users/vivia/.config/**)",
+      "Read(//c/Users/vivia/AppData/Roaming/**)",
+      "Read(//c/Users/vivia/AppData/Local/**)",
+      "Read(//c/Users/vivia/AppData/Local/Claude/**)",
+      "Read(//c/Users/vivia/.claude/**)",
+      "Bash(ls *.json)",
+      "Bash(ls service-account*)",
+      "Bash(gcloud auth *)"
     ]
   }
 }

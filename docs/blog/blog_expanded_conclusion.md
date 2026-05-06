@@ -50,6 +50,7 @@ mindmap
       /dependency-audit
       /stack-router
       /add-locale-string
+      /update-locale-string
     Finance
       /mana-calibrate
     Legal
@@ -94,6 +95,7 @@ Twenty-seven executable commands — the institutional knowledge of the company 
 | `/dependency-audit` | Engineering | Audits a new npm package for New Architecture compatibility, bundle size, and conflicts |
 | `/stack-router` | Engineering | Routes tasks to the right model — Claude (TypeScript), Gemini (Android), or OpenRouter (bulk translation) |
 | `/add-locale-string` | Engineering | Adds a new i18n key across all 17 locales via OpenRouter (cheap multilingual model), with back-translation verification for JA/AR/HI/KO |
+| `/update-locale-string` | Engineering | Updates an existing i18n key value across all 17 locales — re-translates via OpenRouter and overwrites in both `lib/i18n.ts` and `website/js/translations.js` |
 | `/mana-calibrate` | Finance | Recalculates mana costs for all operations based on current API pricing, flags margins below 30% |
 | `/compliance-check` | Legal | Audits a new feature against GDPR, LGPD, COPPA, and Google Play policies |
 | `/policy-diff` | Legal | Analyzes a policy change for re-consent requirements and Data Safety form impact |
@@ -120,7 +122,7 @@ Twenty-seven executable commands — the institutional knowledge of the company 
 
 The agents don't operate in isolation. The architecture that makes this a company operating system — rather than eleven disconnected tools — is the network of dependencies and handoffs between them.
 
-The **Engineering Agent** is the hub. Its output feeds directly into the **QA Agent** (every new function generates tests) and the **Finance Agent** (every new AI operation requires mana calibration). It receives constraints from the **Strategy Agent** (what to build), the **UX Agent** (how screens should behave), and the **Legal Agent** (what data flows are permissible). It also owns localization — every new UI string passes through `/add-locale-string` before shipping.
+The **Engineering Agent** is the hub. Its output feeds directly into the **QA Agent** (every new function generates tests) and the **Finance Agent** (every new AI operation requires mana calibration). It receives constraints from the **Strategy Agent** (what to build), the **UX Agent** (how screens should behave), and the **Legal Agent** (what data flows are permissible). It also owns localization — every new UI string passes through `/add-locale-string` before shipping, and any copy update to an existing string goes through `/update-locale-string`.
 
 The **Release Agent** sits downstream of everything. It consumes Engineering output (code), the Engineering Agent's localization work (release notes in 17 languages), Analytics data (rollout health signals), and Finance output (mana pricing that must be accurate before shipping). A release decision is, implicitly, a validation that every upstream agent did its job.
 
