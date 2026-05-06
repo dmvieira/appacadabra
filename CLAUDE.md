@@ -144,3 +144,21 @@ Pacote: `ai.appacadabra.app` (pasta física: `com/dmvieira/appacadabra/`)
 | `npm run sync-capabilities` | Sincroniza capabilities → Firebase + AndroidManifest |
 | `npm run prebuild:clean` | Expo prebuild + setup-android.js (gera local.properties) |
 | `npm test` | Jest (159/164 passando; 5 falhas pré-existentes em codeValidator e i18n) |
+
+---
+
+## Processo de Release
+
+Usar os skills do Claude Code na seguinte ordem:
+
+| Passo | Skill / Ação |
+|-------|-------------|
+| 1. Preparar e verificar | `/release-checklist` — checklist pré-submissão (versions, permissions, store listing) |
+| 2. Gerar notas + bump + tag | `/release-notes` — lê commits desde última tag, gera notas em 20 locales, faz bump de versão em `app.json` / `package.json` / `build.gradle`, escreve `docs/RELEASE_NOTES.md`, cria tag git e commit |
+| 3. Build AAB | `./gradlew bundleRelease` (requer keystore configurado) |
+| 4. Upload | Play Console → Create new release → upload AAB + copiar `RELEASE_NOTES.md` por locale |
+
+**Ficheiros de release:**
+- `docs/RELEASE_NOTES.md` — notas do release atual (20 locales, formato `<en-US>...</en-US>`)
+- `docs/PLAY_STORE_TRANSLATIONS.md` — descrições completas da store por locale
+- `docs/APP_STORE_REVIEW.md` — documentação para reviewers da Google

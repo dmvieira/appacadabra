@@ -1,170 +1,149 @@
 ## Version Name
-Health & Fitness Integration
+Spell Fixes & AI Improvements
 
 <en-US>
-• New: Health capability — read steps, heart rate, exercise, sleep and calories via Health Connect
-• Spells can now access health data with user permission
-• Report bugs from settings menu with optional spell attachment
-• Docs capability: convert between Markdown, HTML and PDF
-• Fixed: duplicate spell creation on rapid taps
+• Example spells now fully work: AI suggestions, Health data, Contacts, Camera & Voice Input
+• New notification hint so you never miss a spell update
+• Spell generation is more reliable — your ideas arrive with more magic
+• Active spells are restored if you leave and return to the app
 </en-US>
 
 <ar>
-• جديد: ميزة الصحة — قراءة الخطوات ومعدل ضربات القلب والتمارين والنوم والسعرات عبر Health Connect
-• يمكن للتعويذات الآن الوصول إلى بيانات الصحة بإذن المستخدم
-• أبلغ عن الأخطاء من قائمة الإعدادات مع إرفاق تعويذة اختياري
-• Docs: تحويل بين Markdown وHTML وPDF
-• تم الإصلاح: إنشاء تعويذة مكررة عند النقر السريع
+• تعمل التعويذات التجريبية الآن بشكل كامل: اقتراحات الذكاء الاصطناعي، بيانات الصحة، جهات الاتصال، الكاميرا والصوت
+• تلميح الإشعارات الجديد حتى لا تفوتك أي تحديثات للتعويذات
+• توليد التعويذات أكثر موثوقية — أفكارك تصل بمزيد من السحر
+• التعويذات النشطة تُستأنف إذا غادرت التطبيق وعدت
 </ar>
 
 <de-DE>
-• Neu: Health-Funktion — Schritte, Herzfrequenz, Sport, Schlaf und Kalorien via Health Connect
-• Zauber können nun mit Nutzerberechtigung auf Gesundheitsdaten zugreifen
-• Fehler aus dem Einstellungsmenü melden mit optionalem Zauber-Anhang
-• Docs: Konvertierung zwischen Markdown, HTML und PDF
-• Behoben: Doppelte Zauber-Erstellung bei schnellem Tippen
+• Beispiel-Zauber funktionieren jetzt vollständig: KI-Vorschläge, Gesundheitsdaten, Kontakte, Kamera & Spracheingabe
+• Neuer Benachrichtigungshinweis, damit du keine Zauber-Updates verpasst
+• Zauber-Generierung ist zuverlässiger — deine Ideen kommen mit mehr Magie an
+• Aktive Zauber werden wiederhergestellt, wenn du die App verlässt und zurückkehrst
 </de-DE>
 
 <es-419>
-• Nuevo: Capacidad de salud — pasos, frecuencia cardíaca, ejercicio, sueño y calorías via Health Connect
-• Los spells ahora pueden acceder a datos de salud con permiso del usuario
-• Reporta errores desde el menú de configuración con adjunto de spell opcional
-• Docs: convierte entre Markdown, HTML y PDF
-• Corregido: creación duplicada de spell al tocar rápido
+• Los spells de ejemplo ahora funcionan completamente: sugerencias de IA, datos de salud, contactos, cámara y voz
+• Nueva pista de notificaciones para no perderte actualizaciones de tus spells
+• La generación de spells es más confiable — tus ideas llegan con más magia
+• Los spells activos se restauran si sales y vuelves a la app
 </es-419>
 
 <es-ES>
-• Nuevo: Capacidad de salud — pasos, frecuencia cardíaca, ejercicio, sueño y calorías via Health Connect
-• Los spells ahora pueden acceder a datos de salud con permiso del usuario
-• Reporta errores desde el menú de configuración con adjunto de spell opcional
-• Docs: convierte entre Markdown, HTML y PDF
-• Corregido: creación duplicada de spell al tocar rápido
+• Los spells de ejemplo funcionan ahora completamente: sugerencias de IA, datos de salud, contactos, cámara y voz
+• Nueva pista de notificaciones para no perderte actualizaciones de tus spells
+• La generación de spells es más fiable — tus ideas llegan con más magia
+• Los spells activos se restauran si sales y vuelves a la app
 </es-ES>
 
 <es-US>
-• Nuevo: Capacidad de salud — pasos, frecuencia cardíaca, ejercicio, sueño y calorías via Health Connect
-• Los spells ahora pueden acceder a datos de salud con permiso del usuario
-• Reporta errores desde el menú de configuración con adjunto de spell opcional
-• Docs: convierte entre Markdown, HTML y PDF
-• Corregido: creación duplicada de spell al tocar rápido
+• Los spells de ejemplo ahora funcionan completamente: sugerencias de IA, datos de salud, contactos, cámara y voz
+• Nueva pista de notificaciones para no perderte actualizaciones de tus spells
+• La generación de spells es más confiable — tus ideas llegan con más magia
+• Los spells activos se restauran si sales y vuelves a la app
 </es-US>
 
 <fr-CA>
-• Nouveau : Fonctionnalité Santé — pas, fréquence cardiaque, exercice, sommeil et calories via Health Connect
-• Les sorts peuvent maintenant accéder aux données de santé avec l'autorisation de l'utilisateur
-• Signalez des bugs depuis le menu paramètres avec une pièce jointe de sort optionnelle
-• Docs : conversion entre Markdown, HTML et PDF
-• Corrigé : création en double d'un sort en tapotant rapidement
+• Les sorts d'exemple fonctionnent maintenant pleinement : suggestions IA, données de santé, contacts, caméra et voix
+• Nouvelle indication de notifications pour ne manquer aucune mise à jour de sort
+• La génération de sorts est plus fiable — vos idées arrivent avec plus de magie
+• Les sorts actifs sont restaurés si vous quittez l'app et revenez
 </fr-CA>
 
 <fr-FR>
-• Nouveau : Fonctionnalité Santé — pas, fréquence cardiaque, exercice, sommeil et calories via Health Connect
-• Les sorts peuvent maintenant accéder aux données de santé avec l'autorisation de l'utilisateur
-• Signalez des bugs depuis le menu paramètres avec une pièce jointe de sort optionnelle
-• Docs : conversion entre Markdown, HTML et PDF
-• Corrigé : création en double d'un sort en tapotant rapidement
+• Les sorts d'exemple fonctionnent maintenant pleinement : suggestions IA, données de santé, contacts, caméra et voix
+• Nouvelle indication de notifications pour ne manquer aucune mise à jour de sort
+• La génération de sorts est plus fiable — vos idées arrivent avec plus de magie
+• Les sorts actifs sont restaurés si vous quittez l'app et revenez
 </fr-FR>
 
 <hi-IN>
-• नया: हेल्थ फीचर — Health Connect से कदम, हृदय गति, व्यायाम, नींद और कैलोरी पढ़ें
-• स्पेल अब उपयोगकर्ता की अनुमति से स्वास्थ्य डेटा एक्सेस कर सकते हैं
-• सेटिंग्स मेनू से बग रिपोर्ट करें, वैकल्पिक स्पेल अटैचमेंट के साथ
-• Docs: Markdown, HTML और PDF के बीच रूपांतरण
-• ठीक किया: तेज़ टैप पर स्पेल का दोहरा निर्माण
+• उदाहरण स्पेल अब पूरी तरह काम करते हैं: AI सुझाव, स्वास्थ्य डेटा, संपर्क, कैमरा और वॉयस इनपुट
+• नई नोटिफ़िकेशन संकेत ताकि आप कोई स्पेल अपडेट न चूकें
+• स्पेल जनरेशन अधिक विश्वसनीय — आपके विचार अधिक जादू के साथ पहुँचते हैं
+• सक्रिय स्पेल बहाल होते हैं यदि आप ऐप छोड़ कर वापस आते हैं
 </hi-IN>
 
 <it-IT>
-• Novità: Funzione Salute — passi, frequenza cardiaca, esercizio, sonno e calorie via Health Connect
-• Gli incantesimi possono ora accedere ai dati sanitari con il permesso dell'utente
-• Segnala bug dal menu impostazioni con allegato incantesimo opzionale
-• Docs: converti tra Markdown, HTML e PDF
-• Risolto: creazione duplicata di incantesimo con tap rapidi
+• Gli incantesimi di esempio ora funzionano pienamente: suggerimenti IA, dati salute, contatti, fotocamera e voce
+• Nuovo suggerimento notifiche per non perdere aggiornamenti sugli incantesimi
+• La generazione di incantesimi è più affidabile — le tue idee arrivano con più magia
+• Gli incantesimi attivi vengono ripristinati se esci e torni nell'app
 </it-IT>
 
 <ja-JP>
-• 新機能: ヘルス機能 — Health Connectで歩数・心拍数・運動・睡眠・カロリーを取得
-• スペルがユーザー許可のもと健康データにアクセス可能に
-• 設定メニューからバグを報告、スペルの添付も可能
-• Docs: Markdown・HTML・PDF間の変換に対応
-• 修正: 素早いタップによるスペルの二重作成
+• サンプルスペルが完全に機能するように: AI提案、健康データ、連絡先、カメラ、音声入力
+• スペルの更新を見逃さないための新しい通知ヒント
+• スペル生成がより信頼性アップ — あなたのアイデアがよりmagicalに届く
+• アプリを離れても、進行中のスペルが復元されます
 </ja-JP>
 
 <ko-KR>
-• 신기능: 헬스 기능 — Health Connect로 걸음 수, 심박수, 운동, 수면, 칼로리 읽기
-• 이제 스펠이 사용자 권한으로 건강 데이터에 접근 가능
-• 설정 메뉴에서 버그 신고, 스펠 첨부 선택 가능
-• Docs: Markdown, HTML, PDF 간 변환 지원
-• 수정: 빠른 탭으로 인한 스펠 중복 생성
+• 예시 스펠이 이제 완전히 작동: AI 제안, 건강 데이터, 연락처, 카메라 & 음성 입력
+• 스펠 업데이트를 놓치지 않도록 새 알림 힌트 추가
+• 스펠 생성이 더 안정적 — 당신의 아이디어가 더 많은 마법과 함께 도착
+• 활성 스펠은 앱을 나갔다가 돌아와도 복원됩니다
 </ko-KR>
 
 <nl-NL>
-• Nieuw: Gezondheids-functie — stappen, hartslag, sport, slaap en calorieën via Health Connect
-• Spells kunnen nu met gebruikerstoestemming gezondheidsdata lezen
-• Meld bugs via het instellingenmenu met optionele spell-bijlage
-• Docs: converteer tussen Markdown, HTML en PDF
-• Opgelost: dubbele spellaanmaak bij snel tikken
+• Voorbeeldspreuken werken nu volledig: AI-suggesties, gezondheidsdata, contacten, camera en spraak
+• Nieuwe meldingshint zodat je geen spreuk-updates mist
+• Spreukgeneratie is betrouwbaarder — jouw ideeën komen met meer magie aan
+• Actieve spreuken worden hersteld als je de app verlaat en terugkomt
 </nl-NL>
 
 <pl-PL>
-• Nowość: Funkcja zdrowia — kroki, tętno, ćwiczenia, sen i kalorie przez Health Connect
-• Zaklęcia mogą teraz uzyskiwać dostęp do danych zdrowotnych za zgodą użytkownika
-• Zgłaszaj błędy z menu ustawień z opcjonalnym załącznikiem zaklęcia
-• Docs: konwersja między Markdown, HTML i PDF
-• Naprawiono: podwójne tworzenie zaklęcia przy szybkim tapnięciu
+• Przykładowe zaklęcia działają teraz w pełni: sugestie AI, dane zdrowotne, kontakty, kamera i głos
+• Nowa wskazówka powiadomień, by nie przegapić aktualizacji zaklęć
+• Generowanie zaklęć jest bardziej niezawodne — Twoje pomysły docierają z większą magią
+• Aktywne zaklęcia są przywracane po powrocie do aplikacji
 </pl-PL>
 
 <pt-BR>
-• Novo: Capacidade de Saúde — leia passos, frequência cardíaca, exercício, sono e calorias via Health Connect
-• Feitiços agora podem acessar dados de saúde com permissão do usuário
-• Relate bugs pelo menu de configurações com anexo de feitiço opcional
-• Docs: converter entre Markdown, HTML e PDF
-• Corrigido: criação duplicada de feitiço em toques rápidos
+• Feitiços de exemplo agora funcionam completamente: sugestões de IA, dados de saúde, contatos, câmera e voz
+• Nova dica de notificações para não perder atualizações dos seus feitiços
+• Geração de feitiços mais confiável — suas ideias chegam com mais magia
+• Feitiços em andamento são restaurados se você sair e voltar ao app
 </pt-BR>
 
 <pt-PT>
-• Novo: Capacidade de Saúde — leia passos, frequência cardíaca, exercício, sono e calorias via Health Connect
-• Feitiços podem agora aceder a dados de saúde com permissão do utilizador
-• Reporte bugs pelo menu de definições com anexo de feitiço opcional
-• Docs: converter entre Markdown, HTML e PDF
-• Corrigido: criação duplicada de feitiço em toques rápidos
+• Feitiços de exemplo funcionam agora completamente: sugestões de IA, dados de saúde, contactos, câmara e voz
+• Nova dica de notificações para não perder actualizações dos seus feitiços
+• Geração de feitiços mais fiável — as suas ideias chegam com mais magia
+• Feitiços em curso são retomados se sair e voltar à app
 </pt-PT>
 
 <ru-RU>
-• Новое: функция Здоровье — шаги, пульс, тренировки, сон и калории через Health Connect
-• Заклинания теперь могут получать данные о здоровье с разрешения пользователя
-• Сообщайте об ошибках из меню настроек с опциональным прикреплением заклинания
-• Docs: конвертация между Markdown, HTML и PDF
-• Исправлено: двойное создание заклинания при быстрых нажатиях
+• Примерные заклинания теперь работают полностью: предложения ИИ, данные здоровья, контакты, камера и голос
+• Новая подсказка уведомлений, чтобы не пропустить обновления заклинаний
+• Генерация заклинаний стала надёжнее — ваши идеи приходят с большей магией
+• Активные заклинания восстанавливаются при возвращении в приложение
 </ru-RU>
 
 <th>
-• ใหม่: ฟีเจอร์สุขภาพ — อ่านก้าวเดิน อัตราหัวใจ การออกกำลังกาย การนอน และแคลอรี่ผ่าน Health Connect
-• สเปลสามารถเข้าถึงข้อมูลสุขภาพได้เมื่อได้รับอนุญาตจากผู้ใช้
-• รายงานบักจากเมนูตั้งค่า พร้อมแนบสเปลได้
-• Docs: แปลงระหว่าง Markdown, HTML และ PDF
-• แก้ไข: สเปลถูกสร้างซ้ำเมื่อแตะเร็ว
+• สเปลตัวอย่างทำงานได้อย่างสมบูรณ์แล้ว: AI แนะนำ, ข้อมูลสุขภาพ, ผู้ติดต่อ, กล้อง & เสียง
+• คำแนะนำการแจ้งเตือนใหม่ เพื่อไม่พลาดการอัปเดตสเปล
+• การสร้างสเปลน่าเชื่อถือมากขึ้น — ไอเดียของคุณมาพร้อมมนต์มากขึ้น
+• สเปลที่ใช้งานอยู่จะถูกกู้คืนเมื่อคุณกลับมาที่แอป
 </th>
 
 <tr-TR>
-• Yeni: Sağlık özelliği — Health Connect ile adım, nabız, egzersiz, uyku ve kalori okuma
-• Speller artık kullanıcı izniyle sağlık verilerine erişebilir
-• Ayarlar menüsünden hata bildirin, isteğe bağlı spell eki ile
-• Docs: Markdown, HTML ve PDF arasında dönüştürme
-• Düzeltildi: hızlı dokununca spell'in iki kez oluşturulması
+• Örnek speller artık tam çalışıyor: AI önerileri, sağlık verileri, kişiler, kamera ve ses girişi
+• Spell güncellemelerini kaçırmamak için yeni bildirim ipucu
+• Spell oluşturma daha güvenilir — fikirleriniz daha fazla sihirle geliyor
+• Aktif speller uygulamayı bırakıp geri döndüğünüzde geri yüklenir
 </tr-TR>
 
 <vi>
-• Mới: Tính năng sức khỏe — đọc bước chân, nhịp tim, tập luyện, giấc ngủ và calo qua Health Connect
-• Spell giờ có thể truy cập dữ liệu sức khỏe với quyền của người dùng
-• Báo cáo lỗi từ menu cài đặt, có thể đính kèm spell tùy chọn
-• Docs: chuyển đổi giữa Markdown, HTML và PDF
-• Đã sửa: tạo spell trùng lặp khi chạm nhanh
+• Spell mẫu giờ hoạt động đầy đủ: gợi ý AI, dữ liệu sức khỏe, danh bạ, máy ảnh & giọng nói
+• Gợi ý thông báo mới để không bỏ lỡ cập nhật spell nào
+• Tạo spell đáng tin cậy hơn — ý tưởng của bạn đến với nhiều phép thuật hơn
+• Spell đang chạy được khôi phục khi bạn quay lại ứng dụng
 </vi>
 
 <zh-CN>
-• 新功能：健康功能 — 通过 Health Connect 读取步数、心率、运动、睡眠和卡路里
-• 法术现在可在用户授权下访问健康数据
-• 从设置菜单报告错误，可选附加法术
-• Docs：支持Markdown、HTML和PDF之间的转换
-• 修复：快速点击导致法术重复创建
+• 示例法术现在完全正常：AI建议、健康数据、联系人、相机和语音输入
+• 新通知提示，不错过任何法术更新
+• 法术生成更可靠 — 您的想法带着更多魔法到来
+• 离开再回到应用后，进行中的法术会自动恢复
 </zh-CN>
