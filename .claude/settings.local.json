@@ -120,7 +120,12 @@
       "Bash(firebase secrets:set OPENROUTER_API_KEY)",
       "Bash(firebase functions:secrets:set OPENROUTER_API_KEY)",
       "Bash(firebase functions:secrets:set OPENROUTER_API_KEY --project appacadabra-bee0f)",
-      "Bash(dir \"C:\\\\dev\\\\appacadabra\\\\lib\")"
+      "Bash(dir \"C:\\\\dev\\\\appacadabra\\\\lib\")",
+      "Bash(gh api *)",
+      "WebFetch(domain:dmvieira.github.io)",
+      "WebFetch(domain:diogomunaro.com)",
+      "Read(//c/dev/dmvieira.github.io/theme/js//**)",
+      "Read(//c/dev/dmvieira.github.io/theme/js/**)"
     ]
   }
 }

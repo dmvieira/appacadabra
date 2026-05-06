@@ -1101,7 +1101,7 @@ export default function HomeScreen() {
                             {t('notifHintText')}
                         </Text>
                         <TouchableOpacity
-                            onPress={() => { dismissNotifHint(); Linking.openURL('app-settings:'); }}
+                            onPress={() => { dismissNotifHint(); Linking.openSettings(); }}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
                             <Text style={[styles.statusBannerTitle, { marginStart: spacing.sm }]}>

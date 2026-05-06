@@ -1,50 +1,89 @@
-Add a new i18n string to all 17 language translations in Appacadabra.
+Add a new i18n string to all 17 language translations in Appacadabra using OpenRouter for cost-efficient translation.
 
-**Usage:** `/add-locale-string key="myNewKey" en="English text here"`
+**Usage:** `/add-locale-string key="myNewKey" en="English source text"`  
+(You may also pass `pt="..."` instead of `en` if the source is Portuguese.)
 
 **Arguments:** $ARGUMENTS
 
 ## Steps
 
-1. Read `lib/i18n.ts` to see the full translation structure for all 17 languages:
-   EN, PT, ES, FR, DE, IT, JA, ZH, KO, AR, HI, RU, TR, NL, PL, VI, TH
+### 1. Check API key
 
-2. Understand the context:
-   - Appacadabra uses a "magic/spell" metaphor — maintain that tone where appropriate
-   - The app is used by non-technical users — keep translations simple and clear
-   - Brand name "Appacadabra" is never translated (kept as-is)
-   - "Spell" (the generated apps) may have local equivalents: PT: "Feitiço", ES: "Hechizo", etc.
+Run `echo "${OPENROUTER_API_KEY:0:4}"` via Bash to confirm the key is set.  
+If empty, stop and tell the user: "Set `OPENROUTER_API_KEY` in `.claude/settings.local.json` under `\"env\": { \"OPENROUTER_API_KEY\": \"sk-or-...\" }` and restart Claude Code."
 
-3. Generate translations for the English source text in all 16 remaining languages.
+### 2. Read context from `lib/i18n.ts`
 
-4. For each translation:
-   - Match the tone and formality level of the surrounding strings in that language
-   - Preserve any React Native i18n interpolation variables like `%{name}`, `%{count}`, `%{days}`
-   - For Arabic: apply RTL-aware phrasing if needed
-   - For Japanese/Korean/Chinese: prefer shorter text (UI space is limited)
+Read the file and extract:
+- The **insertion point**: the key `editJobStarted` in each language block (insert the new keys immediately after it)
+- The **spell-term equivalents** per language (search for existing keys like `jobStarted`, `newApp`, etc. to see how each locale refers to "spell" / "feitiço")
+- A sample of ~3 nearby strings per locale to understand tone and formality
 
-5. Apply a **back-translation verification** for languages you're less certain about:
-   - Translate back to English and check that meaning + tone survived
-   - Flag any translations with confidence < 90% for manual review
+### 3. Call OpenRouter for all 17 translations
 
-## Output format
+Build and run this Bash command, replacing `SOURCE_LANG`, `SOURCE_TEXT`, and `NEW_KEY` with values parsed from `$ARGUMENTS`:
 
-```typescript
-// Add to lib/i18n.ts inside each language object:
+```bash
+PAYLOAD=$(node -e "
+const sourceLang = 'en'; // or 'pt' if pt= was given
+const sourceText = 'The source string from arguments';
+const newKey = 'theKeyFromArguments';
 
-// EN (source)
-myNewKey: 'English text here',
+const sys = \`You are a mobile app translation engine for Appacadabra, a spell/magic-themed AI app generator.
+Rules:
+- Never translate the brand name 'Appacadabra'
+- 'Spell' equivalents per locale: pt=Feitiço, es=Hechizo, fr=Sort, de=Zauber, it=Incantesimo, ja=魔法, zh=咒语, ko=주문, ar=تعويذة, hi=जादू, ru=заклинание, tr=büyü, nl=spreuk, pl=zaklęcie, vi=phép thuật, th=คาถา
+- Match the casual/friendly tone of surrounding mobile UI strings
+- JA, ZH, KO: keep translations compact (UI space is limited)
+- AR: use natural RTL phrasing
+- Preserve any %{variable} interpolation tokens exactly as-is
+- Respond with ONLY a valid JSON object, no markdown, no explanation\`;
 
-// PT
-myNewKey: 'Texto em português aqui',
+const user = \`Translate the following \${sourceLang.toUpperCase()} string into all 17 locales.
+Source (\${sourceLang}): \${JSON.stringify(sourceText)}
 
-// ES
-myNewKey: '...',
+Return a JSON object with exactly these keys: en, pt, es, fr, de, it, ja, zh, ko, ar, hi, ru, tr, nl, pl, vi, th\`;
 
-// [continue for all 17 languages]
+console.log(JSON.stringify({
+  model: 'google/gemma-4-27b-it',
+  response_format: { type: 'json_object' },
+  messages: [
+    { role: 'system', content: sys },
+    { role: 'user', content: user }
+  ]
+}));
+")
+
+RESULT=$(curl -s https://openrouter.ai/api/v1/chat/completions \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD")
+
+echo "$RESULT" | node -e "
+  let d=''; process.stdin.on('data',c=>d+=c);
+  process.stdin.on('end',()=>{
+    const r=JSON.parse(d);
+    if(!r.choices) { console.error('API error:', JSON.stringify(r)); process.exit(1); }
+    console.log(r.choices[0].message.content);
+  });
+"
 ```
 
-Also output:
-- A ready-to-paste block for `lib/i18n.ts` with all translations in the correct order
-- A list of any translations flagged for manual review (with the back-translation shown)
-- TypeScript key added to the type definition if the file uses explicit key typing
+If the curl call fails or returns an error field, log it and stop — do not fall back to self-generating translations.
+
+### 4. Verify translations
+
+Inspect the returned JSON. For JA, ZH, KO, AR, HI, TH: mentally back-translate to confirm meaning survived. If any value looks wrong (e.g. still in English, garbled, or missing), re-run step 3 with a more explicit prompt for those specific locales.
+
+### 5. Write to `lib/i18n.ts`
+
+Using the Edit tool, insert `newKey: 'translation',` immediately after `editJobStarted: '...',` in each of the 17 language blocks. Maintain the exact indentation of surrounding keys.
+
+The locale order in the file is: en, pt, es, fr, de, it, ja, zh, ko, ar, hi, ru, tr, nl, pl, vi, th — insert in the same order you encounter each block.
+
+### 6. Report
+
+Output:
+- The model and token usage from the API response (`r.usage`)
+- Any translations flagged during back-translation review
+- Confirmation that the key was written to all 17 blocks

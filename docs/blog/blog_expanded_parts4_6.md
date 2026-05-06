@@ -84,7 +84,7 @@ flowchart LR
 
 This is not a perfect validation method. I want to be honest about that. Back-translation catches semantic errors but misses cultural connotation, humor register, and regional idiom. The honest acknowledgment: **this was a calculated acceptance of imperfect validation in exchange for global reach that would otherwise have been impossible.**
 
-The **Locale String MCP** (`/add-locale-string`) that emerged from this work could, given any new UI string key added in English, automatically generate translations across all 17 supported locales, apply back-translation verification, flag strings with confidence below a threshold, and insert them into `lib/i18n.ts` with consistent formatting. What had been a multi-week project at a well-funded startup became a pipeline that ran in minutes.
+The **Locale String MCP** (`/add-locale-string`) that emerged from this work could, given any new UI string key added in English, automatically generate translations across all 17 supported locales via a single OpenRouter API call (using a cheap multilingual model — fractions of a cent per run), apply back-translation verification, flag strings with confidence below a threshold, and insert them into `lib/i18n.ts` with consistent formatting. What had been a multi-week project at a well-funded startup became a pipeline that ran in minutes.
 
 *The product could now be built in any language. The question became: could the business survive long enough to need that capability? That question sent me to the Finance Department.*
 

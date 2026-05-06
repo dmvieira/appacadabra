@@ -93,7 +93,7 @@ Twenty-seven executable commands — the institutional knowledge of the company 
 | `/validate-schema` | Engineering | Validates Firestore document shapes and SQLite schema against TypeScript type definitions |
 | `/dependency-audit` | Engineering | Audits a new npm package for New Architecture compatibility, bundle size, and conflicts |
 | `/stack-router` | Engineering | Routes tasks to the right model — Claude (TypeScript), Gemini (Android), or OpenRouter (bulk translation) |
-| `/add-locale-string` | Engineering | Adds a new i18n key across all 17 locales with back-translation verification for JA/AR/HI/KO |
+| `/add-locale-string` | Engineering | Adds a new i18n key across all 17 locales via OpenRouter (cheap multilingual model), with back-translation verification for JA/AR/HI/KO |
 | `/mana-calibrate` | Finance | Recalculates mana costs for all operations based on current API pricing, flags margins below 30% |
 | `/compliance-check` | Legal | Audits a new feature against GDPR, LGPD, COPPA, and Google Play policies |
 | `/policy-diff` | Legal | Analyzes a policy change for re-consent requirements and Data Safety form impact |
