@@ -189,6 +189,7 @@ export default function HomeScreen() {
     // Restore failed CREATE prompt — re-open dialog with user's original text
     useEffect(() => {
         if (lastFailedPrompt?.type === 'create') {
+            clearError();
             setCreateDialogInitialText(lastFailedPrompt.text);
             setShowCreateDialog(true);
         }
@@ -691,6 +692,15 @@ export default function HomeScreen() {
         setFirstRunSetupTarget(null);
         await AsyncStorage.setItem(`spell_setup_done_${app.id}`, '1');
         maybeStartCoach(app.id);
+        if (Platform.OS === 'ios') {
+            router.push({ pathname: '/runner/[id]', params: { id: app.id } });
+        } else {
+            const success = await ShareIntent.openRunnerWindow(app.id);
+            if (!success) {
+                console.error('Native openRunnerWindow failed');
+                alert(t('errorOpeningWindow'));
+            }
+        }
     };
 
     const handleSetupIconFromGallery = async () => {
@@ -1247,6 +1257,7 @@ export default function HomeScreen() {
                             );
                         } else {
                             logSpellCreateOpened(apps.length === 0);
+                            clearError();
                             setShowCreateDialog(true);
                         }
                     }}

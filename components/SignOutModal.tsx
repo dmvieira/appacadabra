@@ -62,9 +62,8 @@ const SignOutModal: React.FC<SignOutModalProps> = ({ visible, onClose, onSelectK
                                 style={[styles.optionCard, styles.clearCard]}
                                 disabled={isLoading}
                                 onPress={async () => {
-                                    setIsLoading(true);
-                                    try { await onSelectClear(); } finally { setIsLoading(false); }
                                     onClose();
+                                    await onSelectClear();
                                 }}
                             >
                                 <View style={[styles.optionIconContainer, styles.clearIconContainer]}>

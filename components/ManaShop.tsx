@@ -53,6 +53,7 @@ export function ManaShop() {
     // Load IAP and Ads when shop opens
     useEffect(() => {
         if (isShopOpen) {
+            if (isAnonymous) setShowLoginPrompt(true);
             loadRewardedAd();
             initializeIAP();
         }
