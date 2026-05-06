@@ -143,6 +143,7 @@ export default function HomeScreen() {
     const [restoringSpell, setRestoringSpell] = useState<string | null>(null);
     const [suggestions, setSuggestions] = useState<Array<{ title: string; description: string }>>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const [showNotifHint, setShowNotifHint] = useState(false);
 
     // Backup store
     const { backupMode, localFolderUri, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup, isRestoring, lastBackupAt } = useBackupStore();
@@ -417,6 +418,29 @@ export default function HomeScreen() {
             return () => clearTimeout(timer);
         }
     }, [statusMessage]);
+
+    const NOTIF_HINT_DISMISSED_KEY = 'notif_hint_dismissed';
+    useEffect(() => {
+        const hasInFlight = creatingApps.length > 0 || updatingAppIds.length > 0;
+        if (!hasInFlight) {
+            setShowNotifHint(false);
+            return;
+        }
+        Promise.all([
+            Notifications.getPermissionsAsync(),
+            AsyncStorage.getItem(NOTIF_HINT_DISMISSED_KEY),
+        ]).then(([{ status }, dismissed]) => {
+            if (status !== 'granted' && !dismissed) {
+                setShowNotifHint(true);
+                setTimeout(() => setShowNotifHint(false), 6000);
+            }
+        });
+    }, [creatingApps.length, updatingAppIds.length]);
+
+    const dismissNotifHint = useCallback(() => {
+        setShowNotifHint(false);
+        AsyncStorage.setItem(NOTIF_HINT_DISMISSED_KEY, '1');
+    }, []);
 
     // Error handling is managed globally by Toast in _layout.tsx
     // (Old alert effect removed to prevent conflict)
@@ -1068,6 +1092,26 @@ export default function HomeScreen() {
                         </View>
                         <Text style={styles.manaWarningAction}>›</Text>
                     </TouchableOpacity>
+                )}
+
+                {showNotifHint && (
+                    <View style={styles.statusBanner}>
+                        <Text style={styles.statusBannerEmoji}>🔔</Text>
+                        <Text style={[styles.statusBannerText, { flex: 1 }]}>
+                            {t('notifHintText')}
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() => { dismissNotifHint(); Linking.openURL('app-settings:'); }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                            <Text style={[styles.statusBannerTitle, { marginStart: spacing.sm }]}>
+                                {t('notifHintEnable')}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={dismissNotifHint} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Text style={[styles.statusBannerClose, { marginStart: spacing.xs }]}>✕</Text>
+                        </TouchableOpacity>
+                    </View>
                 )}
 
                 {/* Backup restore success banner — only shown as fallback when no backup mode configured */}

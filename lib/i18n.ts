@@ -48,6 +48,8 @@ export const translations = {
         // Async Notifications
         jobStarted: 'Casting Spell... 🪄',
         editJobStarted: 'Enhancing Spell... 🪄',
+        notifHintText: "We'll notify you when your spell is ready. Enable notifications so you don't miss it.",
+        notifHintEnable: 'Enable',
         appReadyNotify: '✨ "%{name}" is ready!',
         appReadyTitle: '✨ New Spell Ready!',
         appReadyBody: '"%{name}" has been created successfully.',
@@ -615,6 +617,8 @@ export const translations = {
         // Async Notifications (PT)
         jobStarted: 'Feitiço iniciado... 🪄',
         editJobStarted: 'Melhoria iniciada... 🪄',
+        notifHintText: 'Te avisaremos por notificação quando o feitiço ficar pronto. Ative as notificações para não perder.',
+        notifHintEnable: 'Ativar',
         appReadyNotify: 'Feitiço Pronto: %{name} ✨',
         appReadyTitle: '✨ Novo Feitiço Pronto!',
         appReadyBody: '"%{name}" foi criado com sucesso.',
@@ -1202,6 +1206,8 @@ export const translations = {
         // Async Notifications (ES)
         jobStarted: 'Lanzando Hechizo... 🪄',
         editJobStarted: 'Mejorando Hechizo... 🪄',
+        notifHintText: 'Te notificaremos cuando tu hechizo esté listo. Activa las notificaciones para no perdértelo.',
+        notifHintEnable: 'Activar',
         appReadyNotify: '✨ ¡%{name} está listo!',
         appReadyTitle: '✨ ¡Nuevo Hechizo Listo!',
         appReadyBody: '"%{name}" ha sido creado con éxito.',
@@ -1754,6 +1760,8 @@ export const translations = {
         // Async Notifications (FR)
         jobStarted: 'Lancement du Sort... 🪄',
         editJobStarted: 'Amélioration du Sort... 🪄',
+        notifHintText: 'Nous te préviendrons quand ton sort sera prêt. Active les notifications pour ne rien rater.',
+        notifHintEnable: 'Activer',
         appReadyNotify: '✨ "%{name}" est prêt !',
         appReadyTitle: '✨ Nouveau Sort Prêt !',
         appReadyBody: '"%{name}" a été créé avec succès.',
@@ -2305,6 +2313,8 @@ export const translations = {
         // Async Notifications (DE)
         jobStarted: 'Zauber wird gewirkt... 🪄',
         editJobStarted: 'Zauber wird verbessert... 🪄',
+        notifHintText: 'Wir benachrichtigen dich, wenn dein Zauber fertig ist. Aktiviere Benachrichtigungen, damit du nichts verpasst.',
+        notifHintEnable: 'Aktivieren',
         appReadyNotify: '✨ "%{name}" ist bereit!',
         appReadyTitle: '✨ Neuer Zauber Bereit!',
         appReadyBody: '"%{name}" wurde erfolgreich erstellt.',
@@ -2786,6 +2796,8 @@ export const translations = {
         // Async Notifications (IT)
         jobStarted: 'Lancio Incantesimo... 🪄',
         editJobStarted: 'Miglioramento Incantesimo... 🪄',
+        notifHintText: 'Ti avviseremo quando il tuo incantesimo sarà pronto. Attiva le notifiche per non perderlo.',
+        notifHintEnable: 'Attiva',
         appReadyNotify: '✨ "%{name}" è pronto!',
         appReadyTitle: '✨ Nuovo Incantesimo Pronto!',
         appReadyBody: '"%{name}" è stato creato con successo.',
@@ -3267,6 +3279,8 @@ export const translations = {
         // Async Notifications (JA)
         jobStarted: '呪文を唱えています... 🪄',
         editJobStarted: '呪文を強化しています... 🪄',
+        notifHintText: '呪文が完成したらお知らせします。通知をオンにしてお見逃しなく。',
+        notifHintEnable: '有効にする',
         appReadyNotify: '✨ "%{name}" の準備ができました！',
         appReadyTitle: '✨ 新しい呪文の準備完了！',
         appReadyBody: '"%{name}" が正常に作成されました。',
@@ -3729,6 +3743,8 @@ export const translations = {
         // Async Notifications (ZH)
         jobStarted: '正在创建应用... 🪄',
         editJobStarted: '正在改进应用... 🪄',
+        notifHintText: '咒语完成后我们会通知你。开启通知以免错过。',
+        notifHintEnable: '开启',
         appReadyNotify: '✨ "%{name}" 准备好了！',
         appReadyTitle: '✨ 新应用准备就绪！',
         appReadyBody: '"%{name}" 已成功创建。',
@@ -4195,6 +4211,8 @@ export const translations = {
         // Async Notifications (KO)
         jobStarted: '앱 생성 중... 🪄',
         editJobStarted: '앱 개선 중... 🪄',
+        notifHintText: '주문이 완성되면 알려드릴게요. 놓치지 않도록 알림을 켜세요.',
+        notifHintEnable: '켜기',
         appReadyNotify: '✨ "%{name}" 준비 완료!',
         appReadyTitle: '✨ 새 앱 준비 완료!',
         appReadyBody: '"%{name}" 생성이 완료되었습니다.',
@@ -4661,6 +4679,8 @@ export const translations = {
         // Async Notifications (AR)
         jobStarted: 'جاري إنشاء التطبيق... 🪄',
         editJobStarted: 'جاري تحسين التطبيق... 🪄',
+        notifHintText: 'سنخبرك عندما تكون تعويذتك جاهزة. فعّل الإشعارات حتى لا تفوّتها.',
+        notifHintEnable: 'تفعيل',
         appReadyNotify: '✨ "%{name}" جاهز!',
         appReadyTitle: '✨ التطبيق الجديد جاهز!',
         appReadyBody: 'تم إنشاء "%{name}" بنجاح.',
@@ -5127,6 +5147,8 @@ export const translations = {
         // Async Notifications (HI)
         jobStarted: 'ऐप बना रहा है... 🪄',
         editJobStarted: 'ऐप सुधार रहा है... 🪄',
+        notifHintText: 'जब आपका जादू तैयार हो जाए, हम आपको सूचित करेंगे। कुछ न छूटे, इसलिए नोटिफिकेशन चालू करें।',
+        notifHintEnable: 'चालू करें',
         appReadyNotify: '✨ "%{name}" तैयार है!',
         appReadyTitle: '✨ नया ऐप तैयार!',
         appReadyBody: '"%{name}" सफलतापूर्वक बना लिया गया है।',
@@ -5593,6 +5615,8 @@ export const translations = {
         // Async Notifications (RU)
         jobStarted: 'Создание приложения... 🪄',
         editJobStarted: 'Улучшение приложения... 🪄',
+        notifHintText: 'Мы сообщим тебе, когда заклинание будет готово. Включи уведомления, чтобы не пропустить.',
+        notifHintEnable: 'Включить',
         appReadyNotify: '✨ "%{name}" готово!',
         appReadyTitle: '✨ Новое приложение готово!',
         appReadyBody: '"%{name}" успешно создано.',
@@ -6059,6 +6083,8 @@ export const translations = {
         // Async Notifications (TR)
         jobStarted: 'Uygulama oluşturuluyor... 🪄',
         editJobStarted: 'Uygulama geliştiriliyor... 🪄',
+        notifHintText: 'Büyün hazır olduğunda seni haberdar edeceğiz. Kaçırmamak için bildirimleri etkinleştir.',
+        notifHintEnable: 'Etkinleştir',
         appReadyNotify: '✨ "%{name}" hazır!',
         appReadyTitle: '✨ Yeni Uygulama Hazır!',
         appReadyBody: '"%{name}" başarıyla oluşturuldu.',
@@ -6525,6 +6551,8 @@ export const translations = {
         // Async Notifications (NL)
         jobStarted: 'App aan het maken... 🪄',
         editJobStarted: 'App aan het verbeteren... 🪄',
+        notifHintText: 'We laten je weten wanneer je spreuk klaar is. Zet meldingen aan zodat je niets mist.',
+        notifHintEnable: 'Inschakelen',
         appReadyNotify: '✨ "%{name}" is klaar!',
         appReadyTitle: '✨ Nieuwe app klaar!',
         appReadyBody: '"%{name}" is succesvol aangemaakt.',
@@ -6992,6 +7020,8 @@ export const translations = {
         // Async Notifications (PL)
         jobStarted: 'Tworzenie aplikacji... 🪄',
         editJobStarted: 'Ulepszanie aplikacji... 🪄',
+        notifHintText: 'Powiadomimy cię, gdy twoje zaklęcie będzie gotowe. Włącz powiadomienia, żeby nic nie przegapić.',
+        notifHintEnable: 'Włącz',
         appReadyNotify: '✨ "%{name}" gotowa!',
         appReadyTitle: '✨ Nowa aplikacja gotowa!',
         appReadyBody: '"%{name}" została pomyślnie utworzona.',
@@ -7461,6 +7491,8 @@ export const translations = {
         // Async Notifications (VI)
         jobStarted: 'Đang tạo ứng dụng... 🪄',
         editJobStarted: 'Đang cải tiến ứng dụng... 🪄',
+        notifHintText: 'Chúng tôi sẽ thông báo khi phép thuật của bạn sẵn sàng. Bật thông báo để không bỏ lỡ.',
+        notifHintEnable: 'Bật',
         appReadyNotify: '✨ "%{name}" đã sẵn sàng!',
         appReadyTitle: '✨ Ứng dụng mới đã sẵn sàng!',
         appReadyBody: '"%{name}" đã được tạo thành công.',
@@ -7930,6 +7962,8 @@ export const translations = {
         // Async Notifications (TH)
         jobStarted: 'กำลังสร้างแอป... 🪄',
         editJobStarted: 'กำลังปรับปรุงแอป... 🪄',
+        notifHintText: 'เราจะแจ้งเตือนเมื่อคาถาของคุณพร้อมแล้ว เปิดการแจ้งเตือนเพื่อไม่พลาด',
+        notifHintEnable: 'เปิด',
         appReadyNotify: '✨ "%{name}" พร้อมแล้ว!',
         appReadyTitle: '✨ แอปใหม่พร้อมแล้ว!',
         appReadyBody: 'สร้าง "%{name}" สำเร็จแล้ว',
