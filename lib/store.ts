@@ -211,6 +211,42 @@ export const useAppStore = create<AppState>((set, get) => ({
                             error: 'timeout',
                         });
                     }
+                } else if ((job.status === 'processing' || job.status === 'queued') && !isOld) {
+                    // Restore in-flight placeholder/lock lost on app restart
+                    if (job.action === 'create') {
+                        const alreadyTracked = get().creatingApps.some(a => a.jobId === job.id);
+                        if (!alreadyTracked) {
+                            const description = job.payload?.prompt
+                                ? firebase.decompressContent(job.payload.prompt)
+                                : '';
+                            set(state => ({
+                                creatingApps: [...state.creatingApps, {
+                                    jobId: job.id,
+                                    description,
+                                    timestamp: jobTime || Date.now()
+                                }]
+                            }));
+                            const elapsed = Date.now() - (jobTime || Date.now());
+                            setTimeout(() => {
+                                set(state => ({
+                                    creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
+                                }));
+                            }, Math.max(10000, 600000 - elapsed));
+                        }
+                    } else if (job.action === 'edit' && job.payload?.appId) {
+                        const appId = job.payload.appId;
+                        if (!get().updatingAppIds.includes(appId)) {
+                            set(state => ({
+                                updatingAppIds: [...state.updatingAppIds, appId]
+                            }));
+                            const elapsed = Date.now() - (jobTime || Date.now());
+                            setTimeout(() => {
+                                set(state => ({
+                                    updatingAppIds: state.updatingAppIds.filter(id => id !== appId)
+                                }));
+                            }, Math.max(10000, 600000 - elapsed));
+                        }
+                    }
                 }
             });
 
