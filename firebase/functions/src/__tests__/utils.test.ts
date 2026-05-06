@@ -83,6 +83,21 @@ describe('extractHtml', () => {
         const input = '```html\n<h1>Truncated';
         expect(extractHtml(input)).toBe('<h1>Truncated');
     });
+
+    it('does not match ```css as opening fence', () => {
+        const input = '```css\nbody { color: red; }\n```';
+        expect(extractHtml(input)).not.toMatch(/^css/);
+    });
+
+    it('extracts HTML block when response also contains a trailing ```css block', () => {
+        const input = '```html\n<h1>Hello</h1>\n```\n\n```css\n/* orphan */\n}\n```';
+        expect(extractHtml(input)).toBe('<h1>Hello</h1>');
+    });
+
+    it('uses first closing ``` not the last when multiple blocks exist', () => {
+        const input = '```html\n<p>A</p>\n```\nExtra text\n```\nmore\n```';
+        expect(extractHtml(input)).toBe('<p>A</p>');
+    });
 });
 
 // ============= extractJson =============

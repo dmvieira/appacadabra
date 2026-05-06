@@ -203,14 +203,20 @@ function attemptPartialJsonRecovery(text: string): string | null {
 }
 
 export function extractHtml(response: string): string {
-    const openMatch = response.match(/```(?:html)?\s*/i);
+    // Prefer ```html (explicit tag); fall back to ``` not followed by a language word.
+    // This prevents ```css / ```js from being mistaken for the HTML fence.
+    const openMatch =
+        response.match(/```html[ \t]*[\r\n]/i) ??
+        response.match(/```(?![a-zA-Z])/);
     if (openMatch && openMatch.index !== undefined) {
         const contentStart = openMatch.index + openMatch[0].length;
-        const lastClose = response.lastIndexOf('```');
-        if (lastClose > contentStart) {
-            return response.substring(contentStart, lastClose).trim();
+        const afterOpen = response.substring(contentStart);
+        // Find the first closing ``` on its own line (not another language fence).
+        const closeIdx = afterOpen.search(/^```[ \t]*$/m);
+        if (closeIdx !== -1) {
+            return afterOpen.substring(0, closeIdx).trim();
         }
-        return response.substring(contentStart).trim();
+        return afterOpen.trim();
     }
     const docTypeIdx = response.toLowerCase().indexOf('<!doctype html>');
     if (docTypeIdx !== -1) {
