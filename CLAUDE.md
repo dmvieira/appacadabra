@@ -149,14 +149,16 @@ Pacote: `ai.appacadabra.app` (pasta física: `com/dmvieira/appacadabra/`)
 
 ## Processo de Release
 
-Usar os skills do Claude Code na seguinte ordem:
+**Usar o Release Agent** para qualquer tarefa de release. O agente conhece os skills `/release-checklist` e `/release-notes` e sabe coordená-los.
 
-| Passo | Skill / Ação |
+Invocar com: `Agent(subagent_type="Release Agent", prompt="...")`
+
+| Passo | Responsável |
 |-------|-------------|
-| 1. Preparar e verificar | `/release-checklist` — checklist pré-submissão (versions, permissions, store listing) |
-| 2. Gerar notas + bump + tag | `/release-notes` — lê commits desde última tag, gera notas em 20 locales, faz bump de versão em `app.json` / `package.json` / `build.gradle`, escreve `docs/RELEASE_NOTES.md`, cria tag git e commit |
-| 3. Build AAB | `./gradlew bundleRelease` (requer keystore configurado) |
-| 4. Upload | Play Console → Create new release → upload AAB + copiar `RELEASE_NOTES.md` por locale |
+| 1. Checklist pré-submissão | Release Agent → `/release-checklist` |
+| 2. Bump versão + notas + tag | Release Agent → `/release-notes` |
+| 3. Build AAB | `./gradlew bundleRelease` (manual, requer keystore) |
+| 4. Upload Play Console | Manual — usar `docs/RELEASE_NOTES.md` por locale |
 
 **Ficheiros de release:**
 - `docs/RELEASE_NOTES.md` — notas do release atual (20 locales, formato `<en-US>...</en-US>`)
