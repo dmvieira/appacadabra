@@ -554,8 +554,12 @@ async function sendJobNotification(uid: string, action: string, success: boolean
             android: { notification: { sound: 'default' } },
         });
         console.log('[Push Notification] FCM result:', result);
-    } catch (err) {
+    } catch (err: any) {
         console.error('[Push Notification] Error sending:', err);
+        if (err?.errorInfo?.code === 'messaging/registration-token-not-registered') {
+            await db.collection('users').doc(uid).update({ pushToken: FieldValue.delete() });
+            console.log('[Push Notification] Stale FCM token removed for user:', uid);
+        }
     }
 }
 

@@ -1082,13 +1082,17 @@ export default function HomeScreen() {
                 {balance <= 0 && (
                     <TouchableOpacity
                         style={styles.manaWarningBanner}
-                        onPress={() => openShop()}
+                        onPress={() => isAnonymous ? setShowOnboarding(true) : openShop()}
                         activeOpacity={0.8}
                     >
                         <Text style={styles.manaWarningEmoji}>⚡</Text>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.manaWarningTitle}>{t('manaDepletedTitle')}</Text>
-                            <Text style={styles.manaWarningText}>{t('manaDepletedMessage')}</Text>
+                            <Text style={styles.manaWarningTitle}>
+                                {t(isAnonymous ? 'loginForManaTitle' : 'manaDepletedTitle')}
+                            </Text>
+                            <Text style={styles.manaWarningText}>
+                                {t(isAnonymous ? 'loginForManaMessage' : 'manaDepletedMessage')}
+                            </Text>
                         </View>
                         <Text style={styles.manaWarningAction}>›</Text>
                     </TouchableOpacity>

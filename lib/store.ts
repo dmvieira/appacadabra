@@ -403,11 +403,26 @@ export const useAppStore = create<AppState>((set, get) => ({
                             updatingAppIds: state.updatingAppIds.filter(id => id !== appId)
                         }));
                     }
+
+                    // Always release the edit lock, even if app was not found in DB
+                    set(state => ({
+                        updatingAppIds: state.updatingAppIds.filter(id => id !== appId)
+                    }));
                 }
             }
         } catch (e) {
             console.error('[Store] Error processing completed job:', e);
             set({ error: t('errorProcessingJob') });
+            // Always release locks on error — never leave a spell stuck forever
+            if (job.action === 'create') {
+                set(state => ({
+                    creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
+                }));
+            } else if (job.action === 'edit' && job.payload?.appId) {
+                set(state => ({
+                    updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId)
+                }));
+            }
         }
     },
 

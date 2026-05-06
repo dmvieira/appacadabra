@@ -341,6 +341,8 @@ export const translations = {
 
         manaDepletedTitle: '⚡ Out of Mana!',
         manaDepletedMessage: 'Your Mana is depleted. Recharge to continue using AI features.',
+        loginForManaTitle: 'Log in to continue',
+        loginForManaMessage: 'Create an account to buy Mana and cast spells',
         manaInsufficientTitle: 'Not enough Mana',
         manaInsufficientMessage: 'This spell requires ~%{required} Mana (you have %{balance})',
         manaShopTitle: 'Mana Shop',
@@ -929,6 +931,8 @@ export const translations = {
 
 
         buyMana: 'Comprar Mana',
+        loginForManaTitle: 'Log in para continuar',
+        loginForManaMessage: 'Crie uma conta para comprar Mana e criar feitiços',
 
 
         manaDepletedTitle: '⚡ Mana Acabou!',
@@ -1469,6 +1473,8 @@ export const translations = {
         noLogin: 'Sin login',
         getMana: 'Conseguir Mana',
         buyMana: 'Comprar Mana',
+        loginForManaTitle: 'Inicia sesión para continuar',
+        loginForManaMessage: 'Crea una cuenta para comprar Mana y lanzar hechizos',
 
 
         manaDepletedTitle: '⚡ ¡Sin Mana!',
@@ -2020,6 +2026,8 @@ export const translations = {
         noLogin: 'Non connecté',
         getMana: 'Obtenir du Mana',
         buyMana: 'Acheter Mana',
+        loginForManaTitle: 'Connectez-vous pour continuer',
+        loginForManaMessage: 'Créez un compte pour acheter du Mana et lancer des sorts',
 
 
         manaDepletedTitle: '⚡ Plus de Mana !',
@@ -2534,6 +2542,8 @@ export const translations = {
         noLogin: 'Nicht angemeldet',
         getMana: 'Mana erhalten',
         buyMana: 'Mana Kaufen',
+        loginForManaTitle: 'Anmelden, um fortzufahren',
+        loginForManaMessage: 'Erstellen Sie ein Konto, um Mana zu kaufen und Zaubersprüche zu wirken',
 
 
         manaDepletedTitle: '⚡ Kein Mana Mehr!',
@@ -3017,6 +3027,8 @@ export const translations = {
         noLogin: 'Senza login',
         getMana: 'Ottieni Mana',
         buyMana: 'Compra Mana',
+        loginForManaTitle: 'Accedi per continuare',
+        loginForManaMessage: 'Crea un account per acquistare Mana e lanciare incantesimi',
 
 
         manaDepletedTitle: '⚡ Mana Esaurito!',
@@ -3502,6 +3514,8 @@ export const translations = {
         noLogin: '未ログイン',
         getMana: 'マナを入手',
         buyMana: 'マナを購入',
+        loginForManaTitle: '続行するにはログインしてください',
+        loginForManaMessage: 'アカウントを作成してマナを購入し、呪文を唱えましょう',
 
 
         manaDepletedTitle: '⚡ マナ切れ！',
@@ -3963,6 +3977,8 @@ export const translations = {
         noLogin: '未登录',
         getMana: '获取魔力',
         buyMana: '购买魔力',
+        loginForManaTitle: '登录以继续',
+        loginForManaMessage: '创建一个账户以购买玛娜并施放法术',
 
 
         manaDepletedTitle: '⚡ 魔力耗尽！',
@@ -4437,6 +4453,8 @@ export const translations = {
         noLogin: '로그인하지 않음',
         getMana: '마나 얻기',
         buyMana: '마나 구매',
+        loginForManaTitle: '계속하려면 로그인하세요',
+        loginForManaMessage: '마나를 구매하고 주문을 걸려면 계정을 만드세요',
 
 
         manaDepletedTitle: '⚡ 마나 소진!',
@@ -4905,6 +4923,8 @@ export const translations = {
         noLogin: 'غير مسجل الدخول',
         getMana: 'الحصول على مانا',
         buyMana: 'شراء المانا',
+        loginForManaTitle: 'سجل الدخول للمتابعة',
+        loginForManaMessage: 'أنشئ حسابًا لشراء المانا وإلقاء التعاويذ',
 
 
         manaDepletedTitle: '⚡ نفدت المانا!',
@@ -5373,6 +5393,8 @@ export const translations = {
         noLogin: 'लॉग इन नहीं है',
         getMana: 'माना प्राप्त करें',
         buyMana: 'माना खरीदें',
+        loginForManaTitle: 'जारी रखने के लिए लॉगिन करें',
+        loginForManaMessage: 'माना खरीदने और जादू करने के लिए एक खाता बनाएं',
 
 
         manaDepletedTitle: '⚡ माना खत्म!',
@@ -5841,6 +5863,8 @@ export const translations = {
         noLogin: 'Не в сети',
         getMana: 'Получить Ману',
         buyMana: 'Купить ману',
+        loginForManaTitle: 'Войдите, чтобы продолжить',
+        loginForManaMessage: 'Создайте аккаунт, чтобы покупать Ману и произносить заклинания',
 
 
         manaDepletedTitle: '⚡ Мана закончилась!',
@@ -6312,6 +6336,8 @@ export const translations = {
         noLogin: 'Giriş yapılmadı',
         getMana: 'Mana Al',
         buyMana: 'Mana Satın Al',
+        loginForManaTitle: 'Devam etmek için giriş yapın',
+        loginForManaMessage: 'Mana satın almak ve büyü yapmak için bir hesap oluşturun',
 
 
         manaDepletedTitle: '⚡ Mana Tükendi!',
@@ -6780,6 +6806,8 @@ export const translations = {
         noLogin: 'Niet ingelogd',
         getMana: 'Mana verkrijgen',
         buyMana: 'Koop Mana',
+        loginForManaTitle: 'Log in om verder te gaan',
+        loginForManaMessage: 'Maak een account aan om Mana te kopen en spreuken uit te spreken',
 
 
         manaDepletedTitle: '⚡ Mana is op!',
@@ -7249,6 +7277,8 @@ export const translations = {
         noLogin: 'Brak logowania',
         getMana: 'Zdobądź Manę',
         buyMana: 'Kup Manę',
+        loginForManaTitle: 'Zaloguj się, aby kontynuować',
+        loginForManaMessage: 'Utwórz konto, aby kupować Manę i rzucać zaklęcia',
 
 
         manaDepletedTitle: '⚡ Mana się skończyła!',
@@ -7720,6 +7750,8 @@ export const translations = {
         noLogin: 'Chưa đăng nhập',
         getMana: 'Nhận Mana',
         buyMana: 'Mua Mana',
+        loginForManaTitle: 'Đăng nhập để tiếp tục',
+        loginForManaMessage: 'Tạo tài khoản để mua Mana và sử dụng bùa phép',
 
 
         manaDepletedTitle: '⚡ Hết Mana!',
@@ -8191,6 +8223,8 @@ export const translations = {
         noLogin: 'ไม่ได้เข้าสู่ระบบ',
         getMana: 'รับมานา',
         buyMana: 'ซื้อมานา',
+        loginForManaTitle: 'เข้าสู่ระบบเพื่อดำเนินการต่อ',
+        loginForManaMessage: 'สร้างบัญชีเพื่อซื้อมานาและร่ายเวทมนตร์',
 
 
         manaDepletedTitle: '⚡ มานาหมดแล้ว!',
