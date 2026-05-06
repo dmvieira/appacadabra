@@ -459,6 +459,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Skip',
+        obAlreadyHaveAccount: 'I already have an account',
         onboardingNext: 'Next',
         // Screen 1: Concept
         obConceptTitle1: 'Describe.',
@@ -545,8 +546,8 @@ export const translations = {
         obPowersSubtext: 'Beyond AI, your spells access real features on your phone.',
         obFeatIntegratedTitle: 'Integrated with your phone',
         obFeatIntegratedDesc: 'Send and receive files, photos, and data from other apps.',
-        obFeatCalendarTitle: 'Calendar & contacts',
-        obFeatCalendarDesc: 'Create events and reminders, access contacts instantly.',
+        obFeatCalendarTitle: 'Productivity & contacts',
+        obFeatCalendarDesc: 'Calendar, docs, sheets, forms and contacts — all in one place.',
         obMoreLabel: 'And more:',
         obTagNotifications: 'Notifications',
         obTagHealth: 'Health',
@@ -1046,6 +1047,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Pular',
+        obAlreadyHaveAccount: 'Já tenho conta',
         onboardingNext: 'Próximo',
         // Screen 1: Concept
         obConceptTitle1: 'Descreva.',
@@ -1132,8 +1134,8 @@ export const translations = {
         obPowersSubtext: 'Além de IA, seus feitiços acessam recursos reais do seu celular.',
         obFeatIntegratedTitle: 'Integrado ao seu celular',
         obFeatIntegratedDesc: 'Envie e receba arquivos, fotos e dados de outros apps.',
-        obFeatCalendarTitle: 'Agenda e contatos',
-        obFeatCalendarDesc: 'Cria eventos e lembretes, acessa contatos na hora.',
+        obFeatCalendarTitle: 'Produtividade e contatos',
+        obFeatCalendarDesc: 'Agenda, documentos, planilhas, formulários e contatos num só lugar.',
         obMoreLabel: 'E mais:',
         obTagNotifications: 'Notificações',
         obTagHealth: 'Saúde',
@@ -1581,6 +1583,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Omitir',
+        obAlreadyHaveAccount: 'Ya tengo una cuenta',
         onboardingNext: 'Siguiente',
         obConceptTitle1: 'Describe.',
         obConceptTitle2: 'La IA lo construye.',
@@ -1664,8 +1667,8 @@ export const translations = {
         obPowersSubtext: 'Además de IA, tus hechizos acceden a funciones reales de tu móvil.',
         obFeatIntegratedTitle: 'Integrado a tu móvil',
         obFeatIntegratedDesc: 'Envía y recibe archivos, fotos y datos de otras apps.',
-        obFeatCalendarTitle: 'Calendario y contactos',
-        obFeatCalendarDesc: 'Crea eventos y recordatorios, accede a contactos al instante.',
+        obFeatCalendarTitle: 'Productividad y contactos',
+        obFeatCalendarDesc: 'Calendario, documentos, hojas, formularios y contactos — todo en un lugar.',
         obMoreLabel: 'Y más:',
         obTagNotifications: 'Notificaciones',
         obTagHealth: 'Salud',
@@ -2131,6 +2134,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Passer',
+        obAlreadyHaveAccount: "J'ai déjà un compte",
         onboardingNext: 'Suivant',
         obConceptTitle1: 'Décrivez.',
         obConceptTitle2: 'L\'IA construit.',
@@ -2214,8 +2218,8 @@ export const translations = {
         obPowersSubtext: 'Au-delà de l\'IA, vos sorts accèdent aux vrais capteurs de votre téléphone.',
         obFeatIntegratedTitle: 'Intégré à votre téléphone',
         obFeatIntegratedDesc: 'Envoyez et recevez fichiers, photos et données d\'autres apps.',
-        obFeatCalendarTitle: 'Agenda et contacts',
-        obFeatCalendarDesc: 'Créez événements et rappels, accédez aux contacts instantanément.',
+        obFeatCalendarTitle: 'Productivité et contacts',
+        obFeatCalendarDesc: 'Agenda, docs, feuilles, formulaires et contacts — tout au même endroit.',
         obMoreLabel: 'Et plus :',
         obTagNotifications: 'Notifications',
         obTagHealth: 'Santé',
@@ -2611,6 +2615,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Überspringen',
+        obAlreadyHaveAccount: 'Ich habe bereits ein Konto',
         onboardingNext: 'Weiter',
         obConceptTitle1: 'Beschreibe.',
         obConceptTitle2: 'KI baut es.',
@@ -2694,8 +2699,8 @@ export const translations = {
         obPowersSubtext: 'Neben KI greifen deine Zauber auf echte Funktionen deines Handys zu.',
         obFeatIntegratedTitle: 'In dein Handy integriert',
         obFeatIntegratedDesc: 'Sende und empfange Dateien, Fotos und Daten von anderen Apps.',
-        obFeatCalendarTitle: 'Kalender & Kontakte',
-        obFeatCalendarDesc: 'Erstelle Termine und Erinnerungen, greife sofort auf Kontakte zu.',
+        obFeatCalendarTitle: 'Produktivität & Kontakte',
+        obFeatCalendarDesc: 'Kalender, Dokumente, Tabellen, Formulare und Kontakte — alles an einem Ort.',
         obMoreLabel: 'Und mehr:',
         obTagNotifications: 'Benachrichtigungen',
         obTagHealth: 'Gesundheit',
@@ -3091,6 +3096,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Salta',
+        obAlreadyHaveAccount: 'Ho già un account',
         onboardingNext: 'Avanti',
         obConceptTitle1: 'Descrivi.',
         obConceptTitle2: 'L\'IA costruisce.',
@@ -3174,8 +3180,8 @@ export const translations = {
         obPowersSubtext: 'Oltre all\'IA, i tuoi incantesimi accedono a funzioni reali del tuo telefono.',
         obFeatIntegratedTitle: 'Integrato al tuo telefono',
         obFeatIntegratedDesc: 'Invia e ricevi file, foto e dati da altre app.',
-        obFeatCalendarTitle: 'Calendario e contatti',
-        obFeatCalendarDesc: 'Crea eventi e promemoria, accedi ai contatti all\'istante.',
+        obFeatCalendarTitle: 'Produttività e contatti',
+        obFeatCalendarDesc: 'Calendario, documenti, fogli, moduli e contatti — tutto in un posto.',
         obMoreLabel: 'E altro:',
         obTagNotifications: 'Notifiche',
         obTagHealth: 'Salute',
@@ -3573,6 +3579,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'スキップ',
+        obAlreadyHaveAccount: 'アカウントをお持ちの方',
         onboardingNext: '次へ',
         obConceptTitle1: '説明する。',
         obConceptTitle2: 'AIが作る。',
@@ -3656,8 +3663,8 @@ export const translations = {
         obPowersSubtext: 'AI以外にも、あなたの呪文はスマホの本物の機能にアクセスします。',
         obFeatIntegratedTitle: 'スマホと連携',
         obFeatIntegratedDesc: '他のアプリとファイル、写真、データを送受信できます。',
-        obFeatCalendarTitle: 'カレンダーと連絡先',
-        obFeatCalendarDesc: 'イベントやリマインダーを作成、連絡先にすぐアクセス。',
+        obFeatCalendarTitle: '生産性と連絡先',
+        obFeatCalendarDesc: 'カレンダー・書類・シート・フォーム・連絡先が一か所に。',
         obMoreLabel: 'その他:',
         obTagNotifications: '通知',
         obTagHealth: 'ヘルス',
@@ -4031,6 +4038,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: '跳过',
+        obAlreadyHaveAccount: '已有账号',
         onboardingNext: '下一步',
         obConceptTitle1: '描述。',
         obConceptTitle2: 'AI来构建。',
@@ -4114,8 +4122,8 @@ export const translations = {
         obPowersSubtext: '除了AI，你的咒语还能访问手机的真实功能。',
         obFeatIntegratedTitle: '与手机集成',
         obFeatIntegratedDesc: '从其他应用发送和接收文件、照片和数据。',
-        obFeatCalendarTitle: '日历与联系人',
-        obFeatCalendarDesc: '创建事件和提醒，即时访问联系人。',
+        obFeatCalendarTitle: '效率与联系人',
+        obFeatCalendarDesc: '日历、文档、表格、表单和联系人，尽在一处。',
         obMoreLabel: '还有更多：',
         obTagNotifications: '通知',
         obTagHealth: '健康',
@@ -4496,6 +4504,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: '건너뛰기',
+        obAlreadyHaveAccount: '이미 계정이 있어요',
         onboardingNext: '다음',
         obConceptTitle1: '설명하면.',
         obConceptTitle2: 'AI가 만듭니다.',
@@ -4579,8 +4588,8 @@ export const translations = {
         obPowersSubtext: 'AI 외에도 주문이 휴대폰의 실제 기능에 접근합니다.',
         obFeatIntegratedTitle: '휴대폰과 통합',
         obFeatIntegratedDesc: '다른 앱에서 파일, 사진, 데이터를 주고받습니다.',
-        obFeatCalendarTitle: '캘린더 및 연락처',
-        obFeatCalendarDesc: '이벤트와 알림을 만들고 연락처에 즉시 접근합니다.',
+        obFeatCalendarTitle: '생산성 및 연락처',
+        obFeatCalendarDesc: '캘린더·문서·시트·양식·연락처 — 한 곳에서 모두.',
         obMoreLabel: '그리고 더:',
         obTagNotifications: '알림',
         obTagHealth: '건강',
@@ -4961,6 +4970,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'تخطي',
+        obAlreadyHaveAccount: 'لدي حساب بالفعل',
         onboardingNext: 'التالي',
         obConceptTitle1: 'صِف.',
         obConceptTitle2: 'الذكاء الاصطناعي يبني.',
@@ -5044,8 +5054,8 @@ export const translations = {
         obPowersSubtext: 'بالإضافة للذكاء الاصطناعي، تعويذاتك تستخدم ميزات حقيقية من هاتفك.',
         obFeatIntegratedTitle: 'متكامل مع هاتفك',
         obFeatIntegratedDesc: 'أرسل واستقبل ملفات وصور وبيانات من تطبيقات أخرى.',
-        obFeatCalendarTitle: 'التقويم وجهات الاتصال',
-        obFeatCalendarDesc: 'أنشئ أحداثًا وتذكيرات، وصل لجهات الاتصال فورًا.',
+        obFeatCalendarTitle: 'الإنتاجية وجهات الاتصال',
+        obFeatCalendarDesc: 'التقويم والمستندات والجداول والنماذج وجهات الاتصال — كلها في مكان واحد.',
         obMoreLabel: 'والمزيد:',
         obTagNotifications: 'الإشعارات',
         obTagHealth: 'الصحة',
@@ -5426,6 +5436,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'छोड़ें',
+        obAlreadyHaveAccount: 'मेरे पास पहले से खाता है',
         onboardingNext: 'अगला',
         obConceptTitle1: 'बताएं।',
         obConceptTitle2: 'AI बनाता है।',
@@ -5509,8 +5520,8 @@ export const translations = {
         obPowersSubtext: 'AI के अलावा, आपके मंत्र फोन की असली सुविधाएं इस्तेमाल करते हैं।',
         obFeatIntegratedTitle: 'आपके फोन से जुड़ा',
         obFeatIntegratedDesc: 'अन्य ऐप्स से फ़ाइलें, फ़ोटो और डेटा भेजें और प्राप्त करें।',
-        obFeatCalendarTitle: 'कैलेंडर और संपर्क',
-        obFeatCalendarDesc: 'इवेंट और रिमाइंडर बनाएं, तुरंत संपर्कों तक पहुंचें।',
+        obFeatCalendarTitle: 'उत्पादकता और संपर्क',
+        obFeatCalendarDesc: 'कैलेंडर, दस्तावेज़, शीट, फ़ॉर्म और संपर्क — सब एक जगह।',
         obMoreLabel: 'और भी:',
         obTagNotifications: 'सूचनाएं',
         obTagHealth: 'स्वास्थ्य',
@@ -5891,6 +5902,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Пропустить',
+        obAlreadyHaveAccount: 'У меня уже есть аккаунт',
         onboardingNext: 'Далее',
         obConceptTitle1: 'Опишите.',
         obConceptTitle2: 'ИИ создаст.',
@@ -5974,8 +5986,8 @@ export const translations = {
         obPowersSubtext: 'Помимо ИИ, ваши заклинания используют реальные функции телефона.',
         obFeatIntegratedTitle: 'Интегрировано с телефоном',
         obFeatIntegratedDesc: 'Отправляйте и получайте файлы, фото и данные из других приложений.',
-        obFeatCalendarTitle: 'Календарь и контакты',
-        obFeatCalendarDesc: 'Создавайте события и напоминания, мгновенно обращайтесь к контактам.',
+        obFeatCalendarTitle: 'Продуктивность и контакты',
+        obFeatCalendarDesc: 'Календарь, документы, таблицы, формы и контакты — всё в одном месте.',
         obMoreLabel: 'И ещё:',
         obTagNotifications: 'Уведомления',
         obTagHealth: 'Здоровье',
@@ -6359,6 +6371,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Atla',
+        obAlreadyHaveAccount: 'Zaten bir hesabım var',
         onboardingNext: 'İleri',
         obConceptTitle1: 'Açıkla.',
         obConceptTitle2: 'AI oluşturur.',
@@ -6442,8 +6455,8 @@ export const translations = {
         obPowersSubtext: 'AI dışında büyüleriniz telefonunuzun gerçek özelliklerine erişir.',
         obFeatIntegratedTitle: 'Telefonunla entegre',
         obFeatIntegratedDesc: 'Diğer uygulamalardan dosya, fotoğraf ve veri gönder ve al.',
-        obFeatCalendarTitle: 'Takvim ve kişiler',
-        obFeatCalendarDesc: 'Etkinlik ve hatırlatma oluştur, kişilere anında eriş.',
+        obFeatCalendarTitle: 'Verimlilik ve kişiler',
+        obFeatCalendarDesc: 'Takvim, belgeler, tablolar, formlar ve kişiler — hepsi bir arada.',
         obMoreLabel: 'Ve daha fazlası:',
         obTagNotifications: 'Bildirimler',
         obTagHealth: 'Sağlık',
@@ -6824,6 +6837,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Overslaan',
+        obAlreadyHaveAccount: 'Ik heb al een account',
         onboardingNext: 'Volgende',
         obConceptTitle1: 'Beschrijf.',
         obConceptTitle2: 'AI bouwt het.',
@@ -6907,8 +6921,8 @@ export const translations = {
         obPowersSubtext: 'Naast AI hebben je spreuken toegang tot echte functies van je telefoon.',
         obFeatIntegratedTitle: 'Geïntegreerd met je telefoon',
         obFeatIntegratedDesc: 'Verzend en ontvang bestanden, foto\'s en gegevens van andere apps.',
-        obFeatCalendarTitle: 'Agenda en contacten',
-        obFeatCalendarDesc: 'Maak afspraken en herinneringen, open contacten direct.',
+        obFeatCalendarTitle: 'Productiviteit en contacten',
+        obFeatCalendarDesc: 'Agenda, documenten, sheets, formulieren en contacten — alles op één plek.',
         obMoreLabel: 'En meer:',
         obTagNotifications: 'Meldingen',
         obTagHealth: 'Gezondheid',
@@ -7290,6 +7304,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Pomiń',
+        obAlreadyHaveAccount: 'Mam już konto',
         onboardingNext: 'Dalej',
         obConceptTitle1: 'Opisz.',
         obConceptTitle2: 'AI zbuduje.',
@@ -7373,8 +7388,8 @@ export const translations = {
         obPowersSubtext: 'Poza AI, twoje zaklęcia korzystają z prawdziwych funkcji telefonu.',
         obFeatIntegratedTitle: 'Zintegrowane z telefonem',
         obFeatIntegratedDesc: 'Wysyłaj i odbieraj pliki, zdjęcia i dane z innych aplikacji.',
-        obFeatCalendarTitle: 'Kalendarz i kontakty',
-        obFeatCalendarDesc: 'Twórz wydarzenia i przypomnienia, błyskawicznie otwieraj kontakty.',
+        obFeatCalendarTitle: 'Produktywność i kontakty',
+        obFeatCalendarDesc: 'Kalendarz, dokumenty, arkusze, formularze i kontakty — wszystko w jednym miejscu.',
         obMoreLabel: 'I więcej:',
         obTagNotifications: 'Powiadomienia',
         obTagHealth: 'Zdrowie',
@@ -7758,6 +7773,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'Bỏ qua',
+        obAlreadyHaveAccount: 'Tôi đã có tài khoản',
         onboardingNext: 'Tiếp',
         obConceptTitle1: 'Mô tả.',
         obConceptTitle2: 'AI xây dựng.',
@@ -7841,8 +7857,8 @@ export const translations = {
         obPowersSubtext: 'Ngoài AI, phép thuật truy cập các tính năng thực trên điện thoại.',
         obFeatIntegratedTitle: 'Tích hợp với điện thoại',
         obFeatIntegratedDesc: 'Gửi và nhận tệp, ảnh và dữ liệu từ các ứng dụng khác.',
-        obFeatCalendarTitle: 'Lịch và danh bạ',
-        obFeatCalendarDesc: 'Tạo sự kiện và nhắc nhở, truy cập danh bạ ngay lập tức.',
+        obFeatCalendarTitle: 'Năng suất và danh bạ',
+        obFeatCalendarDesc: 'Lịch, tài liệu, bảng tính, biểu mẫu và danh bạ — tất cả trong một nơi.',
         obMoreLabel: 'Và thêm:',
         obTagNotifications: 'Thông báo',
         obTagHealth: 'Sức khỏe',
@@ -8226,6 +8242,7 @@ export const translations = {
 
         // Onboarding (Redesigned 3-screen)
         onboardingSkip: 'ข้าม',
+        obAlreadyHaveAccount: 'ฉันมีบัญชีอยู่แล้ว',
         onboardingNext: 'ถัดไป',
         obConceptTitle1: 'อธิบาย',
         obConceptTitle2: 'AI สร้างให้',
@@ -8309,8 +8326,8 @@ export const translations = {
         obPowersSubtext: 'นอกจาก AI คาถาของคุณเข้าถึงฟีเจอร์จริงของโทรศัพท์',
         obFeatIntegratedTitle: 'ผสานกับโทรศัพท์ของคุณ',
         obFeatIntegratedDesc: 'ส่งและรับไฟล์ รูปภาพ และข้อมูลจากแอปอื่น',
-        obFeatCalendarTitle: 'ปฏิทินและรายชื่อ',
-        obFeatCalendarDesc: 'สร้างกิจกรรมและแจ้งเตือน เข้าถึงรายชื่อได้ทันที',
+        obFeatCalendarTitle: 'ประสิทธิภาพและรายชื่อ',
+        obFeatCalendarDesc: 'ปฏิทิน เอกสาร ชีต ฟอร์ม และรายชื่อ — ครบในที่เดียว',
         obMoreLabel: 'และอีกมาก:',
         obTagNotifications: 'การแจ้งเตือน',
         obTagHealth: 'สุขภาพ',

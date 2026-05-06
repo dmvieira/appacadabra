@@ -8,11 +8,15 @@ import {
     Dimensions,
     Animated,
     Easing,
+    Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Application from 'expo-application';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import { logObScreenView, logObChipSelected, logObCompleted, logObSkipped } from '../lib/analytics';
+import { useManaStore } from '../lib/manaStore';
+import * as firebase from '../lib/firebase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TOTAL_SCREENS = 3;
@@ -146,6 +150,9 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
     const [currentScreen, setCurrentScreen] = useState(0);
     const [showPreview, setShowPreview] = useState(false);
     const [selectedChip, setSelectedChip] = useState<number | null>(null);
+    const [isSigningIn, setIsSigningIn] = useState(false);
+    const [signInError, setSignInError] = useState<string | null>(null);
+    const { isAnonymous, refreshUser } = useManaStore();
     const insets = useSafeAreaInsets();
     const slideAnim = useRef(new Animated.Value(0)).current;
     const previewAnim = useRef(new Animated.Value(0)).current;
@@ -202,6 +209,25 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
         setSelectedChip(index);
     };
 
+    const handleAlreadyHaveAccount = async () => {
+        setIsSigningIn(true);
+        setSignInError(null);
+        try {
+            await firebase.ensureAuthenticated();
+            await firebase.linkWithGoogle();
+            await refreshUser();
+            const id = Platform.OS === 'android'
+                ? Application.getAndroidId()
+                : await Application.getIosIdForVendorAsync();
+            if (id) firebase.claimInstallBonus(id).catch(() => {});
+            onComplete(null);
+        } catch (e: any) {
+            setSignInError(e.message || t('linkError'));
+        } finally {
+            setIsSigningIn(false);
+        }
+    };
+
     const progressWidth = `${((currentScreen + 1) / TOTAL_SCREENS) * 100}%`;
     const isLastScreen = currentScreen === TOTAL_SCREENS - 1;
 
@@ -234,16 +260,35 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                 </View>
 
                 <Animated.View style={[s.screenContainer, { transform: [{ translateX: slideAnim }] }]}>
-                    {/* Skip button — only on last screen */}
+                    {/* Skip / Already have account — only on last screen */}
                     {currentScreen === 2 && (
-                        <TouchableOpacity
-                            style={s.skipButton}
-                            onPress={() => { logObSkipped(currentScreen); onComplete(null); }}
-                            accessibilityLabel={t('onboardingSkip')}
-                            accessibilityRole="button"
-                        >
-                            <Text style={s.skipText}>{t('onboardingSkip')}</Text>
-                        </TouchableOpacity>
+                        isAnonymous ? (
+                            <View style={s.topActions}>
+                                <TouchableOpacity
+                                    style={s.skipButton}
+                                    onPress={handleAlreadyHaveAccount}
+                                    disabled={isSigningIn}
+                                    accessibilityLabel={t('obAlreadyHaveAccount')}
+                                    accessibilityRole="button"
+                                >
+                                    <Text style={[s.skipText, s.alreadyHaveAccountText]}>
+                                        {isSigningIn ? '...' : t('obAlreadyHaveAccount')}
+                                    </Text>
+                                </TouchableOpacity>
+                                {signInError && (
+                                    <Text style={s.signInErrorText}>{signInError}</Text>
+                                )}
+                            </View>
+                        ) : (
+                            <TouchableOpacity
+                                style={s.skipButton}
+                                onPress={() => { logObSkipped(currentScreen); onComplete(null); }}
+                                accessibilityLabel={t('onboardingSkip')}
+                                accessibilityRole="button"
+                            >
+                                <Text style={s.skipText}>{t('onboardingSkip')}</Text>
+                            </TouchableOpacity>
+                        )
                     )}
 
                     {/* ── SCREEN 1: Concept ── */}
@@ -403,6 +448,19 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                     {currentScreen === 2 && (
                         <Text style={s.footerHint}>{t('obCreateHint')}</Text>
                     )}
+                    {currentScreen === 0 && isAnonymous && (
+                        <TouchableOpacity
+                            onPress={handleAlreadyHaveAccount}
+                            disabled={isSigningIn}
+                            accessibilityLabel={t('obAlreadyHaveAccount')}
+                            accessibilityRole="button"
+                            style={s.alreadyHaveAccountFooter}
+                        >
+                            <Text style={s.alreadyHaveAccountFooterText}>
+                                {isSigningIn ? '...' : t('obAlreadyHaveAccount')}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         </Modal>
@@ -435,6 +493,28 @@ const s = StyleSheet.create({
     skipText: {
         color: colors.onSurfaceVariant,
         fontSize: 15,
+    },
+    topActions: {
+        alignSelf: 'flex-end',
+        alignItems: 'flex-end',
+    },
+    alreadyHaveAccountText: {
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    alreadyHaveAccountFooter: {
+        marginTop: 14,
+        alignSelf: 'center',
+    },
+    alreadyHaveAccountFooterText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 15,
+    },
+    signInErrorText: {
+        color: colors.error,
+        fontSize: 12,
+        marginTop: 2,
+        textAlign: 'right',
     },
     screenContent: {
         flex: 1,
