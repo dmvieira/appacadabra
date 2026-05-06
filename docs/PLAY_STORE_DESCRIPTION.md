@@ -4,19 +4,19 @@
 Appacadabra: AI Tool Generator
 
 ## Short Description (80 chars)
-Turn your desire into functional tools instantly. No code required, just AI
+Turn your desire into functional tools in a few minutes. No code required, just AI
 
 ## Full Description
 
 **What do you need help with?** Describe it. The AI creates it. 🪄
 
-Appacadabra is an **AI Tool Generator** that turns your ideas into working utilities in seconds. No coding required—just describe what you need and watch the magic happen.
+Appacadabra is an **AI Tool Generator** that turns your ideas into working utilities in a few minutes. No coding required—just describe what you need and watch the magic happen.
 
-Need a habit tracker? A workout timer? A budget calculator? A study planner? A new game just for you? Just type what you want or describe your needs and the AI builds it for you, instantly.
+Need a habit tracker? A workout timer? A budget calculator? A study planner? A new game just for you? Just type what you want or describe your needs and the AI builds it for you, in a few minutes.
 
 **✨ Key Features:**
 
-*   **Describe & Create**: Just type “A Pomodoro timer with a space theme” or “A tip calculator for groups” and get a fully functional tool in seconds.
+*   **Describe & Create**: Just type “A Pomodoro timer with a space theme” or “A tip calculator for groups” and get a fully functional tool in a few minutes.
 *   **Persistent & Private**: Your spells are stored locally on your device. They work offline and are completely yours.
 *   **Native Device Powers**: Unlike basic web wrappers, your spells can access real device features:
     *   📅 **Calendar**: "Schedule study sessions based on my availability."
@@ -43,7 +43,7 @@ Need a habit tracker? A workout timer? A budget calculator? A study planner? A n
     *   🎤 Share audio files → Transcribe and summarize content.
     *   📸 Share images → Analyze and extract text or data.
     *   📝 Share text → Generate reports, schedule meetings, or automate any routine task!
-*   **Edit with AI**: Want to change something? Just say “Make the background blue” or “Add a reset button,” and the AI updates it in real-time.
+*   **Edit with AI**: Want to change something? Just say “Make the background blue” or “Add a reset button,” and the AI updates it in a few minutes.
 *   **Share Your Spells**: Export your creations to share with friends—your data stays private.
 
 **🔧 Functionality:**

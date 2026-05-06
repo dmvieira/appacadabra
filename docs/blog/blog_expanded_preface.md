@@ -36,6 +36,8 @@ As I completed work through each agent, I codified what I learned into **Skills*
 
 Think of it like this: traditional companies spend years encoding their processes into wikis, runbooks, and SOPs that gather dust. I was encoding them into living agents that could execute them. Every task that passed through an agent, captured as a skill, and formalized as an MCP, made the system slightly more capable and slightly more specifically *Appacadabra*.
 
+In the engineering community, this practice is beginning to be called **harness engineering** — the discipline of building the scaffolding that makes AI reliably capable in production contexts, as distinct from prompting (getting a good answer) or model training (improving the model itself). Harness engineering is what you're doing when you configure agents, codify skills, and formalize MCPs. It is the layer between a capable model and a functioning company.
+
 ```mermaid
 graph LR
     A["🧠 Specialized Agent\nknows your company"] --> B["⚡ Skills\nreusable commands"]
@@ -44,6 +46,8 @@ graph LR
 ```
 
 This is the new model of the software company. Not a team of humans with AI assistants. Not autonomous AI with a human supervisor. A human CEO operating a constellation of specialized AI agents, each one deeply configured to serve the company's specific context.
+
+One warning before you dive in, because every genuinely powerful technology earns one: **the harness is a means, not an end.** It is easy — especially for technically-minded founders — to get absorbed in building agents, configuring skills, and designing the architecture of a company instead of actually running one. The eleven departments in this series were built because the business needed them, in the order the business needed them. That sequence was not accidental. A Marketing agent built before you have a product to market is a distraction with good documentation. Build the infrastructure when the business demands it — not because the infrastructure is interesting.
 
 ### How to Read This Series
 

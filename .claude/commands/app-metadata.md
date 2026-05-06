@@ -10,7 +10,7 @@ Generate Play Store listing metadata variations for Appacadabra.
 
 ## Brand positioning
 - Appacadabra = "the app that generates apps" — magic metaphor throughout
-- Core value prop: describe what you need → get a working app in seconds, no coding required
+- Core value prop: describe what you need → get a working app in a few minutes (3–5 min), no coding required
 - Target audience: non-technical users who want custom tools; technical users who want rapid prototyping
 - Differentiator: generated apps run natively with access to camera, contacts, sensors, AI, etc.
 

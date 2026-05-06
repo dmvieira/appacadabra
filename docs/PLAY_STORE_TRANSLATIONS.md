@@ -6,18 +6,18 @@
 Appacadabra: AI Tool Generator
 
 ### Short Description (80 chars)
-Turn your desire into functional tools instantly. No code required, just AI
+Turn your desire into functional tools in a few minutes. No code required, just AI
 
 ### Full Description (4000 chars)
 **What do you need help with?** Describe it. The AI creates it. 🪄
 
-Appacadabra is an **AI Tool Generator** that turns your ideas into working utilities in seconds. No coding required—just describe what you need and watch the magic happen.
+Appacadabra is an **AI Tool Generator** that turns your ideas into working utilities in a few minutes. No coding required—just describe what you need and watch the magic happen.
 
-Need a habit tracker? A workout timer? A budget calculator? A study planner? A new game just for you? Just type what you want and the AI builds it for you, instantly.
+Need a habit tracker? A workout timer? A budget calculator? A study planner? A new game just for you? Just type what you want and the AI builds it for you, in a few minutes.
 
 **✨ Key Features:**
 
-• **Describe & Create**: Just type "A Pomodoro timer with a space theme" or "A tip calculator for groups" and get a fully functional tool in seconds.
+• **Describe & Create**: Just type "A Pomodoro timer with a space theme" or "A tip calculator for groups" and get a fully functional tool in a few minutes.
 • **Persistent & Private**: Your spells are stored locally on your device. They work offline and are completely yours.
 • **Native Device Powers**: Unlike basic web wrappers, your spells can access real device features:
   📅 Calendar • 🔔 Notifications • 📍 Location • 👤 Contacts • 🦿 Health Connect • 🤖 AI • 🧭 Sensors • 🔒 Biometric Lock • 🏠 Shortcuts • 📷 Camera & QR • 🗣️ TTS • 📳 Haptics • 🎨 Image Gen • 🎤 Speech Recog • 🔋 Battery • 🖨️ Printing
@@ -27,7 +27,7 @@ Need a habit tracker? A workout timer? A budget calculator? A study planner? A n
   📄 PDFs → Extract important data
   🎤 Audio → Transcribe & analyze
   📸 Images → Extract text or generate reports
-• **Edit with AI**: Want to change something? Just say "Make the background blue" or "Add a reset button," and the AI updates it in real-time.
+• **Edit with AI**: Want to change something? Just say "Make the background blue" or "Add a reset button," and the AI updates it in a few minutes.
 • **Share Your Spells**: Export your creations to share with friends—your data stays private.
 
 **🔒 Privacy First:**
@@ -48,13 +48,13 @@ Transforme desejos em ferramentas funcionais. Sem código, apenas IA
 ### Full Description
 **No que você precisa de ajuda?** Descreva. A IA cria. 🪄
 
-Appacadabra é um **Gerador de Ferramentas com IA** que transforma suas ideias em utilidades funcionais em segundos. Sem programação—apenas descreva o que você precisa e veja a mágica acontecer.
+Appacadabra é um **Gerador de Ferramentas com IA** que transforma suas ideias em utilidades funcionais em poucos minutos. Sem programação—apenas descreva o que você precisa e veja a mágica acontecer.
 
-Precisa de um rastreador de hábitos? Timer de treino? Calculadora de orçamento? Planejador de estudos? Um jogo novo só pra você? Digite o que você quer e a IA constrói para você, instantaneamente.
+Precisa de um rastreador de hábitos? Timer de treino? Calculadora de orçamento? Planejador de estudos? Um jogo novo só pra você? Digite o que você quer e a IA constrói para você, em poucos minutos.
 
 **✨ Recursos Principais:**
 
-• **Descreva & Crie**: Digite "Um timer Pomodoro com tema espacial" e receba uma ferramenta funcional em segundos.
+• **Descreva & Crie**: Digite "Um timer Pomodoro com tema espacial" e receba uma ferramenta funcional em poucos minutos.
 • **Persistente & Privado**: Seus feitiços são armazenados localmente. Funcionam offline e são completamente seus.
 • **Poderes Nativos**: Diferente de wrappers web básicos, seus feitiços podem acessar recursos reais do dispositivo:
   📅 Calendário • 🔔 Notificações • 📍 Localização • 👤 Contatos • 🦿 Health Connect • 🤖 IA • 🧭 Sensores • 🔒 Bloqueio Biométrico • 🏠 Atalhos • 📷 Câmera & QR • 🗣️ Texto para Fala • 📳 Vibração • 🎨 Geração de Imagem • 🎤 Reconhecimento de Voz • 🔋 Bateria • 🖨️ Impressão
@@ -64,7 +64,7 @@ Precisa de um rastreador de hábitos? Timer de treino? Calculadora de orçamento
   📄 PDFs → Extraia dados importantes
   🎤 Áudio → Transcreva e analise
   📸 Imagens → Extraia texto ou gere relatórios
-• **Edite com IA**: Quer mudar algo? Diga "Mude o fundo para azul" ou "Adicione um botão de reset" e a IA atualiza na hora.
+• **Edite com IA**: Quer mudar algo? Diga "Mude o fundo para azul" ou "Adicione um botão de reset" e a IA atualiza em poucos minutos.
 • **Compartilhe**: Exporte suas criações para compartilhar com amigos—seus dados ficam privados.
 
 **🔒 Privacidade Primeiro:**
@@ -85,13 +85,13 @@ Convierte tus deseos en herramientas funcionales. Sin código, solo IA
 ### Full Description
 **¿Con qué necesitas ayuda?** Descríbelo. La IA lo crea. 🪄
 
-Appacadabra es un **Generador de Herramientas con IA** que convierte tus ideas en utilidades funcionales en segundos. Sin programar—solo describe lo que necesitas y mira la magia suceder.
+Appacadabra es un **Generador de Herramientas con IA** que convierte tus ideas en utilidades funcionales en pocos minutos. Sin programar—solo describe lo que necesitas y mira la magia suceder.
 
-¿Necesitas un rastreador de hábitos? ¿Timer de ejercicio? ¿Calculadora de presupuesto? ¿Un juego nuevo? Escribe lo que quieres y la IA lo construye para ti, al instante.
+¿Necesitas un rastreador de hábitos? ¿Timer de ejercicio? ¿Calculadora de presupuesto? ¿Un juego nuevo? Escribe lo que quieres y la IA lo construye para ti, en pocos minutos.
 
 **✨ Características Principales:**
 
-• **Describe y Crea**: Escribe "Un timer Pomodoro con tema espacial" y obtén una herramienta funcional en segundos.
+• **Describe y Crea**: Escribe "Un timer Pomodoro con tema espacial" y obtén una herramienta funcional en pocos minutos.
 • **Persistente y Privado**: Tus hechizos se guardan localmente. Funcionan offline y son completamente tuyos.
 • **Poderes Nativos**: Accede a funciones reales del dispositivo:
   📅 Calendario • 🔔 Notificaciones • 📍 Ubicación • 👤 Contactos • 🦿 Health Connect • 🤖 IA • 🧭 Sensores • 📳 Vibración • 🔒 Bloqueo Biométrico • 🏠 Atajos • 📷 Cámara y QR • 🗣️ Texto a Voz • 🎨 Gen. Imágenes • 🎤 Voz • 🔋 Batería • 🖨️ Impresión
@@ -101,7 +101,7 @@ Appacadabra es un **Generador de Herramientas con IA** que convierte tus ideas e
   📄 PDFs → Extrae datos importantes
   🎤 Audio → Transcribe y analiza
   📸 Imágenes → Extrae texto o genera reportes
-• **Edita con IA**: Di "Cambia el fondo a azul" o "Agrega un botón de reset" y la IA lo actualiza al instante.
+• **Edita con IA**: Di "Cambia el fondo a azul" o "Agrega un botón de reset" y la IA lo actualiza en pocos minutos.
 • **Comparte**: Exporta tus creaciones—tus datos permanecen privados.
 
 **🔒 Privacidad Primero:**
@@ -122,13 +122,13 @@ Transformez vos désirs en outils fonctionnels. Sans code, juste l'IA
 ### Full Description
 **De quoi avez-vous besoin ?** Décrivez-le. L'IA le crée. 🪄
 
-Appacadabra est un **Générateur d'Outils IA** qui transforme vos idées en utilitaires fonctionnels en quelques secondes. Sans code—décrivez simplement ce dont vous avez besoin et regardez la magie opérer.
+Appacadabra est un **Générateur d'Outils IA** qui transforme vos idées en utilitaires fonctionnels en quelques minutes. Sans code—décrivez simplement ce dont vous avez besoin et regardez la magie opérer.
 
-Besoin d'un suivi d'habitudes ? Timer d'entraînement ? Calculatrice de budget ? Un jeu ? Tapez ce que vous voulez et l'IA le construit pour vous, instantanément.
+Besoin d'un suivi d'habitudes ? Timer d'entraînement ? Calculatrice de budget ? Un jeu ? Tapez ce que vous voulez et l'IA le construit pour vous, en quelques minutes.
 
 **✨ Fonctionnalités Principales :**
 
-• **Décrivez & Créez**: Tapez « Un timer Pomodoro avec un thème spatial » et obtenez un outil fonctionnel en secondes.
+• **Décrivez & Créez**: Tapez « Un timer Pomodoro avec un thème spatial » et obtenez un outil fonctionnel en quelques minutes.
 • **Persistant & Privé**: Vos sorts sont stockés localement. Ils fonctionnent hors ligne et vous appartiennent.
 • **Pouvoirs Natifs**: Accédez aux vraies fonctionnalités de l'appareil:
   📅 Calendrier • 🔔 Notifications • 📍 Localisation • 👤 Contacts • 🦿 Health Connect • 🤖 IA • 🧭 Capteurs • 🔒 Verrou Biométrique • 🏠 Raccourcis • 📷 Caméra & QR • 🗣️ Synthèse Vocale • 📳 Haptique • 🎨 Gen. Image • 🎤 Reconnaissance Vocale • 🔋 Batterie • 🖨️ Impression
@@ -138,7 +138,7 @@ Besoin d'un suivi d'habitudes ? Timer d'entraînement ? Calculatrice de budget ?
   📄 PDFs → Extrayez les données importantes
   🎤 Audio → Transcrivez et analysez
   📸 Images → Extrayez du texte ou générez des rapports
-• **Modifiez avec l'IA**: Dites « Mettez le fond en bleu » et l'IA met à jour instantanément.
+• **Modifiez avec l'IA**: Dites « Mettez le fond en bleu » et l'IA met à jour en quelques minutes.
 • **Partagez**: Exportez vos créations—vos données restent privées.
 
 **🔒 Vie Privée D'abord:**
@@ -154,18 +154,18 @@ Vos sorts restent sur votre appareil. Nous ne vendons pas vos données.
 Appacadabra: KI-Generator
 
 ### Short Description
-Verwandle Wünsche sofort in Tools. Kein Code erforderlich, nur KI
+Verwandle Wünsche in wenigen Minuten in Tools. Kein Code erforderlich, nur KI
 
 ### Full Description
 **Wobei brauchst du Hilfe?** Beschreibe es. Die KI erschafft es. 🪄
 
-Appacadabra ist ein **KI-Tool-Generator**, der deine Ideen in funktionierende Hilfsmittel in Sekunden verwandelt. Ohne Programmieren—beschreibe einfach, was du brauchst und sieh die Magie geschehen.
+Appacadabra ist ein **KI-Tool-Generator**, der deine Ideen in funktionierende Hilfsmittel in wenigen Minuten verwandelt. Ohne Programmieren—beschreibe einfach, was du brauchst und sieh die Magie geschehen.
 
-Brauchst du einen Habit-Tracker? Workout-Timer? Budget-Rechner? Ein Spiel? Tippe, was du willst und die KI baut es für dich, sofort.
+Brauchst du einen Habit-Tracker? Workout-Timer? Budget-Rechner? Ein Spiel? Tippe, was du willst und die KI baut es für dich, in wenigen Minuten.
 
 **✨ Hauptfunktionen:**
 
-• **Beschreiben & Erstellen**: Tippe "Ein Pomodoro-Timer mit Weltraum-Thema" und erhalte ein funktionierendes Tool in Sekunden.
+• **Beschreiben & Erstellen**: Tippe "Ein Pomodoro-Timer mit Weltraum-Thema" und erhalte ein funktionierendes Tool in wenigen Minuten.
 • **Persistent & Privat**: Deine Zauber werden lokal gespeichert. Sie funktionieren offline und gehören dir.
 • **Native Kräfte**: Zugriff auf echte Gerätefunktionen:
   📅 Kalender • 🔔 Benachrichtigungen • 📍 Standort • 👤 Kontakte • 🦿 Health Connect • 🤖 KI • 🧭 Sensoren • 🔒 Biometrische Sperre • 🏠 Verknüpfungen • 📷 Kamera & QR • 🗣️ Text-zu-Sprache • 📳 Haptik • 🎨 Bildgen. • 🎤 Spracherkennung • 🔋 Batterie • 🖨️ Drucken
@@ -175,7 +175,7 @@ Brauchst du einen Habit-Tracker? Workout-Timer? Budget-Rechner? Ein Spiel? Tippe
   📄 PDFs → Extrahiere wichtige Daten
   🎤 Audio → Transkribiere & analysiere
   📸 Bilder → Extrahiere Text oder erstelle Berichte
-• **Mit KI Bearbeiten**: Sage "Mache den Hintergrund blau" und die KI aktualisiert sofort.
+• **Mit KI Bearbeiten**: Sage "Mache den Hintergrund blau" und die KI aktualisiert in wenigen Minuten.
 • **Teilen**: Exportiere deine Kreationen—deine Daten bleiben privat.
 
 **🔒 Privatsphäre Zuerst:**
@@ -196,13 +196,13 @@ Trasforma i desideri in strumenti funzionali. Niente codice, solo IA
 ### Full Description
 **Di cosa hai bisogno?** Descrivilo. L'IA lo crea. 🪄
 
-Appacadabra è un **Generatore di Strumenti IA** che trasforma le tue idee in utilità funzionanti in pochi secondi. Senza programmare—descrivi semplicemente ciò di cui hai bisogno e guarda la magia accadere.
+Appacadabra è un **Generatore di Strumenti IA** che trasforma le tue idee in utilità funzionanti in pochi minuti. Senza programmare—descrivi semplicemente ciò di cui hai bisogno e guarda la magia accadere.
 
 Ti serve un tracker di abitudini? Timer allenamento? Calcolatrice budget? Un gioco? Scrivi cosa vuoi e l'IA lo costruisce per te, all'istante.
 
 **✨ Funzionalità Principali:**
 
-• **Descrivi & Crea**: Scrivi "Un timer Pomodoro a tema spaziale" e ottieni uno strumento funzionante in secondi.
+• **Descrivi & Crea**: Scrivi "Un timer Pomodoro a tema spaziale" e ottieni uno strumento funzionante in pochi minuti.
 • **Persistente & Privato**: I tuoi incantesimi sono salvati localmente. Funzionano offline e sono completamente tuoi.
 • **Poteri Nativi**: Accedi alle vere funzionalità del dispositivo:
   📅 Calendario • 🔔 Notifiche • 📍 Posizione • 👤 Contatti • 🦿 Health Connect • 🤖 IA • 🧭 Sensori • 🔒 Blocco Biometrico • 🏠 Scorciatoie • 📷 Fotocamera & QR • 🗣️ Testo-in-Voce • 📳 Haptics • 🎨 Gen. Immagini • 🎤 Riconoscimento Vocale • 🔋 Batteria • 🖨️ Stampa
@@ -227,14 +227,14 @@ I tuoi incantesimi restano sul tuo dispositivo. Non vendiamo i tuoi dati.
 Appacadabra: AIツールジェネレーター
 
 ### Short Description
-あなたの願いを即座に機能するツールへ。コード不要、AIだけ。
+あなたの願いを数分で機能するツールへ。コード不要、AIだけ。
 
 ### Full Description
 **何かお困りですか？** 説明するだけで、AIが作成します。🪄
 
 Appacadabraは、あなたのアイデアを数秒で機能するツールに変える**AIツールジェネレーター**です。プログラミングは不要。必要なものを説明するだけで、魔法のように生成されます。
 
-習慣トラッカー、筋トレタイマー、予算計算機、学習プランナー、自分だけのゲームが必要ですか？欲しいものを入力するだけで、AIが即座に作成します。
+習慣トラッカー、筋トレタイマー、予算計算機、学習プランナー、自分だけのゲームが必要ですか？欲しいものを入力するだけで、AIが数分で作成します。
 
 **✨ 主な機能:**
 
@@ -301,14 +301,14 @@ Appacadabra 是一款**AI工具生成器**，能在几秒钟内将你的想法�
 Appacadabra: AI 도구 생성기
 
 ### Short Description
-당신의 아이디어를 즉시 기능적인 도구로. 코딩 불필요, 오직 AI.
+당신의 아이디어를 몇 분 안에 기능적인 도구로. 코딩 불필요, 오직 AI.
 
 ### Full Description
 **무엇이 필요하신가요?** 설명만 하세요. AI가 만들어 드립니다. 🪄
 
 Appacadabra는 당신의 아이디어를 순식간에 작동하는 도구로 바꿔주는 **AI 도구 생성기**입니다. 코딩은 전혀 필요 없습니다. 필요한 것을 설명하기만 하면 마법처럼 만들어집니다.
 
-습관 추적기, 운동 타이머, 예산 계산기, 학습 플래너, 나만의 게임이 필요하신가요? 원하는 것을 입력하기만 하면 AI가 즉시 제작해 드립니다.
+습관 추적기, 운동 타이머, 예산 계산기, 학습 플래너, 나만의 게임이 필요하신가요? 원하는 것을 입력하기만 하면 AI가 몇 분 안에 제작해 드립니다.
 
 **✨ 주요 기능:**
 
@@ -360,7 +360,7 @@ Een gewoontetracker nodig? Een trainingstimer? Een budgetcalculator? Een studiep
   📄 PDF's → Haal belangrijke gegevens eruit
   🎤 Audio → Transcribeer & analyseer
   📸 Afbeeldingen → Haal tekst eruit of genereer rapporten
-• **Bewerken met AI**: Iets veranderen? Zeg gewoon "Maak de achtergrond blauw" of "Voeg een resetknop toe," en de AI werkt het bij in real-time.
+• **Bewerken met AI**: Iets veranderen? Zeg gewoon "Maak de achtergrond blauw" of "Voeg een resetknop toe," en de AI werkt het bij in een paar minuten.
 • **Deel Je Spreuken**: Exporteer je creaties om met vrienden te delen—je gegevens blijven privé.
 
 **🔒 Privacy Eerst:**
@@ -376,14 +376,14 @@ Wij geloven in gebruikerseigendom. Je spreuken leven op je apparaat. We verkopen
 Appacadabra: Generator Narzędzi AI
 
 ### Short Description (80 chars)
-Zmień swoje pragnienie w funkcjonalne narzędzia natychmiast. Bez kodu, tylko AI.
+Zmień swoje pragnienie w funkcjonalne narzędzia w kilka minut. Bez kodu, tylko AI.
 
 ### Full Description (4000 chars)
 **W czym potrzebujesz pomocy?** Opisz to. AI to stworzy. 🪄
 
 Appacadabra to **Generator Narzędzi AI**, który zamienia Twoje pomysły w działające narzędzia w kilka sekund. Nie musisz umieć kodować—po prostu opisz, czego potrzebujesz, i obserwuj magię.
 
-Potrzebujesz trackera nawyków? Timera treningowego? Kalkulatora budżetu? Planera nauki? Nowej gry tylko dla Ciebie? Po prostu wpisz, czego chcesz, a AI zbuduje to natychmiast.
+Potrzebujesz trackera nawyków? Timera treningowego? Kalkulatora budżetu? Planera nauki? Nowej gry tylko dla Ciebie? Po prostu wpisz, czego chcesz, a AI zbuduje to w kilka minut.
 
 **✨ Kluczowe Funkcje:**
 
@@ -413,14 +413,14 @@ Wierzymy w własność użytkownika. Twoje zaklęcia żyją na Twoim urządzeniu
 Appacadabra: Máy Tạo Công Cụ AI
 
 ### Short Description (80 chars)
-Biến mong muốn của bạn thành công cụ ngay lập tức. Không cần mã, chỉ cần AI.
+Biến mong muốn của bạn thành công cụ trong vài phút. Không cần mã, chỉ cần AI.
 
 ### Full Description (4000 chars)
 **Bạn cần giúp đỡ gì?** Mô tả nó. AI tạo ra nó. 🪄
 
 Appacadabra là một **Máy Tạo Công Cụ AI** biến ý tưởng của bạn thành các tiện ích hoạt động trong vài giây. Không cần mã hóa—chỉ cần mô tả những gì bạn cần và xem phép thuật xảy ra.
 
-Cần theo dõi thói quen? Hẹn giờ tập luyện? Máy tính ngân sách? Lập kế hoạch học tập? Một trò chơi mới chỉ dành cho bạn? Chỉ cần nhập những gì bạn muốn và AI sẽ xây dựng nó cho bạn ngay lập tức.
+Cần theo dõi thói quen? Hẹn giờ tập luyện? Máy tính ngân sách? Lập kế hoạch học tập? Một trò chơi mới chỉ dành cho bạn? Chỉ cần nhập những gì bạn muốn và AI sẽ xây dựng nó cho bạn trong vài phút.
 
 **✨ Các Tính Năng Chính:**
 
@@ -450,18 +450,18 @@ Chúng tôi tin vào quyền sở hữu của người dùng. Các phép thuật
 Appacadabra: ตัวสร้างเครื่องมือ AI
 
 ### Short Description (80 chars)
-เปลี่ยนความต้องการของคุณเป็นเครื่องมือที่ใช้งานได้ทันที ไม่ต้องเขียนโค้ด แค่ใช้ AI
+เปลี่ยนความต้องการของคุณเป็นเครื่องมือที่ใช้งานได้ในไม่กี่นาที ไม่ต้องเขียนโค้ด แค่ใช้ AI
 
 ### Full Description (4000 chars)
 **คุณต้องการความช่วยเหลือเรื่องอะไร?** อธิบายมัน AI จะสร้างให้ 🪄
 
-Appacadabra คือ **ตัวสร้างเครื่องมือ AI** ที่เปลี่ยนไอเดียของคุณให้เป็นแอปพลิเคชันที่ใช้งานได้จริงในไม่กี่วินาที ไม่ต้องเขียนโค้ด—แค่อธิบายสิ่งที่คุณต้องการและดูเวทมนตร์เกิดขึ้น
+Appacadabra คือ **ตัวสร้างเครื่องมือ AI** ที่เปลี่ยนไอเดียของคุณให้เป็นแอปพลิเคชันที่ใช้งานได้จริงในไม่กี่นาที ไม่ต้องเขียนโค้ด—แค่อธิบายสิ่งที่คุณต้องการและดูเวทมนตร์เกิดขึ้น
 
-ต้องการตัวติดตามนิสัย? ตัวจับเวลาออกกำลังกาย? เครื่องคำนวณงบประมาณ? แผนการเรียน? เกมใหม่สำหรับคุณโดยเฉพาะ? แค่พิมพ์สิ่งที่คุณต้องการและ AI จะสร้างให้คุณทันที
+ต้องการตัวติดตามนิสัย? ตัวจับเวลาออกกำลังกาย? เครื่องคำนวณงบประมาณ? แผนการเรียน? เกมใหม่สำหรับคุณโดยเฉพาะ? แค่พิมพ์สิ่งที่คุณต้องการและ AI จะสร้างให้คุณในไม่กี่นาที
 
 **✨ คุณสมบัติหลัก:**
 
-• **อธิบาย & สร้าง**: แค่พิมพ์ "นาฬิกาจับเวลา Pomodoro ในธีมอวกาศ" หรือ "เครื่องคำนวณทิปสำหรับกลุ่ม" และรับเครื่องมือที่ใช้งานได้เต็มรูปแบบในไม่กี่วินาที
+• **อธิบาย & สร้าง**: แค่พิมพ์ "นาฬิกาจับเวลา Pomodoro ในธีมอวกาศ" หรือ "เครื่องคำนวณทิปสำหรับกลุ่ม" และรับเครื่องมือที่ใช้งานได้เต็มรูปแบบในไม่กี่นาที
 • **ถาวร & ส่วนตัว**: เวทมนตร์ของคุณถูกเก็บไว้ในอุปกรณ์ของคุณ ทำงานแบบออฟไลน์และเป็นของคุณโดยสมบูรณ์
 • **พลังอุปกรณ์เนทีฟ**: ต่างจากเว็บบางๆ เวทมนตร์ของคุณสามารถเข้าถึงฟีเจอร์ของอุปกรณ์จริง:
   📅 ปฏิทิน • 🔔 การแจ้งเตือน • 📍 ตำแหน่ง • 👤 ผู้ติดต่อ • 🦿 Health Connect • 🤖 AI • 🧭 เซ็นเซอร์ • 🔒 ล็อคชีวภาพ • 🏠 ทางลัด • 📷 กล้อง & QR • 🗣️ TTS • 📳 การสั่น • 🎨 สร้างรูปภาพ • 🎤 จดจำเสียง • 🔋 แบตเตอรี่ • 🖨️ การพิมพ์
@@ -487,14 +487,14 @@ Appacadabra คือ **ตัวสร้างเครื่องมือ A
 Appacadabra: مولد أدوات بالذكاء الاصطناعي
 
 ### Short Description (80 chars)
-حول رغبتك إلى أدوات فعالة فوراً. لا حاجة للكود، فقط الذكاء الاصطناعي.
+حول رغبتك إلى أدوات فعالة في دقائق قليلة. لا حاجة للكود، فقط الذكاء الاصطناعي.
 
 ### Full Description (4000 chars)
 **بماذا تحتاج للمساعدة؟** صف ذلك. الذكاء الاصطناعي ينشئه. 🪄
 
 Appacadabra هو **مولد أدوات بالذكاء الاصطناعي** يحول أفكارك إلى أدوات مساعدة تعمل خلال ثوانٍ. لا حاجة للبرمجة—فقط صف ما تحتاجه وشاهد السحر يحدث.
 
-هل تحتاج إلى متتبع للعادات؟ مؤقت للتمارين؟ حاسبة للميزانية؟ مخطط للدراسة؟ لعبة جديدة خصيصًا لك؟ فقط اكتب ما تريده وسيبنيه الذكاء الاصطناعي لك فوراً.
+هل تحتاج إلى متتبع للعادات؟ مؤقت للتمارين؟ حاسبة للميزانية؟ مخطط للدراسة؟ لعبة جديدة خصيصًا لك؟ فقط اكتب ما تريده وسيبنيه الذكاء الاصطناعي لك في دقائق قليلة.
 
 **✨ الميزات الرئيسية:**
 
@@ -524,14 +524,14 @@ Appacadabra هو **مولد أدوات بالذكاء الاصطناعي** يح�
 Appacadabra: AI टूल जेनरेटर
 
 ### Short Description (80 chars)
-अपनी इच्छा को तुरंत कार्यात्मक टूल में बदलें। कोई कोड जरूरी नहीं, बस AI।
+अपनी इच्छा को कुछ मिनटों में कार्यात्मक टूल में बदलें। कोई कोड जरूरी नहीं, बस AI।
 
 ### Full Description (4000 chars)
 **आपको किस चीज़ में मदद चाहिए?** इसका वर्णन करें। AI इसे बनाता है। 🪄
 
 Appacadabra एक **AI टूल जेनरेटर** है जो आपके विचारों को सेकंडों में काम करने वाली उपयोगिताओं में बदल देता है। कोडिंग की आवश्यकता नहीं है—बस वर्णन करें कि आपको क्या चाहिए और जादू देखें।
 
-क्या आपको आदत ट्रैकर चाहिए? वर्कआउट टाइमर? बजट कैलकुलेटर? अध्ययन योजनाकार? सिर्फ आपके लिए एक नया गेम? बस टाइप करें कि आप क्या चाहते हैं और AI इसे आपके लिए तुरंत बना देता है।
+क्या आपको आदत ट्रैकर चाहिए? वर्कआउट टाइमर? बजट कैलकुलेटर? अध्ययन योजनाकार? सिर्फ आपके लिए एक नया गेम? बस टाइप करें कि आप क्या चाहते हैं और AI इसे आपके लिए कुछ मिनटों में बना देता है।
 
 **✨ मुख्य विशेषताएं:**
 
@@ -568,7 +568,7 @@ Appacadabra: Генератор ИИ-инструментов
 
 Appacadabra — это **Генератор ИИ-инструментов**, который превращает ваши идеи в рабочие утилиты за секунды. Программирование не требуется — просто опишите, что вам нужно, и смотрите, как происходит магия.
 
-Нужен трекер привычек? Таймер тренировок? Калькулятор бюджета? Планировщик учебы? Новая игра только для вас? Просто напишите, что вы хотите, и ИИ создаст это для вас мгновенно.
+Нужен трекер привычек? Таймер тренировок? Калькулятор бюджета? Планировщик учебы? Новая игра только для вас? Просто напишите, что вы хотите, и ИИ создаст это для вас за несколько минут.
 
 **✨ Ключевые особенности:**
 
@@ -598,14 +598,14 @@ Appacadabra — это **Генератор ИИ-инструментов**, к�
 Appacadabra: AI Araç Oluşturucu
 
 ### Short Description (80 chars)
-İsteğinizi anında işlevsel araçlara dönüştürün. Kod yok, sadece yapay zeka.
+İsteğinizi birkaç dakika içinde işlevsel araçlara dönüştürün. Kod yok, sadece yapay zeka.
 
 ### Full Description (4000 chars)
 **Neye ihtiyacınız var?** Tarif edin. Yapay zeka yaratsın. 🪄
 
 Appacadabra, fikirlerinizi saniyeler içinde çalışan araçlara dönüştüren bir **Yapay Zeka Araç Oluşturucusudur**. Kodlama gerekmez—sadece neye ihtiyacınız olduğunu tarif edin ve sihrin gerçekleşmesini izleyin.
 
-Alışkanlık takipçisi mi lazım? Egzersiz zamanlayıcısı? Bütçe hesaplayıcı? Çalışma planlayıcısı? Sadece sizin için yeni bir oyun mu? İstediğinizi yazın ve AI sizin için anında oluştursun.
+Alışkanlık takipçisi mi lazım? Egzersiz zamanlayıcısı? Bütçe hesaplayıcı? Çalışma planlayıcısı? Sadece sizin için yeni bir oyun mu? İstediğinizi yazın ve AI sizin için birkaç dakika içinde oluştursun.
 
 **✨ Temel Özellikler:**
 

@@ -33,6 +33,8 @@ No single AI model navigates all of these with equal depth. I learned this throu
 
 The Engineering Agent's routing layer became one of the most valuable assets in the project: a configuration that would receive a task, classify it by domain, and route it to the appropriate model. Not as magic — as deliberate architecture.
 
+This is **harness engineering** in its clearest form: not writing prompts, not fine-tuning a model, but designing the configuration layer that makes a collection of AI models behave like a coherent engineering department.
+
 ```mermaid
 graph TD
     TASK[Incoming Engineering Task] --> ROUTER{"/stack-router\nTask Classifier"}
