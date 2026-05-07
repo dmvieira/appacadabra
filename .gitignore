@@ -105,6 +105,11 @@ firebase/functions/firebase-debug.*.log*
 website/.firebase/
 
 # =====================
+# Claude Code
+# =====================
+.claude/settings.local.json
+
+# =====================
 # Maestro E2E
 # =====================
 .maestro/screenshots/
