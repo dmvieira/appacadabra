@@ -39,6 +39,8 @@ export const cameraCapability: CapabilityModule = {
     - **Callback Data (string)**: Scanned content string
     - **Example**: \`AppacadabraCamera.scan("onCodeScanned")\``,
 
+    validationMock: `    window.AppacadabraCamera = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraCamera = {
       takePhoto: function(callbackName) {

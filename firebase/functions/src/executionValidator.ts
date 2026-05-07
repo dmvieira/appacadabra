@@ -1,5 +1,6 @@
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { ValidationError, ValidationResult } from './codeValidator';
+import { ALL_CAPABILITIES } from './capabilities/index';
 
 // Padrões de erro do jsdom que são limitações da lib, não bugs do código gerado
 const JSDOM_FALSE_POSITIVE_PATTERNS = [
@@ -38,73 +39,20 @@ const CDN_LIBRARY_STUBS = `
 </script>
 `;
 
-// Mocks para todas as APIs Appacadabra injetadas pelo app
-const APPACADABRA_MOCKS = `
+export function buildAppacadraMocks(): string {
+    const mocks = ALL_CAPABILITIES.map(c => c.validationMock).join('\n');
+    return `
 <script>
 (function() {
     var noop = function() {};
     var apiProxy = new Proxy({}, { get: function() { return noop; } });
 
-    function sampleFromSchema(s) {
-        if (!s) return {};
-        if (s.type === 'string') return 'test';
-        if (s.type === 'number' || s.type === 'integer') return 0;
-        if (s.type === 'boolean') return false;
-        if (s.type === 'array') return s.items ? [sampleFromSchema(s.items)] : [];
-        if (s.type === 'object') {
-            var obj = {};
-            if (s.properties) Object.keys(s.properties).forEach(function(k) { obj[k] = sampleFromSchema(s.properties[k]); });
-            return obj;
-        }
-        return null;
-    }
-
-    function makeAIBuilder(schema) {
-        var builder = {
-            withSchema: function(s) { return makeAIBuilder(s); },
-            withSearch: function() { return this; },
-            fromImage: function() { return this; },
-            fromVideo: function() { return this; },
-            fromAudio: function() { return this; },
-            generate: function(prompt, callbackName) {
-                if (callbackName && typeof window[callbackName] === 'function') {
-                    var sample = schema ? JSON.stringify(sampleFromSchema(schema)) : '{}';
-                    window[callbackName](true, sample);
-                }
-            }
-        };
-        return builder;
-    }
-
-    window.AppacadabraAI = {
-        withSchema: function(s) { return makeAIBuilder(s); },
-        withSearch: function() { return makeAIBuilder(null); },
-        fromImage: function() { return makeAIBuilder(null); },
-        fromVideo: function() { return makeAIBuilder(null); },
-        fromAudio: function() { return makeAIBuilder(null); },
-        generate: function(prompt, cb) {
-            if (cb && typeof window[cb] === 'function') window[cb](true, '{}');
-        },
-        generateImage: noop,
-        generateVideo: noop,
-        similarity: noop,
-    };
-
-    window.AppacadabraNotify = apiProxy;
-    window.AppacadabraCalendar = apiProxy;
-    window.AppacadabraShare = apiProxy;
-    window.AppacadabraHealth = apiProxy;
-    window.AppacadabraContacts = apiProxy;
-    window.AppacadabraClipboard = apiProxy;
-    window.AppacadabraDevice = apiProxy;
-    window.AppacadabraCamera = apiProxy;
-    window.AppacadabraAudio = apiProxy;
-    window.AppacadabraScreen = apiProxy;
-    window.AppacadabraSensors = apiProxy;
+${mocks}
     window.ReactNativeWebView = { postMessage: noop };
 })();
 </script>
 `;
+}
 
 export function injectAtStart(html: string, injection: string): string {
     // 1. Prefer injecting right after <head>
@@ -124,7 +72,7 @@ export function validateWithExecution(html: string): ValidationResult {
 
         // Inject CDN stubs and mocks robustly (works even without <head>/<body>)
         const htmlWithStubs = injectAtStart(html, CDN_LIBRARY_STUBS);
-        const htmlWithMocks = injectAtStart(htmlWithStubs, APPACADABRA_MOCKS);
+        const htmlWithMocks = injectAtStart(htmlWithStubs, buildAppacadraMocks());
 
         const virtualConsole = new VirtualConsole();
         // Silence jsdomError (covers "not implemented": navigation, canvas, AudioContext, etc.)

@@ -229,14 +229,17 @@ export function extractJson(response: string): any {
     let text = response.trim();
     const originalLength = text.length;
 
-    const openMatch = text.match(/^\s*```(?:json)?\s*/);
+    const openMatch =
+        text.match(/```json[ \t]*[\r\n]/i) ??
+        text.match(/```(?![a-zA-Z])/);
     if (openMatch && openMatch.index !== undefined) {
         const contentStart = openMatch.index + openMatch[0].length;
-        const lastClose = text.lastIndexOf('```');
-        if (lastClose > contentStart + 2) {
-            text = text.substring(contentStart, lastClose).trim();
+        const afterOpen = text.substring(contentStart);
+        const closeIdx = afterOpen.search(/^```[ \t]*$/m);
+        if (closeIdx !== -1) {
+            text = afterOpen.substring(0, closeIdx).trim();
         } else {
-            text = text.substring(contentStart).trim();
+            text = afterOpen.trim();
         }
     }
 

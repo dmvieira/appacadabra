@@ -1,4 +1,4 @@
-import { isJsdomFalsePositive, injectAtStart } from '../executionValidator';
+import { isJsdomFalsePositive, injectAtStart, buildAppacadraMocks } from '../executionValidator';
 
 describe('isJsdomFalsePositive', () => {
     it('returns true for "not implemented" errors', () => {
@@ -71,5 +71,33 @@ describe('injectAtStart', () => {
         const html = '<html><head></head><body><p>hello</p></body></html>';
         const result = injectAtStart(html, '<!-- injected -->');
         expect(result).toContain('<p>hello</p>');
+    });
+});
+
+describe('buildAppacadraMocks', () => {
+    it('returns a <script> block', () => {
+        const result = buildAppacadraMocks();
+        expect(result).toContain('<script>');
+        expect(result).toContain('</script>');
+    });
+
+    it('includes ReactNativeWebView mock', () => {
+        expect(buildAppacadraMocks()).toContain('ReactNativeWebView');
+    });
+
+    it('includes AppacadabraAI special mock with callbacks', () => {
+        const result = buildAppacadraMocks();
+        expect(result).toContain('AppacadabraAI');
+        expect(result).toContain('sampleFromSchema');
+        expect(result).toContain('makeAIBuilder');
+    });
+
+    it('includes all non-AI capabilities as apiProxy', () => {
+        const result = buildAppacadraMocks();
+        expect(result).toContain('AppacadabraUI');
+        expect(result).toContain('AppacadabraForms');
+        expect(result).toContain('AppacadabraClipboard');
+        expect(result).toContain('AppacadabraCamera');
+        expect(result).toContain('AppacadabraAudio');
     });
 });

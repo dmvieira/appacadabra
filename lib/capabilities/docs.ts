@@ -363,6 +363,8 @@ window.onConverted = function(ok, md) {
 };
 \`\`\``,
 
+    validationMock: `    window.AppacadabraDocs = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraDocs = {
     convert: function(from, to, content, callbackName) {

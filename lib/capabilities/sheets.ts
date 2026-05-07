@@ -162,6 +162,8 @@ window.onSaved = function(ok, data) {
 AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
 \`\`\``,
 
+    validationMock: `    window.AppacadabraSheets = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraSheets = {
     createSheet: function(title, headers, callbackName) {

@@ -121,6 +121,8 @@ export const notifyCapability: CapabilityModule = {
 - \`confirm(message)\` - Show custom confirm dialog (Promise<boolean>)
 - \`prompt(message, defaultValue)\` - Show custom prompt dialog (Promise<string|null>)`,
 
+    validationMock: `    window.AppacadabraNotify = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraNotify = {
     showNow: function(title, message, callbackName) {

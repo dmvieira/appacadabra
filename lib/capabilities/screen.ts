@@ -12,6 +12,8 @@ export const screenCapability: CapabilityModule = {
     - **Callback Data (string)**: Base64 encoded PNG image
     - **Example**: \`AppacadabraScreen.capture("onScreenshotTaken")\``,
 
+    validationMock: `    window.AppacadabraScreen = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraScreen = {
       print: function() {

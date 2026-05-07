@@ -21,6 +21,8 @@ export const calendarCapability: CapabilityModule = {
     - **Return**: "Event deleted" (string)
 - **Return for create**: "Calendar opened" (string)`,
 
+    validationMock: `    window.AppacadabraCalendar = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraCalendar = {
     createEvent: function(title, description, startTimeMs, endTimeMs, callbackName) {

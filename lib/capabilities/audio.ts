@@ -79,6 +79,8 @@ window.onAudioResult = function(success, base64) {
 }
 \`\`\``,
 
+    validationMock: `    window.AppacadabraAudio = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraAudio = {
       recordStart: function(callbackName) {

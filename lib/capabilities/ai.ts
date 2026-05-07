@@ -66,6 +66,49 @@ export const aiCapability: CapabilityModule = {
 - **Return (generateVideo)**: Callback receives \`(success, videoDataUri, thumbnailDataUri)\`. Use directly as src. Example: \`function onVideoReady(ok, videoUri, thumbUri) { if (thumbUri) img.src = thumbUri; vid.src = videoUri; }\`
 - **Return (similarity)**: JSON string \`{ matrix: number[][], vectors: number[][], count: number }\`. \`matrix\` = pairwise cosine similarity (symmetric, 1.0 on diagonal, 0.0-1.0). \`vectors\` = raw embedding arrays (optional, for advanced use like caching or custom distance).`,
 
+    validationMock: `    function sampleFromSchema(s) {
+        if (!s) return {};
+        if (s.type === 'string') return 'test';
+        if (s.type === 'number' || s.type === 'integer') return 0;
+        if (s.type === 'boolean') return false;
+        if (s.type === 'array') return s.items ? [sampleFromSchema(s.items)] : [];
+        if (s.type === 'object') {
+            var obj = {};
+            if (s.properties) Object.keys(s.properties).forEach(function(k) { obj[k] = sampleFromSchema(s.properties[k]); });
+            return obj;
+        }
+        return null;
+    }
+    function makeAIBuilder(schema) {
+        var builder = {
+            withSchema: function(s) { return makeAIBuilder(s); },
+            withSearch: function() { return this; },
+            fromImage: function() { return this; },
+            fromVideo: function() { return this; },
+            fromAudio: function() { return this; },
+            generate: function(prompt, callbackName) {
+                if (callbackName && typeof window[callbackName] === 'function') {
+                    var sample = schema ? JSON.stringify(sampleFromSchema(schema)) : '{}';
+                    window[callbackName](true, sample);
+                }
+            }
+        };
+        return builder;
+    }
+    window.AppacadabraAI = {
+        withSchema: function(s) { return makeAIBuilder(s); },
+        withSearch: function() { return makeAIBuilder(null); },
+        fromImage: function() { return makeAIBuilder(null); },
+        fromVideo: function() { return makeAIBuilder(null); },
+        fromAudio: function() { return makeAIBuilder(null); },
+        generate: function(prompt, cb) {
+            if (cb && typeof window[cb] === 'function') window[cb](true, '{}');
+        },
+        generateImage: noop,
+        generateVideo: noop,
+        similarity: noop,
+    };`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraAI = (function() {
     var LIMITS = {

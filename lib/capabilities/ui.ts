@@ -25,6 +25,8 @@ export const uiCapability: CapabilityModule = {
   };
   \`\`\``,
 
+    validationMock: `    window.AppacadabraUI = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraUI = (function() {
       var LOADER_ID = '__aa_loader';

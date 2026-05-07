@@ -63,6 +63,8 @@ export interface CapabilityModule {
     manifestBlocks?: ManifestBlock[];
     /** AI documentation block — copied to Firebase by the sync script. */
     docs: string;
+    /** JS snippet injected into the JSDOM validation sandbox — copied to Firebase by the sync script. */
+    validationMock: string;
     /**
      * Returns the JavaScript block to inject into the WebView for this capability.
      * Receives appId and isEditMode so the JS can behave accordingly.

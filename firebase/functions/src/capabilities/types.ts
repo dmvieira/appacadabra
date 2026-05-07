@@ -14,4 +14,6 @@ export interface FirebaseCapabilityDoc {
     minVersion: string;
     /** AI documentation block injected into the system instructions. */
     docs: string;
+    /** JS snippet injected into the JSDOM sandbox during code validation. */
+    validationMock: string;
 }

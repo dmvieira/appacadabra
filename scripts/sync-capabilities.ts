@@ -39,6 +39,7 @@ interface CapDoc {
     displayName: string;
     minVersion: string;
     docs: string;
+    validationMock: string;
 }
 
 export interface ManifestBlock {
@@ -65,21 +66,14 @@ function extractStringField(src: string, field: string): string {
 }
 
 /**
- * Extracts the docs template literal content.
- * The docs field is always a tagged template literal: docs: `...`,
- * It may contain nested backticks escaped as \`.
+ * Extracts the value of a template literal field (backtick string) from a TypeScript source.
+ * Handles \` escapes inside the literal.
  */
-function extractDocsField(src: string): string {
-    // Find the docs field start
-    const docsIdx = src.search(/\bdocs\s*:\s*`/);
-    if (docsIdx === -1) return '';
-
-    // Find the opening backtick
-    const backtickStart = src.indexOf('`', docsIdx + src.slice(docsIdx).search(/\bdocs\s*:\s*`/) - docsIdx);
-    const openIdx = src.indexOf('`', docsIdx);
+function extractTemplateField(src: string, field: string): string {
+    const fieldIdx = src.search(new RegExp(`\\b${field}\\s*:\\s*\``));
+    if (fieldIdx === -1) return '';
+    const openIdx = src.indexOf('`', fieldIdx);
     if (openIdx === -1) return '';
-
-    // Walk forward to find the closing backtick (accounting for \` escapes)
     let i = openIdx + 1;
     while (i < src.length) {
         if (src[i] === '\\') { i += 2; continue; }
@@ -101,14 +95,15 @@ function parseCapabilityFile(filePath: string): CapDoc | null {
     const id = extractStringField(src, 'id');
     const displayName = extractStringField(src, 'displayName');
     const minVersion = extractStringField(src, 'minVersion');
-    const docs = extractDocsField(src);
+    const docs = extractTemplateField(src, 'docs');
+    const validationMock = extractTemplateField(src, 'validationMock');
 
-    if (!id || !docs) {
-        console.warn(`[sync] Warning: could not extract id/docs from ${path.basename(filePath)}`);
+    if (!id || !docs || !validationMock) {
+        console.warn(`[sync] Warning: could not extract id/docs/validationMock from ${path.basename(filePath)}`);
         return null;
     }
 
-    return { id, displayName, minVersion, docs };
+    return { id, displayName, minVersion, docs, validationMock };
 }
 
 function escapeTemplateLiteral(s: string): string {
@@ -125,6 +120,7 @@ const ${cap.id}Capability: FirebaseCapabilityDoc = {
     displayName: ${JSON.stringify(cap.displayName)},
     minVersion: ${JSON.stringify(cap.minVersion)},
     docs: \`${escapeTemplateLiteral(cap.docs)}\`,
+    validationMock: \`${escapeTemplateLiteral(cap.validationMock)}\`,
 };
 
 export default ${cap.id}Capability;

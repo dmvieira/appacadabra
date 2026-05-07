@@ -10,6 +10,8 @@ export const clipboardCapability: CapabilityModule = {
 - \`getString(callback)\` - Get text from clipboard
     - **Return**: Clipboard text (string)`,
 
+    validationMock: `    window.AppacadabraClipboard = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraClipboard = {
     setString: function(text) {

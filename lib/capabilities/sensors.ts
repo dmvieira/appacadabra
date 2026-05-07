@@ -35,6 +35,8 @@ export const sensorsCapability: CapabilityModule = {
 - \`stopAll()\`
     - **Note**: Stops ALL active sensors. ALWAYS call this when leaving the screen or pausing.`,
 
+    validationMock: `    window.AppacadabraSensors = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraSensors = {};
 

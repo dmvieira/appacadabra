@@ -12,6 +12,8 @@ export const shareCapability: CapabilityModule = {
 - \`shareFile(base64, mimeType, filename, callback)\`
 - **Return**: "Shared" (string)`,
 
+    validationMock: `    window.AppacadabraShare = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraShare = {
     share: function(text, url, callbackName) {

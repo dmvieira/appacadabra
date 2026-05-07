@@ -27,6 +27,8 @@ export const deviceCapability: CapabilityModule = {
 - \`userAgent\` - **Property** (string). User agent string
 - \`openBrowser(url)\` - Open URL in system browser`,
 
+    validationMock: `    window.AppacadabraDevice = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraDevice = {
     getBatteryLevel: function(callbackName) {

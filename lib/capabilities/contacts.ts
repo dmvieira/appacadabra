@@ -53,6 +53,8 @@ export const contactsCapability: CapabilityModule = {
 }
 \`\`\``,
 
+    validationMock: `    window.AppacadabraContacts = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   function validateContactObj(contact, isUpdate) {
     if (!contact || typeof contact !== 'object') {

@@ -121,6 +121,8 @@ window.onResponses = function(ok, data) {
 AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
 \`\`\``,
 
+    validationMock: `    window.AppacadabraForms = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraForms = {
     createForm: function(title, questions, callbackName) {

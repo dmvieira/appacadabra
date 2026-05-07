@@ -118,6 +118,8 @@ export const healthCapability: CapabilityModule = {
     - **data** is an Object: \`{ totalCalories: number, records: [{ startTime: "ISO", endTime: "ISO", energy: { inKilocalories: number } }] }\`
     - Example: \`var kcal = data.totalCalories;\``,
 
+    validationMock: `    window.AppacadabraHealth = apiProxy;`,
+
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraHealth = {
     initialize: function(callbackName) {

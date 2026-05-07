@@ -66,6 +66,7 @@ describe('buildSystemInstructions', () => {
             displayName: 'Future',
             minVersion: '99.0.0',
             docs: 'FUTURE_CAP_DOCS_UNIQUE_STRING',
+            validationMock: '    window.AppacadabraFuture = apiProxy;',
         };
         const caps = [...ALL_CAPABILITIES, futureCap];
         const result = buildSystemInstructions('1.0.0', caps);
@@ -78,6 +79,7 @@ describe('buildSystemInstructions', () => {
             displayName: 'Exact',
             minVersion: '2.0.0',
             docs: 'EXACT_CAP_DOCS_UNIQUE_STRING',
+            validationMock: '    window.AppacadabraExact = apiProxy;',
         };
         const result = buildSystemInstructions('2.0.0', [exactCap]);
         expect(result).toContain('EXACT_CAP_DOCS_UNIQUE_STRING');
@@ -102,6 +104,7 @@ describe('buildSystemInstructions', () => {
             displayName: 'Near Future',
             minVersion: '1.0.1',
             docs: 'NEAR_FUTURE_CAP_UNIQUE',
+            validationMock: '    window.AppacadabraNearFuture = apiProxy;',
         };
         const result = buildSystemInstructions('1.0.0', [nearFutureCap]);
         expect(result).not.toContain('NEAR_FUTURE_CAP_UNIQUE');
