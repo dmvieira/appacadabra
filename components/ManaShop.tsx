@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert, ActivityIndicator, ToastAndroid, Platform } from 'react-native';
 import * as Application from 'expo-application';
 import { useManaStore } from '../lib/manaStore';
+import { useAppStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import { colors, borderRadius, spacing } from '../lib/theme';
 import * as firebase from '../lib/firebase';
@@ -34,6 +35,7 @@ interface IAPProduct {
 
 export function ManaShop() {
     const { addMana, balance, isShopOpen, requiredMana, closeShop, isAnonymous, userEmail, refreshUser } = useManaStore();
+    const setStatusMessage = useAppStore(state => state.setStatusMessage);
     const [isAdLoading, setIsAdLoading] = useState(false);
     const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
 
@@ -240,10 +242,13 @@ export function ManaShop() {
                 setRewardBanner({ message: toastMessage, type: manaToGive > 0 ? 'success' : 'error' });
                 // Hide banner after 5 seconds
                 setTimeout(() => setRewardBanner(null), 5000);
+                // Global toast — persists after modal closes, cross-platform
+                setStatusMessage(toastMessage);
 
             } catch (error) {
                 console.error('Failed to add reward:', error);
                 setRewardBanner({ message: t('rewardError'), type: 'error' });
+                setStatusMessage(t('rewardError'));
             }
 
         });
