@@ -517,8 +517,8 @@ describe('getUsage', () => {
 describe('calculateCostUsd — OpenRouter models', () => {
     const usage = { promptTokens: 1_000_000, responseTokens: 1_000_000 };
 
-    it('calculates non-zero cost for google/gemma-4-31b-it', () => {
-        const cost = calculateCostUsd('google/gemma-4-31b-it', usage);
+    it('calculates non-zero cost for google/gemini-3.1-flash-lite-preview (WEBVIEW)', () => {
+        const cost = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage);
         expect(cost).toBeGreaterThan(0);
     });
 
@@ -532,14 +532,9 @@ describe('calculateCostUsd — OpenRouter models', () => {
         expect(cost).toBeGreaterThan(0);
     });
 
-    it('calculates non-zero cost for google/gemma-4-26b-a4b-it (WEBVIEW)', () => {
-        const cost = calculateCostUsd('google/gemma-4-26b-a4b-it', usage);
-        expect(cost).toBeGreaterThan(0);
-    });
-
-    it('includes searchPerQuery cost for google/gemma-4-26b-a4b-it', () => {
-        const withSearch = calculateCostUsd('google/gemma-4-26b-a4b-it', usage, { searchQueries: 1 });
-        const withoutSearch = calculateCostUsd('google/gemma-4-26b-a4b-it', usage, { searchQueries: 0 });
+    it('includes searchPerQuery cost for google/gemini-3.1-flash-lite-preview (WEBVIEW)', () => {
+        const withSearch = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage, { searchQueries: 1 });
+        const withoutSearch = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage, { searchQueries: 0 });
         expect(withSearch).toBeGreaterThan(withoutSearch);
     });
 

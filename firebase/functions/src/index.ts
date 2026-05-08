@@ -69,10 +69,9 @@ function getOR(): OpenAI {
 }
 
 const MODELS = {
-    SPELL_S: 'deepseek/deepseek-v4-flash',          // create/edit/convert
-    SUGGEST: 'openai/gpt-oss-120b:free',            // suggestSpells
-    WEBVIEW: 'google/gemma-4-26b-a4b-it',           // webview_ai (text/image)
-    WEBVIEW_AUDIO: 'google/gemini-3.1-flash-lite-preview', // webview_ai with audio input
+    SPELL_S: 'deepseek/deepseek-v4-flash',                  // create/edit/convert
+    SUGGEST: 'openai/gpt-oss-120b:free',                    // suggestSpells
+    WEBVIEW: 'google/gemini-3.1-flash-lite-preview',        // webview_ai (all inputs)
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1028,7 +1027,7 @@ export const processSpellJob = onDocumentCreated(
                     if (useSearch && !tools.includes('googleSearch')) tools.push('googleSearch');
 
                     const useWebSearch = tools.includes('googleSearch') || tools.includes('googleMaps');
-                    const effectiveModel = requestedModel || (resolvedAudios?.length ? MODELS.WEBVIEW_AUDIO : MODELS.WEBVIEW);
+                    const effectiveModel = requestedModel || MODELS.WEBVIEW;
 
                     console.log(`[Job ${jobId}] [WEBVIEW_AI] Model: ${effectiveModel}, Tools: ${tools}`);
 
