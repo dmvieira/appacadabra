@@ -70,6 +70,7 @@ mindmap
       /draft-post
       /content-plan
       /adapt-post
+      /substack-publish
     International
       /market-entry
       /glocalization-check
@@ -81,9 +82,39 @@ mindmap
 
 ---
 
+### The Design Discipline: Skills, Agents, and the Right Granularity
+
+The table above shows eleven agents and twenty-eight skills. That structure was not arbitrary — it was the product of several painful lessons about how to organize AI capabilities into something that actually works as a system.
+
+Three principles emerged:
+
+**1. Skills must live inside agents — never loose.**
+
+A skill without an agent is a tool lying on a workbench. It can do the job, but *you* have to remember it exists, decide when to use it, load the right context, and interpret the output. Loose skills don't compose into workflows. They stay isolated steps that require you — the founder — to be the routing layer every time.
+
+When `/release-notes` was a standalone skill, I had to remember to run it, remember what context it needed, and manually sequence it with the version bump and the tag. When it moved into the Release Agent alongside `/release-checklist`, the agent could orchestrate the full end-to-end flow: check prerequisites, bump versions, generate notes, create the tag. The skill became part of a *process* instead of a *task*. That's the difference between a tool and a department.
+
+**2. Agents without skills are complexity without capability.**
+
+The temptation in agent architecture is to create an agent for every domain you can name. "We should have a Customer Support Agent." But if that agent has no encoded skills — no specific commands, no documented workflows, no MCPs — then all you've done is add a new entity to the routing table. Now you have to decide: does this request go to the Customer Support Agent or the Marketing Agent? Without skills to disambiguate, the founder becomes the dispatcher for an organizational chart that exists in name only.
+
+The rule I adopted: **don't create an agent until you have at least one skill to give it.** The agent earns its existence by having something concrete it can do. This is why Appacadabra has eleven agents and not twenty — the departments that didn't yet have formalized workflows (Customer Support, Sales, PR, Investor Relations) didn't get agents. They'll get agents when they get skills.
+
+**3. Too many skills per agent overload its decision-making.**
+
+This is the subtler failure mode. An agent with fifteen skills has to decide, for every incoming request, which of those fifteen tools to reach for. That decision is not free — it introduces ambiguity, increases the chance of the wrong skill being selected, and makes the agent's behavior harder for the founder to predict.
+
+The Engineering Agent is the most loaded agent in the system, with seven skills. That's already at the edge of what I'd consider manageable — and it works only because the skills are clearly differentiated by input type (code review vs. schema validation vs. locale string generation). If I had also put the Release skills or the QA skills inside Engineering, the agent would have become a dumping ground where every technical request landed, and the skill selection would degrade.
+
+The analogy from traditional management holds: a department with too many responsibilities becomes a bottleneck and a source of errors. The same applies to agents. **The right granularity is the one where each agent has enough skills to run an end-to-end workflow in its domain, and few enough that skill selection is unambiguous.**
+
+These three principles — skills in agents, agents with skills, and skills in moderation — are the organizational design layer of harness engineering. Get them wrong and you have either a pile of disconnected tools or an unmaintainable graph of agents that no one (including the AI) can navigate. Get them right and you have something that behaves like a company: specialized departments with clear responsibilities, each capable of acting autonomously within its scope.
+
+---
+
 ### The Command Surface
 
-Twenty-seven executable commands — the institutional knowledge of the company encoded as actions that can be taken repeatedly, consistently, without rebuilding context from scratch each time.
+Twenty-eight executable commands — the institutional knowledge of the company encoded as actions that can be taken repeatedly, consistently, without rebuilding context from scratch each time.
 
 | Command | Agent | What It Does |
 |---------|-------|--------------|
@@ -110,6 +141,7 @@ Twenty-seven executable commands — the institutional knowledge of the company 
 | `/draft-post` | Marketing | Drafts a complete post for X (thread) or LinkedIn (narrative) in Appacadabra's voice |
 | `/content-plan` | Marketing | Builds a content calendar mapping product milestones to content formats and cadences |
 | `/adapt-post` | Marketing | Adapts existing content for a different platform while preserving voice and core insight |
+| `/substack-publish` | Marketing | Converts a blog markdown file into Substack-ready format — Mermaid→prose, heading adjustments, publishing metadata |
 | `/market-entry` | International | Market entry readiness assessment: regulatory, distribution, cultural, competitive |
 | `/glocalization-check` | International | Cultural compatibility audit across all 10 active markets for any new feature |
 | `/test-coverage-check` | QA | Identifies user flows without Maestro coverage and generates scaffolding for missing tests |
@@ -126,7 +158,7 @@ The **Engineering Agent** is the hub. Its output feeds directly into the **QA Ag
 
 The **Release Agent** sits downstream of everything. It consumes Engineering output (code), the Engineering Agent's localization work (release notes in 17 languages), Analytics data (rollout health signals), and Finance output (mana pricing that must be accurate before shipping). A release decision is, implicitly, a validation that every upstream agent did its job.
 
-The **Marketing Agent** activates on product events. When Engineering ships a feature, Marketing drafts the thread. When Release publishes a new version, Marketing drafts the announcement. When Analytics surfaces a milestone, Marketing turns it into a story. The content calendar (`/content-plan`) is the scheduling layer that ties Marketing output to the product's actual rhythm.
+The **Marketing Agent** activates on product events. When Engineering ships a feature, Marketing drafts the thread. When Release publishes a new version, Marketing drafts the announcement. When Analytics surfaces a milestone, Marketing turns it into a story. The content calendar (`/content-plan`) is the scheduling layer that ties Marketing output to the product's actual rhythm. And when an article is ready to go public, `/substack-publish` handles the last mile — converting internal markdown into a publishable format without manual reformatting.
 
 The **Analytics Agent** feeds back upstream. Its anomaly detection can trigger the QA Agent's regression suite. Its cohort data informs the International Agent's market prioritization. Its investor summaries distill the work of every other department into the signal that determines whether the company continues to exist.
 

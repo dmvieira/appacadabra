@@ -85,6 +85,8 @@ Its **MCPs** included:
 
 - A **Platform Adaptation MCP** (`/adapt-post`): given a piece of existing content (an article excerpt, a feature announcement, a LinkedIn post), adapts it for a different platform — compressing a LinkedIn article into an X thread, or expanding an X thread into a LinkedIn narrative — while preserving the core insight and voice.
 
+- A **Substack Publish MCP** (`/substack-publish`): given a blog markdown file from `docs/blog/`, transforms it into a Substack-ready format — converting Mermaid diagrams into narrative descriptions, adjusting heading levels, extracting the post title and subtitle, and writing the output to `docs/blog/substack/`. The last mile of the content pipeline: from internal documentation to public article, without manual reformatting.
+
 The Marketing Agent meant that the moment a new feature shipped, a new article was published, or a new milestone was reached, the content machine could activate immediately — not with generic copy, but with posts that sounded like they were written by someone who had spent four months building this company and was genuinely excited to talk about it.
 
 Because they were.

@@ -61,6 +61,8 @@ Its **Skills and MCPs** included:
 - A **Test Generation MCP** (`/gen-tests`) that, given a new function or component, auto-generated unit test scaffolding in our established testing style (Jest for the JS layer, JUnit for the Android native layer)
 - A **Schema Validator MCP** (`/validate-schema`) that validated Firestore document structures and SQLite schema migrations against our TypeScript type definitions
 
+A design principle emerged here that would shape every subsequent agent: **skills must live inside agents, not float as standalone tools.** Early in the project, `/gen-tests` and `/code-review` existed as isolated commands I ran manually. The problem was me — I was the routing layer, remembering which tool to invoke, in what order, with what context. When those skills moved into the Engineering Agent, the agent could orchestrate them as a workflow: review the code, generate tests for the reviewed code, validate the schema the code touches. Skills composed into a pipeline; loose tools did not. The Conclusion returns to this principle — and its failure modes — in detail.
+
 The cumulative effect: by the midpoint of the project, a significant portion of engineering scaffolding happened automatically. New features were generated already conforming to our architecture. Tests were generated alongside implementation. The Engineering Agent didn't just write code — it wrote code that *looked* like the rest of the codebase, because it had been trained on the codebase.
 
 ### The Localization Challenge: Democratizing the Enterprise Moat

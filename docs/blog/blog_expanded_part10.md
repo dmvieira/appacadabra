@@ -114,4 +114,4 @@ The company's operational cycle was automated.
 
 ---
 
-*Eleven departments. Eleven agents. Twenty-seven executable commands. The conclusion that follows steps back from the individual departments and maps the full architecture that emerged — the complete constellation of what was built, how the pieces connect, and what it means for the companies that come after.*
+*Eleven departments. Eleven agents. Twenty-eight executable commands. The conclusion that follows steps back from the individual departments and maps the full architecture that emerged — the complete constellation of what was built, how the pieces connect, and what it means for the companies that come after.*

@@ -26,7 +26,7 @@ What would have taken a founding team weeks of heated whiteboard sessions happen
 
 At the end of the strategy phase, I made a deliberate, uncomfortable choice: native Android development.
 
-I had no formal background in it. No Android engineering experience. No prior published apps. This was not strategic comfort — it was strategic ambition. I wanted to know if AI could guide a product end-to-end in a domain where I couldn't rely on my own expertise as a safety net. It was the most honest test I could run.
+I had no formal background in it. No Android engineering experience. No prior published apps, only some freelance webview stuff for a client back in 2017. This was not strategic comfort — it was strategic ambition. I wanted to know if AI could guide a product end-to-end in a domain where I couldn't rely on my own expertise as a safety net. It was the most honest test I could run.
 
 Spoiler: it could. But not without cost.
 
