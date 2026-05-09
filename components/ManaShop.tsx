@@ -21,6 +21,10 @@ const MANA_COST_USD = 0.27;
 // Maximum mana reward cap (to prevent exploits)
 const MAX_MANA_REWARD = 5;
 
+// How long to wait for the AdMob PAID event before giving up (ms)
+// Fixes race condition where EARNED_REWARD fires before PAID
+const PAID_EVENT_WAIT_MS = 2000;
+
 interface IAPProduct {
     productId: string;
     title: string;
@@ -37,6 +41,7 @@ export function ManaShop() {
     const { addMana, balance, isShopOpen, requiredMana, closeShop, isAnonymous, userEmail, refreshUser } = useManaStore();
     const setStatusMessage = useAppStore(state => state.setStatusMessage);
     const [isAdLoading, setIsAdLoading] = useState(false);
+    const [isProcessingReward, setIsProcessingReward] = useState(false);
     const [rewardedAd, setRewardedAd] = useState<RewardedAd | null>(null);
 
     // IAP State
@@ -205,8 +210,21 @@ export function ManaShop() {
 
         const unsubscribeEarned = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, async (reward) => {
             console.log('User earned reward:', reward);
+            setIsProcessingReward(true);
 
-            // Calculate mana based on actual revenue (no fallback - if ad didn't pay, user gets 0)
+            // Wait for PAID event if it hasn't arrived yet (race condition fix)
+            // The PAID event can fire AFTER EARNED_REWARD; without this wait
+            // adRevenueRef would be 0 and the user would get no mana.
+            if (adRevenueRef.current <= 0) {
+                console.log('PAID event not received yet, waiting up to', PAID_EVENT_WAIT_MS, 'ms...');
+                const waitStart = Date.now();
+                while (adRevenueRef.current <= 0 && (Date.now() - waitStart) < PAID_EVENT_WAIT_MS) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+                console.log(`Wait finished after ${Date.now() - waitStart}ms. Revenue: $${adRevenueRef.current.toFixed(6)}`);
+            }
+
+            // Calculate mana based on actual revenue, with minimum fallback
             let manaToGive = adRevenueRef.current / MANA_COST_USD;
 
             // Apply max bound
@@ -249,6 +267,8 @@ export function ManaShop() {
                 console.error('Failed to add reward:', error);
                 setRewardBanner({ message: t('rewardError'), type: 'error' });
                 setStatusMessage(t('rewardError'));
+            } finally {
+                setIsProcessingReward(false);
             }
 
         });
@@ -365,11 +385,13 @@ export function ManaShop() {
                         </TouchableOpacity>
                     </View>
 
-                    {isPurchasing && (
+                    {(isPurchasing || isProcessingReward) && (
                         <View style={styles.purchasingOverlay}>
                             <ActivityIndicator size="large" color={colors.primary} />
                             <Text style={styles.purchasingText}>
-                                {purchaseStatus === 'crediting'
+                                {isProcessingReward
+                                    ? t('processingReward')
+                                    : purchaseStatus === 'crediting'
                                     ? t('creditingPurchase')
                                     : purchaseStatus === 'refunding'
                                     ? t('refundingPurchase')
