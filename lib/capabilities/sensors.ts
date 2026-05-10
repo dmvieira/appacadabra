@@ -377,7 +377,7 @@ export const sensorsCapability: CapabilityModule = {
                         accelCount++;
                         if (accelCount === 1 || accelCount % 50 === 0) console.log(`[Bridge] Native Accelerometer update (x${accelCount})`);
                         if (ctx.webViewRef.current && ctx.callbackName) {
-                            const script = createCallbackScript(ctx.callbackName, true, JSON.stringify(sensorData));
+                            const script = createCallbackScript(ctx.callbackName, true, sensorData);
                             ctx.webViewRef.current.injectJavaScript(script);
                         }
                     });
@@ -400,7 +400,7 @@ export const sensorsCapability: CapabilityModule = {
                         gyroCount++;
                         if (gyroCount === 1 || gyroCount % 50 === 0) console.log(`[Bridge] Native Gyroscope update (x${gyroCount})`);
                         if (ctx.webViewRef.current && ctx.callbackName) {
-                            const script = createCallbackScript(ctx.callbackName, true, JSON.stringify(sensorData));
+                            const script = createCallbackScript(ctx.callbackName, true, sensorData);
                             ctx.webViewRef.current.injectJavaScript(script);
                         }
                     });
@@ -428,7 +428,7 @@ export const sensorsCapability: CapabilityModule = {
 
                         if (magCount === 1 || magCount % 50 === 0) console.log(`[Bridge] Native Magnetometer update (x${magCount}) heading: ${Math.round(heading)}`);
                         if (ctx.webViewRef.current && ctx.callbackName) {
-                            const script = createCallbackScript(ctx.callbackName, true, JSON.stringify(dataWithHeading));
+                            const script = createCallbackScript(ctx.callbackName, true, dataWithHeading);
                             ctx.webViewRef.current.injectJavaScript(script);
                         }
                     });
@@ -451,7 +451,7 @@ export const sensorsCapability: CapabilityModule = {
                     pedometerSubscription = Pedometer.watchStepCount(result => {
                         console.log(`[Bridge] Native Pedometer step: ${result.steps}`);
                         if (ctx.webViewRef.current && ctx.callbackName) {
-                            const script = createCallbackScript(ctx.callbackName, true, JSON.stringify(result));
+                            const script = createCallbackScript(ctx.callbackName, true, result);
                             ctx.webViewRef.current.injectJavaScript(script);
                         }
                     });

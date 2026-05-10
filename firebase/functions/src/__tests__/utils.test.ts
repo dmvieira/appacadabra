@@ -538,12 +538,12 @@ describe('calculateCostUsd — OpenRouter models', () => {
         expect(withSearch).toBeGreaterThan(withoutSearch);
     });
 
-    it('calculates non-zero cost for google/gemini-3.1-flash-lite-preview (WEBVIEW_AUDIO)', () => {
+    it('calculates non-zero cost for google/gemini-3.1-flash-lite-preview (WEBVIEW)', () => {
         const cost = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage);
         expect(cost).toBeGreaterThan(0);
     });
 
-    it('includes audioInputPerMToken cost for WEBVIEW_AUDIO model', () => {
+    it('includes audioInputPerMToken cost for WEBVIEW model', () => {
         const withAudio = calculateCostUsd(
             'google/gemini-3.1-flash-lite-preview',
             { promptTokens: 0, responseTokens: 0 },

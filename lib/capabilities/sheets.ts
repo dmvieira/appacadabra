@@ -344,8 +344,8 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                             if (initial) {
                                 const cached = resourceCache.get(sheetId) ?? await loadSheetsCache(sheetId);
                                 const script = cached
-                                    ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true, added: [], changed: [], deleted: [] }))
-                                    : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                                    ? createCallbackScript(callbackName, true, { ...cached, initial: true, cached: true, added: [], changed: [], deleted: [] })
+                                    : createCallbackScript(callbackName, false, { offline: true });
                                 ctx.webViewRef.current?.injectJavaScript(script);
                             }
                             return;
@@ -381,8 +381,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                                 ? { added: [], changed: [], deleted: [] }
                                 : computeDiff(prevSnapshot, rows);
                             if (watcher && !ctx.isEditMode) watcher.snapshot = rows;
-                            const script = createCallbackScript(callbackName, true,
-                                JSON.stringify({ rows, headers, ...diff, initial }));
+                            const script = createCallbackScript(callbackName, true, { rows, headers, ...diff, initial });
                             ctx.webViewRef.current?.injectJavaScript(script);
                         }
 
@@ -391,8 +390,8 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                         if (initial) {
                             const cached = resourceCache.get(sheetId) ?? await loadSheetsCache(sheetId);
                             const script = cached
-                                ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true, added: [], changed: [], deleted: [] }))
-                                : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                                ? createCallbackScript(callbackName, true, { ...cached, initial: true, cached: true, added: [], changed: [], deleted: [] })
+                                : createCallbackScript(callbackName, false, { offline: true });
                             ctx.webViewRef.current?.injectJavaScript(script);
                         }
                     }

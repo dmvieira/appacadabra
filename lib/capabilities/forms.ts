@@ -427,8 +427,8 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                             if (initial) {
                                 const cached = resourceCache.get(formId) ?? await loadFormsCache(formId);
                                 const script = cached
-                                    ? createCallbackScript(callbackName, true, JSON.stringify({ responses: cached, newResponses: [], initial: true, cached: true }))
-                                    : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                                    ? createCallbackScript(callbackName, true, { responses: cached, newResponses: [], initial: true, cached: true })
+                                    : createCallbackScript(callbackName, false, { offline: true });
                                 ctx.webViewRef.current?.injectJavaScript(script);
                             }
                             return;
@@ -445,16 +445,14 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                             // First call: fire with all responses
                             const allIds = new Set(responses.map((r: any) => r.responseId));
                             if (watcher && !ctx.isEditMode) watcher.snapshot = allIds;
-                            const script = createCallbackScript(callbackName, true,
-                                JSON.stringify({ responses, newResponses: [], initial: true }));
+                            const script = createCallbackScript(callbackName, true, { responses, newResponses: [], initial: true });
                             ctx.webViewRef.current?.injectJavaScript(script);
                         } else {
                             // Subsequent polls: only fire if new responses found
                             const newResponses = responses.filter((r: any) => !prevSnapshot.has(r.responseId));
                             if (newResponses.length > 0) {
                                 newResponses.forEach((r: any) => prevSnapshot.add(r.responseId));
-                                const script = createCallbackScript(callbackName, true,
-                                    JSON.stringify({ responses, newResponses, initial: false }));
+                                const script = createCallbackScript(callbackName, true, { responses, newResponses, initial: false });
                                 ctx.webViewRef.current?.injectJavaScript(script);
                             }
                         }
@@ -462,8 +460,8 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                         if (initial) {
                             const cached = resourceCache.get(formId) ?? await loadFormsCache(formId);
                             const script = cached
-                                ? createCallbackScript(callbackName, true, JSON.stringify({ responses: cached, newResponses: [], initial: true, cached: true }))
-                                : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                                ? createCallbackScript(callbackName, true, { responses: cached, newResponses: [], initial: true, cached: true })
+                                : createCallbackScript(callbackName, false, { offline: true });
                             ctx.webViewRef.current?.injectJavaScript(script);
                         }
                     }

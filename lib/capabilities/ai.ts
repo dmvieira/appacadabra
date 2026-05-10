@@ -88,7 +88,7 @@ export const aiCapability: CapabilityModule = {
             fromAudio: function() { return this; },
             generate: function(prompt, callbackName) {
                 if (callbackName && typeof window[callbackName] === 'function') {
-                    var sample = schema ? JSON.stringify(sampleFromSchema(schema)) : '{}';
+                    var sample = schema ? sampleFromSchema(schema) : 'example text';
                     window[callbackName](true, sample);
                 }
             }

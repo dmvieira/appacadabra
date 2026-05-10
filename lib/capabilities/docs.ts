@@ -620,8 +620,8 @@ window.onConverted = function(ok, md) {
                             if (initial) {
                                 const cached = resourceCache.get(docId) ?? await loadDocsCache(docId);
                                 const script = cached
-                                    ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true }))
-                                    : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                                    ? createCallbackScript(callbackName, true, { ...cached, initial: true, cached: true })
+                                    : createCallbackScript(callbackName, false, { offline: true });
                                 ctx.webViewRef.current?.injectJavaScript(script);
                             }
                             return;
@@ -639,8 +639,7 @@ window.onConverted = function(ok, md) {
 
                         if (hasChanged) {
                             if (watcher && !ctx.isEditMode) watcher.snapshot = snap;
-                            const script = createCallbackScript(callbackName, true,
-                                JSON.stringify({ ...snap, initial }));
+                            const script = createCallbackScript(callbackName, true, { ...snap, initial });
                             ctx.webViewRef.current?.injectJavaScript(script);
                         }
 
@@ -649,8 +648,8 @@ window.onConverted = function(ok, md) {
                         if (initial) {
                             const cached = resourceCache.get(docId) ?? await loadDocsCache(docId);
                             const script = cached
-                                ? createCallbackScript(callbackName, true, JSON.stringify({ ...cached, initial: true, cached: true }))
-                                : createCallbackScript(callbackName, false, JSON.stringify({ offline: true }));
+                                ? createCallbackScript(callbackName, true, { ...cached, initial: true, cached: true })
+                                : createCallbackScript(callbackName, false, { offline: true });
                             ctx.webViewRef.current?.injectJavaScript(script);
                         }
                     }
