@@ -132,6 +132,16 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await addColumn('generated_apps', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
     await addColumn('app_versions', 'jobId', 'TEXT');
 
+    // mana_events: token breakdown for cost calibration
+    await addColumn('mana_events', 'eventType', 'TEXT');
+    await addColumn('mana_events', 'promptTokens', 'INTEGER');
+    await addColumn('mana_events', 'responseTokens', 'INTEGER');
+    await addColumn('mana_events', 'thoughtsTokens', 'INTEGER');
+    await addColumn('mana_events', 'cachedTokens', 'INTEGER');
+    await addColumn('mana_events', 'totalTokens', 'INTEGER');
+    await addColumn('mana_events', 'modelId', 'TEXT');
+    await addColumn('mana_events', 'versionNumber', 'INTEGER');
+
     // webview_ai_cache: new columns for job tracking and recovery
     await addColumn('webview_ai_cache', 'jobId', 'TEXT');
     await addColumn('webview_ai_cache', 'resultMediaMime', 'TEXT');
@@ -371,7 +381,18 @@ export async function updateSortOrders(updates: { id: number; sortOrder: number 
     }
 }
 
-export async function incrementManaCost(appId: number, amount: number): Promise<void> {
+export interface ManaEventOpts {
+    eventType?: string;
+    promptTokens?: number;
+    responseTokens?: number;
+    thoughtsTokens?: number;
+    cachedTokens?: number;
+    totalTokens?: number;
+    modelId?: string;
+    versionNumber?: number;
+}
+
+export async function incrementManaCost(appId: number, amount: number, opts?: ManaEventOpts): Promise<void> {
     if (amount <= 0) return;
     const database = await getDatabase();
     const now = Date.now();
@@ -379,10 +400,18 @@ export async function incrementManaCost(appId: number, amount: number): Promise<
         'UPDATE generated_apps SET totalManaCost = totalManaCost + ? WHERE id = ?',
         [amount, appId]
     );
-    // Log the event so we can sum mana within any time window
     await database.runAsync(
-        'INSERT INTO mana_events (appId, amount, timestamp) VALUES (?, ?, ?)',
-        [appId, amount, now]
+        `INSERT INTO mana_events (appId, amount, timestamp, eventType, promptTokens, responseTokens, thoughtsTokens, cachedTokens, totalTokens, modelId, versionNumber)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [appId, amount, now,
+         opts?.eventType ?? null,
+         opts?.promptTokens ?? null,
+         opts?.responseTokens ?? null,
+         opts?.thoughtsTokens ?? null,
+         opts?.cachedTokens ?? null,
+         opts?.totalTokens ?? null,
+         opts?.modelId ?? null,
+         opts?.versionNumber ?? null]
     );
 }
 

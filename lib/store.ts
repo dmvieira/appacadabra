@@ -318,7 +318,15 @@ export const useAppStore = create<AppState>((set, get) => ({
                 // Log creation mana cost (both totalManaCost + mana_events for recentManaCost)
                 const creationCredits = job.result.creditsUsed || 0;
                 if (creationCredits > 0) {
-                    await db.incrementManaCost(id, creationCredits);
+                    await db.incrementManaCost(id, creationCredits, {
+                        eventType: 'create',
+                        promptTokens: usage?.promptTokens,
+                        responseTokens: usage?.responseTokens,
+                        thoughtsTokens: usage?.thoughtsTokens,
+                        cachedTokens: usage?.cachedTokens,
+                        totalTokens: usage?.totalTokens,
+                        versionNumber: 1,
+                    });
                 }
 
                 // Create a dedicated notification channel for this spell (Android)
@@ -370,7 +378,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                         // Log edit mana cost (both totalManaCost + mana_events for recentManaCost)
                         if (editCredits > 0) {
-                            await db.incrementManaCost(appId, editCredits);
+                            await db.incrementManaCost(appId, editCredits, {
+                                eventType: 'edit',
+                                promptTokens: usage?.promptTokens,
+                                responseTokens: usage?.responseTokens,
+                                thoughtsTokens: usage?.thoughtsTokens,
+                                cachedTokens: usage?.cachedTokens,
+                                totalTokens: usage?.totalTokens,
+                                versionNumber: newVersion,
+                            });
                         }
 
                         await db.insertVersion({

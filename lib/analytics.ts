@@ -33,12 +33,28 @@ export function logIconGenerated(context: 'setup' | 'menu', creditsUsed: number)
 }
 
 // Mana
-export function logManaEarned(source: 'iap_purchase' | 'ad_reward', amount: number) {
-    analytics().logEvent('mana_earned', { source, amount }).catch(() => {});
+export function logManaEarned(source: 'iap_purchase' | 'ad_reward', amount: number, revenue_usd?: number) {
+    analytics().logEvent('mana_earned', { source, amount, ...(revenue_usd !== undefined ? { revenue_usd } : {}) }).catch(() => {});
 }
 
 export function logShopOpened() {
     analytics().logEvent('shop_opened').catch(() => {});
+}
+
+export function logIapInitiated(productId: string) {
+    analytics().logEvent('iap_initiated', { product_id: productId }).catch(() => {});
+}
+
+export function logIapCancelled(productId: string) {
+    analytics().logEvent('iap_cancelled', { product_id: productId }).catch(() => {});
+}
+
+export function logIapFailed(productId: string) {
+    analytics().logEvent('iap_failed', { product_id: productId }).catch(() => {});
+}
+
+export function logIapCreditFailed(productId: string) {
+    analytics().logEvent('iap_credit_failed', { product_id: productId }).catch(() => {});
 }
 
 // ── Onboarding funnel ─────────────────────────────────────────────────────────
@@ -68,6 +84,18 @@ export function logAdStarted() {
     analytics().logEvent('ad_started').catch(() => {});
 }
 
+export function logAdPaidTimeout() {
+    analytics().logEvent('ad_paid_timeout').catch(() => {});
+}
+
+export function logAdLoadFailed(errorCode: string) {
+    analytics().logEvent('ad_load_failed', { error_code: errorCode }).catch(() => {});
+}
+
+export function logAdClosedEarly() {
+    analytics().logEvent('ad_closed_early').catch(() => {});
+}
+
 // ── Spell list menu ───────────────────────────────────────────────────────────
 export function logSpellMenuOpened() {
     analytics().logEvent('spell_menu_opened').catch(() => {});
@@ -88,4 +116,13 @@ export function logEditorVersionRestored() {
 }
 export function logEditorVersionDeleted() {
     analytics().logEvent('editor_version_deleted').catch(() => {});
+}
+
+// ── Capability usage ──────────────────────────────────────────────────────────
+export function logCapabilityUsed(capabilityId: string, messageType: string, success: boolean) {
+    analytics().logEvent('capability_used', {
+        capability_id: capabilityId,
+        message_type: messageType,
+        success: success ? 1 : 0,
+    }).catch(() => {});
 }

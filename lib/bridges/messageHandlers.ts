@@ -18,6 +18,7 @@ import * as db from '../database/db';
 import { ALL_CAPABILITIES } from '../capabilities/index';
 import { ExpandedStorageItem } from './injectedJS';
 import { updateStorageCache, removeFromStorageCache, getStorageFromCache } from '../storageCache';
+import { logCapabilityUsed } from '../analytics';
 
 // State for Audio Recording
 let currentRecording: Audio.Recording | null = null;
@@ -464,6 +465,7 @@ export async function handleBridgeMessage(
     for (const cap of ALL_CAPABILITIES) {
         const capRes = await cap.handleMessage(type, data, ctx);
         if (capRes !== null) {
+            logCapabilityUsed(cap.id, type, capRes.success ?? true);
             return {
                 success: capRes.success ?? true,
                 result: capRes.result ?? '',
