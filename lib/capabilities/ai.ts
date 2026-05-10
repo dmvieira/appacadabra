@@ -40,9 +40,9 @@ export const aiCapability: CapabilityModule = {
     - \`generateVideo(prompt, callback)\`: Generate a video from text (standalone) OR animate up to 3 reference images (chained). Returns base64 MP4. When chained with \`fromImage\`, the first image becomes the starting frame and up to 2 additional images serve as style references. The callback receives \`(success, videoBase64, thumbnailBase64)\` — \`thumbnailBase64\` is always a JPEG base64: the first frame of the video when extraction succeeds, or a static dark placeholder with a play icon when it fails. Ready to use as an \`<img>\` preview while the video loads.
     - \`generateImage(prompt, callback)\`: Generate an image from text (standalone) OR edit/remix up to 14 input images (chained with \`fromImage\`). Returns base64 PNG.
     - **Standalone-only Methods** (NOT chainable — call directly on \`AppacadabraAI\`):
-    - \`similarity(itemsArray, callback)\`: Compute semantic similarity between 2+ text strings. Returns a JSON object with a pairwise similarity \`matrix\` (values 0.0-1.0) and \`count\`.
-    - \`parseJSON(resultString)\` - **Utility**: safely extract a JSON object/array from an AI response string (strips markdown code fences automatically). Returns the parsed value or \`null\` on failure. **Use instead of writing a custom \`extractJSON\` helper.**
-        - **Example**: \`const data = AppacadabraAI.parseJSON(resultString); if (!data) { AppacadabraUI.toast("Parse error", "error"); return; }\`
+    - \`similarity(itemsArray, callback)\`: Compute semantic similarity between 2+ text strings. Callback receives an already-parsed object \`{ matrix, vectors, count }\`.
+    - \`parseJSON(text)\` - **Utility**: safely extract a JSON object/array from a free-text AI response string (strips markdown code fences). Returns the parsed value or \`null\` on failure. **Only needed for \`generate()\` WITHOUT \`withSchema\` — use instead of writing a custom \`extractJSON\` helper.**
+        - **Example**: \`const parsed = AppacadabraAI.parseJSON(data); if (!parsed) { AppacadabraUI.toast("Parse error", "error"); return; }\`
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`
     - Search: \`AppacadabraAI.withSearch().generate("Who won the game?", callback)\`
@@ -61,10 +61,10 @@ export const aiCapability: CapabilityModule = {
     - Multi-image-to-video: \`AppacadabraAI.fromImage([img1, img2]).generateVideo("Animate blending these scenes", "onVideoReady")\`
     - Similarity (2 items): \`AppacadabraAI.similarity(["cat", "kitten"], "onResult")\` → \`{ matrix: [[1, 0.87], [0.87, 1]], vectors: [[0.1, ...], [0.12, ...]], count: 2 }\`
     - Similarity (3+ items): \`AppacadabraAI.similarity(["dog", "puppy", "car"], "onResult")\` → \`{ matrix: [[1, 0.91, 0.12], [0.91, 1, 0.10], [0.12, 0.10, 1]], vectors: [...], count: 3 }\`
-- **Return (generate)**: Generated text (string). If \`withSchema\` is used, result is a JSON string.
+- **Return (generate)**: Generated text string. If \`withSchema\` is used, \`data\` is already a parsed JS object — use \`data.field\` directly, do NOT call \`JSON.parse(data)\`.
 - **Return (generateImage)**: Complete DataURI string (e.g. \`data:image/png;base64,...\`). Use directly as img src (do NOT append prefixes manually).
 - **Return (generateVideo)**: Callback receives \`(success, videoDataUri, thumbnailDataUri)\`. Use directly as src. Example: \`function onVideoReady(ok, videoUri, thumbUri) { if (thumbUri) img.src = thumbUri; vid.src = videoUri; }\`
-- **Return (similarity)**: JSON string \`{ matrix: number[][], vectors: number[][], count: number }\`. \`matrix\` = pairwise cosine similarity (symmetric, 1.0 on diagonal, 0.0-1.0). \`vectors\` = raw embedding arrays (optional, for advanced use like caching or custom distance).`,
+- **Return (similarity)**: Already-parsed object \`{ matrix: number[][], vectors: number[][], count: number }\` — use \`data.matrix\` directly. \`matrix\` = pairwise cosine similarity (symmetric, 1.0 on diagonal, 0.0-1.0). \`vectors\` = raw embedding arrays (optional, for advanced use like caching or custom distance).`,
 
     validationMock: `    function sampleFromSchema(s) {
         if (!s) return {};
