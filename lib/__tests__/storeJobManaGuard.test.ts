@@ -194,7 +194,7 @@ describe('Grupo B — _processCompletedJob create debita corretamente', () => {
         await useAppStore.getState()._processCompletedJob(makeCreateJob({ result: { text: '<html><title>T</title></html>', creditsUsed: 5 } }));
 
         expect(mockIncrementManaCost).toHaveBeenCalledTimes(1);
-        expect(mockIncrementManaCost).toHaveBeenCalledWith(1, 5);
+        expect(mockIncrementManaCost).toHaveBeenCalledWith(1, 5, expect.any(Object));
     });
 
     it('5 — create com creditsUsed=0 → db.incrementManaCost NOT called', async () => {
@@ -214,7 +214,7 @@ describe('Grupo C — _processCompletedJob edit debita corretamente', () => {
 
         await useAppStore.getState()._processCompletedJob(makeEditJob({ result: { text: '<html></html>', creditsUsed: 3 } }));
 
-        expect(mockIncrementManaCost).toHaveBeenCalledWith(1, 3);
+        expect(mockIncrementManaCost).toHaveBeenCalledWith(1, 3, expect.any(Object));
         expect(mockUpdateAppContent).toHaveBeenCalledWith(
             1, expect.any(String), 2, 13, 'job-edit-1'
         );
