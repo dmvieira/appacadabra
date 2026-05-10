@@ -235,7 +235,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                         }
                     }
 
-                    return { success: true, result: JSON.stringify({ sheetId: spreadsheetId, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` }) };
+                    return { success: true, result: { sheetId: spreadsheetId, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Sheets create error' };
                 }
@@ -251,7 +251,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
 
                     const rows: string[][] = data.rows || [];
                     if (rows.length === 0) {
-                        return { success: true, result: JSON.stringify({ updatedRows: 0 }) };
+                        return { success: true, result: { updatedRows: 0 } };
                     }
 
                     const appendRes = await fetch(
@@ -281,7 +281,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                         watcher.skipNextPoll = true;
                     }
 
-                    return { success: true, result: JSON.stringify({ updatedRows: appendData.updates?.updatedRows ?? rows.length }) };
+                    return { success: true, result: { updatedRows: appendData.updates?.updatedRows ?? rows.length } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Sheets append rows error' };
                 }
@@ -300,13 +300,13 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                     });
                     if (!getRes.ok) {
                         const cached = resourceCache.get(data.sheetId) ?? await loadSheetsCache(data.sheetId);
-                        if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
+                        if (cached) return { success: true, result: { ...cached, cached: true } };
                         return { success: false, result: `Failed to get rows: ${getRes.status} ${await getRes.text()}` };
                     }
                     const getData = await getRes.json();
                     const values: string[][] = getData.values || [];
                     if (values.length === 0) {
-                        return { success: true, result: JSON.stringify({ headers: [], rows: [] }) };
+                        return { success: true, result: { headers: [], rows: [] } };
                     }
                     const headers: string[] = values[0];
                     const rows = values.slice(1).map((row: string[]) =>
@@ -318,11 +318,11 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                     resourceCache.set(data.sheetId, { headers, rows });
                     saveSheetsCache(data.sheetId, { headers, rows });
                     await flushWriteQueue();
-                    return { success: true, result: JSON.stringify({ headers, rows }) };
+                    return { success: true, result: { headers, rows } };
                 } catch (e) {
                     const cached = resourceCache.get(data.sheetId) ?? await loadSheetsCache(data.sheetId);
-                    if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
-                    if (isNetworkError(e)) return { success: false, result: JSON.stringify({ offline: true }) };
+                    if (cached) return { success: true, result: { ...cached, cached: true } };
+                    if (isNetworkError(e)) return { success: false, result: { offline: true } };
                     return { success: false, result: e instanceof Error ? e.message : 'Sheets get rows error' };
                 }
             }
@@ -402,7 +402,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                 // interferir com o watcher do RunnerActivity que pode estar ativo.
                 if (ctx.isEditMode) {
                     doPoll(true);
-                    return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                    return { success: true, result: { watching: true }, deferredCallback: true };
                 }
 
                 // Runner mode: stop previous watcher and create a new one
@@ -416,7 +416,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                 // only fire if data actually changed (avoids spurious full-render callbacks).
                 doPoll(existingSnapshot === null);
 
-                return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                return { success: true, result: { watching: true }, deferredCallback: true };
             }
 
             case 'SHEETS_STOP_WATCH': {
@@ -427,7 +427,7 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                     clearInterval(watcher.interval);
                     activeWatchers.delete(key);
                 }
-                return { success: true, result: JSON.stringify({ stopped: true }) };
+                return { success: true, result: { stopped: true } };
             }
 
             case 'SHEETS_SET_ROWS': {
@@ -494,11 +494,11 @@ AppacadabraSheets.stopWatchSheet(localStorage.getItem('sheetId'), 'done');
                 try {
                     await executeSetRows();
                     await flushWriteQueue();
-                    return { success: true, result: JSON.stringify({ rowsWritten: rows.length }) };
+                    return { success: true, result: { rowsWritten: rows.length } };
                 } catch (e) {
                     if (isNetworkError(e)) {
                         writeQueue.push({ execute: executeSetRows });
-                        return { success: true, result: JSON.stringify({ queued: true }) };
+                        return { success: true, result: { queued: true } };
                     }
                     return { success: false, result: e instanceof Error ? e.message : 'Sheets set rows error' };
                 }

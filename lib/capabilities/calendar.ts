@@ -75,7 +75,7 @@ export const calendarCapability: CapabilityModule = {
                     const calendarMap = new Map(calendars.map(c => [c.id, c.title]));
 
                     if (calendarIds.length === 0) {
-                        return { success: true, result: JSON.stringify([]) };
+                        return { success: true, result: [] };
                     }
 
                     const startDate = data.startTimeMs ? new Date(data.startTimeMs) : new Date();

@@ -381,7 +381,7 @@ export const sensorsCapability: CapabilityModule = {
                             ctx.webViewRef.current.injectJavaScript(script);
                         }
                     });
-                    return { success: true, result: JSON.stringify({ status: 'started', sensor: 'accelerometer' }) };
+                    return { success: true, result: { status: 'started', sensor: 'accelerometer' } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Error' };
                 }
@@ -404,7 +404,7 @@ export const sensorsCapability: CapabilityModule = {
                             ctx.webViewRef.current.injectJavaScript(script);
                         }
                     });
-                    return { success: true, result: JSON.stringify({ status: 'started', sensor: 'gyroscope' }) };
+                    return { success: true, result: { status: 'started', sensor: 'gyroscope' } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Error' };
                 }
@@ -432,7 +432,7 @@ export const sensorsCapability: CapabilityModule = {
                             ctx.webViewRef.current.injectJavaScript(script);
                         }
                     });
-                    return { success: true, result: JSON.stringify({ status: 'started', sensor: 'magnetometer' }) };
+                    return { success: true, result: { status: 'started', sensor: 'magnetometer' } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Error' };
                 }
@@ -455,7 +455,7 @@ export const sensorsCapability: CapabilityModule = {
                             ctx.webViewRef.current.injectJavaScript(script);
                         }
                     });
-                    return { success: true, result: JSON.stringify({ status: 'started', sensor: 'pedometer' }) };
+                    return { success: true, result: { status: 'started', sensor: 'pedometer' } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Error' };
                 }
@@ -463,26 +463,26 @@ export const sensorsCapability: CapabilityModule = {
 
             case 'SENSORS_STOP_ACCELEROMETER': {
                 Accelerometer.removeAllListeners();
-                return { success: true, result: JSON.stringify({ status: 'stopped', sensor: 'accelerometer' }) };
+                return { success: true, result: { status: 'stopped', sensor: 'accelerometer' } };
             }
 
             case 'SENSORS_STOP_GYROSCOPE': {
                 Gyroscope.removeAllListeners();
-                return { success: true, result: JSON.stringify({ status: 'stopped', sensor: 'gyroscope' }) };
+                return { success: true, result: { status: 'stopped', sensor: 'gyroscope' } };
             }
 
             case 'SENSORS_STOP_MAGNETOMETER': {
                 Magnetometer.removeAllListeners();
-                return { success: true, result: JSON.stringify({ status: 'stopped', sensor: 'magnetometer' }) };
+                return { success: true, result: { status: 'stopped', sensor: 'magnetometer' } };
             }
 
             case 'SENSORS_STOP_PEDOMETER': {
                 if (pedometerSubscription) {
                     pedometerSubscription.remove();
                     pedometerSubscription = null;
-                    return { success: true, result: JSON.stringify({ status: 'stopped', sensor: 'pedometer' }) };
+                    return { success: true, result: { status: 'stopped', sensor: 'pedometer' } };
                 } else {
-                    return { success: true, result: JSON.stringify({ status: 'not_running', sensor: 'pedometer' }) };
+                    return { success: true, result: { status: 'not_running', sensor: 'pedometer' } };
                 }
             }
 
@@ -494,7 +494,7 @@ export const sensorsCapability: CapabilityModule = {
                     pedometerSubscription.remove();
                     pedometerSubscription = null;
                 }
-                return { success: true, result: JSON.stringify({ status: 'stopped_all' }) };
+                return { success: true, result: { status: 'stopped_all' } };
             }
 
             default:

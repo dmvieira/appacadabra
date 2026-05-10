@@ -651,7 +651,7 @@ describe('Google capabilities — sync (sheets, docs, forms)', () => {
             .mockResolvedValueOnce(mockFetchOk({ spreadsheetId: 'sid-1' })); // create
         const result = await cap.handleMessage('SHEETS_CREATE', { title: 'My Sheet', headers: [] }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ sheetId: 'sid-1' });
+        expect((result!.result! as any)).toMatchObject({ sheetId: 'sid-1' });
     });
 
     it('SHEETS_GET_ROWS: parses headers and row objects', async () => {
@@ -660,7 +660,7 @@ describe('Google capabilities — sync (sheets, docs, forms)', () => {
         }));
         const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-1' }, ctx);
         expect(result).toMatchObject({ success: true });
-        const parsed = JSON.parse(result!.result!);
+        const parsed = (result!.result! as any);
         expect(parsed.headers).toEqual(['Name', 'Age']);
         expect(parsed.rows).toEqual([{ Name: 'Alice', Age: '30' }, { Name: 'Bob', Age: '25' }]);
     });
@@ -669,7 +669,7 @@ describe('Google capabilities — sync (sheets, docs, forms)', () => {
         (global.fetch as jest.Mock).mockResolvedValueOnce(mockFetchOk({ values: [] }));
         const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-empty' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toEqual({ headers: [], rows: [] });
+        expect((result!.result! as any)).toEqual({ headers: [], rows: [] });
     });
 
     it('SHEETS_APPEND_ROWS: appends rows and returns updatedRows', async () => {
@@ -678,13 +678,13 @@ describe('Google capabilities — sync (sheets, docs, forms)', () => {
             sheetId: 'sid-1', rows: [['Alice', '30'], ['Bob', '25']],
         }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ updatedRows: 2 });
+        expect((result!.result! as any)).toMatchObject({ updatedRows: 2 });
     });
 
     it('SHEETS_APPEND_ROWS: empty rows array returns 0 without fetch', async () => {
         const result = await cap.handleMessage('SHEETS_APPEND_ROWS', { sheetId: 'sid-1', rows: [] }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ updatedRows: 0 });
+        expect((result!.result! as any)).toMatchObject({ updatedRows: 0 });
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
@@ -696,7 +696,7 @@ describe('Google capabilities — sync (sheets, docs, forms)', () => {
         const rows = [{ Name: 'Alice', Age: '30' }];
         const result = await cap.handleMessage('SHEETS_SET_ROWS', { sheetId: 'sid-1', rows }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ rowsWritten: 1 });
+        expect((result!.result! as any)).toMatchObject({ rowsWritten: 1 });
     });
 
     it('SHEETS_SET_ROWS: updates active watcher snapshot', async () => {
@@ -854,7 +854,7 @@ describe('Google capabilities — sync (sheets, docs, forms)', () => {
         });
         const result = await cap.handleMessage('SHEETS_STOP_WATCH', { sheetId: 'sid-stop' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ stopped: true });
+        expect((result!.result! as any)).toMatchObject({ stopped: true });
         expect(sheetsWatchers.has('1_sid-stop')).toBe(false);
     });
 
@@ -888,21 +888,21 @@ describe('Google capabilities — sync (sheets, docs, forms)', () => {
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-cached' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!).cached).toBe(true);
+        expect((result!.result! as any).cached).toBe(true);
     });
 
     it('SHEETS_GET_ROWS offline without cache: returns offline:true', async () => {
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('SHEETS_GET_ROWS', { sheetId: 'sid-nocache' }, ctx);
         expect(result).toMatchObject({ success: false });
-        expect(JSON.parse(result!.result!).offline).toBe(true);
+        expect((result!.result! as any).offline).toBe(true);
     });
 
     it('SHEETS_SET_ROWS offline: queues write and returns queued:true', async () => {
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('SHEETS_SET_ROWS', { sheetId: 'sid-q', rows: [{ X: '1' }] }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!).queued).toBe(true);
+        expect((result!.result! as any).queued).toBe(true);
         expect(sheetsQueue.length).toBe(1);
     });
 
@@ -922,7 +922,7 @@ describeCapability('docs')('handleMessage — docs', () => {
             .mockResolvedValueOnce(mockFetchOk({ documentId: 'doc-1' }));
         const result = await cap.handleMessage('DOCS_CREATE', { title: 'My Doc', content: '' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ docId: 'doc-1' });
+        expect((result!.result! as any)).toMatchObject({ docId: 'doc-1' });
     });
 
     it('DOCS_GET: returns title and content', async () => {
@@ -932,7 +932,7 @@ describeCapability('docs')('handleMessage — docs', () => {
         }));
         const result = await cap.handleMessage('DOCS_GET', { docId: 'doc-1' }, ctx);
         expect(result).toMatchObject({ success: true });
-        const parsed = JSON.parse(result!.result!);
+        const parsed = (result!.result! as any);
         expect(parsed.title).toBe('Test Doc');
         expect(typeof parsed.content).toBe('string');
     });
@@ -944,7 +944,7 @@ describeCapability('docs')('handleMessage — docs', () => {
             .mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: { content: [] } })); // GET for snapshot update
         const result = await cap.handleMessage('DOCS_APPEND_TEXT', { docId: 'doc-1', text: 'New text' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ docId: 'doc-1' });
+        expect((result!.result! as any)).toMatchObject({ docId: 'doc-1' });
     });
 
     // ─── CONVERT: content correctness ────────────────────────────────────────
@@ -1049,7 +1049,7 @@ describeCapability('docs')('handleMessage — docs', () => {
             .mockResolvedValueOnce(mockFetchOk({ title: 'Doc', body: { content: [] } })); // GET for snapshot update
         const result = await cap.handleMessage('DOCS_SET', { docId: 'doc-1', content: '# New' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ docId: 'doc-1' });
+        expect((result!.result! as any)).toMatchObject({ docId: 'doc-1' });
     });
 
     it('DOCS_SET on empty doc (endIndex ≤ 2): skips deleteContentRange', async () => {
@@ -1152,7 +1152,7 @@ describeCapability('docs')('handleMessage — docs', () => {
         });
         const result = await cap.handleMessage('DOCS_STOP_WATCH', { docId: 'doc-stop' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ stopped: true });
+        expect((result!.result! as any)).toMatchObject({ stopped: true });
         expect(docsWatchers.has('1_doc-stop')).toBe(false);
     });
 
@@ -1161,21 +1161,21 @@ describeCapability('docs')('handleMessage — docs', () => {
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('DOCS_GET', { docId: 'doc-c' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!).cached).toBe(true);
+        expect((result!.result! as any).cached).toBe(true);
     });
 
     it('DOCS_GET offline without cache: returns offline:true', async () => {
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('DOCS_GET', { docId: 'doc-nocache' }, ctx);
         expect(result).toMatchObject({ success: false });
-        expect(JSON.parse(result!.result!).offline).toBe(true);
+        expect((result!.result! as any).offline).toBe(true);
     });
 
     it('DOCS_SET offline: queues write and returns queued:true', async () => {
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('DOCS_SET', { docId: 'doc-q', content: 'Hello' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!).queued).toBe(true);
+        expect((result!.result! as any).queued).toBe(true);
         expect(docsQueue.length).toBe(1);
     });
 
@@ -1214,7 +1214,7 @@ describeCapability('forms')('handleMessage — forms', () => {
             title: 'My Form', questions: [{ type: 'text', title: 'Name' }],
         }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ formId: 'form-1' });
+        expect((result!.result! as any)).toMatchObject({ formId: 'form-1' });
     });
 
     it('FORMS_UPDATE: updates form and returns formId', async () => {
@@ -1226,7 +1226,7 @@ describeCapability('forms')('handleMessage — forms', () => {
             formId: 'form-1', title: 'Updated', questions: [{ type: 'text', title: 'Email' }],
         }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ formId: 'form-1' });
+        expect((result!.result! as any)).toMatchObject({ formId: 'form-1' });
     });
 
     it('FORMS_GET_RESPONSES: returns human-readable responses', async () => {
@@ -1235,7 +1235,7 @@ describeCapability('forms')('handleMessage — forms', () => {
             .mockResolvedValueOnce(mockFetchOk(mockResponsesData));
         const result = await cap.handleMessage('FORMS_GET_RESPONSES', { formId: 'form-1' }, ctx);
         expect(result).toMatchObject({ success: true });
-        const parsed = JSON.parse(result!.result!);
+        const parsed = (result!.result! as any);
         expect(parsed.responses[0].answers['Name']).toBe('Alice');
     });
 
@@ -1319,7 +1319,7 @@ describeCapability('forms')('handleMessage — forms', () => {
         });
         const result = await cap.handleMessage('FORMS_STOP_WATCH_RESPONSES', { formId: 'form-stop' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!)).toMatchObject({ stopped: true });
+        expect((result!.result! as any)).toMatchObject({ stopped: true });
         expect(formsWatchers.has('1_form-stop')).toBe(false);
     });
 
@@ -1328,7 +1328,7 @@ describeCapability('forms')('handleMessage — forms', () => {
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('FORMS_GET_RESPONSES', { formId: 'form-c' }, ctx);
         expect(result).toMatchObject({ success: true });
-        expect(JSON.parse(result!.result!).cached).toBe(true);
+        expect((result!.result! as any).cached).toBe(true);
     });
 
     it('FORMS_GET_RESPONSES offline without cache: returns offline:true', async () => {
@@ -1337,7 +1337,7 @@ describeCapability('forms')('handleMessage — forms', () => {
         (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError('Network request failed'));
         const result = await cap.handleMessage('FORMS_GET_RESPONSES', { formId: 'form-nocache' }, ctx);
         expect(result).toMatchObject({ success: false });
-        expect(JSON.parse(result!.result!).offline).toBe(true);
+        expect((result!.result! as any).offline).toBe(true);
     });
 
     it('null token: returns failure', async () => {

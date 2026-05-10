@@ -310,7 +310,7 @@ describe('Sheets', () => {
             );
             await flush();
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').rows).toEqual([{ name: 'Alice' }]);
+            expect(((res?.result ?? {}) as any).rows).toEqual([{ name: 'Alice' }]);
             expect(mockSetItem).toHaveBeenCalledWith(
                 expect.stringContaining('sheets_cache_sg_test13'), expect.any(String)
             );
@@ -324,7 +324,7 @@ describe('Sheets', () => {
                 'SHEETS_GET_ROWS', { sheetId: 'sg_test14' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('15 — TypeError Network + AsyncStorage hit: retorna dados persistidos [C]', async () => {
@@ -335,7 +335,7 @@ describe('Sheets', () => {
                 'SHEETS_GET_ROWS', { sheetId: 'sg_test15' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('16 — TypeError Network + tudo vazio: retorna offline failure', async () => {
@@ -345,7 +345,7 @@ describe('Sheets', () => {
                 'SHEETS_GET_ROWS', { sheetId: 'sg_test16' }, makeCtx() as any
             );
             expect(res?.success).toBe(false);
-            expect(JSON.parse(res?.result ?? '{}').offline).toBe(true);
+            expect(((res?.result ?? {}) as any).offline).toBe(true);
         });
 
         it('17 — HTTP 401 + resourceCache hit: retorna cache [Bug B]', async () => {
@@ -356,7 +356,7 @@ describe('Sheets', () => {
                 'SHEETS_GET_ROWS', { sheetId: 'sg_test17' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('18 — HTTP 401 + AsyncStorage hit: retorna dados persistidos [Bug B + C]', async () => {
@@ -367,7 +367,7 @@ describe('Sheets', () => {
                 'SHEETS_GET_ROWS', { sheetId: 'sg_test18' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('19 — HTTP 401 + tudo vazio: retorna failure', async () => {
@@ -544,7 +544,7 @@ describe('Docs', () => {
                 'DOCS_GET', { docId: 'dg_test31' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('32 — TypeError Network + AsyncStorage hit: retorna dados persistidos [C]', async () => {
@@ -554,7 +554,7 @@ describe('Docs', () => {
                 'DOCS_GET', { docId: 'dg_test32' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('33 — TypeError Network + tudo vazio: retorna offline failure', async () => {
@@ -563,7 +563,7 @@ describe('Docs', () => {
                 'DOCS_GET', { docId: 'dg_test33' }, makeCtx() as any
             );
             expect(res?.success).toBe(false);
-            expect(JSON.parse(res?.result ?? '{}').offline).toBe(true);
+            expect(((res?.result ?? {}) as any).offline).toBe(true);
         });
     });
 });
@@ -719,7 +719,7 @@ describe('Forms', () => {
                 'FORMS_GET_RESPONSES', { formId: 'fg_test44' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('45 — TypeError Network + AsyncStorage hit: retorna dados persistidos [C]', async () => {
@@ -730,7 +730,7 @@ describe('Forms', () => {
                 'FORMS_GET_RESPONSES', { formId: 'fg_test45' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('46 — TypeError Network + tudo vazio: retorna offline failure', async () => {
@@ -740,7 +740,7 @@ describe('Forms', () => {
                 'FORMS_GET_RESPONSES', { formId: 'fg_test46' }, makeCtx() as any
             );
             expect(res?.success).toBe(false);
-            expect(JSON.parse(res?.result ?? '{}').offline).toBe(true);
+            expect(((res?.result ?? {}) as any).offline).toBe(true);
         });
 
         it('47 — HTTP 401 + resourceCache hit: retorna cache [Bug B]', async () => {
@@ -753,7 +753,7 @@ describe('Forms', () => {
                 'FORMS_GET_RESPONSES', { formId: 'fg_test47' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('48 — HTTP 401 + AsyncStorage hit: retorna dados persistidos [Bug B + C]', async () => {
@@ -766,7 +766,7 @@ describe('Forms', () => {
                 'FORMS_GET_RESPONSES', { formId: 'fg_test48' }, makeCtx() as any
             );
             expect(res?.success).toBe(true);
-            expect(JSON.parse(res?.result ?? '{}').cached).toBe(true);
+            expect(((res?.result ?? {}) as any).cached).toBe(true);
         });
 
         it('49 — HTTP 401 + tudo vazio: retorna failure', async () => {

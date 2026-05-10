@@ -269,7 +269,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                     }
                     await AsyncStorage.setItem('appacadabra_forms_' + formId, JSON.stringify(schemaMap));
 
-                    return { success: true, result: JSON.stringify({ formId, shareUrl: `https://docs.google.com/forms/d/${formId}/viewform` }) };
+                    return { success: true, result: { formId, shareUrl: `https://docs.google.com/forms/d/${formId}/viewform` } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Forms create error' };
                 }
@@ -332,7 +332,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                     const mergedMap = { ...storedMap, ...newMap };
                     await AsyncStorage.setItem('appacadabra_forms_' + formId, JSON.stringify(mergedMap));
 
-                    return { success: true, result: JSON.stringify({ formId, shareUrl: `https://docs.google.com/forms/d/${formId}/viewform` }) };
+                    return { success: true, result: { formId, shareUrl: `https://docs.google.com/forms/d/${formId}/viewform` } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Forms update error' };
                 }
@@ -368,7 +368,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                     });
                     if (!respRes.ok) {
                         const cached = resourceCache.get(formId) ?? await loadFormsCache(formId);
-                        if (cached) return { success: true, result: JSON.stringify({ responses: cached, cached: true }) };
+                        if (cached) return { success: true, result: { responses: cached, cached: true } };
                         return { success: false, result: `Failed to fetch responses: ${respRes.status} ${await respRes.text()}` };
                     }
                     const respData = await respRes.json();
@@ -377,11 +377,11 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                     resourceCache.set(formId, responses);
                     saveFormsCache(formId, responses);
 
-                    return { success: true, result: JSON.stringify({ responses }) };
+                    return { success: true, result: { responses } };
                 } catch (e) {
                     const cached = resourceCache.get(data.formId) ?? await loadFormsCache(data.formId);
-                    if (cached) return { success: true, result: JSON.stringify({ responses: cached, cached: true }) };
-                    if (isNetworkError(e)) return { success: false, result: JSON.stringify({ offline: true }) };
+                    if (cached) return { success: true, result: { responses: cached, cached: true } };
+                    if (isNetworkError(e)) return { success: false, result: { offline: true } };
                     return { success: false, result: e instanceof Error ? e.message : 'Forms get responses error' };
                 }
             }
@@ -472,7 +472,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                 // Edit mode: one-shot fetch, no persistent interval
                 if (ctx.isEditMode) {
                     doPoll(true);
-                    return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                    return { success: true, result: { watching: true }, deferredCallback: true };
                 }
 
                 if (existing) clearInterval(existing.interval);
@@ -481,7 +481,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
 
                 doPoll(existingSnapshot === null);
 
-                return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                return { success: true, result: { watching: true }, deferredCallback: true };
             }
 
             case 'FORMS_STOP_WATCH_RESPONSES': {
@@ -492,7 +492,7 @@ AppacadabraForms.stopWatchResponses(localStorage.getItem('formId'), 'done');
                     clearInterval(watcher.interval);
                     activeWatchers.delete(key);
                 }
-                return { success: true, result: JSON.stringify({ stopped: true }) };
+                return { success: true, result: { stopped: true } };
             }
 
             default:

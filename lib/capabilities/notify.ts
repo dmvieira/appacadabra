@@ -347,7 +347,7 @@ export const notifyCapability: CapabilityModule = {
 
             case 'NOTIFY_SCHEDULE': {
                 if (ctx.isEditMode) {
-                    return { success: true, result: JSON.stringify({ skipped: true, reason: 'edit_mode' }) };
+                    return { success: true, result: { skipped: true, reason: 'edit_mode' } };
                 }
                 return await withNotifyLock(ctx.appId, async () => {
                     const scheduleDate = new Date(data.timeMs || Date.now());

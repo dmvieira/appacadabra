@@ -436,7 +436,7 @@ window.onConverted = function(ok, md) {
                         }
                     }
 
-                    return { success: true, result: JSON.stringify({ docId: documentId, url: `https://docs.google.com/document/d/${documentId}/edit` }) };
+                    return { success: true, result: { docId: documentId, url: `https://docs.google.com/document/d/${documentId}/edit` } };
                 } catch (e) {
                     return { success: false, result: e instanceof Error ? e.message : 'Docs create error' };
                 }
@@ -454,11 +454,11 @@ window.onConverted = function(ok, md) {
                     resourceCache.set(data.docId, snap);
                     saveDocsCache(data.docId, snap);
                     await flushWriteQueue();
-                    return { success: true, result: JSON.stringify(snap) };
+                    return { success: true, result: snap };
                 } catch (e) {
                     const cached = resourceCache.get(data.docId) ?? await loadDocsCache(data.docId);
-                    if (cached) return { success: true, result: JSON.stringify({ ...cached, cached: true }) };
-                    if (isNetworkError(e)) return { success: false, result: JSON.stringify({ offline: true }) };
+                    if (cached) return { success: true, result: { ...cached, cached: true } };
+                    if (isNetworkError(e)) return { success: false, result: { offline: true } };
                     return { success: false, result: e instanceof Error ? e.message : 'Docs get error' };
                 }
             }
@@ -504,7 +504,7 @@ window.onConverted = function(ok, md) {
                     } catch (_) { /* snapshot update is best-effort */ }
 
                     await flushWriteQueue();
-                    return { success: true, result: JSON.stringify({ docId: data.docId }) };
+                    return { success: true, result: { docId: data.docId } };
                 } catch (e) {
                     if (isNetworkError(e)) {
                         const docId = data.docId;
@@ -529,7 +529,7 @@ window.onConverted = function(ok, md) {
                                 }
                             },
                         });
-                        return { success: true, result: JSON.stringify({ queued: true }) };
+                        return { success: true, result: { queued: true } };
                     }
                     return { success: false, result: e instanceof Error ? e.message : 'Docs append error' };
                 }
@@ -593,11 +593,11 @@ window.onConverted = function(ok, md) {
                 try {
                     await executeSetDoc();
                     await flushWriteQueue();
-                    return { success: true, result: JSON.stringify({ docId }) };
+                    return { success: true, result: { docId } };
                 } catch (e) {
                     if (isNetworkError(e)) {
                         writeQueue.push({ execute: executeSetDoc });
-                        return { success: true, result: JSON.stringify({ queued: true }) };
+                        return { success: true, result: { queued: true } };
                     }
                     return { success: false, result: e instanceof Error ? e.message : 'Docs set error' };
                 }
@@ -659,7 +659,7 @@ window.onConverted = function(ok, md) {
                 // Edit mode: one-shot fetch, no persistent interval
                 if (ctx.isEditMode) {
                     doPoll(true);
-                    return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                    return { success: true, result: { watching: true }, deferredCallback: true };
                 }
 
                 if (existing) clearInterval(existing.interval);
@@ -668,7 +668,7 @@ window.onConverted = function(ok, md) {
 
                 doPoll(existingSnapshot === null);
 
-                return { success: true, result: JSON.stringify({ watching: true }), deferredCallback: true };
+                return { success: true, result: { watching: true }, deferredCallback: true };
             }
 
             case 'DOCS_STOP_WATCH': {
@@ -679,7 +679,7 @@ window.onConverted = function(ok, md) {
                     clearInterval(watcher.interval);
                     activeWatchers.delete(key);
                 }
-                return { success: true, result: JSON.stringify({ stopped: true }) };
+                return { success: true, result: { stopped: true } };
             }
 
             case 'CONVERT': {
