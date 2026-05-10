@@ -8,7 +8,7 @@ import { colors, borderRadius, spacing } from '../lib/theme';
 import * as firebase from '../lib/firebase';
 import { RewardedAd, RewardedAdEventType, AdEventType } from 'react-native-google-mobile-ads';
 import * as iap from '../lib/iapService';
-import { logManaEarned, logShopOpened, logAdStarted } from '../lib/analytics';
+import { logManaEarned, logShopOpened, logAdStarted, logAdPaidTimeout, logAdLoadFailed, logAdClosedEarly, logIapInitiated, logIapCancelled, logIapFailed, logIapCreditFailed } from '../lib/analytics';
 
 // Production Ad Unit ID (always use real ads)
 const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
@@ -54,6 +54,10 @@ export function ManaShop() {
 
     // Track the revenue earned from the current ad impression
     const adRevenueRef = useRef<number>(0);
+    // Unique ID per impression — passed as purchaseToken to deduplicate on the backend
+    const impressionIdRef = useRef<string | null>(null);
+    // Tracks whether the user earned the reward (to detect early close)
+    const earnedRewardRef = useRef<boolean>(false);
 
 
 
@@ -124,6 +128,7 @@ export function ManaShop() {
                     } else {
                         // Do NOT acknowledge — Google Play auto-refunds in ~3 days.
                         // Also attempt immediate refund as best-effort.
+                        logIapCreditFailed(productId);
                         setPurchaseStatus('refunding');
                         try {
                             await firebase.voidPurchase(purchase.purchaseToken, productId);
@@ -140,8 +145,11 @@ export function ManaShop() {
                 }
             },
             (error: any) => {
-                setIsPurchasing(false); // Stop loading on error
-                if (error.code !== 'E_USER_CANCELLED') {
+                setIsPurchasing(false);
+                if (error.code === 'E_USER_CANCELLED') {
+                    logIapCancelled('unknown');
+                } else {
+                    logIapFailed('unknown');
                     Alert.alert(t('error'), t('purchaseFailed'));
                 }
             }
@@ -186,8 +194,9 @@ export function ManaShop() {
     };
 
     const loadRewardedAd = () => {
-        // Reset revenue for new ad
+        // Reset per-impression state
         adRevenueRef.current = 0;
+        earnedRewardRef.current = false;
 
         const ad = RewardedAd.createForAdRequest(REWARDED_AD_UNIT_ID, {
             requestNonPersonalizedAdsOnly: true,
@@ -210,6 +219,9 @@ export function ManaShop() {
 
         const unsubscribeEarned = ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, async (reward) => {
             console.log('User earned reward:', reward);
+            earnedRewardRef.current = true;
+            const impressionId = `ad_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            impressionIdRef.current = impressionId;
             setIsProcessingReward(true);
 
             // Wait for PAID event if it hasn't arrived yet (race condition fix)
@@ -222,6 +234,15 @@ export function ManaShop() {
                     await new Promise(resolve => setTimeout(resolve, 200));
                 }
                 console.log(`Wait finished after ${Date.now() - waitStart}ms. Revenue: $${adRevenueRef.current.toFixed(6)}`);
+            }
+
+            // PAID event never arrived — can't calculate reward
+            if (adRevenueRef.current <= 0) {
+                logAdPaidTimeout();
+                setRewardBanner({ message: t('rewardTimeout'), type: 'error' });
+                setStatusMessage(t('rewardTimeout'));
+                setIsProcessingReward(false);
+                return;
             }
 
             // Calculate mana based on actual revenue, with minimum fallback
@@ -240,8 +261,8 @@ export function ManaShop() {
             try {
                 // Only add credits if there's something to add
                 if (manaToGive > 0) {
-                    await firebase.addCredits(manaToGive, 'ad_reward');
-                    logManaEarned('ad_reward', manaToGive);
+                    await firebase.addCredits(manaToGive, 'ad_reward', impressionId);
+                    logManaEarned('ad_reward', manaToGive, adRevenueRef.current);
                 }
 
                 // Festive messages based on mana amount
@@ -275,12 +296,15 @@ export function ManaShop() {
 
         const unsubscribeClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
             console.log('Ad closed, loading new ad');
-            // Load a new ad for next time
+            if (!earnedRewardRef.current) {
+                logAdClosedEarly();
+            }
             loadRewardedAd();
         });
 
         const unsubscribeError = ad.addAdEventListener(AdEventType.ERROR, (error) => {
             console.error('Rewarded ad error:', error);
+            logAdLoadFailed(String(error?.code ?? 'unknown'));
             setIsAdLoading(false);
             setRewardedAd(null);
         });
@@ -302,9 +326,10 @@ export function ManaShop() {
         if (isPurchasing) return;
 
         setIsPurchasing(true);
+        logIapInitiated(productId);
         try {
             await iap.requestProductPurchase(productId);
-            // NOTE: The purchase flow is async. The actual result (success or error) 
+            // NOTE: The purchase flow is async. The actual result (success or error)
             // comes through the listeners setup in setupListeners().
             // We do NOT set isPurchasing(false) here because the modal is still open.
         } catch (error: any) {
@@ -313,9 +338,10 @@ export function ManaShop() {
 
             // Handle user cancellation specifically if it throws (depends on platform/version)
             if (error.code === 'E_USER_CANCELLED' || error.message.includes('User cancelled')) {
-                // User cancelled, just stop loading
+                logIapCancelled(productId);
                 ToastAndroid.show(t('purchaseCancelled'), ToastAndroid.SHORT);
             } else {
+                logIapFailed(productId);
                 Alert.alert(t('error'), t('purchaseFailed'));
             }
         }

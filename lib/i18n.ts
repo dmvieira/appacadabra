@@ -390,6 +390,7 @@ export const translations = {
         rewardNice: 'Nice!',
         rewardNone: "This ad didn't generate a reward",
         rewardError: 'Failed to add reward. Please try again.',
+        rewardTimeout: "Couldn't calculate reward. Please try again.",
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -985,6 +986,7 @@ export const translations = {
         rewardNice: 'Legal!',
         rewardNone: 'Este anúncio não gerou recompensa',
         rewardError: 'Falha ao adicionar recompensa. Tente novamente.',
+        rewardTimeout: 'Não foi possível calcular a recompensa. Tente novamente.',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -1529,6 +1531,7 @@ export const translations = {
         rewardNice: '¡Bien!',
         rewardNone: 'Este anuncio no generó recompensa',
         rewardError: 'Error al añadir recompensa. Intenta de nuevo.',
+        rewardTimeout: 'No se pudo calcular la recompensa. Inténtalo de nuevo.',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -2083,6 +2086,7 @@ export const translations = {
         rewardNice: 'Bien !',
         rewardNone: 'Cette pub n\'a pas généré de récompense',
         rewardError: 'Échec ajout récompense. Réessayez.',
+        rewardTimeout: 'Impossible de calculer la récompense. Réessayez.',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -2600,6 +2604,7 @@ export const translations = {
         rewardNice: 'Gut!',
         rewardNone: 'Diese Werbung hat keine Belohnung generiert',
         rewardError: 'Fehler beim Hinzufügen der Belohnung. Bitte erneut versuchen.',
+        rewardTimeout: 'Belohnung konnte nicht berechnet werden. Bitte erneut versuchen.',
 
         // Network
         network_wifi: 'WLAN',
@@ -3086,6 +3091,7 @@ export const translations = {
         rewardNice: 'Bene!',
         rewardNone: 'Questa pubblicità non ha generato ricompensa',
         rewardError: 'Errore aggiunta ricompensa. Riprova.',
+        rewardTimeout: 'Impossibile calcolare la ricompensa. Riprova.',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -3574,6 +3580,7 @@ export const translations = {
         rewardNice: 'いいですね！',
         rewardNone: 'この広告では報酬が発生しませんでした',
         rewardError: '報酬の追加に失敗しました。再試行してください。',
+        rewardTimeout: '報酬を計算できませんでした。もう一度お試しください。',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -4038,6 +4045,7 @@ export const translations = {
         rewardNice: '不错！',
         rewardNone: '此广告未产生奖励',
         rewardError: '添加奖励时出错。请重试。',
+        rewardTimeout: '无法计算奖励。请重试。',
 
         // Network
         network_wifi: 'Wi-Fi',
@@ -4515,6 +4523,7 @@ export const translations = {
         rewardNice: '멋져요!',
         rewardNone: '이 광고로 보상을 받지 못했습니다',
         rewardError: '보상 추가 오류. 다시 시도해주세요.',
+        rewardTimeout: '보상을 계산할 수 없습니다. 다시 시도해주세요.',
 
         // Scheduled Notifications
         scheduledNotifications: '예약된 알림',
@@ -4986,6 +4995,7 @@ export const translations = {
         rewardNice: 'جيد!',
         rewardNone: 'لم يولد هذا الإعلان مكافأة',
         rewardError: 'خطأ في إضافة المكافأة. يرجى المحاولة مرة أخرى.',
+        rewardTimeout: 'تعذّر حساب المكافأة. يرجى المحاولة مرة أخرى.',
 
         // Scheduled Notifications
         scheduledNotifications: 'الإشعارات المجدولة',
@@ -5457,6 +5467,7 @@ export const translations = {
         rewardNice: 'अच्छा!',
         rewardNone: 'इस विज्ञापन ने कोई इनाम नहीं दिया',
         rewardError: 'इनाम जोड़ने में त्रुटि। कृपया पुनः प्रयास करें।',
+        rewardTimeout: 'इनाम की गणना नहीं हो सकी। कृपया पुनः प्रयास करें।',
 
         // Scheduled Notifications
         scheduledNotifications: 'अनुसूचित सूचनाएं',
@@ -5928,6 +5939,7 @@ export const translations = {
         rewardNice: 'Хорошо!',
         rewardNone: 'Эта реклама не принесла награды',
         rewardError: 'Ошибка добавления награды. Пожалуйста, попробуйте снова.',
+        rewardTimeout: 'Не удалось рассчитать награду. Пожалуйста, попробуйте снова.',
 
         // Scheduled Notifications
         scheduledNotifications: 'Запланированные уведомления',
@@ -6402,6 +6414,7 @@ export const translations = {
         rewardNice: 'Güzel!',
         rewardNone: 'Bu reklam ödül vermedi',
         rewardError: 'Ödül eklenirken hata. Lütfen tekrar deneyin.',
+        rewardTimeout: 'Ödül hesaplanamadı. Lütfen tekrar deneyin.',
 
         // Scheduled Notifications
         scheduledNotifications: 'Planlanmış Bildirimler',
@@ -6873,6 +6886,7 @@ export const translations = {
         rewardNice: 'Mooi!',
         rewardNone: 'Deze advertentie gaf geen beloning',
         rewardError: 'Fout bij toevoegen beloning. Probeer het opnieuw.',
+        rewardTimeout: 'Beloning kon niet worden berekend. Probeer het opnieuw.',
 
         // Scheduled Notifications
         scheduledNotifications: 'Geplande Meldingen',
@@ -7345,6 +7359,7 @@ export const translations = {
         rewardNice: 'Dobrze!',
         rewardNone: 'Ta reklama nie dała nagrody',
         rewardError: 'Błąd dodawania nagrody. Spróbuj ponownie.',
+        rewardTimeout: 'Nie można obliczyć nagrody. Spróbuj ponownie.',
 
         // Scheduled Notifications
         scheduledNotifications: 'Zaplanowane Powiadomienia',
@@ -7819,6 +7834,7 @@ export const translations = {
         rewardNice: 'Tốt!',
         rewardNone: 'Quảng cáo này không có phần thưởng',
         rewardError: 'Lỗi thêm phần thưởng. Vui lòng thử lại.',
+        rewardTimeout: 'Không thể tính phần thưởng. Vui lòng thử lại.',
 
         // Scheduled Notifications
         scheduledNotifications: 'Thông báo đã lên lịch',
@@ -8293,6 +8309,7 @@ export const translations = {
         rewardNice: 'ดี!',
         rewardNone: 'โฆษณานี้ไม่ได้ให้รางวัล',
         rewardError: 'เกิดข้อผิดพลาดในการเพิ่มรางวัล โปรดลองอีกครั้ง',
+        rewardTimeout: 'ไม่สามารถคำนวณรางวัลได้ โปรดลองอีกครั้ง',
 
         // Scheduled Notifications
         scheduledNotifications: 'การแจ้งเตือนที่กำหนดเวลาไว้',
