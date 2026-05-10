@@ -35,7 +35,7 @@ website/            — Landing page estática (ver CLAUDE.md próprio)
 - `androidPermissions` — permissões Android necessárias
 - `manifestBlocks` — entradas XML para AndroidManifest.xml
 
-**Capabilities disponíveis:** ai, audio, calendar, camera, clipboard, contacts, device, docs, forms, health (desabilitada), notify, screen, sensors, share, sheets, ui.
+**Capabilities disponíveis:** ai, audio, calendar, camera, clipboard, contacts, device, docs, forms, health, notify, screen, sensors, share, sheets, ui.
 
 **`lib/capabilities/index.ts`** — registry central: importa todos os módulos, filtra `DISABLED_CAPABILITIES`, exporta `ALL_CAPABILITIES` e `buildInjectedJSFromCapabilities()`.
 
