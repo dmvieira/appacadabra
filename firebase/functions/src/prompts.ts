@@ -52,12 +52,11 @@ YOUR CALLBACK MUST BE BULLETPROOF:
 AppacadabraUI.showLoader("Analyzing...");
 AppacadabraAI.generate("Hello", "handleAIResult");
 
-window.handleAIResult = function(success, resultString) {
+window.handleAIResult = function(success, data) {
     AppacadabraUI.hideLoader();  // hides loader (even if called after app restart)
-    if (!success) { AppacadabraUI.toast(resultString, "error"); return; }
-    localStorage.setItem('my_app_latest_result', resultString);
-    // force correct UI state...
-    const data = AppacadabraAI.parseJSON(resultString);
+    if (!success) { AppacadabraUI.toast(data, "error"); return; }
+    localStorage.setItem('my_app_latest_result', JSON.stringify(data));
+    // force correct UI state — data is already a JS object, use directly:
     document.getElementById('output').innerText = data.text;
 };
 \`\`\`
@@ -82,6 +81,20 @@ async function callAI(prompt) {
 }
 const result = await callAI(prompt); // NEVER works after background recovery
 \`\`\`
+
+⚠️ CALLBACK DATA CONVENTION (CRITICAL)
+All Appacadabra API callbacks follow: \`callback(success, data)\`
+- \`success\` (boolean): true if the operation succeeded, false on error
+- \`data\`: **already a JavaScript value** (object, array, string, or number) — NEVER a JSON string
+- When \`success\` is false, \`data\` is an error message string
+- **NEVER call JSON.parse() on callback data** — it is already the correct type. Use it directly:
+  \`\`\`javascript
+  window.onSteps = function(success, data) {
+    if (!success) return;
+    var steps = data.totalSteps;           // ✅ Direct property access
+    // var steps = JSON.parse(data).totalSteps; ❌ WRONG — will throw error
+  };
+  \`\`\`
 
 ✅ STANDARD WEB APIS (Supported Natively)
 - **Audio/Video**: Use HTML5 \`<audio>\` and \`<video>\` tags.

@@ -112,7 +112,7 @@ export const notifyCapability: CapabilityModule = {
 - \`alarmAt(title, msg, timeMs, callback, id?)\` - Schedule alarm at specific time (rings even on silent)
     - **Return**: Alarm ID (string)
 - \`getScheduled(callback)\` - List pending notifications and alarms. Callback: \`callback(success, data)\`
-    - **data** is an already-parsed Array (do NOT JSON.parse): \`[{id, title, body, trigger: { type: "timeInterval"|"date", value: number }, isAlarm: boolean}]\` (value is seconds for interval, or timestamp for date)
+    - **data** is an Array: \`[{id, title, body, trigger: { type: "timeInterval"|"date", value: number }, isAlarm: boolean}]\` (value is seconds for interval, or timestamp for date)
 - \`cancel(id, callback)\` - Cancel notification or alarm by ID
     - **Return**: "Cancelled" (string)
 - \`cancelAll(callback)\` - Cancel all notifications and alarms from this app
@@ -494,7 +494,7 @@ export const notifyCapability: CapabilityModule = {
                             isAlarm: true,
                         }))
                         : [];
-                    const result = JSON.stringify([...notifItems, ...alarmItems]);
+                    const result = [...notifItems, ...alarmItems];
                     console.log(`[Bridge] Found ${notifItems.length} notifications + ${alarmItems.length} alarms`);
                     return { success: true, result };
                 } catch (e) {
@@ -503,7 +503,7 @@ export const notifyCapability: CapabilityModule = {
             }
 
             case 'NOTIFY_CANCEL': {
-                if (ctx.isEditMode) return { success: true, result: JSON.stringify({ skipped: true }) };
+                if (ctx.isEditMode) return { success: true, result: { skipped: true } };
                 console.log(`[Bridge] Notify cancel: ${data.id}`);
                 try {
                     const idStr = String(data.id);
@@ -526,7 +526,7 @@ export const notifyCapability: CapabilityModule = {
             }
 
             case 'NOTIFY_CANCEL_ALL': {
-                if (ctx.isEditMode) return { success: true, result: JSON.stringify({ skipped: true }) };
+                if (ctx.isEditMode) return { success: true, result: { skipped: true } };
                 return await withNotifyLock(ctx.appId, async () => {
                     console.log(`[Bridge] Notify cancel all for spell ${ctx.appId}`);
                     try {

@@ -419,7 +419,7 @@ export interface HandlerContext {
 
 export interface HandlerResult {
     success: boolean;
-    result: string;
+    result: any;
     handled: boolean;  // false if message type was not recognized
     deferredCallback?: boolean;
     creditsUsed?: number;
@@ -543,7 +543,7 @@ export async function handleBridgeMessage(
                 if (locStatus.status === 'granted') {
                     const loc = await Location.getCurrentPositionAsync({});
                     debugLog(`Location found: ${loc.coords.latitude}, ${loc.coords.longitude}`);
-                    result = JSON.stringify(loc);
+                    result = loc;
                 } else {
                     result = 'Permission denied';
                     success = false;

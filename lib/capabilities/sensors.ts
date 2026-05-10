@@ -19,19 +19,19 @@ export const sensorsCapability: CapabilityModule = {
 - **IMPORTANT**: All sensor callbacks must be GLOBAL function names (strings).
 - \`startAccelerometer(intervalMs, callbackName)\`
     - **Callback**: Global function name (string).
-    - **Data**: \`{ "x": number, "y": number, "z": number }\` (in Gs)
+    - **data** is an Object: \`{ "x": number, "y": number, "z": number }\` (in Gs)
 - \`startGyroscope(intervalMs, callbackName)\`
-    - **Data**: \`{ "x": number, "y": number, "z": number }\` (rotation rate in rad/s)
+    - **data** is an Object: \`{ "x": number, "y": number, "z": number }\` (rotation rate in rad/s)
 - \`startCompass(intervalMs, callbackName)\`
-    - **Data**: \`{ "heading": number, "x": number, "y": number, "z": number }\`
+    - **data** is an Object: \`{ "heading": number, "x": number, "y": number, "z": number }\`
     - **Note**: \`heading\` is relative to North (0-360).
 - \`startPedometer(callbackName)\`
-    - **Data**: \`{ "steps": number }\`
+    - **data** is an Object: \`{ "steps": number }\`
     - **Tip**: Takes 10-20 steps to start triggering events.
 - \`startSpeedometer(callbackName)\`
-    - **Data**: \`{ "speed": number }\` (in km/h)
+    - **data** is an Object: \`{ "speed": number }\` (in km/h)
 - \`startGPS(callbackName)\`
-    - **Data**: \`{ "latitude": number, "longitude": number, "altitude": number, "heading": number, "speed": number }\`
+    - **data** is an Object: \`{ "latitude": number, "longitude": number, "altitude": number, "heading": number, "speed": number }\`
 - \`stopAll()\`
     - **Note**: Stops ALL active sensors. ALWAYS call this when leaving the screen or pausing.`,
 

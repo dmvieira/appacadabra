@@ -16,7 +16,7 @@ export const calendarCapability: CapabilityModule = {
 - \`createEvent(title, desc, startMs, endMs, callback)\`
 - \`createEventWithReminder(title, desc, startMs, endMs, minutes, callback)\`
 - \`getEvents(startMs, endMs, callback)\` - Callback: \`callback(success, data)\`
-    - **data** is an already-parsed Array (do NOT JSON.parse): \`[{id, title, startDate, endDate, allDay, location, notes, calendarId, calendarName, attendees: [{name, email, status, isCurrentUser}]}, ...]\`
+    - **data** is an Array: \`[{id, title, startDate, endDate, allDay, location, notes, calendarId, calendarName, attendees: [{name, email, status, isCurrentUser}]}, ...]\`
 - \`deleteEvent(eventId, callback)\`
     - **Return**: "Event deleted" (string)
 - **Return for create**: "Calendar opened" (string)`,
@@ -98,7 +98,7 @@ export const calendarCapability: CapabilityModule = {
                     }));
 
                     console.log(`[Bridge] Found ${detailedEvents.length} events`);
-                    return { success: true, result: JSON.stringify(detailedEvents) };
+                    return { success: true, result: detailedEvents };
                 } catch (e) {
                     console.error('Calendar get events error:', e);
                     return { success: false, result: e instanceof Error ? e.message : 'Error reading calendar' };

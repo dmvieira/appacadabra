@@ -100,7 +100,6 @@ export const healthCapability: CapabilityModule = {
     ],
 
     docs: `💪 HEALTH (AppacadabraHealth)
-⚠️ **CRITICAL**: All Health callbacks receive **already-parsed JavaScript objects/arrays**, NOT JSON strings. Do NOT call JSON.parse() on the result — it will throw an error. Use the data directly: \`data.totalSteps\`, \`data[0].startTime\`, etc.
 - \`getSteps(startMs, endMs, callback)\` - Get step count. Callback: \`callback(success, data)\`
     - **data** is an Object: \`{ totalSteps: number, records: [{ startTime: "ISO String", endTime: "ISO String", count: number }] }\`
     - Example: \`var steps = data.totalSteps;\`
@@ -187,7 +186,7 @@ export const healthCapability: CapabilityModule = {
                     const totalSteps = (stepsAgg as any).COUNT_TOTAL || (stepsAgg as any).count || (stepsAgg as any).total || stepsRecords.records.reduce((sum: number, r: { count?: number }) => sum + (r.count || 0), 0) || 0;
 
                     console.log(`[Bridge] Found total steps: ${totalSteps}`);
-                    return { success: true, result: JSON.stringify({ totalSteps, records: stepsRecords.records }) };
+                    return { success: true, result: { totalSteps, records: stepsRecords.records } };
                 } catch (e) {
                     console.error('Health get steps error:', e);
                     return { success: false, result: e instanceof Error ? e.message : 'Error reading steps' };
@@ -214,7 +213,7 @@ export const healthCapability: CapabilityModule = {
                     });
 
                     console.log(`[Bridge] Found ${hrRecords.records.length} heart rate records.`);
-                    return { success: true, result: JSON.stringify(hrRecords.records) };
+                    return { success: true, result: hrRecords.records };
                 } catch (e) {
                     console.error('Health get heart rate error:', e);
                     return { success: false, result: e instanceof Error ? e.message : 'Error reading heart rate' };
@@ -265,7 +264,7 @@ export const healthCapability: CapabilityModule = {
                         };
                     });
 
-                    return { success: true, result: JSON.stringify(enrichedRecords) };
+                    return { success: true, result: enrichedRecords };
                 } catch (e) {
                     console.error('Health get exercise error:', e);
                     return { success: false, result: e instanceof Error ? e.message : 'Error reading exercise' };
@@ -313,7 +312,7 @@ export const healthCapability: CapabilityModule = {
                     }
 
                     console.log(`[Bridge] Found total calories: ${totalCalories}`);
-                    return { success: true, result: JSON.stringify({ totalCalories, records: calRecords.records }) };
+                    return { success: true, result: { totalCalories, records: calRecords.records } };
                 } catch (e) {
                     console.error('Health get calories error:', e);
                     return { success: false, result: e instanceof Error ? e.message : 'Error reading calories' };
@@ -362,7 +361,7 @@ export const healthCapability: CapabilityModule = {
                         };
                     });
 
-                    return { success: true, result: JSON.stringify(mappedRecords) };
+                    return { success: true, result: mappedRecords };
                 } catch (e) {
                     console.error('Health get sleep error:', e);
                     return { success: false, result: e instanceof Error ? e.message : 'Error reading sleep' };

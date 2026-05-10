@@ -11,8 +11,8 @@ export const contactsCapability: CapabilityModule = {
     ],
 
     docs: `📇 CONTACTS (AppacadabraContacts): prefer search/update
-- \`search(query, callback)\`
-    - **Return JSON**: Same array format as getAll.
+- \`search(query, callback)\` - Search contacts by name, phone, email, or company
+    - **data** is an Array: \`[{id, name, firstName, lastName, phoneNumbers: [{number, label}], emails: [{email, label}], company, jobTitle, ...}]\`
 - \`update(contactObj, callback)\` - Opens native edit form with pre-filled data
     - **Return**: Contact ID (string) or "Contact form presented"
 - \`add(contactObj, callback)\` - Opens native add form with pre-filled data
@@ -173,7 +173,7 @@ export const contactsCapability: CapabilityModule = {
                         });
 
                         console.log(`[Bridge] Found ${filtered.length} contacts`);
-                        return { success: true, result: JSON.stringify(filtered.slice(0, 50)) };
+                        return { success: true, result: filtered.slice(0, 50) };
                     } else {
                         return { success: false, result: 'Contacts permission denied' };
                     }

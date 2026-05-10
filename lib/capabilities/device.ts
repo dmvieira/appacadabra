@@ -16,13 +16,13 @@ export const deviceCapability: CapabilityModule = {
 - \`vibrate(pattern)\` - Vibrate device (number or array of numbers). **No callback**.
 - \`cancelVibration()\` - Stop vibration. **No callback**.
 - \`getBatteryLevel(callback)\` - Get battery level.
-    - **Callback Data**: Battery level (number 0.0 - 1.0)
+    - **data**: Battery level as string (e.g. "0.85"). Use \`Number(data)\` to convert.
 - \`isCharging(callback)\` - Check if charging.
-    - **Callback Data**: Charging status (boolean)
+    - **data**: "true" or "false" (string). Use \`data === "true"\` to check.
 - \`isOnline(callback)\` - Check if online.
-    - **Callback Data**: \`true\` or \`false\` (boolean)
+    - **data**: "true" or "false" (string). Use \`data === "true"\` to check.
 - \`getNetworkType(callback)\` - Get connection info.
-    - **Callback Data**: Connection type string ('wifi', 'cellular', 'none', 'unknown')
+    - **data**: Connection type string ("wifi", "cellular", "none", "unknown")
 - \`language\` - **Property** (string). Device language (e.g. "en-US")
 - \`userAgent\` - **Property** (string). User agent string
 - \`openBrowser(url)\` - Open URL in system browser`,

@@ -32,7 +32,7 @@ export interface HandlerContext {
 
 export interface HandlerResult {
     success: boolean;
-    result: string;
+    result: any;
     handled: boolean;
     deferredCallback?: boolean;
     creditsUsed?: number;
