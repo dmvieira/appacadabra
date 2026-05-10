@@ -14,8 +14,8 @@ Capabilities where `handleMessage()` returns `null` (clipboard, ui) have no nati
 
 | Action | `data` type | Shape / Notes |
 |---|---|---|
-| `AI_GENERATE` | `string` | Generated text; JSON string if `withSchema` used — parse it manually |
-| `AI_SIMILARITY` | `string` | JSON — `{ matrix: number[][], vectors: number[][], count: number }` — parse manually |
+| `AI_GENERATE` | `string` or `object` | Plain text string when no schema; **native object** when `withSchema` used (bridge auto-parses the JSON) |
+| `AI_SIMILARITY` | `object` | `{ matrix: number[][], vectors: number[][], count: number }` — already parsed, use directly |
 | `AI_GENERATE_IMAGE` | `string` | Base64 PNG |
 | `AI_GENERATE_VIDEO` | `string` | File path or base64 MP4 |
 
