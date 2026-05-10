@@ -102,7 +102,7 @@ export const aiCapability: CapabilityModule = {
         fromVideo: function() { return makeAIBuilder(null); },
         fromAudio: function() { return makeAIBuilder(null); },
         generate: function(prompt, cb) {
-            if (cb && typeof window[cb] === 'function') window[cb](true, '{}');
+            if (cb && typeof window[cb] === 'function') window[cb](true, 'example text');
         },
         generateImage: noop,
         generateVideo: noop,
