@@ -185,12 +185,12 @@ initializeAppCheckWrapper();
 try {
     setCrashlyticsCollectionEnabled(firebaseCrashlytics(), !__DEV__);
 } catch (e) {
-    console.warn('Firebase: Crashlytics not available', e);
+    if (!__DEV__) console.warn('Firebase: Crashlytics not available', e);
 }
 try {
     setAnalyticsCollectionEnabled(firebaseAnalytics(), !__DEV__);
 } catch (e) {
-    console.warn('Firebase: Analytics not available', e);
+    if (!__DEV__) console.warn('Firebase: Analytics not available', e);
 }
 
 // Get current user ID (null if not authenticated)

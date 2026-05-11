@@ -1129,6 +1129,7 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                                     placeholderTextColor={colors.onSurfaceVariant}
                                     multiline
                                     numberOfLines={4}
+                                    accessibilityLabel="spell-edit-input"
                                 />
                                 <View style={styles.sheetButtons}>
                                     <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEditSheet(false)}>

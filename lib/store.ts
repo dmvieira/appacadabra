@@ -185,19 +185,34 @@ export const useAppStore = create<AppState>((set, get) => ({
                     jobTime = job.createdAt.seconds * 1000;
                 }
 
-                const isOld = (Date.now() - jobTime) > 20 * 60 * 1000; // 20 minutes
+                // null createdAt = pending serverTimestamp, treat as fresh.
+                const isOld = jobTime > 0
+                    ? (Date.now() - jobTime) > 20 * 60 * 1000
+                    : false;
 
                 if (job.status === 'completed' && !wasCompleted) {
-                    // Only process result if it's a fresh completion or a recent job recovery
+                    // Always release UI locks — even when the content processing is skipped as old.
+                    if (job.action === 'edit' && job.payload?.appId) {
+                        set(state => ({ updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId) }));
+                    } else if (job.action === 'create') {
+                        set(state => ({ creatingApps: state.creatingApps.filter(a => a.jobId !== job.id) }));
+                    }
                     if (!isOld) {
                         get()._processCompletedJob(job);
                     } else {
                         console.log('[Store] Ignoring old completed job from history:', job.id);
                     }
                 } else if (job.status === 'failed' && !wasFailed) {
-                    // Similar logic for failed jobs? Usually we want to know it failed recently
-                    if (!isOld) {
+                    const isContentJob = job.action === 'create' || job.action === 'edit';
+                    if (!isOld || isContentJob) {
                         get()._processFailedJob(job);
+                    } else {
+                        // Release lock for other old failed jobs (webview_ai etc.)
+                        if (job.action === 'edit' && job.payload?.appId) {
+                            set(state => ({ updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId) }));
+                        } else if (job.action === 'create') {
+                            set(state => ({ creatingApps: state.creatingApps.filter(a => a.jobId !== job.id) }));
+                        }
                     }
                 } else if (job.status === 'processing' && isOld) {
                     // Stuck job: only handle create/edit — webview_ai is managed by the bridge
@@ -270,9 +285,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         // Cleanup placeholders/locks moved to end of action-specific blocks
 
+        const releaseJobLock = () => {
+            if (job.action === 'edit' && job.payload?.appId) {
+                set(state => ({ updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId) }));
+            } else if (job.action === 'create') {
+                set(state => ({ creatingApps: state.creatingApps.filter(a => a.jobId !== job.id) }));
+            }
+        };
+
         if (!job.result) {
             console.warn('[Store] Job completed but has no result:', job.id);
-            // If failed/no result, we still cleaned up above.
+            releaseJobLock();
             return;
         }
 
@@ -281,6 +304,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const alreadyProcessed = await db.hasJobBeenProcessed(job.id);
         if (alreadyProcessed) {
             console.log('[Store] Skipping already processed job (history):', job.id);
+            releaseJobLock();
             return;
         }
 
@@ -410,6 +434,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                         // Signal RunnerScreen to exit edit mode via router
                         set({ lastCompletedEditAppId: appId });
+                        // router.back() is called immediately on edit submit so the RunnerScreen
+                        // may already be unmounted — clear the signal after a short delay as fallback.
+                        setTimeout(() => {
+                            if (get().lastCompletedEditAppId === appId) get().clearLastCompletedEdit();
+                        }, 5000);
 
                         // Notify Listeners (RunnerApp)
                         DeviceEventEmitter.emit('APP_UPDATED', { appId });

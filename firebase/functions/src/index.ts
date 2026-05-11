@@ -11,33 +11,23 @@ import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData 
 import { getStorage } from "firebase-admin/storage";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
-import { GoogleGenAI, VideoGenerationReferenceType, Type } from "@google/genai";
+import { GoogleGenAI, VideoGenerationReferenceType } from "@google/genai";
 import OpenAI from 'openai';
 
 import * as zlib from 'zlib';
-import {
-    CONVERT_PROJECT_PROMPT,
-    // Unified 2-Step Prompts
-    UNIFIED_CREATE_PLANNER_PROMPT,
-    UNIFIED_CREATE_CODE_PROMPT,
-    UNIFIED_EDIT_PLANNER_PROMPT,
-    UNIFIED_EDIT_MIGRATE_PROMPT,
-} from "./prompts";
+import { CONVERT_PROJECT_PROMPT } from "./prompts";
 import { buildSystemInstructions, ALL_CAPABILITIES } from "./capabilities/index";
-import { buildPlannerSystemInstructions, getCapabilitiesByApiNames } from "./capabilities/helpers";
-import { validateGeneratedCode, generateFixPrompt } from "./codeValidator";
-import { validateWithExecution } from "./executionValidator";
 import { NOTIF_I18N } from "./i18n";
+import { MODELS, OR_BASE_URL, OR_REASONING_HIGH, OR_WEB_SEARCH } from "./config";
+import { generateSpellCreate, generateSpellEdit, generateWebviewAI } from "./generators";
 import {
     sanitizeForFirestore,
     calculateCostUsd,
     calcImageMana,
     calcVideoMana,
     extractHtml,
-    extractJson,
     extractText,
     fixCallbackPatterns,
-    applyPatches,
     getUsage,
     withRetry,
     computeManaCost,
@@ -61,23 +51,12 @@ const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
 let _or: OpenAI | null = null;
 function getOR(): OpenAI {
     return _or ?? (_or = new OpenAI({
-        baseURL: 'https://openrouter.ai/api/v1',
+        baseURL: OR_BASE_URL,
         apiKey: OPENROUTER_API_KEY,
         timeout: DEFAULT_TIMEOUT_MS,
         defaultHeaders: { 'X-OpenRouter-Cache': 'true' },
     }));
 }
-
-const MODELS = {
-    SPELL_S: 'deepseek/deepseek-v4-flash',                  // create/edit/convert
-    SUGGEST: 'openai/gpt-oss-120b:free',                    // suggestSpells
-    WEBVIEW: 'google/gemini-3.1-flash-lite-preview',        // webview_ai (all inputs)
-} as const;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const OR_REASONING_HIGH: any = { reasoning: { effort: 'high' } };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const OR_WEB_SEARCH: any = { tools: [{ type: 'openrouter:web_search' }] };
 
 
 // ============= COMPRESSION UTILS =============
@@ -232,29 +211,6 @@ interface PreviousEdit {
 // Pricing Constants
 const FIXED_COST_CREATE_EDIT = 1.0;
 
-// Helper to infer JSON Schema from a data example (robustness)
-function inferSchema(data: any): any {
-    if (data === null || data === undefined) return { type: Type.STRING, nullable: true };
-    const t = typeof data;
-
-    if (t === "string") return { type: Type.STRING };
-    if (t === "number") return { type: Type.NUMBER };
-    if (t === "boolean") return { type: Type.BOOLEAN };
-
-    if (Array.isArray(data)) {
-        return { type: Type.ARRAY, items: data.length > 0 ? inferSchema(data[0]) : { type: Type.STRING } };
-    }
-
-    if (t === "object") {
-        if (data.type && (data.properties || data.items || data.type === 'string')) return data;
-        const properties: any = {};
-        const required: string[] = [];
-        Object.keys(data).forEach(key => { properties[key] = inferSchema(data[key]); required.push(key); });
-        return { type: Type.OBJECT, properties, required };
-    }
-
-    return { type: Type.STRING };
-}
 
 // Function to add credits (for purchases/ad rewards)
 export const addCredits = onCall<{ amount: number; source: string; purchaseToken?: string }>(
@@ -706,226 +662,31 @@ export const processSpellJob = onDocumentCreated(
 
             switch (action) {
                 case "create": {
-                    let totalUsage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
-                    const addUsage = (result: any) => {
-                        const u = getUsage(result);
-                        totalUsage.promptTokens += u.promptTokens;
-                        totalUsage.responseTokens += u.responseTokens;
-                        totalUsage.thoughtsTokens += u.thoughtsTokens;
-                        totalUsage.totalTokens += u.totalTokens;
-                        totalUsage.cachedTokens += result.usage?.prompt_tokens_details?.cached_tokens
-                            || result.usageMetadata?.cachedContentTokenCount || 0;
-                    };
-
-                    const plannerSysInstructions = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
-
-                    const callModel = async (content: string, sysInstr: string = plannerSysInstructions) => {
-                        const timeoutPromise = new Promise<never>((_, reject) =>
-                            setTimeout(() => reject(new Error(`AI Generation Timeout (${DEFAULT_TIMEOUT_MS / 1000}s)`)), DEFAULT_TIMEOUT_MS)
-                        );
-                        const generationPromise = withRetry(async () => {
-                            const res = await getOR().chat.completions.create({
-                                model: MODELS.SPELL_S,
-                                messages: [
-                                    { role: 'system', content: sysInstr },
-                                    { role: 'user', content: content },
-                                ],
-                                ...OR_REASONING_HIGH,
-                                ...OR_WEB_SEARCH,
-                            });
-                            const text = extractText(res);
-                            if (!text) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
-                            return res;
-                        });
-                        return Promise.race([generationPromise, timeoutPromise]) as Promise<any>;
-                    };
-
-                    // Stage 1: Planning (compact capability list — no full docs)
-                    console.log(`[Job ${jobId}] Stage 1: Planning...`);
-                    const plannerPrompt = `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`;
-                    const planResult = await callModel(plannerPrompt);
-                    addUsage(planResult);
-                    const appPlan = extractJson(extractText(planResult));
-                    console.log(`[Job ${jobId}] Plan created:`, JSON.stringify(appPlan).substring(0, 200) + '...');
-
-                    // Build creator system instructions with full docs for selected capabilities only
-                    const selectedCaps = getCapabilitiesByApiNames(
-                        (appPlan?.technicalRequirements?.apis ?? []).map((a: any) => a.name),
-                        appVersion,
-                        ALL_CAPABILITIES,
-                    );
-                    const creatorSysInstructions = buildSystemInstructions(appVersion, selectedCaps);
-                    console.log(`[Job ${jobId}] Capabilities: ${selectedCaps.map(c => c.id).join(', ')} (${selectedCaps.length}/${ALL_CAPABILITIES.length})`);
-
-                    // Stage 2: Coding (full docs for selected capabilities only)
-                    console.log(`[Job ${jobId}] Stage 2: Coding...`);
-                    const codePrompt = `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`;
-                    const codeResult = await callModel(codePrompt, creatorSysInstructions);
-                    addUsage(codeResult);
-
-                    resultText = fixCallbackPatterns(extractHtml(extractText(codeResult)));
-                    if (!resultText) throw new Error("AI returned empty response");
-
-                    // Audit
-                    auditLog = {
-                        plannerPrompt,
-                        codePrompt
-                    };
-
-                    // Validation
-                    console.log(`[Job ${jobId}] Validating code...`);
-                    let validation = validateGeneratedCode(resultText);
-                    let execValidation = validateWithExecution(resultText);
-                    let allErrors = [...validation.errors, ...execValidation.errors];
-
-                    if (allErrors.length > 0) {
-                        auditLog.initialValidationErrors = allErrors;
+                    console.log(`[Job ${jobId}] Delegating to generateSpellCreate...`);
+                    const createResult = await generateSpellCreate(prompt, appVersion, getOR());
+                    resultText = createResult.html;
+                    usage = createResult.usage;
+                    appName = createResult.appName;
+                    if (createResult.initialValidationErrors.length > 0) {
+                        auditLog.initialValidationErrors = createResult.initialValidationErrors;
                     }
-
-                    if (allErrors.length > 0 && allErrors.some(e => e.fixable)) {
-                        console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, allErrors);
-                        const fixPrompt = generateFixPrompt(allErrors, resultText);
-
-                        // Audit fix
-                        auditLog.fixPrompt = fixPrompt;
-
-                        const fixResult = await callModel(fixPrompt, creatorSysInstructions);
-                        addUsage(fixResult);
-                        resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
-                        if (!resultText) throw new Error("AI returned empty response");
-                        validation = validateGeneratedCode(resultText);
-                        execValidation = validateWithExecution(resultText);
-                        allErrors = [...validation.errors, ...execValidation.errors];
-
-                        if (allErrors.length > 0) {
-                            auditLog.finalValidationErrors = allErrors;
-                        }
-                    }
-
-                    if (allErrors.length > 0) throw new Error(`App generation failed: ${allErrors[0]?.message || 'Unknown'}`);
-                    usage = totalUsage;
                     logModelId = MODELS.SPELL_S;
-
-                    // Extract App Name from Title
-                    const titleMatch = resultText.match(/<title[^>]*>([^<]+)<\/title>/i);
-                    if (titleMatch && titleMatch[1]) {
-                        appName = titleMatch[1].trim();
-                    }
                     break;
                 }
                 case "edit": {
-                    let totalUsage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
-                    const addUsage = (result: any) => {
-                        const u = getUsage(result);
-                        totalUsage.promptTokens += u.promptTokens;
-                        totalUsage.responseTokens += u.responseTokens;
-                        totalUsage.thoughtsTokens += u.thoughtsTokens;
-                        totalUsage.totalTokens += u.totalTokens;
-                        totalUsage.cachedTokens += result.usage?.prompt_tokens_details?.cached_tokens
-                            || result.usageMetadata?.cachedContentTokenCount || 0;
-                    };
-
-                    // Self-heal corrupted stored code (e.g. from old extractHtml fence-matching bug)
-                    let rawCode = currentCode;
-                    if (rawCode && !rawCode.trimStart().startsWith('<')) {
-                        const recovered = extractHtml(rawCode);
-                        if (recovered && recovered.trimStart().startsWith('<')) {
-                            rawCode = recovered;
-                            console.log(`[Job ${jobId}] Auto-recovered corrupted spell code (${currentCode.length} → ${rawCode.length} chars)`);
-                        }
+                    console.log(`[Job ${jobId}] Delegating to generateSpellEdit...`);
+                    const editResult = await generateSpellEdit({
+                        currentCode,
+                        instruction,
+                        previousEdits,
+                        selectedContext,
+                        storageStructure,
+                    }, appVersion, getOR());
+                    resultText = editResult.html;
+                    usage = editResult.usage;
+                    if (editResult.initialValidationErrors.length > 0) {
+                        auditLog.initialValidationErrors = editResult.initialValidationErrors;
                     }
-                    const normalizedCode = rawCode.replace(/\r\n/g, "\n");
-                    const codeLines = normalizedCode.split("\n");
-                    console.log(`[Job ${jobId}] Editing code: ${codeLines.length} lines, ${normalizedCode.length} chars`);
-                    const numberedCode = codeLines.map((line: string, i: number) => `${i + 1}| ${line}`).join("\n");
-
-                    const historyContext = previousEdits && previousEdits.length > 0
-                        ? `\nPrevious edits:\n${previousEdits.map((e: PreviousEdit) => `- v${e.version}: ${e.instruction}`).join("\n")}\n`
-                        : "";
-                    const selectionPart = selectedContext
-                        ? `\nSelected code:\n"""\n${selectedContext}\n"""\n`
-                        : "";
-                    const storageKeysPart = storageStructure.length > 0
-                        ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(item => `- localStorage["${item.key}"]: ${JSON.stringify(item.schema)}`).join('\n')}\n`
-                        : '';
-
-                    const editPlannerSysInstructions = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
-                    const editPatcherSysInstructions = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
-
-                    const callEditModel = async (content: string, sysInstr: string = editPatcherSysInstructions) => {
-                        const timeoutPromise = new Promise<never>((_, reject) =>
-                            setTimeout(() => reject(new Error(`AI Generation Timeout (${DEFAULT_TIMEOUT_MS / 1000}s)`)), DEFAULT_TIMEOUT_MS)
-                        );
-                        const generationPromise = withRetry(async () => {
-                            const res = await getOR().chat.completions.create({
-                                model: MODELS.SPELL_S,
-                                messages: [
-                                    { role: 'system', content: sysInstr },
-                                    { role: 'user', content: content },
-                                ],
-                                ...OR_REASONING_HIGH,
-                                ...OR_WEB_SEARCH,
-                            });
-                            const text = extractText(res);
-                            if (!text) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
-                            return res;
-                        });
-                        return Promise.race([generationPromise, timeoutPromise]) as Promise<any>;
-                    };
-
-                    // Stage 1: Plan (compact capability list — planner only needs to know what's available)
-                    console.log(`[Job ${jobId}] Stage 1: Planning Edit...`);
-                    const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const planResult = await callEditModel(planPrompt, editPlannerSysInstructions);
-                    addUsage(planResult);
-                    const editPlan = extractJson(extractText(planResult));
-                    console.log(`[Job ${jobId}] Edit Plan:`, JSON.stringify(editPlan, null, 2));
-
-                    // Stage 2: Patch
-                    console.log(`[Job ${jobId}] Stage 2: Patching...`);
-                    const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
-                    const patchResult = await callEditModel(patchPrompt);
-                    addUsage(patchResult);
-                    const patchResponse = extractJson(extractText(patchResult));
-
-                    // Audit
-                    auditLog.planPrompt = planPrompt;
-                    auditLog.patchPrompt = patchPrompt;
-
-                    resultText = fixCallbackPatterns(applyPatches(normalizedCode, patchResponse.changes || []));
-                    console.log(`[Job ${jobId}] Patching complete. Validating...`);
-
-                    // Validation
-                    let editValidation = validateGeneratedCode(resultText);
-                    let editExecValidation = validateWithExecution(resultText);
-                    let editAllErrors = [...editValidation.errors, ...editExecValidation.errors];
-
-                    if (editAllErrors.length > 0) {
-                        auditLog.initialValidationErrors = editAllErrors;
-                    }
-
-                    if (editAllErrors.length > 0 && editAllErrors.some(e => e.fixable)) {
-                        console.warn(`[Job ${jobId}] Validation failed. Retrying with fix prompt...`, editAllErrors);
-                        const fixPrompt = generateFixPrompt(editAllErrors, resultText);
-
-                        // Audit fix
-                        auditLog.fixPrompt = fixPrompt;
-
-                        const fixResult = await callEditModel(fixPrompt);
-                        addUsage(fixResult);
-                        resultText = fixCallbackPatterns(extractHtml(extractText(fixResult)));
-                        if (!resultText) throw new Error("AI returned empty response");
-                        editValidation = validateGeneratedCode(resultText);
-                        editExecValidation = validateWithExecution(resultText);
-                        editAllErrors = [...editValidation.errors, ...editExecValidation.errors];
-
-                        if (editAllErrors.length > 0) {
-                            auditLog.finalValidationErrors = editAllErrors;
-                        }
-                    }
-                    if (editAllErrors.length > 0) throw new Error(`Edit failed: ${editAllErrors[0]?.message}`);
-
-                    usage = totalUsage;
                     logModelId = MODELS.SPELL_S;
                     break;
                 }
@@ -1021,86 +782,26 @@ export const processSpellJob = onDocumentCreated(
 
                 case "webview_ai": {
                     if (!prompt) throw new Error("Prompt required");
-
-                    // normalize tools
-                    let tools = requestedTools || [];
-                    if (useSearch && !tools.includes('googleSearch')) tools.push('googleSearch');
-
-                    const useWebSearch = tools.includes('googleSearch') || tools.includes('googleMaps');
-                    const effectiveModel = requestedModel || MODELS.WEBVIEW;
-
-                    console.log(`[Job ${jobId}] [WEBVIEW_AI] Model: ${effectiveModel}, Tools: ${tools}`);
-
-                    // Build multimodal user content (Gemma supports image and audio via OpenRouter)
-                    const userContent: any[] = [{ type: 'text', text: prompt }];
-                    if (resolvedImages?.length) {
-                        for (const img of resolvedImages) {
-                            userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img}` } });
-                        }
-                    }
-                    if (resolvedAudios?.length) {
-                        for (const aud of resolvedAudios) {
-                            userContent.push({ type: 'input_audio', input_audio: { data: aud, format: 'wav' } });
-                        }
-                    }
                     if (resolvedVideos?.length) {
                         console.warn(`[Job ${jobId}] [WEBVIEW_AI] Video inputs not supported via OpenRouter — ignored`);
                     }
-
-                    const resolvedSchema = schema
-                        ? (!(schema as any).type ? inferSchema(schema) : schema)
-                        : undefined;
-
-                    const result = await withRetry(() => getOR().chat.completions.create({
-                        model: effectiveModel,
-                        messages: [{ role: 'user', content: userContent }],
-                        max_tokens: 65536,
-                        ...(useWebSearch ? OR_WEB_SEARCH : {}),
-                        ...(resolvedSchema ? {
-                            response_format: {
-                                type: 'json_schema',
-                                json_schema: { name: 'response', schema: resolvedSchema as any, strict: false },
-                            },
-                        } : {}),
-                    }));
-
-                    usage = sanitizeForFirestore(getUsage(result));
-
-                    resultText = extractText(result);
-
-                    // AUDIT LOG
-                    auditLog.rawAiResponse = (resultText || "").substring(0, 10000);
+                    const waiResult = await generateWebviewAI({
+                        prompt,
+                        schema: schema as Record<string, unknown> | undefined,
+                        images: resolvedImages,
+                        audios: resolvedAudios,
+                        useSearch,
+                        requestedModel,
+                        requestedTools,
+                    }, getOR());
+                    resultText = waiResult.text;
+                    usage = sanitizeForFirestore(waiResult.usage);
+                    creditsUsed = waiResult.creditsUsed;
+                    logModelId = requestedModel ?? MODELS.WEBVIEW;
+                    logExtras.searchQueries = waiResult.searchQueriesUsed;
+                    auditLog.rawAiResponse = (resultText || '').substring(0, 10000);
                     auditLog.schemaProvided = !!schema;
-                    auditLog.modelUsed = effectiveModel;
-
-                    // If a schema was requested, ensure the response is clean JSON
-                    if (schema && resultText) {
-                        try {
-                            const parsed = extractJson(resultText);
-                            resultText = JSON.stringify(parsed);
-                            auditLog.extractedJson = resultText;
-                        } catch (e: any) {
-                            console.warn(`[Job ${jobId}] [WEBVIEW_AI] JSON extraction failed:`, e.message);
-                            auditLog.extractionError = e.message;
-                            const snippet = resultText.length > 200 ? resultText.substring(0, 200) + "..." : resultText;
-                            throw new Error(`JSON Extraction Failed: ${e.message} | Raw: ${snippet}`);
-                        }
-                    }
-
-                    // Empty AI response is always invalid — fail the job explicitly
-                    if (!resultText) {
-                        throw new Error("AI returned empty response");
-                    }
-
-                    const actualSearchQueries = (result.usage as any)?.web_search_requests ?? 0;
-
-                    const waiCostUsd = calculateCostUsd(effectiveModel, usage, {
-                        searchQueries: actualSearchQueries,
-                    });
-                    creditsUsed = waiCostUsd / MANA_VALUE_USD;
-
-                    logModelId = effectiveModel;
-                    logExtras.searchQueries = actualSearchQueries;
+                    auditLog.modelUsed = logModelId;
                     break;
                 }
 

@@ -428,6 +428,10 @@ export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promis
             const isRetryable =
                 msg.includes('DEADLINE_EXCEEDED') ||
                 msg.includes('UNAVAILABLE') ||
+                msg.includes('ECONNRESET') ||
+                msg.includes('ECONNREFUSED') ||
+                msg.includes('fetch failed') ||
+                e?.cause?.code === 'ECONNRESET' ||
                 e?.cause?.code === 'UND_ERR_HEADERS_TIMEOUT' ||
                 msg.includes('UND_ERR_HEADERS_TIMEOUT') ||
                 status === 500 ||

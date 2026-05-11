@@ -411,14 +411,6 @@ export default function HomeScreen() {
     }, [apps]);
 
 
-    // Clear status message after 3 seconds
-    useEffect(() => {
-        if (statusMessage) {
-            const timer = setTimeout(() => clearStatusMessage(), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [statusMessage]);
-
     const NOTIF_HINT_DISMISSED_KEY = 'notif_hint_dismissed';
     useEffect(() => {
         const hasInFlight = creatingApps.length > 0 || updatingAppIds.length > 0;

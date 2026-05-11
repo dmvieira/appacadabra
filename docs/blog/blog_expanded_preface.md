@@ -32,7 +32,17 @@ This series is not about prompting tricks or clever chatbot workflows. The key i
 
 For each department I built, I also built a **specialized AI agent**: not a generic assistant, but one configured with Appacadabra's full context (our stack, our voice, our policies, our constraints). Each agent knows *this company*, not just this domain.
 
-As I completed work through each agent, I codified what I learned into **Skills** (reusable command patterns) and **MCPs** (Model Context Protocols: structured protocols that connect the agent to live systems like Firestore, Firebase logs, the Play Store, and our codebase). By the end of the four months, eleven agents and twenty-eight executable commands held the institutional knowledge of the company in a form that could act on it.
+The pattern that made this work has three steps. First, I did each task myself — the way a new employee would, learning what needed to happen and in what order. Then I codified that process into a **Skill**: a reusable command tied to a specific job to be done. Where the skill needed access to live systems, I added an **MCP** (Model Context Protocol) — the equivalent of handing a team member their login credentials to Firebase, the Play Store, or our codebase. Once a skill existed with the right access, I handed it to a **specialized agent** to execute. That's how each agent was born: not designed top-down, but grown from real work I'd already done.
+
+```mermaid
+graph LR
+    A["🧑 Human\ndoes the work first"] --> B["⚡ Skill\njob to be done"]
+    B --> C["🔌 MCP\nsystem access\n(like credentials)"]
+    C --> D["🤖 Agent\nexecutes the skill"]
+    D -.->|"next task"| A
+```
+
+By the end of four months, eleven agents and twenty-eight executable commands held the institutional knowledge of the company in a form that could act on it.
 
 Think of it like this: traditional companies spend years encoding their processes into wikis, runbooks, and SOPs that gather dust. I was encoding them into living agents that could execute them. Every task that passed through an agent, captured as a skill, and formalized as an MCP, made the system slightly more capable and slightly more specifically *Appacadabra*.
 

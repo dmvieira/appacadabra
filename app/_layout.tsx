@@ -2,7 +2,7 @@ import { Stack, useRouter, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { logScreenView } from '../lib/analytics';
-import { Alert, LogBox, Platform } from 'react-native';
+import { Alert, LogBox, Platform, View } from 'react-native';
 import * as ShareIntent from 'share-intent';
 import { colors } from '../lib/theme';
 import { t } from '../lib/i18n';
@@ -19,6 +19,7 @@ import { restoreScheduledAlarms } from '../lib/bridges/messageHandlers';
 
 import * as SplashScreen from 'expo-splash-screen';
 import { Toast as ToastComponent } from '../components/Toast';
+import MobileAds from 'react-native-google-mobile-ads';
 
 let lastHandledNotificationTapId: string | null = null;
 
@@ -144,6 +145,11 @@ export default function RootLayout() {
             console.warn('Failed to restore scheduled alarms:', err);
         });
 
+        // Initialize Mobile Ads SDK (required for PAID event delivery)
+        MobileAds().initialize().catch((e: any) => {
+            console.warn('MobileAds init failed:', e?.message || e);
+        });
+
         // Initialize Mana Store (Firebase Sync)
         try {
             useManaStore.getState().init();
@@ -201,7 +207,7 @@ export default function RootLayout() {
     }, []);
 
     return (
-        <>
+        <View style={{ flex: 1 }}>
             <StatusBar style="light" />
             <Stack
                 screenOptions={{
@@ -258,7 +264,7 @@ export default function RootLayout() {
             <ManaConfirmModal />
             <LargePayloadConfirmModal />
             <ToastComponent />
-        </>
+        </View>
     );
 }
 

@@ -35,40 +35,60 @@ export const useManaStore = create<ManaState>()(
 
             init: () => {
                 try {
-                console.log('ManaStore: Initializing firebase sync...');
+                    console.log('ManaStore: Initializing firebase sync...');
 
-                // Listen for Auth changes first
-                firebase.onAuthStateChanged((userId) => {
-                    const user = firebase.getCurrentUser();
-                    set({
-                        userEmail: user?.email || null,
-                        isAnonymous: user?.isAnonymous ?? true
-                    });
+                    // Test mode (dev/E2E only): if a credit amount is injected via AsyncStorage,
+                    // skip Firebase sync so automated E2E tests can run without Google Sign-In.
+                    AsyncStorage.getItem('appacadabra_test_credits').then(testCredits => {
+                        if (__DEV__ && testCredits !== null) {
+                            console.log('ManaStore: Test mode — using injected credits:', testCredits);
+                            set({ balance: parseInt(testCredits, 10) });
+                            // Seed Firestore users/{uid} so Cloud Function accepts spell creation.
+                            // addCredits with a uid-scoped purchaseToken is idempotent — runs once per uid.
+                            firebase.ensureAuthenticated().then(() => {
+                                const uid = firebase.getCurrentUserId();
+                                if (uid) {
+                                    const amount = parseInt(testCredits, 10);
+                                    firebase.addCredits(amount, 'e2e_test', `e2e_seed_${uid}`)
+                                        .catch(e => console.log('ManaStore: Test seed skipped (already seeded):', e?.message));
+                                }
+                            }).catch(() => {});
+                            return;
+                        }
 
-                    if (userId) {
-                        console.log('ManaStore: User authenticated, listening to credits for', userId);
-                        
-                        // Register background push token for this device
-                        firebase.registerAndSavePushTokenAsync(userId, getCurrentLanguage()).catch(e => {
-                            console.warn('ManaStore: Failed to register push token', e);
+                        // Listen for Auth changes first
+                        firebase.onAuthStateChanged((userId) => {
+                            const user = firebase.getCurrentUser();
+                            set({
+                                userEmail: user?.email || null,
+                                isAnonymous: user?.isAnonymous ?? true
+                            });
+
+                            if (userId) {
+                                console.log('ManaStore: User authenticated, listening to credits for', userId);
+
+                                // Register background push token for this device
+                                firebase.registerAndSavePushTokenAsync(userId, getCurrentLanguage()).catch(e => {
+                                    console.warn('ManaStore: Failed to register push token', e);
+                                });
+
+                                // Setup credits listener
+                                firebase.onCreditsChanged((credits) => {
+                                    console.log('ManaStore: Balance updated:', credits);
+                                    set({ balance: credits });
+                                }, userId);
+
+                                // Force a fetch as well
+                                firebase.getCredits().then(credits => {
+                                    set({ balance: credits });
+                                }).catch(e => console.log('ManaStore: Fetch failed', e));
+
+                            } else {
+                                console.log('ManaStore: User not authenticated, resetting balance');
+                                set({ balance: 0 });
+                            }
                         });
-
-                        // Setup credits listener
-                        firebase.onCreditsChanged((credits) => {
-                            console.log('ManaStore: Balance updated:', credits);
-                            set({ balance: credits });
-                        }, userId);
-
-                        // Force a fetch as well
-                        firebase.getCredits().then(credits => {
-                            set({ balance: credits });
-                        }).catch(e => console.log('ManaStore: Fetch failed', e));
-
-                    } else {
-                        console.log('ManaStore: User not authenticated, resetting balance');
-                        set({ balance: 0 });
-                    }
-                });
+                    });
                 } catch (e) {
                     console.error('ManaStore: Firebase init failed, proceeding offline:', e);
                 }

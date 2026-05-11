@@ -25,6 +25,9 @@ const MAX_MANA_REWARD = 5;
 // Fixes race condition where EARNED_REWARD fires before PAID
 const PAID_EVENT_WAIT_MS = 2000;
 
+// Mana granted when PAID event never arrives (user watched the full ad)
+const MIN_MANA_FALLBACK = 0.05;
+
 interface IAPProduct {
     productId: string;
     title: string;
@@ -64,6 +67,7 @@ export function ManaShop() {
     // Load IAP and Ads when shop opens
     useEffect(() => {
         if (isShopOpen) {
+            setStatusMessage('');
             if (isAnonymous) setShowLoginPrompt(true);
             loadRewardedAd();
             initializeIAP();
@@ -236,25 +240,16 @@ export function ManaShop() {
                 console.log(`Wait finished after ${Date.now() - waitStart}ms. Revenue: $${adRevenueRef.current.toFixed(6)}`);
             }
 
-            // PAID event never arrived — can't calculate reward
-            if (adRevenueRef.current <= 0) {
+            // Calculate mana: use revenue if PAID arrived, otherwise give fallback
+            let manaToGive: number;
+            if (adRevenueRef.current > 0) {
+                manaToGive = adRevenueRef.current / MANA_COST_USD;
+                if (manaToGive > MAX_MANA_REWARD) manaToGive = MAX_MANA_REWARD;
+                manaToGive = Math.round(manaToGive * 100) / 100;
+            } else {
                 logAdPaidTimeout();
-                setRewardBanner({ message: t('rewardTimeout'), type: 'error' });
-                setStatusMessage(t('rewardTimeout'));
-                setIsProcessingReward(false);
-                return;
+                manaToGive = MIN_MANA_FALLBACK;
             }
-
-            // Calculate mana based on actual revenue, with minimum fallback
-            let manaToGive = adRevenueRef.current / MANA_COST_USD;
-
-            // Apply max bound
-            if (manaToGive > MAX_MANA_REWARD) {
-                manaToGive = MAX_MANA_REWARD;
-            }
-
-            // Round to 2 decimal places
-            manaToGive = Math.round(manaToGive * 100) / 100;
 
             console.log(`Giving ${manaToGive} mana (revenue: $${adRevenueRef.current.toFixed(4)})`);
 

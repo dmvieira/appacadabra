@@ -108,6 +108,7 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend, in
                                     multiline
                                     numberOfLines={4}
                                     textAlignVertical="top"
+                                    accessibilityLabel="spell-description-input"
                                 />
                                 <TouchableOpacity
                                     style={[
@@ -380,7 +381,7 @@ export function ConfirmDialog({
                         <TouchableOpacity style={styles.cancelBtn} onPress={onDismiss}>
                             <Text style={styles.cancelText}>{t('cancel')}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.dangerBtn} onPress={onConfirm}>
+                        <TouchableOpacity style={styles.dangerBtn} onPress={onConfirm} accessibilityLabel="confirm-action-btn">
                             <Text style={styles.dangerText}>{confirmText}</Text>
                         </TouchableOpacity>
                     </View>

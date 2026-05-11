@@ -11,6 +11,20 @@ Generate a Play Store submission checklist for the current state of Appacadabra.
 
 ## Checklist to verify and report on
 
+### Testes de qualidade de IA (opcional)
+
+Antes de continuar, pergunte ao usuário:
+
+> "Deseja rodar os testes metamórficos de qualidade de IA? Eles validam criação, edição, capabilities e busca online contra o modelo real (~30 min, custa créditos de API). Recomendado se os prompts ou modelos mudaram desde o último release."
+
+Se o usuário confirmar, execute:
+```
+cd firebase/functions && npm test -- --testPathPatterns=ai-quality --verbose
+```
+Reporte o resultado (quantos passaram/falharam) antes de prosseguir com o restante do checklist.
+
+---
+
 ### Pre-submission
 - [ ] `versionCode` in `app.json` and `build.gradle` match and are incremented
 - [ ] `versionName` follows semver and is updated in both files
