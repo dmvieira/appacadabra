@@ -9,14 +9,26 @@ You are running tests for the Appacadabra React Native app. There are two test l
 
 Command: `npm test`
 
-- 644 tests, all passing as of 2026-04-29
+- 821 tests, all passing as of 2026-05-11
 - Key test files: `lib/capabilities/__tests__/`, `lib/bridges/__tests__/`
 - Run a single file: `npx jest path/to/file.test.ts`
 
 **What to check:**
-- All tests pass except the 5 known failures
+- All tests pass (no known permanent failures as of 2026-05-11)
 - No new failures introduced by recent changes
 - If a new failure appears, investigate and fix before reporting success
+
+### AI Quality / Metamorphic Tests
+
+These tests live in `firebase/functions/src/__tests__/ai-quality/` and call the **live Gemini API** — they are intentionally excluded from `npm test` and the pre-commit hook to avoid API charges on every commit.
+
+**Run only when explicitly needed** (e.g. after changing prompts, models, or the generation pipeline):
+
+```bash
+cd firebase/functions && npx jest --testPathPattern=ai-quality
+```
+
+Each test group validates a structural property of the AI pipeline (HTML validity, capability use, edit idempotency, structured output, live search). A failure means the model or prompt regressed on that property — investigate `firebase/functions/src/generators.ts` and the relevant prompt in `firebase/functions/src/index.ts`.
 
 ## 2. E2E Tests (Maestro)
 
