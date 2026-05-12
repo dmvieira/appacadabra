@@ -21,6 +21,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Toast as ToastComponent } from '../components/Toast';
 import MobileAds from 'react-native-google-mobile-ads';
 
+// Suppress LogBox banners globally in dev builds — the banner intercepts touch events
+// and blocks E2E test flows. Warnings remain accessible via Metro / console output.
+if (__DEV__) LogBox.ignoreAllLogs();
+
 let lastHandledNotificationTapId: string | null = null;
 
 // Configure Expo Router to only handle specific schemes for navigation

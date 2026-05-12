@@ -134,7 +134,7 @@ export default function SpellSetup({ app, onComplete, onSkip }: SpellSetupProps)
                         >
                             <Text style={styles.primaryButtonText}>{t('setupEnter')}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={onSkip} style={styles.skipLink}>
+                        <TouchableOpacity onPress={onSkip} style={styles.skipLink} accessibilityLabel="spell-setup-skip-btn">
                             <Text style={styles.skipText}>{t('setupSkip')}</Text>
                         </TouchableOpacity>
                     </View>

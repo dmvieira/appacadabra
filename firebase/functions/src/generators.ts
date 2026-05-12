@@ -307,10 +307,21 @@ export async function generateWebviewAI(
         ? (!(schema as any).type ? inferSchema(schema) : schema)
         : undefined;
 
+    const messages: any[] = [];
+    const sContent: string = 'Do exactly what the user asks for. Do not add any extra information or explanations.'
+    if (useWebSearch) {
+        messages.push({
+            role: 'system',
+            content: sContent + '\n\nYou have access to web search and web fetch. Use web_search to find relevant links and web_fetch to read the full content of documentation or specific pages when needed for accuracy.'
+        });
+    }
+    messages.push({ role: 'user', content: userContent });
+
     const result = await withRetry(() => or.chat.completions.create({
         model: effectiveModel,
-        messages: [{ role: 'user', content: userContent }],
+        messages,
         max_tokens: 65536,
+        ...OR_REASONING_HIGH,
         ...(useWebSearch ? OR_WEB_SEARCH : {}),
         ...(resolvedSchema ? {
             response_format: {
@@ -342,7 +353,8 @@ export async function generateWebviewAI(
 
     if (!text) throw new Error('AI returned empty response');
 
-    const searchQueriesUsed = (result as any).usage?.web_search_requests ?? 0;
+    // TODO: use websearch requests from result
+    const searchQueriesUsed = useWebSearch ? 1 : 0;
     const creditsUsed = calculateCostUsd(effectiveModel, usage, { searchQueries: searchQueriesUsed }) / MANA_VALUE_USD;
 
     return { text, usage, searchQueriesUsed, creditsUsed };

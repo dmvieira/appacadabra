@@ -19,7 +19,7 @@ const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
 const MANA_COST_USD = 0.27;
 
 // Maximum mana reward cap (to prevent exploits)
-const MAX_MANA_REWARD = 5;
+const MAX_MANA_REWARD = 1;
 
 // How long to wait for the AdMob PAID event before giving up (ms)
 // Fixes race condition where EARNED_REWARD fires before PAID
@@ -245,7 +245,7 @@ export function ManaShop() {
             if (adRevenueRef.current > 0) {
                 manaToGive = adRevenueRef.current / MANA_COST_USD;
                 if (manaToGive > MAX_MANA_REWARD) manaToGive = MAX_MANA_REWARD;
-                manaToGive = Math.round(manaToGive * 100) / 100;
+                manaToGive = Math.round(Math.max(manaToGive, MIN_MANA_FALLBACK) * 100) / 100;
             } else {
                 logAdPaidTimeout();
                 manaToGive = MIN_MANA_FALLBACK;
@@ -297,7 +297,7 @@ export function ManaShop() {
             loadRewardedAd();
         });
 
-        const unsubscribeError = ad.addAdEventListener(AdEventType.ERROR, (error) => {
+        const unsubscribeError = ad.addAdEventListener(AdEventType.ERROR, (error: any) => {
             console.error('Rewarded ad error:', error);
             logAdLoadFailed(String(error?.code ?? 'unknown'));
             setIsAdLoading(false);
@@ -413,10 +413,10 @@ export function ManaShop() {
                                 {isProcessingReward
                                     ? t('processingReward')
                                     : purchaseStatus === 'crediting'
-                                    ? t('creditingPurchase')
-                                    : purchaseStatus === 'refunding'
-                                    ? t('refundingPurchase')
-                                    : t('processingPurchase')}
+                                        ? t('creditingPurchase')
+                                        : purchaseStatus === 'refunding'
+                                            ? t('refundingPurchase')
+                                            : t('processingPurchase')}
                             </Text>
                         </View>
                     )}
