@@ -76,4 +76,9 @@ export interface CapabilityModule {
      * allowing the next delegate to handle it.
      */
     handleMessage: (type: string, data: any, ctx: HandlerContext) => Promise<Partial<HandlerResult> | null>;
+    /**
+     * Optional cleanup method called when the app minimizes or the WebView unmounts.
+     * Use this to stop active media, sensors, or timers.
+     */
+    cleanup?: () => Promise<void>;
 }
