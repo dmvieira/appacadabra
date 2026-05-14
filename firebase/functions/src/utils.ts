@@ -91,9 +91,9 @@ const USD_PRICING: Record<string, {
         outputPerMToken: 0,
     },
     // OpenRouter models
-    'openai/gpt-oss-120b:free': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30 },
+    'deepseek/deepseek-v4-flash:free': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30 },
     'deepseek/deepseek-v4-flash': { inputPerMToken: 0.14, outputPerMToken: 0.28, audioInputPerMToken: 0.00, searchPerQuery: 0.014 },
-    'google/gemini-3.1-flash-lite-preview': { inputPerMToken: 0.25, outputPerMToken: 1.50, audioInputPerMToken: 1.00, searchPerQuery: 0.014 },
+    'google/gemini-3.1-flash-lite-preview': { inputPerMToken: 0.30, outputPerMToken: 2.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014 },
 };
 
 const USD_IMAGE_PER_UNIT = 0.04;

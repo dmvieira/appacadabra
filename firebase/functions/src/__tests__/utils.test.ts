@@ -527,8 +527,8 @@ describe('calculateCostUsd — OpenRouter models', () => {
         expect(cost).toBeGreaterThan(0);
     });
 
-    it('calculates non-zero cost for openai/gpt-oss-120b:free (SUGGEST)', () => {
-        const cost = calculateCostUsd('openai/gpt-oss-120b:free', usage);
+    it('calculates non-zero cost for deepseek/deepseek-v4-flash:free (SUGGEST)', () => {
+        const cost = calculateCostUsd('deepseek/deepseek-v4-flash:free', usage);
         expect(cost).toBeGreaterThan(0);
     });
 

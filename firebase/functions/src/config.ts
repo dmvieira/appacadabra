@@ -2,7 +2,7 @@ export const OR_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export const MODELS = {
     SPELL_S: 'deepseek/deepseek-v4-flash',
-    SUGGEST: 'openai/gpt-oss-120b:free',
+    SUGGEST: 'deepseek/deepseek-v4-flash:free',
     WEBVIEW: 'google/gemini-3.1-flash-lite-preview',
 } as const;
 
