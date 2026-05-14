@@ -611,12 +611,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         try {
             // FIRE & FORGET
             set({ error: null });
+            const jobId = firebase.generateJobId();
 
-            const jobId = await firebase.submitJob('create', {
-                prompt: firebase.compressContent(description)
-            });
-
-            // Add placeholder with timeout
+            // Add placeholder IMMEDIATELY before submission to beat the listener
             set(state => ({
                 creatingApps: [...state.creatingApps, { jobId, description, timestamp: Date.now() }],
                 statusMessage: t('jobStarted')
@@ -628,6 +625,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                     creatingApps: state.creatingApps.filter(a => a.jobId !== jobId)
                 }));
             }, 600000);
+
+            await firebase.submitJob('create', {
+                prompt: firebase.compressContent(description)
+            }, jobId);
 
             return true;
         } catch (error) {
@@ -658,16 +659,9 @@ export const useAppStore = create<AppState>((set, get) => ({
                 }
             });
 
-            const jobId = await firebase.submitJob('edit', {
-                appId: app.id, // IMPORTANT: Pass appId so we know what to update
-                currentCode: firebase.compressContent(app.code),
-                instruction: firebase.compressContent(instructions),
-                previousEdits, // Already objects, sanitizePayload will handle? Yes.
-                selectedContext: selectedContext ? firebase.compressContent(selectedContext) : undefined,
-                storageStructure: storageStructure.length > 0 ? storageStructure : undefined,
-            });
+            const jobId = firebase.generateJobId();
 
-            // Lock the app
+            // Lock the app IMMEDIATELY before submission
             set(state => ({
                 updatingAppIds: [...state.updatingAppIds, app.id],
                 statusMessage: t('editJobStarted')
@@ -679,6 +673,15 @@ export const useAppStore = create<AppState>((set, get) => ({
                     updatingAppIds: state.updatingAppIds.filter(id => id !== app.id)
                 }));
             }, 600000);
+
+            await firebase.submitJob('edit', {
+                appId: app.id, // IMPORTANT: Pass appId so we know what to update
+                currentCode: firebase.compressContent(app.code),
+                instruction: firebase.compressContent(instructions),
+                previousEdits, // Already objects, sanitizePayload will handle? Yes.
+                selectedContext: selectedContext ? firebase.compressContent(selectedContext) : undefined,
+                storageStructure: storageStructure.length > 0 ? storageStructure : undefined,
+            }, jobId);
 
             return true;
         } catch (error) {

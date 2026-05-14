@@ -642,9 +642,15 @@ export function onCreditsChanged(callback: (credits: number) => void, explicitUs
     return unsubscribe;
 }
 
+// Generate a unique Job ID locally before submission
+export function generateJobId(): string {
+    const db = firebaseFirestore();
+    return doc(collection(db, 'jobs')).id;
+}
+
 // Submit a job without waiting (Fire & Forget)
-export async function submitJob(action: Job['action'], payload: any): Promise<string> {
-    console.log(`[Firebase] submitJob called. Action: ${action}`);
+export async function submitJob(action: Job['action'], payload: any, providedJobId?: string): Promise<string> {
+    console.log(`[Firebase] submitJob called. Action: ${action}${providedJobId ? ` (ID: ${providedJobId})` : ''}`);
     try {
         const userId = await ensureAuthenticated();
         const db = firebaseFirestore();
@@ -652,7 +658,10 @@ export async function submitJob(action: Job['action'], payload: any): Promise<st
 
         const cleanPayload = sanitizePayload({ ...payload, appVersion: APP_VERSION });
 
-        const jobDoc = await addDoc(jobsRef, {
+        const jobId = providedJobId || doc(jobsRef).id;
+        const jobDoc = doc(jobsRef, jobId);
+
+        await setDoc(jobDoc, {
             userId,
             action,
             status: 'queued',
@@ -660,8 +669,8 @@ export async function submitJob(action: Job['action'], payload: any): Promise<st
             payload: cleanPayload
         });
 
-        console.log(`[Firebase] Job submitted. ID: ${jobDoc.id}`);
-        return jobDoc.id;
+        console.log(`[Firebase] Job submitted. ID: ${jobId}`);
+        return jobId;
     } catch (e) {
         console.error('[Firebase] submitJob failed:', e);
         throw e;
