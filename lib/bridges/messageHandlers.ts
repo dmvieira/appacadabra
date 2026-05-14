@@ -20,11 +20,6 @@ import { ExpandedStorageItem } from './injectedJS';
 import { updateStorageCache, removeFromStorageCache, getStorageFromCache } from '../storageCache';
 import { logCapabilityUsed } from '../analytics';
 
-// State for Audio Recording
-let currentRecording: Audio.Recording | null = null;
-let audioRecordingTimeout: NodeJS.Timeout | null = null;
-// State for AI TTS
-let currentAITTS: Audio.Sound | null = null;
 let currentVideoSound: Audio.Sound | null = null;
 let scannerTimeout: NodeJS.Timeout | null = null;
 let pedometerSubscription: any | null = null;
@@ -36,39 +31,18 @@ let pedometerSubscription: any | null = null;
 export async function cleanupAllMedia(): Promise<void> {
     console.log('[Bridge] cleanupAllMedia: stopping all media...');
 
-    // Stop audio recording
-    if (currentRecording) {
-        try {
-            await currentRecording.stopAndUnloadAsync();
-        } catch (e) {
-            console.warn('[Bridge] Error stopping audio recording:', e);
+    // Stop all capabilities (Audio, sensors, etc.)
+    for (const cap of ALL_CAPABILITIES) {
+        if (cap.cleanup) {
+            try {
+                await cap.cleanup();
+            } catch (e) {
+                console.warn(`[Bridge] Error cleaning up capability ${cap.id}:`, e);
+            }
         }
-        currentRecording = null;
-    }
-    if (audioRecordingTimeout) {
-        clearTimeout(audioRecordingTimeout);
-        audioRecordingTimeout = null;
     }
 
-    // Stop TTS (device)
-    try {
-        Speech.stop();
-    } catch (e) {
-        console.warn('[Bridge] Error stopping TTS:', e);
-    }
-
-    // Stop AI TTS
-    if (currentAITTS) {
-        try {
-            await currentAITTS.stopAsync();
-            await currentAITTS.unloadAsync();
-        } catch (e) {
-            console.warn('[Bridge] Error stopping AI TTS playback:', e);
-        }
-        currentAITTS = null;
-    }
-
-    // Stop video playback
+    // Stop video playback (generic)
     if (currentVideoSound) {
         try {
             await currentVideoSound.stopAsync();

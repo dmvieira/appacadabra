@@ -43,7 +43,7 @@ export const audioCapability: CapabilityModule = {
 - \`recordStart(callback)\` - Start audio recording (M4A/AAC)
     - **Return**: "Recording started"
 - \`recordStop(callback)\` - Stop recording and get result
-    - **Callback Data (string)**: Complete DataURI string (\`data:audio/m4a;base64,...\`). **CRITICAL**: Use this string immediately with \`AppacadabraAI.fromAudio(uri).generate(...)\` or in an \`<audio>\` tag. do NOT append prefixes.
+    - **Callback Data (string)**: Complete DataURI string (\`data:audio/mp4;base64,...\`). **CRITICAL**: Use this string immediately with \`AppacadabraAI.fromAudio(uri).generate(...)\` or in an \`<audio>\` tag. do NOT append prefixes.
     - **Example**: \`AppacadabraAudio.recordStop("onAudioRecorded")\`
 - \`speak(text, options, callback)\` - Speak text aloud using device TTS engine (free)
     - **options** (object, optional): \`{ language?: "en-US"|"pt-BR"|..., pitch?: 0.5-2.0, rate?: 0.5-2.0, volume?: 0.0-1.0 }\`
@@ -58,6 +58,15 @@ export const audioCapability: CapabilityModule = {
 - \`stopSpeaking(callback)\` - Stop ALL speech (current + queued)
     - **Return**: "Stopped" (string)
 - \`isSpeaking(callback)\` - Check if currently speaking
+    - **Return**: "true" or "false" (string)
+- \`play(input, options, callback)\` - Play audio from base64 or URL
+    - **input** (string): Base64 DataURI (\`data:audio/mp4;base64,...\`), Blob marker (\`__appblob__:...\`), or URL
+    - **options** (object, optional): \`{ mimeType?: "audio/mp4"|"audio/wav" }\`
+    - **Return**: "Playing" (string)
+    - **Example**: \`AppacadabraAudio.play(audioBase64, "onPlaying")\`
+- \`stop(callback)\` - Stop current audio playback
+    - **Return**: "Stopped" (string)
+- \`isPlaying(callback)\` - Check if audio is currently playing
     - **Return**: "true" or "false" (string)
 
 --- VOICE INPUT WORKFLOW (EXAMPLE) ---
@@ -112,6 +121,28 @@ window.onAudioResult = function(success, base64) {
       isSpeaking: function(callbackName) {
         console.log('[AppacadabraAudio.isSpeaking] callback:', callbackName);
         sendMessage('TTS_IS_SPEAKING', {}, callbackName);
+      },
+      play: function(input, options, callbackName) {
+        if (typeof options === 'string') { callbackName = options; options = {}; }
+        var opts = options || {};
+        var payload = { mimeType: opts.mimeType || 'audio/mp4' };
+
+        if (typeof input === 'string' && (input.indexOf('http') === 0 || input.indexOf('file://') === 0)) {
+            payload.url = input;
+        } else {
+            payload.base64 = input;
+        }
+
+        console.log('[AppacadabraAudio.play] type:', (payload.url ? 'URL' : 'B64'), 'callback:', callbackName);
+        sendMessage('AUDIO_PLAY', payload, callbackName);
+      },
+      stop: function(callbackName) {
+        console.log('[AppacadabraAudio.stop] callback:', callbackName);
+        sendMessage('AUDIO_STOP', {}, callbackName);
+      },
+      isPlaying: function(callbackName) {
+        console.log('[AppacadabraAudio.isPlaying] callback:', callbackName);
+        sendMessage('AUDIO_IS_PLAYING', {}, callbackName);
       }
   };
 `,
@@ -304,7 +335,7 @@ window.onAudioResult = function(success, base64) {
                         const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
                         if (ctx.appId && ctx.callbackName && base64) {
                             const path = await saveAiMediaToFile(ctx.appId, ctx.callbackName, 'AUDIO_RECORD_STOP', base64);
-                            const result = buildBlobMarker('audio/m4a', ctx.callbackName, path);
+                            const result = buildBlobMarker('audio/mp4', ctx.callbackName, path);
                             console.log(`[Bridge] Audio recorded and saved to ${path}, returning marker`);
                             return { success: true, result };
                         } else {
@@ -319,8 +350,103 @@ window.onAudioResult = function(success, base64) {
                 }
             }
 
+            case 'AUDIO_PLAY': {
+                console.log('[Bridge] Playing audio...');
+                try {
+                    await Audio.setAudioModeAsync({
+                        allowsRecordingIOS: false,
+                        playsInSilentModeIOS: true,
+                        staysActiveInBackground: false,
+                    });
+
+                    if (!data.base64 && !data.url) throw new Error('No audio data provided');
+
+                    let audioFileUri = '';
+
+                    if (data.url) {
+                        audioFileUri = data.url;
+                    } else {
+                        const cleanBase64 = data.base64.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
+                        const mimeType = data.mimeType || 'audio/mp4';
+                        const ext = mimeType.includes('wav') ? 'wav' : 'm4a';
+                        audioFileUri = FileSystem.cacheDirectory + `audio_play_${Date.now()}.${ext}`;
+
+                        await FileSystem.writeAsStringAsync(audioFileUri, cleanBase64, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+                    }
+
+                    if (currentAITTS) {
+                        try { await currentAITTS.stopAsync(); await currentAITTS.unloadAsync(); } catch (_) { }
+                        currentAITTS = null;
+                    }
+
+                    const { sound } = await Audio.Sound.createAsync(
+                        { uri: audioFileUri },
+                        { shouldPlay: true }
+                    );
+                    currentAITTS = sound;
+
+                    sound.setOnPlaybackStatusUpdate(async (status) => {
+                        if (status.isLoaded && status.didJustFinish) {
+                            if (currentAITTS === sound) currentAITTS = null;
+                            await sound.unloadAsync();
+                        }
+                    });
+
+                    return { success: true, result: 'Playing' };
+                } catch (e) {
+                    console.error('Audio play error:', e);
+                    return { success: false, result: e instanceof Error ? e.message : 'Audio playback failed' };
+                }
+            }
+
+            case 'AUDIO_STOP': {
+                console.log('[Bridge] Stopping audio playback...');
+                try {
+                    if (currentAITTS) {
+                        await currentAITTS.stopAsync();
+                        await currentAITTS.unloadAsync();
+                        currentAITTS = null;
+                    }
+                    return { success: true, result: 'Stopped' };
+                } catch (e) {
+                    console.error('Audio stop error:', e);
+                    return { success: false, result: e instanceof Error ? e.message : 'Audio stop failed' };
+                }
+            }
+
+            case 'AUDIO_IS_PLAYING': {
+                try {
+                    if (currentAITTS) {
+                        const status = await currentAITTS.getStatusAsync();
+                        return { success: true, result: status.isLoaded && status.isPlaying ? 'true' : 'false' };
+                    }
+                    return { success: true, result: 'false' };
+                } catch (e) {
+                    return { success: false, result: 'false' };
+                }
+            }
+
             default:
                 return null;
         }
     },
+
+    cleanup: async () => {
+        console.log('[AudioCapability] Cleaning up...');
+        if (currentRecording) {
+            try { await currentRecording.stopAndUnloadAsync(); } catch (_) { }
+            currentRecording = null;
+        }
+        if (audioRecordingTimeout) {
+            clearTimeout(audioRecordingTimeout);
+            audioRecordingTimeout = null;
+        }
+        if (currentAITTS) {
+            try { await currentAITTS.stopAsync(); await currentAITTS.unloadAsync(); } catch (_) { }
+            currentAITTS = null;
+        }
+        try { Speech.stop(); } catch (_) { }
+    }
 };
