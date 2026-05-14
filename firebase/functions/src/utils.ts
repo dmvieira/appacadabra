@@ -3,6 +3,8 @@
  * No Firebase or external dependencies — all functions are side-effect-free.
  */
 
+import { MODELS } from "./config";
+
 // ============= FIRESTORE UTILS =============
 
 /**
@@ -471,7 +473,7 @@ export function computeManaCost(type: string, data: any): { mana: string; value:
             const thinkingTk = Math.min(32768, Math.max(1000, Math.floor(promptTokens)));
             const outputTk = hasSchema ? 400 : 200;
 
-            const costUsd = calculateCostUsd('gemini-3-flash-preview', {
+            const costUsd = calculateCostUsd(MODELS.WEBVIEW, {
                 promptTokens,
                 responseTokens: outputTk,
                 thoughtsTokens: thinkingTk

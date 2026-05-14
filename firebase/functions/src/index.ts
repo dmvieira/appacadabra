@@ -657,7 +657,7 @@ export const processSpellJob = onDocumentCreated(
             let appName: string | undefined;
             let auditLog: any = {};
             let creditsUsed = FIXED_COST_CREATE_EDIT;
-            let logModelId = 'gemini-3-flash-preview';
+            let logModelId = MODELS.SPELL_S;
             let logExtras: Record<string, any> = {};
 
             switch (action) {
