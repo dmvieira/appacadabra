@@ -191,10 +191,10 @@ export async function generateSpellEdit(
         ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(s => `- localStorage["${s.key}"]: ${JSON.stringify(s.schema)}`).join('\n')}\n`
         : '';
 
-    const editPlannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
+    const editPlannerSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
     const editPatcherSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
 
-    const callEditModel = (content: string, sysInstr: string = editPatcherSys) =>
+    const callEditModel = (content: string, sysInstr: string) =>
         raceTimeout(withRetry(async () => {
             const res = await or.chat.completions.create({
                 model: MODELS.SPELL_S,
@@ -214,7 +214,7 @@ export async function generateSpellEdit(
 
     // Stage 2: Patch
     const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
-    const patchResult = await callEditModel(patchPrompt);
+    const patchResult = await callEditModel(patchPrompt, editPatcherSys);
     accUsage(usage, patchResult);
     const patchResponse = extractJson(extractText(patchResult));
 
@@ -228,7 +228,7 @@ export async function generateSpellEdit(
 
     // Fix loop (mirrors production behaviour)
     if (initErrors.length > 0 && initErrors.some(e => e.fixable)) {
-        const fixResult = await callEditModel(generateFixPrompt(initErrors, html));
+        const fixResult = await callEditModel(generateFixPrompt(initErrors, html), "Follow instructions and fix these errors in the code");
         accUsage(usage, fixResult);
         html = fixCallbackPatterns(extractHtml(extractText(fixResult)));
         if (!html) throw new Error('AI returned empty response after fix');

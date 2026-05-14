@@ -61,7 +61,7 @@ const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 export default function HomeScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { width } = useWindowDimensions();
+    const { width, height } = useWindowDimensions();
     const { setupAppId } = useLocalSearchParams<{ setupAppId?: string }>();
     const { balance, openShop, isAnonymous } = useManaStore();
     const {
@@ -1714,7 +1714,7 @@ export default function HomeScreen() {
 
             <Modal visible={showDeletedSpells} transparent animationType="slide" onRequestClose={() => setShowDeletedSpells(false)}>
                 <Pressable style={styles.sheetOverlay} onPress={() => setShowDeletedSpells(false)}>
-                    <Pressable style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
+                    <Pressable style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 20) + 12, maxHeight: height * 0.85 }]} onPress={() => {}}>
                         <View style={styles.sheetHandle} />
                         <View style={styles.sheetHeader}>
                             <View style={styles.sheetHeaderIcon}><Text style={{ fontSize: 20 }}>🗑️</Text></View>
@@ -1735,7 +1735,7 @@ export default function HomeScreen() {
                                     <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>
                                         {t('deletedSpellsInfo')}
                                     </Text>
-                                    <ScrollView style={{ maxHeight: 320 }}>
+                                    <ScrollView style={{ maxHeight: height * 0.5 }} contentContainerStyle={{ paddingBottom: 20 }}>
                                         {deletedSpellsList.map(spell => (
                                             <View key={spell.name} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' }}>
                                                 <View style={{ flex: 1 }}>

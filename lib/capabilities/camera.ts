@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Audio } from 'expo-av';
@@ -89,10 +90,15 @@ export const cameraCapability: CapabilityModule = {
                 console.log('[Bridge] Taking photo...');
                 const store = useBridgeUIStore.getState();
                 try {
-                    store.setNativeActivityActive(true);
                     const permission = await ImagePicker.requestCameraPermissionsAsync();
                     if (!permission.granted) throw new Error('Camera permission denied');
 
+                    // Small delay to ensure ActivityResultLauncher is registered on Android
+                    if (Platform.OS === 'android') {
+                        await new Promise(resolve => setTimeout(resolve, 150));
+                    }
+
+                    store.setNativeActivityActive(true);
                     const resultPicker = await ImagePicker.launchCameraAsync({
                         mediaTypes: ['images'] as any,
                         base64: true,
@@ -131,7 +137,6 @@ export const cameraCapability: CapabilityModule = {
                 console.log(`[Bridge] Recording video... maxDuration=${data.maxDuration || 60}`);
                 const videoStore = useBridgeUIStore.getState();
                 try {
-                    videoStore.setNativeActivityActive(true);
                     const camPerm = await ImagePicker.requestCameraPermissionsAsync();
                     if (!camPerm.granted) throw new Error('Camera permission denied');
 
@@ -143,6 +148,12 @@ export const cameraCapability: CapabilityModule = {
                     const maxDuration = Math.min(data.maxDuration || 60, 300);
                     const quality = data.quality === 'low' ? 0 : 1;
 
+                    // Small delay to ensure ActivityResultLauncher is registered on Android
+                    if (Platform.OS === 'android') {
+                        await new Promise(resolve => setTimeout(resolve, 150));
+                    }
+
+                    videoStore.setNativeActivityActive(true);
                     const videoPicker = await ImagePicker.launchCameraAsync({
                         mediaTypes: ['videos'] as any,
                         videoMaxDuration: maxDuration,

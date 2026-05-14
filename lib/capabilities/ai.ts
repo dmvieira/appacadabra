@@ -41,7 +41,7 @@ export const aiCapability: CapabilityModule = {
     - \`generateImage(prompt, callback)\`: Generate an image from text (standalone) OR edit/remix up to 14 input images (chained with \`fromImage\`). Returns base64 PNG.
     - **Standalone-only Methods** (NOT chainable — call directly on \`AppacadabraAI\`):
     - \`similarity(itemsArray, callback)\`: Compute semantic similarity between 2+ text strings. Callback receives an already-parsed object \`{ matrix, vectors, count }\`.
-    - \`parseJSON(text)\` - **Utility**: safely extract a JSON object/array from a free-text AI response string (strips markdown code fences). Returns the parsed value or \`null\` on failure. **Only needed for \`generate()\` WITHOUT \`withSchema\` — use instead of writing a custom \`extractJSON\` helper.**
+    - \`parseJSON(text)\` - **Utility**: safely extract a JSON object from a free-text AI response string (strips markdown code fences). Returns the parsed value or \`null\` on failure. **Only needed for \`generate()\` WITHOUT \`withSchema\` — use instead of writing a custom \`extractJSON\` helper.**
         - **Example**: \`const parsed = AppacadabraAI.parseJSON(data); if (!parsed) { AppacadabraUI.toast("Parse error", "error"); return; }\`
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`

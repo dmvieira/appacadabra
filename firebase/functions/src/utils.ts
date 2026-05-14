@@ -482,18 +482,18 @@ export function computeManaCost(type: string, data: any): { mana: string; value:
                 audioTokens
             });
 
-            const mana = costUsd / MANA_VALUE_USD;
-            return { mana: `~${mana.toFixed(1)}`, value: mana };
+            const mana = Math.max(0.01, costUsd / MANA_VALUE_USD);
+            return { mana: `~${mana.toFixed(2)}`, value: mana };
         }
 
         case 'image': {
-            const mana = calcImageMana(data.images?.length || 0);
-            return { mana: `~${mana.toFixed(1)}`, value: mana };
+            const mana = Math.max(0.01, calcImageMana(data.images?.length || 0));
+            return { mana: `~${mana.toFixed(2)}`, value: mana };
         }
 
         case 'video': {
-            const mana = calcVideoMana(8, (data.images?.length || 0) > 0);
-            return { mana: `~${mana.toFixed(1)}`, value: mana };
+            const mana = Math.max(0.01, calcVideoMana(8, (data.images?.length || 0) > 0));
+            return { mana: `~${mana.toFixed(2)}`, value: mana };
         }
 
         case 'audio': {
@@ -518,7 +518,7 @@ export function computeManaCost(type: string, data: any): { mana: string; value:
                 responseTokens: 0
             });
             const mana = Math.max(0.01, costUsd / MANA_VALUE_USD);
-            return { mana: `~${mana.toFixed(3)}`, value: mana };
+            return { mana: `~${mana.toFixed(2)}`, value: mana };
         }
 
         default:
