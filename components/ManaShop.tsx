@@ -384,9 +384,15 @@ export function ManaShop() {
             await firebase.ensureAuthenticated();
             await firebase.linkWithGoogle();
             await refreshUser();
-            getHardwareId().then(async id => {
-                if (id) await firebase.claimInstallBonus(id).catch(() => {});
-            });
+            const id = await getHardwareId();
+            if (id) {
+                const result = await firebase.claimInstallBonus(id).catch(() => null);
+                if (result?.granted && result.bonusAmount != null) {
+                    setStatusMessage(t('bonusGranted', { amount: result.bonusAmount }));
+                } else if (result?.granted === false) {
+                    setStatusMessage(t('welcomeBackBonus'));
+                }
+            }
             setShowLoginPrompt(false);
         } catch (e: any) {
             console.error(e);

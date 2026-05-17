@@ -448,13 +448,6 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                                     </Text>
                                 </TouchableOpacity>
                             )}
-                            {bonusReceived !== null && (
-                                <Text style={s.bonusGrantedText}>{t('bonusGranted', { amount: bonusReceived })}</Text>
-                            )}
-                            {welcomeBack && (
-                                <Text style={s.welcomeBackText}>{t('welcomeBackBonus')}</Text>
-                            )}
-
                             {/* Dots */}
                             <View style={[s.dotsRow, { paddingVertical: 14 }]}>
                                 {[0, 1, 2].map(i => (
@@ -464,6 +457,17 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                         </View>
                     )}
                 </Animated.View>
+
+                {(bonusReceived !== null || welcomeBack) && (
+                    <View style={s.bonusOverlay}>
+                        <Text style={s.bonusOverlayEmoji}>{bonusReceived !== null ? '🎉' : '👋'}</Text>
+                        <Text style={s.bonusOverlayTitle}>
+                            {bonusReceived !== null
+                                ? t('bonusGranted', { amount: bonusReceived })
+                                : t('welcomeBackBonus')}
+                        </Text>
+                    </View>
+                )}
 
                 {/* Footer CTA */}
                 <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
@@ -553,14 +557,14 @@ const s = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: borderRadius.md,
-        backgroundColor: colors.primaryContainer,
+        backgroundColor: colors.primary,
         gap: 6,
     },
     freeSpellsIcon: {
         fontSize: 15,
     },
     freeSpellsText: {
-        color: colors.primary,
+        color: colors.onPrimary,
         fontSize: 14,
         fontWeight: '600',
     },
@@ -570,18 +574,28 @@ const s = StyleSheet.create({
         marginTop: 2,
         textAlign: 'right',
     },
-    bonusGrantedText: {
-        color: colors.primary,
-        fontSize: 15,
-        fontWeight: '700',
-        textAlign: 'center',
-        marginTop: 8,
+    bonusOverlay: {
+        position: 'absolute',
+        bottom: 90,
+        left: 16,
+        right: 16,
+        backgroundColor: colors.surfaceVariant,
+        borderRadius: 16,
+        paddingVertical: 20,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.primary + '40',
     },
-    welcomeBackText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 14,
+    bonusOverlayEmoji: {
+        fontSize: 40,
+        marginBottom: 8,
+    },
+    bonusOverlayTitle: {
+        color: colors.primary,
+        fontSize: 20,
+        fontWeight: '800',
         textAlign: 'center',
-        marginTop: 8,
     },
     screenContent: {
         flex: 1,

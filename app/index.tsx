@@ -112,6 +112,11 @@ export default function HomeScreen() {
         }
     }, [signOutBanner]);
 
+    // Clear sign-out banner immediately when user logs in
+    useEffect(() => {
+        if (!isAnonymous) setSignOutBanner(null);
+    }, [isAnonymous]);
+
     // Dialog states
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [createDialogInitialText, setCreateDialogInitialText] = useState<string | undefined>(undefined);
