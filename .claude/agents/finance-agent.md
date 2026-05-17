@@ -37,6 +37,22 @@ Outputs a table of every operation with: model, token estimate, USD cost, mana c
 
 **⚠️ Model pricing note:** `gemini-3.1-flash-image-preview` (Logo Gen, Image Gen, webview_ai_image) may be missing from `USD_PRICING` in `utils.ts`. If cost appears as $0, add the entry to utils.ts before trusting the calibration output.
 
+## Play Store price visibility
+
+Para ver os preços actuais faturados no Google Play Console (por produto e país):
+
+```bash
+firebase functions:secrets:access GOOGLE_PLAY_SERVICE_ACCOUNT_JSON > /tmp/play_sa.json
+GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(cat /tmp/play_sa.json)" npm run fetch-play-prices
+```
+
+Requer Firebase CLI autenticado (`firebase login`). O ficheiro temporário é necessário para preservar as newlines da chave RSA privada — expansão inline via `$()` corrompe o JSON. Mostra uma tabela com o preço por país para todos os produtos IAP (`mana_10`, `mana_50`, `mana_120`), incluindo mercados prioritários (US, BR, PT, GB, IT, FR, ES) e contagem dos restantes.
+
+**Usar quando:**
+- Verificar se os preços no Play Console estão alinhados com o `MANA_VALUE_USD` atual
+- Analisar competitividade de preços por mercado
+- Correlacionar receita por país com distribuição de mana balance
+
 ## Firebase MCP for live cost data
 
 When assessing real-world costs (not just estimates), use Firebase MCP to sample actual token usage:

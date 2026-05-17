@@ -12,6 +12,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "sync-capabilities": "node --require ./scripts/sucrase-register.js scripts/sync-capabilities.ts",
+    "fetch-play-prices": "node --require ./scripts/sucrase-register.js scripts/fetch-play-prices.ts",
     "emulator:start": "node .maestro/scripts/start-emulator.js",
     "test:e2e": "node .maestro/scripts/setup-device.js && \"%USERPROFILE%\\.maestro\\maestro\\bin\\maestro.bat\" test .maestro/flows/",
     "test:e2e:flow": "node .maestro/scripts/setup-device.js && \"%USERPROFILE%\\.maestro\\maestro\\bin\\maestro.bat\" test",

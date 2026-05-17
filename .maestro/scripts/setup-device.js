@@ -43,16 +43,28 @@ const ADB = findAdb();
     if (devices.length === 0) throw new Error('No device/emulator connected. Run: npm run emulator:start');
     console.log(`  Connected: ${devices[0].split('\t')[0]}`);
 
-    console.log('→ Clearing app data...');
-    // pm clear may fail with NullPointerException if system services are still starting up after boot
-    for (let attempt = 1; attempt <= 5; attempt++) {
-        try { adb(`shell pm clear ${PACKAGE}`); break; }
-        catch (e) {
-            if (attempt === 5) throw e;
-            console.log(`  pm clear failed (system not ready), retrying in 5s... (${attempt}/5)`);
-            await sleep(5000);
-        }
-    }
+    console.log('→ Resetting app state (preserving Firebase auth)...');
+    // We stop the app and clear only spell/UI data — NOT pm clear.
+    // Preserving SharedPreferences keeps the Firebase auth session alive so
+    // spell creation (which requires Firestore write access) works in tests.
+    // PREREQUISITE: on first use, sign in manually with support@appacadabra.ai
+    // via the app's ManaShop → Google Sign-In flow to establish the Firebase session.
+    try { adb(`shell am force-stop ${PACKAGE}`); } catch {}
+    await sleep(500);
+
+    // Delete spell DB + Firestore local cache.
+    // expo-sqlite (New Architecture) stores databases under files/SQLite/, NOT databases/.
+    // Firestore SDK offline persistence can replay completed/failed jobs even after server
+    // deletion — clearing it forces a clean re-sync from the server.
+    // Use exact filenames — adb+spawnSync does not shell-expand globs.
+    const DB_DIR = `/data/data/${PACKAGE}/databases`;
+    const SQLITE_DIR = `/data/data/${PACKAGE}/files/SQLite`;
+    const FIRESTORE_DB = 'firestore.%5BDEFAULT%5D.appacadabra-bee0f.%28default%29';
+    spawnSync(ADB, ['shell', 'run-as', PACKAGE, 'rm', '-f',
+        `${SQLITE_DIR}/appacadabra.db`,
+        `${DB_DIR}/${FIRESTORE_DB}`,
+        `${DB_DIR}/${FIRESTORE_DB}-journal`,
+    ], { encoding: 'utf-8' });
 
     console.log('→ Granting runtime permissions...');
     const PERMISSIONS = [
@@ -76,9 +88,12 @@ const ADB = findAdb();
 
     console.log('→ Writing AsyncStorage keys (skip onboarding)...');
     // @react-native-async-storage/async-storage v2 uses SQLite at databases/RKStorage
+    // DROP TABLE first so stale zustand-persist keys (e.g. isShopOpen:true) don't survive.
     const SQL = [
-        `CREATE TABLE IF NOT EXISTS catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL);`,
-        `INSERT OR REPLACE INTO catalystLocalStorage VALUES ('appacadabra_onboarding_seen','true');`,
+        `DROP TABLE IF EXISTS catalystLocalStorage;`,
+        `CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL);`,
+        `INSERT INTO catalystLocalStorage VALUES ('appacadabra_onboarding_seen','true');`,
+        `INSERT INTO catalystLocalStorage VALUES ('appacadabra_test_credits','100');`,
         `PRAGMA user_version = 1;`,
         `.quit`,
     ].join('\n');
