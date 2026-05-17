@@ -779,11 +779,15 @@ export async function linkWithGoogle() {
 export async function signOut() {
     try {
         await GoogleSignin.revokeAccess();
-        await GoogleSignin.signOut();
-        await firebaseAuth().signOut();
     } catch (error) {
-        console.error('Sign Out Error', error);
+        console.warn('[signOut] revokeAccess failed (non-critical):', error);
     }
+    try {
+        await GoogleSignin.signOut();
+    } catch (error) {
+        console.warn('[signOut] GoogleSignin.signOut failed:', error);
+    }
+    await firebaseAuth().signOut();
 }
 
 export function getCurrentUser() {

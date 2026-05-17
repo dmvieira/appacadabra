@@ -1006,8 +1006,8 @@ export default function HomeScreen() {
 
     const handleSignOutClear = async () => {
         try {
-            await wipeAllData();
             await firebase.signOut();
+            await wipeAllData();
             setSignOutBanner('clear');
         } catch (e) {
             console.error('Sign out & clear failed:', e);
