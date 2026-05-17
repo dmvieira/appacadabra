@@ -6,6 +6,7 @@ export const shareCapability: CapabilityModule = {
     id: 'share',
     displayName: 'Share',
     minVersion: '1.0.0',
+    description: "`share` opens the native share sheet with text and/or a URL; `shareFile` shares a binary file given its base64 content, MIME type, and filename.",
 
     docs: `📤 SHARE (AppacadabraShare)
 - \`share(text, url, callback)\`

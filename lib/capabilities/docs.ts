@@ -282,6 +282,7 @@ export const docsCapability: CapabilityModule = {
     id: 'docs',
     displayName: 'Docs',
     minVersion: '1.0.0',
+    description: "`createDoc` creates a document with optional markdown content; `getDoc` reads it back as markdown; `appendText` adds content to the end; `setDoc` replaces the full body; `watchDoc`/`stopWatchDoc` poll for external changes; `convert` transforms between markdown, HTML, and PDF.",
 
     docs: `📄 DOCS (AppacadabraDocs) — Google Sign-In required (consent shown on first use only)
 ⚠️ **Restricted access:** \`getDoc()\`, \`appendText()\`, \`setDoc()\` and \`watchDoc()\` work **only with documents created by this app via \`createDoc()\`**. Existing Google Docs from the user cannot be accessed — not even documents they created manually in Google Drive. If the user mentions an existing document, explain that the app can only access files it generated itself and offer to create a new one.

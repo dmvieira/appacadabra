@@ -37,9 +37,7 @@ export function buildPlannerSystemInstructions(
 ): string {
     const available = allCaps.filter(c => versionGte(appVersion, c.minVersion));
     const lines = available.map(c => {
-        const firstBullet = c.docs.split('\n').find(l => l.trim().startsWith('-')) ?? c.displayName;
-        const description = firstBullet.replace(/^-\s*\*{0,2}[^:]+\*{0,2}:\s*/, '').trim();
-        return `- **Appacadabra${c.displayName}**: ${description}`;
+        return `- **Appacadabra${c.displayName}**: ${c.description}`;
     });
     const list = [
         '## Available Native APIs',

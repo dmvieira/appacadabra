@@ -8,6 +8,7 @@ export const deviceCapability: CapabilityModule = {
     id: 'device',
     displayName: 'Device',
     minVersion: '1.0.0',
+    description: "`vibrate`/`cancelVibration` control haptics; `getBatteryLevel`/`isCharging` read power state; `isOnline`/`getNetworkType` check connectivity; `language` and `userAgent` expose device locale/UA; `openBrowser` opens a URL in the system browser.",
     androidPermissions: [
         'android.permission.VIBRATE',
     ],

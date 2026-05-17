@@ -27,6 +27,7 @@ export const aiCapability: CapabilityModule = {
     id: 'ai',
     displayName: 'AI',
     minVersion: '1.0.0',
+    description: "`generate` runs an AI prompt (text/image/audio/video input via `fromImage`/`fromVideo`/`fromAudio`); `withSearch` adds web grounding; `withSchema` enforces structured JSON output; `generateImage` creates or edits images; `generateVideo` generates video; `similarity` computes semantic similarity between texts; `parseJSON` safely extracts JSON from AI output.",
 
     docs: `🤖 AI (AppacadabraAI)
 - **Fluent Builder API**: Chain methods to configure AI generation.

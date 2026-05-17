@@ -5,6 +5,7 @@ export const screenCapability: CapabilityModule = {
     id: 'screen',
     displayName: 'Screen',
     minVersion: '1.0.0',
+    description: "`capture` takes a screenshot of the current WebView and returns a base64 PNG; `print` opens the native print dialog.",
 
     docs: `🎨 SCREEN (AppacadabraScreen)
 - \`print()\` - Open native print dialog

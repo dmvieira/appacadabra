@@ -7,6 +7,7 @@ export const calendarCapability: CapabilityModule = {
     id: 'calendar',
     displayName: 'Calendar',
     minVersion: '1.0.0',
+    description: "`createEvent` and `createEventWithReminder` add calendar events with optional alerts; `getEvents` fetches events in a date range with attendees; `deleteEvent` removes an event by ID.",
     androidPermissions: [
         'android.permission.READ_CALENDAR',
         'android.permission.WRITE_CALENDAR',

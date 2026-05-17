@@ -77,6 +77,7 @@ export const healthCapability: CapabilityModule = {
     id: 'health',
     displayName: 'Health',
     minVersion: '2.0.0',
+    description: "`getSteps` returns step count records; `getHeartRate` returns heart rate samples; `getExercise` returns exercise sessions with type names; `getSleep` returns sleep stages; `getCalories` returns active and basal calories — all accept a start/end timestamp range.",
     androidPermissions: [
         'android.permission.health.READ_STEPS',
         'android.permission.health.READ_HEART_RATE',

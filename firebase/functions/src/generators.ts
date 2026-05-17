@@ -191,7 +191,7 @@ export async function generateSpellEdit(
         ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(s => `- localStorage["${s.key}"]: ${JSON.stringify(s.schema)}`).join('\n')}\n`
         : '';
 
-    const editPlannerSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+    const editPlannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
     const editPatcherSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
 
     const callEditModel = (content: string, sysInstr: string) =>

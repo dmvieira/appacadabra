@@ -4,6 +4,7 @@ export const uiCapability: CapabilityModule = {
     id: 'ui',
     displayName: 'UI',
     minVersion: '1.0.0',
+    description: "`showLoader`/`hideLoader` display a full-screen loading overlay; `toast` shows an auto-dismissing notification with optional type (success/error/info).",
 
     docs: `🎨 UI HELPERS (AppacadabraUI)
 - \`showLoader(message?, options?)\` - Show a full-screen loading overlay with a spinner. Options: \`{ color?: string, bg?: string }\`. Defaults: color from \`--color-primary\` CSS var or #6366f1; bg: rgba(255,255,255,0.92). **No callback.**

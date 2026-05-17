@@ -38,6 +38,7 @@ interface CapDoc {
     id: string;
     displayName: string;
     minVersion: string;
+    description: string;
     docs: string;
     validationMock: string;
 }
@@ -95,15 +96,16 @@ function parseCapabilityFile(filePath: string): CapDoc | null {
     const id = extractStringField(src, 'id');
     const displayName = extractStringField(src, 'displayName');
     const minVersion = extractStringField(src, 'minVersion');
+    const description = extractStringField(src, 'description');
     const docs = extractTemplateField(src, 'docs');
     const validationMock = extractTemplateField(src, 'validationMock');
 
-    if (!id || !docs || !validationMock) {
-        console.warn(`[sync] Warning: could not extract id/docs/validationMock from ${path.basename(filePath)}`);
+    if (!id || !description || !docs || !validationMock) {
+        console.warn(`[sync] Warning: could not extract id/description/docs/validationMock from ${path.basename(filePath)}`);
         return null;
     }
 
-    return { id, displayName, minVersion, docs, validationMock };
+    return { id, displayName, minVersion, description, docs, validationMock };
 }
 
 function escapeTemplateLiteral(s: string): string {
@@ -119,6 +121,7 @@ const ${cap.id}Capability: FirebaseCapabilityDoc = {
     id: ${JSON.stringify(cap.id)},
     displayName: ${JSON.stringify(cap.displayName)},
     minVersion: ${JSON.stringify(cap.minVersion)},
+    description: ${JSON.stringify(cap.description)},
     docs: \`${escapeTemplateLiteral(cap.docs)}\`,
     validationMock: \`${escapeTemplateLiteral(cap.validationMock)}\`,
 };

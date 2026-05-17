@@ -61,6 +61,8 @@ export interface CapabilityModule {
      * Each block is a pair of anchor (placeholder) and XML content.
      */
     manifestBlocks?: ManifestBlock[];
+    /** One-sentence summary used by the planner to select this capability. Copied to Firebase by the sync script. */
+    description: string;
     /** AI documentation block — copied to Firebase by the sync script. */
     docs: string;
     /** JS snippet injected into the JSDOM validation sandbox — copied to Firebase by the sync script. */

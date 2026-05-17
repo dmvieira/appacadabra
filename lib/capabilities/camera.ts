@@ -14,6 +14,7 @@ export const cameraCapability: CapabilityModule = {
     id: 'camera',
     displayName: 'Camera',
     minVersion: '1.0.0',
+    description: "`takePhoto` captures a photo; `recordVideo` records video with duration/quality options; `playVideo`/`stopPlaying`/`isPlaying` play back video from base64; `scan` opens a QR/barcode scanner overlay.",
     androidPermissions: [
         'android.permission.CAMERA',
         'android.permission.RECORD_AUDIO',

@@ -4,6 +4,7 @@ export const clipboardCapability: CapabilityModule = {
     id: 'clipboard',
     displayName: 'Clipboard',
     minVersion: '1.0.0',
+    description: "`setString` copies text to the clipboard; `getString` reads the current clipboard text.",
 
     docs: `📋 CLIPBOARD (AppacadabraClipboard)
 - \`setString(text)\` - Copy text to clipboard

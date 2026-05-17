@@ -89,6 +89,7 @@ export const sheetsCapability: CapabilityModule = {
     id: 'sheets',
     displayName: 'Sheets',
     minVersion: '1.0.0',
+    description: "`createSheet` creates a spreadsheet with headers; `appendRows` adds raw data rows; `getRows` reads all rows with headers; `setRows` replaces all data; `watchSheet`/`stopWatchSheet` poll for external changes.",
 
     docs: `📊 SHEETS (AppacadabraSheets) — Google Sign-In required (consent shown on first use only)
 ⚠️ **Restricted access:** \`getRows()\`, \`appendRows()\`, \`watchSheet()\` and \`setRows()\` work **only with spreadsheets created by this app via \`createSheet()\`**. Existing Google Sheets from the user cannot be accessed. If the user wants to use "their sales spreadsheet" or similar, explain the limitation and offer to create a new dedicated spreadsheet inside the app.

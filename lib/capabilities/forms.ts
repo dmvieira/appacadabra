@@ -61,6 +61,7 @@ export const formsCapability: CapabilityModule = {
     id: 'forms',
     displayName: 'Forms',
     minVersion: '1.0.0',
+    description: "`createForm` creates a Google Form with questions; `updateForm` replaces its questions; `getResponses` fetches all submitted responses with human-readable labels; `watchResponses`/`stopWatchResponses` poll for new submissions.",
 
     docs: `📋 FORMS (AppacadabraForms) — Google Sign-In required (consent shown on first use only)
 ⚠️ **Restricted access:** \`getResponses()\`, \`updateForm()\` and \`watchResponses()\` work **only with forms created by this app via \`createForm()\`**. External forms cannot be accessed for two reasons: (1) OAuth scope restriction \`drive.file\`; (2) the question mapping is stored internally at creation time and does not exist for external forms. Never suggest the user use an existing Google Form.

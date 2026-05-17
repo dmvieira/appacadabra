@@ -96,6 +96,7 @@ export const notifyCapability: CapabilityModule = {
     id: 'notify',
     displayName: 'Notify',
     minVersion: '1.0.0',
+    description: "`showNow` shows an immediate notification; `schedule`/`scheduleAt` delay by minutes or timestamp; `alarm`/`alarmAt` ring even on silent mode; `getScheduled` lists pending items; `cancel`/`cancelAll` remove them; `alert`, `confirm`, and `prompt` show blocking dialog boxes.",
     androidPermissions: [
         'android.permission.POST_NOTIFICATIONS',
     ],

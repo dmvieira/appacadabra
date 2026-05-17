@@ -34,6 +34,7 @@ export const audioCapability: CapabilityModule = {
     id: 'audio',
     displayName: 'Audio',
     minVersion: '1.0.0',
+    description: "`recordStart`/`recordStop` capture microphone audio (M4A); `play`/`stop`/`isPlaying` play audio from base64 or URL; `speak` uses the device TTS engine (free); `speakAI`/`stopSpeaking`/`isSpeaking` drive high-quality AI voice via Gemini TTS (costs Mana).",
     androidPermissions: [
         'android.permission.RECORD_AUDIO',
         'android.permission.MODIFY_AUDIO_SETTINGS',

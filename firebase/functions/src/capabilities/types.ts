@@ -12,6 +12,8 @@ export interface FirebaseCapabilityDoc {
     displayName: string;
     /** Minimum app version required for this capability (semver). */
     minVersion: string;
+    /** One-sentence summary used by the planner to decide whether to include this capability. */
+    description: string;
     /** AI documentation block injected into the system instructions. */
     docs: string;
     /** JS snippet injected into the JSDOM sandbox during code validation. */

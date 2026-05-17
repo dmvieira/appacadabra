@@ -9,6 +9,7 @@ export const sensorsCapability: CapabilityModule = {
     id: 'sensors',
     displayName: 'Sensors',
     minVersion: '1.0.0',
+    description: "`startAccelerometer`, `startGyroscope`, `startCompass`, `startPedometer`, `startSpeedometer`, and `startGPS` stream sensor data at a configurable interval via named callbacks; `stopAll` stops all active sensors.",
     androidPermissions: [
         'android.permission.ACTIVITY_RECOGNITION',
         'android.permission.ACCESS_FINE_LOCATION',

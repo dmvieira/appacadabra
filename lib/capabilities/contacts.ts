@@ -5,6 +5,7 @@ export const contactsCapability: CapabilityModule = {
     id: 'contacts',
     displayName: 'Contacts',
     minVersion: '1.0.0',
+    description: "`search` finds contacts by name, phone, email, or company; `add` opens the native add-contact form pre-filled; `update` opens the native edit form for an existing contact.",
     androidPermissions: [
         'android.permission.READ_CONTACTS',
         'android.permission.WRITE_CONTACTS',

@@ -65,6 +65,7 @@ describe('buildSystemInstructions', () => {
             id: 'future',
             displayName: 'Future',
             minVersion: '99.0.0',
+            description: 'Future capability.',
             docs: 'FUTURE_CAP_DOCS_UNIQUE_STRING',
             validationMock: '    window.AppacadabraFuture = apiProxy;',
         };
@@ -78,6 +79,7 @@ describe('buildSystemInstructions', () => {
             id: 'exact',
             displayName: 'Exact',
             minVersion: '2.0.0',
+            description: 'Exact capability.',
             docs: 'EXACT_CAP_DOCS_UNIQUE_STRING',
             validationMock: '    window.AppacadabraExact = apiProxy;',
         };
@@ -103,6 +105,7 @@ describe('buildSystemInstructions', () => {
             id: 'nearfuture',
             displayName: 'Near Future',
             minVersion: '1.0.1',
+            description: 'Near future capability.',
             docs: 'NEAR_FUTURE_CAP_UNIQUE',
             validationMock: '    window.AppacadabraNearFuture = apiProxy;',
         };
