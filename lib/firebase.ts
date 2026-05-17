@@ -568,8 +568,8 @@ export async function suggestSpells(query: string): Promise<Array<{ title: strin
     return result.data.suggestions;
 }
 
-export async function claimInstallBonus(hardwareId: string): Promise<{ granted: boolean; newBalance?: number }> {
-    const fn = httpsCallable<{ hardwareId: string }, { granted: boolean; newBalance?: number }>(
+export async function claimInstallBonus(hardwareId: string): Promise<{ granted: boolean; newBalance?: number; bonusAmount?: number }> {
+    const fn = httpsCallable<{ hardwareId: string }, { granted: boolean; newBalance?: number; bonusAmount?: number }>(
         getFunctionsInstance(), 'claimInstallBonus'
     );
     const result = await fn({ hardwareId });

@@ -1,7 +1,7 @@
 ---
 name: Engineering Agent
 description: Use for all code tasks — implementing features, reviewing code, generating tests, auditing dependencies, validating Firestore/SQLite schemas, and routing complex engineering questions to the right model. Also owns localization (i18n): adding new strings across all 17 locales, back-translation verification, and bulk translation routing. The primary agent for any change to lib/, app/, components/, android/, firebase/functions/, or lib/i18n.ts.
-model: claude-sonnet-4-6
+model: claude-opus-4-7
 tools:
   - Read
   - Edit

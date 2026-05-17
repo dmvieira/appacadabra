@@ -383,8 +383,8 @@ export function ManaShop() {
             await firebase.ensureAuthenticated();
             await firebase.linkWithGoogle();
             await refreshUser();
-            getHardwareId().then(id => {
-                if (id) firebase.claimInstallBonus(id).catch(() => { });
+            getHardwareId().then(async id => {
+                if (id) await firebase.claimInstallBonus(id).catch(() => {});
             });
             setShowLoginPrompt(false);
         } catch (e: any) {

@@ -10,7 +10,14 @@ Add a new i18n string to all 17 language translations in Appacadabra using OpenR
 ### 1. Check API key
 
 Run `echo "${OPENROUTER_API_KEY:0:4}"` via Bash to confirm the key is set.  
-If empty, stop and tell the user: "Set `OPENROUTER_API_KEY` in `.claude/settings.local.json` under `\"env\": { \"OPENROUTER_API_KEY\": \"sk-or-...\" }` and restart Claude Code."
+If empty, fetch it from Firebase secrets:
+
+```bash
+export OPENROUTER_API_KEY=$(firebase functions:secrets:access OPENROUTER_API_KEY --project appacadabra-bee0f)
+echo "${OPENROUTER_API_KEY:0:4}"
+```
+
+If the Firebase fetch also fails or returns empty, stop and tell the user: "Could not load `OPENROUTER_API_KEY` from Firebase secrets. Check that the secret exists with `firebase functions:secrets:access OPENROUTER_API_KEY` or set it manually in `.claude/settings.local.json` under `\"env\": { \"OPENROUTER_API_KEY\": \"sk-or-...\" }` and restart Claude Code."
 
 ### 2. Read context from `lib/i18n.ts`
 

@@ -48,6 +48,7 @@ export const translations = {
         // Async Notifications
         jobStarted: 'Casting Spell... 🪄',
         editJobStarted: 'Enhancing Spell... 🪄',
+        obGetFreeSpells: 'Get free spells',
         notifHintText: "We'll notify you when your spell is ready. Enable notifications so you don't miss it.",
         notifHintEnable: 'Enable',
         appReadyNotify: '✨ "%{name}" is ready!',
@@ -325,6 +326,8 @@ export const translations = {
         signOutSuccessTitle: 'Logged Out',
         signOutSuccessKeep: 'You signed out. Your spells are still here.',
         signOutSuccessClear: 'You signed out. All local data was cleared.',
+        bonusGranted: '⚡ +%{amount} mana gained!',
+        welcomeBackBonus: 'Welcome back! Your balance has been restored.',
 
 
         loginRequired: 'Sign in to continue',
@@ -621,6 +624,7 @@ export const translations = {
         // Async Notifications (PT)
         jobStarted: 'Feitiço iniciado... 🪄',
         editJobStarted: 'Melhoria iniciada... 🪄',
+        obGetFreeSpells: 'Ganhar feitiços grátis',
         notifHintText: 'Te avisaremos por notificação quando o feitiço ficar pronto. Ative as notificações para não perder.',
         notifHintEnable: 'Ativar',
         appReadyNotify: 'Feitiço Pronto: %{name} ✨',
@@ -824,6 +828,8 @@ export const translations = {
         signOutSuccessTitle: 'Você saiu',
         signOutSuccessKeep: 'Você saiu. Seus feitiços continuam aqui.',
         signOutSuccessClear: 'Você saiu. Todos os dados locais foram limpos.',
+        bonusGranted: '⚡ +%{amount} mana obtidas!',
+        welcomeBackBonus: 'Bem-vindo de volta! O seu saldo foi restaurado.',
 
 
         loginRequired: 'Entrar para continuar',
@@ -1214,6 +1220,7 @@ export const translations = {
         // Async Notifications (ES)
         jobStarted: 'Lanzando Hechizo... 🪄',
         editJobStarted: 'Mejorando Hechizo... 🪄',
+        obGetFreeSpells: 'Obtener hechizos gratis',
         notifHintText: 'Te notificaremos cuando tu hechizo esté listo. Activa las notificaciones para no perdértelo.',
         notifHintEnable: 'Activar',
         appReadyNotify: '✨ ¡%{name} está listo!',
@@ -1466,6 +1473,8 @@ export const translations = {
         signOutSuccessTitle: 'Sesión cerrada',
         signOutSuccessKeep: 'Has salido. Tus hechizos siguen aquí.',
         signOutSuccessClear: 'Has salido. Todos los datos locales han sido borrados.',
+        bonusGranted: '⚡ +%{amount} de maná obtenidas!',
+        welcomeBackBonus: '¡Bienvenido de nuevo! Tu saldo ha sido restaurado.',
 
 
         loginRequired: 'Inicia sesión para continuar',
@@ -1772,6 +1781,7 @@ export const translations = {
         // Async Notifications (FR)
         jobStarted: 'Lancement du Sort... 🪄',
         editJobStarted: 'Amélioration du Sort... 🪄',
+        obGetFreeSpells: 'Obtenir des sorts gratuits',
         notifHintText: 'Nous te préviendrons quand ton sort sera prêt. Active les notifications pour ne rien rater.',
         notifHintEnable: 'Activer',
         appReadyNotify: '✨ "%{name}" est prêt !',
@@ -2021,6 +2031,8 @@ export const translations = {
         signOutSuccessTitle: 'Déconnexion',
         signOutSuccessKeep: 'Vous êtes déconnecté. Vos sorts sont toujours là.',
         signOutSuccessClear: 'Vous êtes déconnecté. Toutes les données locales ont été effacées.',
+        bonusGranted: '⚡ +%{amount} mana obtenu\u00a0!',
+        welcomeBackBonus: 'Bon retour\u00a0! Votre solde a été restauré.',
 
 
         loginRequired: 'Connectez-vous pour continuer',
@@ -2329,6 +2341,7 @@ export const translations = {
         // Async Notifications (DE)
         jobStarted: 'Zauber wird gewirkt... 🪄',
         editJobStarted: 'Zauber wird verbessert... 🪄',
+        obGetFreeSpells: 'Kostenlose Zauber erhalten',
         notifHintText: 'Wir benachrichtigen dich, wenn dein Zauber fertig ist. Aktiviere Benachrichtigungen, damit du nichts verpasst.',
         notifHintEnable: 'Aktivieren',
         appReadyNotify: '✨ "%{name}" ist bereit!',
@@ -2539,6 +2552,8 @@ export const translations = {
         signOutSuccessTitle: 'Abgemeldet',
         signOutSuccessKeep: 'Du hast dich abgemeldet. Deine Zauber sind noch da.',
         signOutSuccessClear: 'Du hast dich abgemeldet. Alle lokalen Daten wurden gelöscht.',
+        bonusGranted: '⚡ +%{amount} Mana erhalten!',
+        welcomeBackBonus: 'Willkommen zurück! Dein Guthaben wurde wiederhergestellt.',
 
 
         loginRequired: 'Anmelden, um fortzufahren',
@@ -2816,6 +2831,7 @@ export const translations = {
         // Async Notifications (IT)
         jobStarted: 'Lancio Incantesimo... 🪄',
         editJobStarted: 'Miglioramento Incantesimo... 🪄',
+        obGetFreeSpells: 'Ottieni incantesimi gratis',
         notifHintText: 'Ti avviseremo quando il tuo incantesimo sarà pronto. Attiva le notifiche per non perderlo.',
         notifHintEnable: 'Attiva',
         appReadyNotify: '✨ "%{name}" è pronto!',
@@ -3026,6 +3042,8 @@ export const translations = {
         signOutSuccessTitle: 'Disconnesso',
         signOutSuccessKeep: 'Sei uscito. I tuoi incantesimi sono ancora qui.',
         signOutSuccessClear: 'Sei uscito. Tutti i dati locali sono stati cancellati.',
+        bonusGranted: '⚡ +%{amount} mana ottenuti!',
+        welcomeBackBonus: 'Bentornato! Il tuo saldo è stato ripristinato.',
 
 
         loginRequired: 'Accedi per continuare',
@@ -3303,6 +3321,7 @@ export const translations = {
         // Async Notifications (JA)
         jobStarted: '呪文を唱えています... 🪄',
         editJobStarted: '呪文を強化しています... 🪄',
+        obGetFreeSpells: '無料の呪文をゲット',
         notifHintText: '呪文が完成したらお知らせします。通知をオンにしてお見逃しなく。',
         notifHintEnable: '有効にする',
         appReadyNotify: '✨ "%{name}" の準備ができました！',
@@ -3515,6 +3534,8 @@ export const translations = {
         signOutSuccessTitle: 'ログアウトしました',
         signOutSuccessKeep: 'サインアウトしました。呪文はまだここにあります。',
         signOutSuccessClear: 'サインアウトしました。すべてのローカルデータが削除されました。',
+        bonusGranted: '⚡ +%{amount} マナ獲得！',
+        welcomeBackBonus: 'おかえりなさい！残高が復元されました。',
 
 
         loginRequired: '続行するにはログインしてください',
@@ -3771,6 +3792,7 @@ export const translations = {
         // Async Notifications (ZH)
         jobStarted: '正在创建应用... 🪄',
         editJobStarted: '正在改进应用... 🪄',
+        obGetFreeSpells: '获取免费咒语',
         notifHintText: '咒语完成后我们会通知你。开启通知以免错过。',
         notifHintEnable: '开启',
         appReadyNotify: '✨ "%{name}" 准备好了！',
@@ -3983,6 +4005,8 @@ export const translations = {
         signOutSuccessTitle: '已登出',
         signOutSuccessKeep: '您已退出登录。您的呪文仍在这里。',
         signOutSuccessClear: '您已退出登录。所有本地数据已清除。',
+        bonusGranted: '⚡ +%{amount} 法力已获得！',
+        welcomeBackBonus: '欢迎回来！您的余额已恢复。',
 
         accountConflict: '账号已存在。要改为登录吗？（当前魔力将被云端魔力替换）',
         success: '成功',
@@ -4243,6 +4267,7 @@ export const translations = {
         // Async Notifications (KO)
         jobStarted: '앱 생성 중... 🪄',
         editJobStarted: '앱 개선 중... 🪄',
+        obGetFreeSpells: '무료 주문 받기',
         notifHintText: '주문이 완성되면 알려드릴게요. 놓치지 않도록 알림을 켜세요.',
         notifHintEnable: '켜기',
         appReadyNotify: '✨ "%{name}" 준비 완료!',
@@ -4461,6 +4486,8 @@ export const translations = {
         signOutSuccessTitle: '로그아웃됨',
         signOutSuccessKeep: '로그아웃되었습니다. 스펠은 여전히 여기에 있습니다.',
         signOutSuccessClear: '로그아웃되었습니다. 모든 로컬 데이터가 삭제되었습니다.',
+        bonusGranted: '⚡ +%{amount} 마나 획득！',
+        welcomeBackBonus: '다시 오신 것을 환영합니다! 잔액이 복원되었습니다.',
 
         accountConflict: '이미 계정이 존재합니다. 대신 로그인하시겠습니까? (현재 마나는 클라우드 마나로 대체됩니다)',
         success: '성공',
@@ -4715,6 +4742,7 @@ export const translations = {
         // Async Notifications (AR)
         jobStarted: 'جاري إنشاء التطبيق... 🪄',
         editJobStarted: 'جاري تحسين التطبيق... 🪄',
+        obGetFreeSpells: 'احصل على تعاويذ مجانية',
         notifHintText: 'سنخبرك عندما تكون تعويذتك جاهزة. فعّل الإشعارات حتى لا تفوّتها.',
         notifHintEnable: 'تفعيل',
         appReadyNotify: '✨ "%{name}" جاهز!',
@@ -4933,6 +4961,8 @@ export const translations = {
         signOutSuccessTitle: 'تم تسجيل الخروج',
         signOutSuccessKeep: 'لقد سجلت الخروج. تعاويذك لا تزال هنا.',
         signOutSuccessClear: 'لقد سجلت الخروج. تم مسح جميع البيانات المحلية.',
+        bonusGranted: '⚡ +%{amount} من المانا حصلت عليها!',
+        welcomeBackBonus: 'مرحباً بعودتك! تمت استعادة رصيدك.',
 
         accountConflict: 'الحساب موجود بالفعل. هل تريد تسجيل الدخول بدلاً من ذلك؟ (سيتم استبدال المانا الحالية بمانا السحاب)',
         success: 'نجاح',
@@ -5187,6 +5217,7 @@ export const translations = {
         // Async Notifications (HI)
         jobStarted: 'ऐप बना रहा है... 🪄',
         editJobStarted: 'ऐप सुधार रहा है... 🪄',
+        obGetFreeSpells: 'मुफ्त जादू पाएं',
         notifHintText: 'जब आपका जादू तैयार हो जाए, हम आपको सूचित करेंगे। कुछ न छूटे, इसलिए नोटिफिकेशन चालू करें।',
         notifHintEnable: 'चालू करें',
         appReadyNotify: '✨ "%{name}" तैयार है!',
@@ -5405,6 +5436,8 @@ export const translations = {
         signOutSuccessTitle: 'लॉग आउट किया गया',
         signOutSuccessKeep: 'आपने साइन आउट कर दिया है। आपके मंत्र अभी भी यहीं हैं।',
         signOutSuccessClear: 'आपने साइन आउट कर दिया है। सारा स्थानीय डेटा मिटा दिया गया है।',
+        bonusGranted: '⚡ +%{amount} माना प्राप्त हुई!',
+        welcomeBackBonus: 'वापस स्वागत है! आपका बैलेंस पुनः स्थापित हो गया है।',
 
         accountConflict: 'अकाउंट पहले से मौजूद है। इसके बजाय साइन इन करें? (मौजूदा माना को क्लाउड माना से बदल दिया जाएगा)',
         success: 'सफलता',
@@ -5659,6 +5692,7 @@ export const translations = {
         // Async Notifications (RU)
         jobStarted: 'Создание приложения... 🪄',
         editJobStarted: 'Улучшение приложения... 🪄',
+        obGetFreeSpells: 'Получить бесплатные заклинания',
         notifHintText: 'Мы сообщим тебе, когда заклинание будет готово. Включи уведомления, чтобы не пропустить.',
         notifHintEnable: 'Включить',
         appReadyNotify: '✨ "%{name}" готово!',
@@ -5877,6 +5911,8 @@ export const translations = {
         signOutSuccessTitle: 'Вышли из системы',
         signOutSuccessKeep: 'Вы вышли из системы. Ваши заклинания все еще здесь.',
         signOutSuccessClear: 'Вы вышли из системы. Все локальные данные были удалены.',
+        bonusGranted: '⚡ +%{amount} маны получено!',
+        welcomeBackBonus: 'С возвращением! Ваш баланс был восстановлен.',
 
         accountConflict: 'Аккаунт уже существует. Войти вместо этого? (Текущая мана будет заменена на облачную ману)',
         success: 'Успех',
@@ -6131,6 +6167,7 @@ export const translations = {
         // Async Notifications (TR)
         jobStarted: 'Uygulama oluşturuluyor... 🪄',
         editJobStarted: 'Uygulama geliştiriliyor... 🪄',
+        obGetFreeSpells: 'Ücretsiz büyü al',
         notifHintText: 'Büyün hazır olduğunda seni haberdar edeceğiz. Kaçırmamak için bildirimleri etkinleştir.',
         notifHintEnable: 'Etkinleştir',
         appReadyNotify: '✨ "%{name}" hazır!',
@@ -6349,6 +6386,8 @@ export const translations = {
         signOutSuccessTitle: 'Oturum kapatıldı',
         signOutSuccessKeep: 'Oturum kapatıldı. Büyüleriniz hala burada.',
         signOutSuccessClear: 'Oturum kapatıldı. Tüm yerel veriler temizlendi.',
+        bonusGranted: '⚡ +%{amount} Mana kazanıldı!',
+        welcomeBackBonus: 'Tekrar hoş geldiniz! Bakiyeniz geri yüklendi.',
 
 
         loginRequired: 'Devam etmek için giriş yapın',
@@ -6603,6 +6642,7 @@ export const translations = {
         // Async Notifications (NL)
         jobStarted: 'App aan het maken... 🪄',
         editJobStarted: 'App aan het verbeteren... 🪄',
+        obGetFreeSpells: 'Gratis spreuken krijgen',
         notifHintText: 'We laten je weten wanneer je spreuk klaar is. Zet meldingen aan zodat je niets mist.',
         notifHintEnable: 'Inschakelen',
         appReadyNotify: '✨ "%{name}" is klaar!',
@@ -6821,6 +6861,8 @@ export const translations = {
         signOutSuccessTitle: 'Afgemeld',
         signOutSuccessKeep: 'Je bent uitgelogd. Je spreuken zijn er nog.',
         signOutSuccessClear: 'Je bent uitgelogd. Alle lokale gegevens zijn gewist.',
+        bonusGranted: '⚡ +%{amount} mana ontvangen!',
+        welcomeBackBonus: 'Welkom terug! Je saldo is hersteld.',
 
 
         loginRequired: 'Log in om verder te gaan',
@@ -7076,6 +7118,7 @@ export const translations = {
         // Async Notifications (PL)
         jobStarted: 'Tworzenie aplikacji... 🪄',
         editJobStarted: 'Ulepszanie aplikacji... 🪄',
+        obGetFreeSpells: 'Zdobądź darmowe zaklęcia',
         notifHintText: 'Powiadomimy cię, gdy twoje zaklęcie będzie gotowe. Włącz powiadomienia, żeby nic nie przegapić.',
         notifHintEnable: 'Włącz',
         appReadyNotify: '✨ "%{name}" gotowa!',
@@ -7294,6 +7337,8 @@ export const translations = {
         signOutSuccessTitle: 'Wylogowano',
         signOutSuccessKeep: 'Wylogowano. Twoje zaklęcia nadal tu są.',
         signOutSuccessClear: 'Wylogowano. Wszystkie dane lokalne zostały wyczyszczone.',
+        bonusGranted: '⚡ +%{amount} many zdobytych!',
+        welcomeBackBonus: 'Witamy z powrotem! Twoje saldo zostało przywrócone.',
 
 
         loginRequired: 'Zaloguj się, aby kontynuować',
@@ -7551,6 +7596,7 @@ export const translations = {
         // Async Notifications (VI)
         jobStarted: 'Đang tạo ứng dụng... 🪄',
         editJobStarted: 'Đang cải tiến ứng dụng... 🪄',
+        obGetFreeSpells: 'Nhận phép thuật miễn phí',
         notifHintText: 'Chúng tôi sẽ thông báo khi phép thuật của bạn sẵn sàng. Bật thông báo để không bỏ lỡ.',
         notifHintEnable: 'Bật',
         appReadyNotify: '✨ "%{name}" đã sẵn sàng!',
@@ -7769,6 +7815,8 @@ export const translations = {
         signOutSuccessTitle: 'Đã đăng xuất',
         signOutSuccessKeep: 'Bạn đã đăng xuất. Các câu chú của bạn vẫn còn ở đây.',
         signOutSuccessClear: 'Bạn đã đăng xuất. Tất cả dữ liệu cục bộ đã được xóa.',
+        bonusGranted: '⚡ +%{amount} mana đã nhận được!',
+        welcomeBackBonus: 'Chào mừng trở lại! Số dư của bạn đã được khôi phục.',
 
 
         loginRequired: 'Đăng nhập để tiếp tục',
@@ -8026,6 +8074,7 @@ export const translations = {
         // Async Notifications (TH)
         jobStarted: 'กำลังสร้างแอป... 🪄',
         editJobStarted: 'กำลังปรับปรุงแอป... 🪄',
+        obGetFreeSpells: 'รับคาถาฟรี',
         notifHintText: 'เราจะแจ้งเตือนเมื่อคาถาของคุณพร้อมแล้ว เปิดการแจ้งเตือนเพื่อไม่พลาด',
         notifHintEnable: 'เปิด',
         appReadyNotify: '✨ "%{name}" พร้อมแล้ว!',
@@ -8244,6 +8293,8 @@ export const translations = {
         signOutSuccessTitle: 'ออกจากระบบแล้ว',
         signOutSuccessKeep: 'ลงชื่อออกแล้ว เวทมนตร์ของคุณยังคงอยู่ที่นี่',
         signOutSuccessClear: 'ลงชื่อออกแล้ว ข้อมูลทั้งหมดในเครื่องถูกล้างแล้ว',
+        bonusGranted: '⚡ +%{amount} มานาที่ได้รับ!',
+        welcomeBackBonus: 'ยินดีต้อนรับกลับมา! ยอดคงเหลือของคุณได้รับการกู้คืนแล้ว',
 
 
         loginRequired: 'เข้าสู่ระบบเพื่อดำเนินการต่อ',

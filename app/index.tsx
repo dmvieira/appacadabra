@@ -1293,14 +1293,25 @@ export default function HomeScreen() {
                     onPress={() => {
                         setActiveCardId(null);
                         if (balance <= 0) {
-                            Alert.alert(
-                                t('manaDepletedTitle'),
-                                t('manaDepletedMessage'),
-                                [
-                                    { text: t('buyMana'), onPress: () => openShop() },
-                                    { text: t('cancel'), style: 'cancel' }
-                                ]
-                            );
+                            if (isAnonymous) {
+                                Alert.alert(
+                                    t('loginForManaTitle'),
+                                    t('loginForManaMessage'),
+                                    [
+                                        { text: t('signInGoogle'), onPress: () => openShop() },
+                                        { text: t('cancel'), style: 'cancel' }
+                                    ]
+                                );
+                            } else {
+                                Alert.alert(
+                                    t('manaDepletedTitle'),
+                                    t('manaDepletedMessage'),
+                                    [
+                                        { text: t('buyMana'), onPress: () => openShop() },
+                                        { text: t('cancel'), style: 'cancel' }
+                                    ]
+                                );
+                            }
                         } else {
                             logSpellCreateOpened(apps.length === 0);
                             clearError();

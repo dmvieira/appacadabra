@@ -1,7 +1,7 @@
 ---
 name: QA Agent
 description: Use for test coverage analysis, generating Maestro E2E test flows, and security scans. Knows the Maestro YAML conventions, Jest test baseline, and Appacadabra's specific security surface (WebView XSS, bridge origin validation, Firebase rules, mana atomicity).
-model: claude-sonnet-4-6
+model: claude-opus-4-7
 tools:
   - Read
   - Edit

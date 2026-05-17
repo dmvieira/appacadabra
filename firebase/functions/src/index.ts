@@ -351,6 +351,8 @@ export const getCredits = onCall(
         const userRef = db.collection("users").doc(uid);
         const userDoc = await userRef.get();
 
+        const provider = (request.auth.token as any)?.firebase?.sign_in_provider ?? "unknown";
+
         if (!userDoc.exists) {
             // Create user with 0 credits
             await userRef.set({
@@ -358,8 +360,13 @@ export const getCredits = onCall(
                 creditsUsed: 0,
                 createdAt: FieldValue.serverTimestamp(),
                 lastActive: FieldValue.serverTimestamp(),
+                provider,
             });
             return { credits: 0 };
+        }
+
+        if (!userDoc.data()?.provider) {
+            await userRef.update({ provider });
         }
 
         return { credits: userDoc.data()?.credits || 0 };
@@ -1368,7 +1375,7 @@ export const claimInstallBonus = onCall({ region: 'southamerica-east1' }, async 
         tx.set(userRef, { credits: current + bonus }, { merge: true });
         tx.set(userRef.collection('creditLogs').doc(), { amount: bonus, source: 'install_bonus', timestamp: now });
 
-        return { granted: true, newBalance: current + bonus };
+        return { granted: true, newBalance: current + bonus, bonusAmount: bonus };
     });
 
     return result;

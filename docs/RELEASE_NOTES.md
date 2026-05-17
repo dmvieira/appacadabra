@@ -1,116 +1,116 @@
 ## Version Name
-Reliability & Security
+Better Beginnings
 
 <en-US>
-• Failed spells now always refund your mana and reopen the prompt — no lost work, no lost credits
-• All spell jobs share a consistent 20-minute timeout so nothing hangs forever
-• Removed debug log suppression from production builds for better crash visibility
+• New users now see a mana confirmation ("⚡ +X mana gained!") right after onboarding — no more silent start
+• Returning wizards signing in on a new device see a welcome-back message and have their balance restored instantly
+• Fixed a race condition in the bonus and Mana Shop flows so credits always land before the screen closes
 </en-US>
 
 <pt-BR>
-• Feitiços com falha agora sempre devolvem sua mana e reabrem o prompt — sem perda de trabalho ou créditos
-• Todos os jobs de feitiço têm timeout uniforme de 20 minutos — nada trava para sempre
-• Supressão de logs de depuração removida das builds de produção para melhor rastreamento de erros
+• Novos usuários agora veem uma confirmação de mana ("⚡ +X mana obtidas!") logo após o onboarding — sem início silencioso
+• Magos que retornam em um novo dispositivo veem uma mensagem de boas-vindas e têm o saldo restaurado instantaneamente
+• Corrigida uma condição de corrida no fluxo de bônus e da Loja de Mana para que os créditos cheguem antes da tela fechar
 </pt-BR>
 
 <es-419>
-• Los spells fallidos ahora siempre devuelven tu maná y reabren el prompt — sin pérdida de trabajo ni créditos
-• Todos los jobs de spell tienen un tiempo límite uniforme de 20 minutos
-• Se eliminó la supresión de logs de depuración en producción para mejor visibilidad de errores
+• Los nuevos usuarios ahora ven una confirmación de maná ("⚡ +X maná obtenidas!") justo después del onboarding
+• Los magos que regresan en un nuevo dispositivo ven un mensaje de bienvenida y su saldo se restaura al instante
+• Se corrigió una condición de carrera en los flujos de bonificación y Tienda de Maná
 </es-419>
 
 <es-ES>
-• Los spells fallidos ahora siempre devuelven tu maná y reabren el prompt
-• Todos los trabajos de spell tienen un tiempo límite uniforme de 20 minutos
-• Se eliminó la supresión de registros de depuración en producción
+• Los nuevos usuarios ven ahora una confirmación de maná tras el onboarding — sin inicio silencioso
+• Los magos que regresan en un dispositivo nuevo ven su bienvenida y saldo restaurado al instante
+• Corregida una condición de carrera en el flujo de bonificación y la Tienda de Maná
 </es-ES>
 
 <fr-FR>
-• Les sorts échoués remboursent toujours votre mana et rouvrent le prompt — aucun travail perdu
-• Tous les jobs de sort partagent un délai uniforme de 20 minutes
-• Suppression des logs de débogage retirée des builds de production
+• Les nouveaux utilisateurs voient désormais une confirmation de mana ("⚡ +X mana obtenu !") juste après l'intégration
+• Les magiciens de retour sur un nouvel appareil voient un message de bienvenue et leur solde restauré instantanément
+• Correction d'une condition de course dans les flux de bonus et de la Boutique de Mana
 </fr-FR>
 
 <fr-CA>
-• Les sorts échoués remboursent maintenant toujours votre mana et rouvrent le prompt
-• Tous les jobs de sort ont un délai uniforme de 20 minutes
-• La suppression des logs de débogage a été retirée des builds de production
+• Les nouveaux utilisateurs voient maintenant une confirmation de mana après l'intégration — sans démarrage silencieux
+• Les magiciens de retour sur un nouvel appareil ont leur solde restauré instantanément avec un message de bienvenue
+• Correction d'une situation de compétition dans les flux de bonus et de la Boutique de Mana
 </fr-CA>
 
 <de-DE>
-• Fehlgeschlagene Zauber erstatten immer dein Mana und öffnen den Prompt erneut — keine Verluste
-• Alle Zauber-Jobs haben ein einheitliches Timeout von 20 Minuten
-• Debug-Log-Unterdrückung aus Production-Builds entfernt
+• Neue Nutzer sehen nach dem Onboarding jetzt eine Mana-Bestätigung ("⚡ +X Mana erhalten!") — kein stiller Start mehr
+• Zurückkehrende Zauberer auf neuem Gerät sehen eine Willkommensnachricht und ihr Guthaben wird sofort wiederhergestellt
+• Race Condition im Bonus- und Mana-Shop-Fluss behoben
 </de-DE>
 
 <it-IT>
-• Gli incantesimi falliti ora rimborsano sempre il mana e riaprono il prompt — nessun lavoro perso
-• Tutti i job degli incantesimi hanno un timeout uniforme di 20 minuti
-• Rimossa la soppressione dei log di debug dalle build di produzione
+• I nuovi utenti vedono ora una conferma mana ("⚡ +X mana ottenuti!") subito dopo l'onboarding — niente inizio silenzioso
+• I maghi di ritorno su un nuovo dispositivo vedono un messaggio di benvenuto e il saldo viene ripristinato istantaneamente
+• Corretta una race condition nel flusso di bonus e nel Negozio di Mana
 </it-IT>
 
 <ja-JP>
-• 失敗したスペルは必ずマナを返金し、プロンプトを再表示 — 作業もクレジットも失わない
-• すべてのスペルジョブに統一した20分タイムアウトを適用
-• 本番ビルドからデバッグログ抑制を削除し、クラッシュ検出を強化
+• 新規ユーザーはオンボーディング直後にマナ確認メッセージ（「⚡ +Xマナ獲得！」）を表示 — サイレントスタートを解消
+• 新デバイスで再サインインした魔法使いにウェルカムバックメッセージを表示し、残高を即座に復元
+• ボーナスとマナショップフローの競合状態を修正し、画面が閉じる前にクレジットが確実に反映されるように
 </ja-JP>
 
 <zh-CN>
-• 失败的法术现在始终退还法力并重新打开提示框 — 不丢失工作或积分
-• 所有法术任务统一使用20分钟超时，不再无限等待
-• 从生产构建中移除调试日志抑制，提升崩溃可见性
+• 新用户现在在引导完成后会看到法力确认消息（"⚡ +X 法力已获得！"）——不再默默开始
+• 在新设备上重新登录的魔法师会看到欢迎回来的消息，余额即时恢复
+• 修复了奖励和法力商店流程中的竞争条件，确保积分在界面关闭前到账
 </zh-CN>
 
 <ko-KR>
-• 실패한 스펠은 이제 항상 마나를 환불하고 프롬프트를 다시 열어줍니다
-• 모든 스펠 작업이 20분 타임아웃을 공유하여 무한 대기가 없습니다
-• 프로덕션 빌드에서 디버그 로그 억제 제거로 오류 가시성 향상
+• 새 사용자는 온보딩 직후 마나 확인 메시지("⚡ +X 마나 획득！")를 볼 수 있습니다 — 조용한 시작은 없습니다
+• 새 기기에서 돌아온 마법사는 환영 메시지와 함께 잔액이 즉시 복원됩니다
+• 보너스 및 마나 상점 플로우의 경쟁 조건 수정으로 화면이 닫히기 전에 크레딧이 반영됩니다
 </ko-KR>
 
 <ar>
-• التعويذات الفاشلة تسترد الآن دائمًا مانا وتُعيد فتح نافذة الإدخال — لا فقدان للعمل أو الرصيد
-• جميع مهام التعويذة لديها مهلة موحدة مدتها 20 دقيقة
-• تمت إزالة كتم سجلات التصحيح من بنيات الإنتاج
+• يرى المستخدمون الجدد الآن رسالة تأكيد المانا ("⚡ +X من المانا حصلت عليها!") مباشرة بعد الإعداد
+• يرى المعالجون العائدون على جهاز جديد رسالة ترحيب ويُستعاد رصيدهم فوراً
+• تم إصلاح حالة تسابق في تدفق المكافأة ومتجر المانا لضمان وصول الاعتمادات قبل إغلاق الشاشة
 </ar>
 
 <hi-IN>
-• विफल स्पेल अब हमेशा आपका मना वापस करते हैं और प्रॉम्प्ट फिर से खोलते हैं — कोई काम या क्रेडिट नहीं खोते
-• सभी स्पेल जॉब का टाइमआउट अब एक समान 20 मिनट है
-• प्रोडक्शन बिल्ड से डीबग लॉग सप्रेशन हटाया गया
+• नए उपयोगकर्ता अब ऑनबोर्डिंग के बाद मना पुष्टि ("⚡ +X माना प्राप्त हुई!") देखते हैं — कोई मूक शुरुआत नहीं
+• नए डिवाइस पर लौटने वाले जादूगरों को स्वागत संदेश दिखता है और बैलेंस तुरंत बहाल हो जाता है
+• बोनस और मना शॉप फ्लो में race condition ठीक की गई ताकि स्क्रीन बंद होने से पहले क्रेडिट मिल जाएं
 </hi-IN>
 
 <ru-RU>
-• Неудачные заклинания теперь всегда возвращают ману и снова открывают диалог
-• Все задания заклинаний имеют единый тайм-аут 20 минут
-• Удалено подавление отладочных логов из production-сборок
+• Новые пользователи теперь видят подтверждение маны ("⚡ +X маны получено!") сразу после онбординга
+• Вернувшиеся волшебники на новом устройстве видят приветственное сообщение и мгновенно получают восстановленный баланс
+• Исправлено состояние гонки в потоках бонуса и Магазина маны
 </ru-RU>
 
 <tr-TR>
-• Başarısız speller artık her zaman manayı iade eder ve istemi yeniden açar — iş veya kredi kaybı yok
-• Tüm spell işleri tutarlı bir 20 dakika zaman aşımına sahip
-• Hata ayıklama günlüğü bastırma üretim derlemelerinden kaldırıldı
+• Yeni kullanıcılar artık katılım sonrasında bir mana onayı ("⚡ +X Mana kazanıldı!") görüyor — sessiz başlangıç yok
+• Yeni cihazda geri dönen büyücüler bir hoş geldiniz mesajı görüyor ve bakiyeleri anında geri yükleniyor
+• Bonus ve Mana Mağazası akışlarındaki yarış koşulu düzeltildi
 </tr-TR>
 
 <nl-NL>
-• Mislukte spreuken restitueren altijd je mana en openen de prompt opnieuw — geen verloren werk of credits
-• Alle spreukjobs delen een uniform time-out van 20 minuten
-• Onderdrukking van debuglogs verwijderd uit productiebuilds
+• Nieuwe gebruikers zien nu een mana-bevestiging ("⚡ +X mana ontvangen!") direct na het onboarden — geen stille start meer
+• Terugkerende tovenaars op een nieuw appareil zien een welkomstbericht en hun saldo wordt direct hersteld
+• Race condition in bonus- en Mana Shop-stroom opgelost zodat credits aankomen voor het scherm sluit
 </nl-NL>
 
 <pl-PL>
-• Nieudane zaklęcia zawsze teraz zwracają manę i ponownie otwierają prompt — bez utraty pracy ani kredytów
-• Wszystkie zadania zaklęć mają jednolity limit czasu 20 minut
-• Usunięto tłumienie logów debugowania z buildów produkcyjnych
+• Nowi użytkownicy widzą teraz potwierdzenie many ("⚡ +X many zdobytych!") zaraz po onboardingu — koniec cichego startu
+• Powracający czarodzieje na nowym urządzeniu widzą wiadomość powitalną, a ich saldo jest przywracane natychmiast
+• Naprawiono race condition w przepływie bonusu i Sklepu Many
 </pl-PL>
 
 <vi>
-• Spell thất bại giờ luôn hoàn trả mana và mở lại prompt — không mất công việc hay credit
-• Tất cả job spell có timeout thống nhất 20 phút, không còn chờ vô hạn
-• Đã xóa việc ẩn log debug khỏi bản production
+• Người dùng mới giờ thấy xác nhận mana ("⚡ +X mana đã nhận được!") ngay sau khi onboarding — không còn khởi đầu im lặng
+• Phù thủy quay lại trên thiết bị mới thấy tin nhắn chào mừng và số dư được khôi phục ngay lập tức
+• Đã sửa race condition trong luồng bonus và Mana Shop để credit đến trước khi màn hình đóng
 </vi>
 
 <th>
-• สเปลที่ล้มเหลวจะคืนมานาและเปิด prompt ใหม่เสมอ — ไม่สูญเสียงานหรือเครดิต
-• งานสเปลทั้งหมดมี timeout ที่สอดคล้องกัน 20 นาที
-• ลบการระงับ debug log ออกจากบิลด์ production แล้ว
+• ผู้ใช้ใหม่จะเห็นข้อความยืนยันมานา ("⚡ +X มานาที่ได้รับ!") ทันทีหลัง onboarding — ไม่มีการเริ่มต้นแบบเงียบ
+• พ่อมดที่กลับมาบนอุปกรณ์ใหม่จะเห็นข้อความต้อนรับและยอดคงเหลือถูกกู้คืนทันที
+• แก้ไข race condition ในขั้นตอนโบนัสและ Mana Shop เพื่อให้เครดิตมาถึงก่อนหน้าจอปิด
 </th>

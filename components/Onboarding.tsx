@@ -152,6 +152,8 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
     const [selectedChip, setSelectedChip] = useState<number | null>(null);
     const [isSigningIn, setIsSigningIn] = useState(false);
     const [signInError, setSignInError] = useState<string | null>(null);
+    const [bonusReceived, setBonusReceived] = useState<number | null>(null);
+    const [welcomeBack, setWelcomeBack] = useState(false);
     const { isAnonymous, refreshUser } = useManaStore();
     const insets = useSafeAreaInsets();
     const slideAnim = useRef(new Animated.Value(0)).current;
@@ -163,6 +165,8 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
             setCurrentScreen(0);
             setShowPreview(false);
             setSelectedChip(null);
+            setBonusReceived(null);
+            setWelcomeBack(false);
             slideAnim.setValue(0);
         }
     }, [visible]);
@@ -219,7 +223,16 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
             const id = Platform.OS === 'android'
                 ? Application.getAndroidId()
                 : await Application.getIosIdForVendorAsync();
-            if (id) firebase.claimInstallBonus(id).catch(() => {});
+            if (id) {
+                const result = await firebase.claimInstallBonus(id).catch(() => null);
+                if (result?.granted && result.bonusAmount != null) {
+                    setBonusReceived(result.bonusAmount);
+                    await new Promise(r => setTimeout(r, 1600));
+                } else if (result?.granted === false) {
+                    setWelcomeBack(true);
+                    await new Promise(r => setTimeout(r, 1600));
+                }
+            }
             onComplete(null);
         } catch (e: any) {
             setSignInError(e.message || t('linkError'));
@@ -420,6 +433,28 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                                 </Text>
                             </View>
 
+                            {/* Free spells sign-in CTA — only for anonymous users */}
+                            {isAnonymous && (
+                                <TouchableOpacity
+                                    style={s.freeSpellsButton}
+                                    onPress={handleAlreadyHaveAccount}
+                                    disabled={isSigningIn}
+                                    accessibilityLabel={t('obGetFreeSpells')}
+                                    accessibilityRole="button"
+                                >
+                                    <Text style={s.freeSpellsIcon}>⚡</Text>
+                                    <Text style={s.freeSpellsText}>
+                                        {isSigningIn ? '...' : t('obGetFreeSpells')}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                            {bonusReceived !== null && (
+                                <Text style={s.bonusGrantedText}>{t('bonusGranted', { amount: bonusReceived })}</Text>
+                            )}
+                            {welcomeBack && (
+                                <Text style={s.welcomeBackText}>{t('welcomeBackBonus')}</Text>
+                            )}
+
                             {/* Dots */}
                             <View style={[s.dotsRow, { paddingVertical: 14 }]}>
                                 {[0, 1, 2].map(i => (
@@ -510,11 +545,43 @@ const s = StyleSheet.create({
         color: colors.onSurfaceVariant,
         fontSize: 15,
     },
+    freeSpellsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'center',
+        marginTop: 14,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.primaryContainer,
+        gap: 6,
+    },
+    freeSpellsIcon: {
+        fontSize: 15,
+    },
+    freeSpellsText: {
+        color: colors.primary,
+        fontSize: 14,
+        fontWeight: '600',
+    },
     signInErrorText: {
         color: colors.error,
         fontSize: 12,
         marginTop: 2,
         textAlign: 'right',
+    },
+    bonusGrantedText: {
+        color: colors.primary,
+        fontSize: 15,
+        fontWeight: '700',
+        textAlign: 'center',
+        marginTop: 8,
+    },
+    welcomeBackText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 14,
+        textAlign: 'center',
+        marginTop: 8,
     },
     screenContent: {
         flex: 1,
