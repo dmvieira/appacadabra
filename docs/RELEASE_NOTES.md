@@ -1,116 +1,135 @@
 ## Version Name
-Better Beginnings
+✨ Better Beginnings
 
 <en-US>
-• New users now see a mana confirmation ("⚡ +X mana gained!") right after onboarding — no more silent start
-• Returning wizards signing in on a new device see a welcome-back message and have their balance restored instantly
-• Fixed a race condition in the bonus and Mana Shop flows so credits always land before the screen closes
+• Bonus and welcome-back messages now appear as a bold overlay — visible no matter which onboarding screen you signed in from
+• ManaShop now shows a toast with your bonus/welcome-back message after Google sign-in
+• "Signed out" banner disappears instantly when you log in
+• Fixed the "Get Free Spells" button (purple background + white text — it was unreadable before)
 </en-US>
 
 <pt-BR>
-• Novos usuários agora veem uma confirmação de mana ("⚡ +X mana obtidas!") logo após o onboarding — sem início silencioso
-• Magos que retornam em um novo dispositivo veem uma mensagem de boas-vindas e têm o saldo restaurado instantaneamente
-• Corrigida uma condição de corrida no fluxo de bônus e da Loja de Mana para que os créditos cheguem antes da tela fechar
+• As mensagens de bónus e boas-vindas aparecem agora como overlay em destaque — visíveis em qualquer ecrã do onboarding
+• A Loja de Mana mostra um Toast com a mensagem de bónus após login com Google
+• O banner "sessão encerrada" desaparece imediatamente ao fazer login
+• Botão "Obter Feitiços Grátis" corrigido (fundo roxo + texto branco — antes estava ilegível)
 </pt-BR>
 
 <es-419>
-• Los nuevos usuarios ahora ven una confirmación de maná ("⚡ +X maná obtenidas!") justo después del onboarding
-• Los magos que regresan en un nuevo dispositivo ven un mensaje de bienvenida y su saldo se restaura al instante
-• Se corrigió una condición de carrera en los flujos de bonificación y Tienda de Maná
+• Los mensajes de bono y bienvenida ahora aparecen como overlay prominente — visibles desde cualquier pantalla de onboarding
+• La Tienda de Maná muestra un toast con tu mensaje de bono tras iniciar sesión con Google
+• El banner "sesión cerrada" desaparece al instante cuando inicias sesión
+• Botón "Obtener Hechizos Gratis" corregido (fondo morado + texto blanco — antes era ilegible)
 </es-419>
 
 <es-ES>
-• Los nuevos usuarios ven ahora una confirmación de maná tras el onboarding — sin inicio silencioso
-• Los magos que regresan en un dispositivo nuevo ven su bienvenida y saldo restaurado al instante
-• Corregida una condición de carrera en el flujo de bonificación y la Tienda de Maná
+• Los mensajes de bono y bienvenida aparecen ahora como overlay destacado — visibles en cualquier pantalla de registro
+• La Tienda de Maná muestra un aviso con tu mensaje de bono al iniciar sesión con Google
+• El banner de "sesión cerrada" desaparece en cuanto inicias sesión
+• Botón "Obtener Hechizos Gratis" corregido (fondo morado + texto blanco — antes ilegible)
 </es-ES>
 
 <fr-FR>
-• Les nouveaux utilisateurs voient désormais une confirmation de mana ("⚡ +X mana obtenu !") juste après l'intégration
-• Les magiciens de retour sur un nouvel appareil voient un message de bienvenue et leur solde restauré instantanément
-• Correction d'une condition de course dans les flux de bonus et de la Boutique de Mana
+• Les messages de bonus et de bienvenue apparaissent désormais en overlay mis en avant — visibles depuis n'importe quel écran d'intégration
+• La Boutique de Mana affiche un toast avec votre message de bonus après la connexion Google
+• La bannière "déconnecté" disparaît instantanément à la connexion
+• Bouton "Obtenir des Sorts Gratuits" corrigé (fond violet + texte blanc — illisible auparavant)
 </fr-FR>
 
 <fr-CA>
-• Les nouveaux utilisateurs voient maintenant une confirmation de mana après l'intégration — sans démarrage silencieux
-• Les magiciens de retour sur un nouvel appareil ont leur solde restauré instantanément avec un message de bienvenue
-• Correction d'une situation de compétition dans les flux de bonus et de la Boutique de Mana
+• Les messages de bonus et bienvenue s'affichent maintenant en overlay proéminent — visibles depuis n'importe quel écran
+• La Boutique de Mana affiche un toast avec votre message de bonus après la connexion Google
+• La bannière "déconnecté" disparaît immédiatement à la connexion
+• Bouton "Obtenir des Sorts Gratuits" corrigé (fond violet + texte blanc — était illisible)
 </fr-CA>
 
 <de-DE>
-• Neue Nutzer sehen nach dem Onboarding jetzt eine Mana-Bestätigung ("⚡ +X Mana erhalten!") — kein stiller Start mehr
-• Zurückkehrende Zauberer auf neuem Gerät sehen eine Willkommensnachricht und ihr Guthaben wird sofort wiederhergestellt
-• Race Condition im Bonus- und Mana-Shop-Fluss behoben
+• Bonus- und Willkommensnachrichten erscheinen jetzt als auffälliges Overlay — sichtbar auf jedem Onboarding-Bildschirm
+• Der Mana-Shop zeigt nach der Google-Anmeldung einen Toast mit deiner Bonus-/Willkommensnachricht
+• Das "Abgemeldet"-Banner verschwindet sofort beim Login
+• Schaltfläche "Kostenlose Zauber holen" repariert (violetter Hintergrund + weißer Text — vorher unleserlich)
 </de-DE>
 
 <it-IT>
-• I nuovi utenti vedono ora una conferma mana ("⚡ +X mana ottenuti!") subito dopo l'onboarding — niente inizio silenzioso
-• I maghi di ritorno su un nuovo dispositivo vedono un messaggio di benvenuto e il saldo viene ripristinato istantaneamente
-• Corretta una race condition nel flusso di bonus e nel Negozio di Mana
+• I messaggi di bonus e benvenuto appaiono ora come overlay prominente — visibili da qualsiasi schermata di onboarding
+• Il Negozio di Mana mostra un toast con il tuo messaggio di bonus dopo l'accesso con Google
+• Il banner "disconnesso" sparisce immediatamente al login
+• Pulsante "Ottieni Incantesimi Gratis" corretto (sfondo viola + testo bianco — prima era illeggibile)
 </it-IT>
 
 <ja-JP>
-• 新規ユーザーはオンボーディング直後にマナ確認メッセージ（「⚡ +Xマナ獲得！」）を表示 — サイレントスタートを解消
-• 新デバイスで再サインインした魔法使いにウェルカムバックメッセージを表示し、残高を即座に復元
-• ボーナスとマナショップフローの競合状態を修正し、画面が閉じる前にクレジットが確実に反映されるように
+• ボーナスとウェルカムバックのメッセージが目立つオーバーレイとして表示されるように — どのオンボーディング画面からサインインしても確認可能
+• マナショップでGoogleサインイン後にボーナス/ウェルカムメッセージのトーストを表示
+• ログイン時に「サインアウト」バナーが即座に消えるように修正
+• 「無料スペルを取得」ボタンを修正（紫の背景+白テキスト — 以前は読めなかった）
 </ja-JP>
 
 <zh-CN>
-• 新用户现在在引导完成后会看到法力确认消息（"⚡ +X 法力已获得！"）——不再默默开始
-• 在新设备上重新登录的魔法师会看到欢迎回来的消息，余额即时恢复
-• 修复了奖励和法力商店流程中的竞争条件，确保积分在界面关闭前到账
+• 奖励和欢迎回来的消息现在以突出的浮层显示——无论从哪个引导页面登录均可看到
+• 法力商店在 Google 登录后显示包含奖励/欢迎消息的 Toast 提示
+• 登录时"已登出"横幅立即消失
+• 修复"获取免费咒语"按钮（紫色背景+白色文字——之前无法辨识）
 </zh-CN>
 
 <ko-KR>
-• 새 사용자는 온보딩 직후 마나 확인 메시지("⚡ +X 마나 획득！")를 볼 수 있습니다 — 조용한 시작은 없습니다
-• 새 기기에서 돌아온 마법사는 환영 메시지와 함께 잔액이 즉시 복원됩니다
-• 보너스 및 마나 상점 플로우의 경쟁 조건 수정으로 화면이 닫히기 전에 크레딧이 반영됩니다
+• 보너스 및 환영 메시지가 이제 눈에 띄는 오버레이로 표시됩니다 — 어느 온보딩 화면에서 로그인해도 확인 가능
+• ManaShop이 Google 로그인 후 보너스/환영 메시지 토스트를 표시합니다
+• 로그인 시 "로그아웃됨" 배너가 즉시 사라집니다
+• "무료 주문 받기" 버튼 수정 (보라색 배경 + 흰색 텍스트 — 이전에는 읽기 불가)
 </ko-KR>
 
 <ar>
-• يرى المستخدمون الجدد الآن رسالة تأكيد المانا ("⚡ +X من المانا حصلت عليها!") مباشرة بعد الإعداد
-• يرى المعالجون العائدون على جهاز جديد رسالة ترحيب ويُستعاد رصيدهم فوراً
-• تم إصلاح حالة تسابق في تدفق المكافأة ومتجر المانا لضمان وصول الاعتمادات قبل إغلاق الشاشة
+• رسائل المكافأة والترحيب تظهر الآن كطبقة بارزة — مرئية بغض النظر عن شاشة الإعداد التي سجّلت الدخول منها
+• متجر المانا يعرض الآن إشعاراً بالمكافأة/الترحيب بعد تسجيل الدخول بـ Google
+• لافتة "تم تسجيل الخروج" تختفي فوراً عند تسجيل الدخول
+• تم إصلاح زر "احصل على تعويذات مجانية" (خلفية بنفسجية + نص أبيض — كان غير مقروء)
 </ar>
 
 <hi-IN>
-• नए उपयोगकर्ता अब ऑनबोर्डिंग के बाद मना पुष्टि ("⚡ +X माना प्राप्त हुई!") देखते हैं — कोई मूक शुरुआत नहीं
-• नए डिवाइस पर लौटने वाले जादूगरों को स्वागत संदेश दिखता है और बैलेंस तुरंत बहाल हो जाता है
-• बोनस और मना शॉप फ्लो में race condition ठीक की गई ताकि स्क्रीन बंद होने से पहले क्रेडिट मिल जाएं
+• बोनस और वेलकम-बैक संदेश अब प्रमुख ओवरले के रूप में दिखते हैं — किसी भी ऑनबोर्डिंग स्क्रीन से साइन इन करने पर दिखाई देते हैं
+• ManaShop अब Google साइन-इन के बाद बोनस/वेलकम संदेश के साथ Toast दिखाता है
+• लॉगिन करते ही "साइन आउट" बैनर तुरंत गायब हो जाता है
+• "मुफ़्त स्पेल पाएं" बटन ठीक किया (बैंगनी पृष्ठभूमि + सफेद टेक्स्ट — पहले अपठनीय था)
 </hi-IN>
 
 <ru-RU>
-• Новые пользователи теперь видят подтверждение маны ("⚡ +X маны получено!") сразу после онбординга
-• Вернувшиеся волшебники на новом устройстве видят приветственное сообщение и мгновенно получают восстановленный баланс
-• Исправлено состояние гонки в потоках бонуса и Магазина маны
+• Сообщения о бонусе и возвращении теперь отображаются как заметный оверлей — видны с любого экрана онбординга
+• Мана-магазин показывает тост с бонусным/приветственным сообщением после входа через Google
+• Баннер «вы вышли из системы» мгновенно исчезает при входе
+• Исправлена кнопка «Получить бесплатные заклинания» (фиолетовый фон + белый текст — ранее была нечитаемой)
 </ru-RU>
 
 <tr-TR>
-• Yeni kullanıcılar artık katılım sonrasında bir mana onayı ("⚡ +X Mana kazanıldı!") görüyor — sessiz başlangıç yok
-• Yeni cihazda geri dönen büyücüler bir hoş geldiniz mesajı görüyor ve bakiyeleri anında geri yükleniyor
-• Bonus ve Mana Mağazası akışlarındaki yarış koşulu düzeltildi
+• Bonus ve hoş geldiniz mesajları artık belirgin bir overlay olarak görünüyor — hangi onboarding ekranından giriş yaptığınızdan bağımsız
+• ManaShop, Google girişinin ardından bonus/hoş geldiniz mesajını toast ile gösteriyor
+• Oturum açtığınızda "oturum kapandı" afişi anında kayboluyor
+• "Ücretsiz Büyü Al" düğmesi düzeltildi (mor arka plan + beyaz metin — önceden okunamıyordu)
 </tr-TR>
 
 <nl-NL>
-• Nieuwe gebruikers zien nu een mana-bevestiging ("⚡ +X mana ontvangen!") direct na het onboarden — geen stille start meer
-• Terugkerende tovenaars op een nieuw appareil zien een welkomstbericht en hun saldo wordt direct hersteld
-• Race condition in bonus- en Mana Shop-stroom opgelost zodat credits aankomen voor het scherm sluit
+• Bonus- en welkomstberichten verschijnen nu als opvallende overlay — zichtbaar ongeacht welk onboarding-scherm je gebruikte
+• ManaShop toont nu een toast met je bonus-/welkomstbericht na Google-aanmelding
+• De "afgemeld"-banner verdwijnt direct bij inloggen
+• Knop "Gratis spreuken halen" gerepareerd (paarse achtergrond + witte tekst — was eerder onleesbaar)
 </nl-NL>
 
 <pl-PL>
-• Nowi użytkownicy widzą teraz potwierdzenie many ("⚡ +X many zdobytych!") zaraz po onboardingu — koniec cichego startu
-• Powracający czarodzieje na nowym urządzeniu widzą wiadomość powitalną, a ich saldo jest przywracane natychmiast
-• Naprawiono race condition w przepływie bonusu i Sklepu Many
+• Wiadomości o bonusie i powrocie wyświetlają się teraz jako wyraźna nakładka — widoczna niezależnie od ekranu onboardingu
+• ManaShop wyświetla teraz toast z wiadomością o bonusie/powitaniu po logowaniu przez Google
+• Baner "wylogowano" znika natychmiast po zalogowaniu
+• Poprawiono przycisk "Zdobądź darmowe zaklęcia" (fioletowe tło + biały tekst — wcześniej nieczytelny)
 </pl-PL>
 
 <vi>
-• Người dùng mới giờ thấy xác nhận mana ("⚡ +X mana đã nhận được!") ngay sau khi onboarding — không còn khởi đầu im lặng
-• Phù thủy quay lại trên thiết bị mới thấy tin nhắn chào mừng và số dư được khôi phục ngay lập tức
-• Đã sửa race condition trong luồng bonus và Mana Shop để credit đến trước khi màn hình đóng
+• Thông báo thưởng và chào mừng trở lại giờ xuất hiện dưới dạng overlay nổi bật — hiển thị dù bạn đăng nhập từ màn hình onboarding nào
+• ManaShop hiển thị toast với thông báo thưởng/chào mừng sau khi đăng nhập Google
+• Banner "đã đăng xuất" biến mất ngay khi bạn đăng nhập
+• Đã sửa nút "Nhận Phép Thuật Miễn Phí" (nền tím + chữ trắng — trước đây không đọc được)
 </vi>
 
 <th>
-• ผู้ใช้ใหม่จะเห็นข้อความยืนยันมานา ("⚡ +X มานาที่ได้รับ!") ทันทีหลัง onboarding — ไม่มีการเริ่มต้นแบบเงียบ
-• พ่อมดที่กลับมาบนอุปกรณ์ใหม่จะเห็นข้อความต้อนรับและยอดคงเหลือถูกกู้คืนทันที
-• แก้ไข race condition ในขั้นตอนโบนัสและ Mana Shop เพื่อให้เครดิตมาถึงก่อนหน้าจอปิด
+• ข้อความโบนัสและยินดีต้อนรับกลับปรากฏเป็น overlay ที่เด่นชัด — มองเห็นได้ไม่ว่าจะลงชื่อเข้าใช้จากหน้า onboarding ใด
+• ManaShop แสดง toast พร้อมข้อความโบนัส/ยินดีต้อนรับหลังลงชื่อเข้าใช้ Google
+• แบนเนอร์ "ออกจากระบบแล้ว" หายไปทันทีเมื่อคุณลงชื่อเข้าใช้
+• แก้ไขปุ่ม "รับ Spell ฟรี" (พื้นหลังสีม่วง + ตัวอักษรสีขาว — ก่อนหน้านี้อ่านไม่ออก)
 </th>
