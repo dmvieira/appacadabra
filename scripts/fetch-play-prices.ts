@@ -77,16 +77,49 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
     return resp.access_token;
 }
 
+function moneyToString(money: any): string {
+    if (!money) return 'N/A';
+    const units = parseInt(money.units || '0', 10);
+    const nanos = money.nanos || 0;
+    const amount = units + nanos / 1_000_000_000;
+    return `${money.currencyCode} ${amount.toFixed(2)}`;
+}
+
 async function fetchInAppProducts(accessToken: string): Promise<any[]> {
+    // Try new oneTimeProducts API first
+    const newUrl = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/oneTimeProducts`;
+    const newResp = await httpsGet(newUrl, accessToken);
+    if (!newResp.error) {
+        return (newResp.oneTimeProducts || []).map((p: any) => {
+            const countryPrices: Record<string, string> = {};
+            for (const opt of p.purchaseOptions || []) {
+                for (const cfg of opt.regionalPricingAndAvailabilityConfigs || []) {
+                    if (cfg.price) countryPrices[cfg.regionCode] = moneyToString(cfg.price);
+                }
+            }
+            return { sku: p.productId, countryPrices };
+        });
+    }
+
+    // Fall back to legacy inappproducts endpoint
     const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/inappproducts`;
     const resp = await httpsGet(url, accessToken);
     if (resp.error) throw new Error(`API error: ${JSON.stringify(resp.error)}`);
-    return resp.inappproduct || [];
+    return (resp.inappproduct || []).map((p: any) => {
+        const countryPrices: Record<string, string> = {};
+        for (const [country, price] of Object.entries(p.prices || {})) {
+            const { priceMicros, currency } = price as any;
+            countryPrices[country] = formatPrice(priceMicros, currency);
+        }
+        const defaultPrice = p.defaultPrice ? formatPrice(p.defaultPrice.priceMicros, p.defaultPrice.currency) : null;
+        if (defaultPrice && !countryPrices['US']) countryPrices['US'] = defaultPrice;
+        return { sku: p.sku, countryPrices };
+    });
 }
 
 function printTable(products: any[]): void {
-    const cols = ['Product', 'Default', ...PRIORITY_COUNTRIES, 'Others'];
-    const colWidths = [12, 12, ...PRIORITY_COUNTRIES.map(() => 14), 8];
+    const cols = ['Product', ...PRIORITY_COUNTRIES, 'Others'];
+    const colWidths = [12, ...PRIORITY_COUNTRIES.map(() => 14), 8];
 
     const pad = (s: string, w: number) => s.padEnd(w);
     const header = cols.map((c, i) => pad(c, colWidths[i])).join('  ');
@@ -96,23 +129,13 @@ function printTable(products: any[]): void {
     console.log(divider);
 
     for (const p of products) {
-        const defaultPrice = p.defaultPrice
-            ? formatPrice(p.defaultPrice.priceMicros, p.defaultPrice.currency)
-            : 'N/A';
-
-        const countryPrices: Record<string, string> = {};
-        for (const [country, price] of Object.entries(p.prices || {})) {
-            const { priceMicros, currency } = price as any;
-            countryPrices[country] = formatPrice(priceMicros, currency);
-        }
-
+        const { countryPrices } = p;
         const totalCountries = Object.keys(countryPrices).length;
         const shownCount = PRIORITY_COUNTRIES.filter(c => countryPrices[c]).length;
         const otherCount = totalCountries - shownCount;
 
         const row = [
             p.sku,
-            defaultPrice,
             ...PRIORITY_COUNTRIES.map(c => countryPrices[c] || '—'),
             otherCount > 0 ? `+${otherCount}` : '—',
         ];

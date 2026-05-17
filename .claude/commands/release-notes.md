@@ -35,7 +35,7 @@ Based on the git log since last tag, produce user-facing release notes.
 - Max 500 characters per locale (Play Store limit)
 - 3–5 bullet points per locale
 
-**Version Name:** a short, descriptive human-readable name for this release (e.g. "Health & Fitness Integration", "Spell Fixes & AI Improvements").
+**Version Name:** a short, descriptive human-readable name for this release, prefixed with a single emoji that reflects the main theme (e.g. "🏃 Health & Fitness Integration", "✨ Spell Fixes & AI Improvements", "🎙️ Voice & Audio Update", "📷 Camera & Vision Features"). Choose the emoji based on the dominant feature in this release — one emoji only, at the start.
 
 **Output format** — write exactly this structure to `docs/RELEASE_NOTES.md` (overwrite; git history preserves past releases):
 

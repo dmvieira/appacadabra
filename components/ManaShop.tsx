@@ -14,8 +14,9 @@ import { logManaEarned, logShopOpened, logAdStarted, logAdPaidTimeout, logAdLoad
 const REWARDED_AD_UNIT_ID = 'ca-app-pub-2256826632523784/9261189872';
 
 
-// Conversion rate: 1 mana = $0.27 USD (based on mana_10 gross price of $2.69, net after fees)
-// Formula: mana = revenueUSD / 0.27
+// Ad exchange rate: minimum ad revenue required to award 1 mana.
+// $0.27 is a conservative floor — NOT the IAP net-per-mana (mana_10 gross $2.69 → $1.883 net → $0.1883/mana).
+// Formula: mana = adRevenueUSD / 0.27 (capped at MAX_MANA_REWARD)
 const MANA_COST_USD = 0.27;
 
 // Maximum mana reward cap (to prevent exploits)
