@@ -11,11 +11,36 @@ export const contactsCapability: CapabilityModule = {
         'android.permission.WRITE_CONTACTS',
     ],
 
-    docs: `📇 CONTACTS (AppacadabraContacts): prefer search/update
+    docs: `📇 CONTACTS (AppacadabraContacts)
 - \`search(query, callback)\` - Search contacts by name, phone, email, or company
-    - **data** is an Array: \`[{id, name, firstName, lastName, phoneNumbers: [{number, label}], emails: [{email, label}], company, jobTitle, ...}]\`
+    - callback receives \`(success, results)\` where **results is an Array of 0–50 contacts**
+    - ⚠️ ALWAYS display ALL results as a clickable/selectable list — the user must pick one
+    - ⚠️ NEVER use \`result[0]\` directly — multiple contacts may match and the user must confirm
+    - Correct pattern:
+      \`\`\`javascript
+      var _contacts = [];
+      AppacadabraContacts.search(query, 'onSearch');
+      window.onSearch = function(ok, results) {
+        if (!ok) return;
+        _contacts = results;
+        listEl.innerHTML = results.length
+          ? results.map(function(c, i) {
+              var name = c.name || c.firstName || 'No name';
+              var phone = c.phoneNumbers && c.phoneNumbers[0] ? c.phoneNumbers[0].number : '';
+              return '<div class="contact-item" onclick="pickContact(' + i + ')">'
+                + '<div class="contact-name">' + name + '</div>'
+                + '<div class="contact-phone">' + phone + '</div>'
+                + '</div>';
+            }).join('')
+          : '<div>No contacts found</div>';
+      };
+      function pickContact(i) {
+        var c = _contacts[i]; // use c.id, c.name, c.phoneNumbers, etc.
+      }
+      \`\`\`
 - \`update(contactObj, callback)\` - Opens native edit form with pre-filled data
     - **Return**: Contact ID (string) or "Contact form presented"
+    - Requires \`id\` field (obtained from search result)
 - \`add(contactObj, callback)\` - Opens native add form with pre-filled data
     - **Return**: "Contact form presented"
 
