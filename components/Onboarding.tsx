@@ -235,7 +235,11 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
             }
             onComplete(null);
         } catch (e: any) {
-            setSignInError(e.message || t('linkError'));
+            let msg = e.message || t('linkError');
+            if (msg === 'INTERNAL_ERROR' || msg.includes('DEVELOPER_ERROR') || msg.includes('internal')) {
+                msg = t('linkError');
+            }
+            setSignInError(msg);
         } finally {
             setIsSigningIn(false);
         }
@@ -278,14 +282,14 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                         isAnonymous ? (
                             <View style={s.topActions}>
                                 <TouchableOpacity
-                                    style={s.skipButton}
+                                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginTop: 12, alignSelf: 'flex-end' }}
                                     onPress={handleAlreadyHaveAccount}
                                     disabled={isSigningIn}
-                                    accessibilityLabel={t('obAlreadyHaveAccount')}
+                                    accessibilityLabel={t('obGetFreeSpells')}
                                     accessibilityRole="button"
                                 >
-                                    <Text style={[s.skipText, s.alreadyHaveAccountText]}>
-                                        {isSigningIn ? '...' : t('obAlreadyHaveAccount')}
+                                    <Text style={{ color: colors.onPrimary, fontSize: 13, fontWeight: '700' }}>
+                                        {isSigningIn ? '...' : `⚡ ${t('obGetFreeSpells')}`}
                                     </Text>
                                 </TouchableOpacity>
                                 {signInError && (
@@ -433,23 +437,8 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                                 </Text>
                             </View>
 
-                            {/* Free spells sign-in CTA — only for anonymous users */}
-                            {isAnonymous && (
-                                <TouchableOpacity
-                                    style={s.freeSpellsButton}
-                                    onPress={handleAlreadyHaveAccount}
-                                    disabled={isSigningIn}
-                                    accessibilityLabel={t('obGetFreeSpells')}
-                                    accessibilityRole="button"
-                                >
-                                    <Text style={s.freeSpellsIcon}>⚡</Text>
-                                    <Text style={s.freeSpellsText}>
-                                        {isSigningIn ? '...' : t('obGetFreeSpells')}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
                             {/* Dots */}
-                            <View style={[s.dotsRow, { paddingVertical: 14 }]}>
+                            <View style={[s.dotsRow, { paddingVertical: 14, marginTop: 'auto' }]}>
                                 {[0, 1, 2].map(i => (
                                     <View key={i} style={[s.dot, i === 2 && s.dotActive]} />
                                 ))}
@@ -459,13 +448,15 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                 </Animated.View>
 
                 {(bonusReceived !== null || welcomeBack) && (
-                    <View style={s.bonusOverlay}>
-                        <Text style={s.bonusOverlayEmoji}>{bonusReceived !== null ? '🎉' : '👋'}</Text>
-                        <Text style={s.bonusOverlayTitle}>
-                            {bonusReceived !== null
-                                ? t('bonusGranted', { amount: bonusReceived })
-                                : t('welcomeBackBonus')}
-                        </Text>
+                    <View style={s.bonusContainer}>
+                        <View style={s.bonusOverlay}>
+                            <Text style={s.bonusOverlayEmoji}>{bonusReceived !== null ? '🎉' : '👋'}</Text>
+                            <Text style={s.bonusOverlayTitle}>
+                                {bonusReceived !== null
+                                    ? t('bonusGranted', { amount: bonusReceived })
+                                    : t('welcomeBackBonus')}
+                            </Text>
+                        </View>
                     </View>
                 )}
 
@@ -537,10 +528,7 @@ const s = StyleSheet.create({
         alignSelf: 'flex-end',
         alignItems: 'flex-end',
     },
-    alreadyHaveAccountText: {
-        color: colors.primary,
-        fontWeight: '600',
-    },
+
     alreadyHaveAccountFooter: {
         marginTop: 14,
         alignSelf: 'center',
@@ -549,43 +537,35 @@ const s = StyleSheet.create({
         color: colors.onSurfaceVariant,
         fontSize: 15,
     },
-    freeSpellsButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'center',
-        marginTop: 14,
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: borderRadius.md,
-        backgroundColor: colors.primary,
-        gap: 6,
-    },
-    freeSpellsIcon: {
-        fontSize: 15,
-    },
-    freeSpellsText: {
-        color: colors.onPrimary,
-        fontSize: 14,
-        fontWeight: '600',
-    },
+
     signInErrorText: {
         color: colors.error,
         fontSize: 12,
         marginTop: 2,
         textAlign: 'right',
     },
+    bonusContainer: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.55)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        zIndex: 10,
+    },
     bonusOverlay: {
-        position: 'absolute',
-        bottom: 90,
-        left: 16,
-        right: 16,
+        width: '100%',
         backgroundColor: colors.surfaceVariant,
         borderRadius: 16,
-        paddingVertical: 20,
+        paddingVertical: 28,
         paddingHorizontal: 16,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: colors.primary + '40',
+        borderColor: colors.primary + '60',
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
     },
     bonusOverlayEmoji: {
         fontSize: 40,
