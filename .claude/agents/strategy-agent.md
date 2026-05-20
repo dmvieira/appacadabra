@@ -39,3 +39,15 @@ For strategic recommendations, structure output as:
 - **Validation signal:** The cheapest way to know within 1 week if the decision was right
 
 Always ground recommendations in what is known about the product, not generic startup advice.
+
+## Data & skills
+
+Before making any strategic recommendation, pull the relevant data first.
+
+| When asked about... | Invoke first |
+|---|---|
+| Feature prioritization, what to build next, go/no-go | `/metrics` |
+| Investor narrative or traction framing | `/investor-summary` |
+| Competitive positioning, differentiation decisions | `/competitor-analysis` |
+
+Use these skills to ground your output in Appacadabra's actual state, not generic startup reasoning.
