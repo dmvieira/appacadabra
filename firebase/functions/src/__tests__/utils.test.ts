@@ -11,6 +11,7 @@ import {
     withRetry,
     Patch,
 } from '../utils';
+import { MODELS } from '../config';
 
 // ============= applyPatches =============
 
@@ -181,49 +182,49 @@ describe('calculateCostUsd', () => {
     });
 
     it('calculates standard input + output cost', () => {
-        // gemini-2.5-flash: 0.30/M input, 2.50/M output
-        const cost = calculateCostUsd('gemini-2.5-flash', {
+        // google/gemini-3.1-flash-lite: 0.10/M input, 0.40/M output
+        const cost = calculateCostUsd(MODELS.WEBVIEW, {
             promptTokens: 1_000_000,
             responseTokens: 1_000_000,
         });
-        expect(cost).toBeCloseTo(0.30 + 2.50, 5);
+        expect(cost).toBeCloseTo(0.10 + 0.40, 5);
     });
 
     it('charges thinking tokens at output price', () => {
-        const cost = calculateCostUsd('gemini-2.5-flash', {
+        const cost = calculateCostUsd(MODELS.WEBVIEW, {
             promptTokens: 0,
             responseTokens: 0,
             thoughtsTokens: 1_000_000,
         });
-        expect(cost).toBeCloseTo(2.50, 5);
+        expect(cost).toBeCloseTo(0.40, 5);
     });
 
     it('charges cached tokens at 25% of input price', () => {
-        // 1M cached tokens, 0 non-cached → 1 * 0.30 * 0.25 = 0.075
-        const cost = calculateCostUsd('gemini-2.5-flash', {
+        // 1M cached tokens, 0 non-cached → 1 * 0.10 * 0.25 = 0.025
+        const cost = calculateCostUsd(MODELS.WEBVIEW, {
             promptTokens: 1_000_000,
             responseTokens: 0,
             cachedTokens: 1_000_000,
         });
-        expect(cost).toBeCloseTo(0.075, 5);
+        expect(cost).toBeCloseTo(0.025, 5);
     });
 
     it('includes audio input cost', () => {
-        // gemini-2.5-flash audioInputPerMToken=1.00
-        const cost = calculateCostUsd('gemini-2.5-flash', {
+        // google/gemini-3.1-flash-lite audioInputPerMToken=0.30
+        const cost = calculateCostUsd(MODELS.WEBVIEW, {
             promptTokens: 0,
             responseTokens: 0,
         }, { audioTokens: 1_000_000 });
-        expect(cost).toBeCloseTo(1.00, 5);
+        expect(cost).toBeCloseTo(0.30, 5);
     });
 
     it('includes search query cost', () => {
-        // gemini-2.5-flash searchPerQuery=0.035
-        const cost = calculateCostUsd('gemini-2.5-flash', {
+        // google/gemini-3.1-flash-lite searchPerQuery=0.014
+        const cost = calculateCostUsd(MODELS.WEBVIEW, {
             promptTokens: 0,
             responseTokens: 0,
         }, { searchQueries: 10 });
-        expect(cost).toBeCloseTo(0.35, 5);
+        expect(cost).toBeCloseTo(0.14, 5);
     });
 });
 
@@ -445,6 +446,7 @@ describe('getUsage', () => {
             responseTokens: 200,
             thoughtsTokens: 0,
             totalTokens: 300,
+            webSearchRequests: 0,
         });
     });
 
@@ -483,6 +485,7 @@ describe('getUsage', () => {
             responseTokens: 300,
             thoughtsTokens: 0,
             totalTokens: 800,
+            webSearchRequests: 0,
         });
     });
 
@@ -508,7 +511,27 @@ describe('getUsage', () => {
             responseTokens: 0,
             thoughtsTokens: 0,
             totalTokens: 0,
+            webSearchRequests: 0,
         });
+    });
+
+    it('extracts web_search_requests from server_tool_use', () => {
+        const result = {
+            usage: {
+                prompt_tokens: 100,
+                completion_tokens: 50,
+                total_tokens: 150,
+                server_tool_use: { web_search_requests: 3 },
+            },
+        };
+        expect(getUsage(result).webSearchRequests).toBe(3);
+    });
+
+    it('defaults webSearchRequests to 0 when server_tool_use absent', () => {
+        const result = {
+            usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+        };
+        expect(getUsage(result).webSearchRequests).toBe(0);
     });
 });
 
@@ -517,35 +540,35 @@ describe('getUsage', () => {
 describe('calculateCostUsd — OpenRouter models', () => {
     const usage = { promptTokens: 1_000_000, responseTokens: 1_000_000 };
 
-    it('calculates non-zero cost for google/gemini-3.1-flash-lite-preview (WEBVIEW)', () => {
-        const cost = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage);
+    it('calculates non-zero cost for google/gemini-3.1-flash-lite (WEBVIEW)', () => {
+        const cost = calculateCostUsd(MODELS.WEBVIEW, usage);
         expect(cost).toBeGreaterThan(0);
     });
 
     it('calculates non-zero cost for deepseek/deepseek-v4-flash (SPELL_S)', () => {
-        const cost = calculateCostUsd('deepseek/deepseek-v4-flash', usage);
+        const cost = calculateCostUsd(MODELS.SPELL_S, usage);
         expect(cost).toBeGreaterThan(0);
     });
 
     it('calculates non-zero cost for deepseek/deepseek-v4-flash:free (SUGGEST)', () => {
-        const cost = calculateCostUsd('deepseek/deepseek-v4-flash:free', usage);
+        const cost = calculateCostUsd(MODELS.SUGGEST, usage);
         expect(cost).toBeGreaterThan(0);
     });
 
-    it('includes searchPerQuery cost for google/gemini-3.1-flash-lite-preview (WEBVIEW)', () => {
-        const withSearch = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage, { searchQueries: 1 });
-        const withoutSearch = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage, { searchQueries: 0 });
+    it('includes searchPerQuery cost for google/gemini-3.1-flash-lite (WEBVIEW)', () => {
+        const withSearch = calculateCostUsd(MODELS.WEBVIEW, usage, { searchQueries: 1 });
+        const withoutSearch = calculateCostUsd(MODELS.WEBVIEW, usage, { searchQueries: 0 });
         expect(withSearch).toBeGreaterThan(withoutSearch);
     });
 
-    it('calculates non-zero cost for google/gemini-3.1-flash-lite-preview (WEBVIEW)', () => {
-        const cost = calculateCostUsd('google/gemini-3.1-flash-lite-preview', usage);
+    it('calculates non-zero cost for google/gemini-3.1-flash-lite (WEBVIEW)', () => {
+        const cost = calculateCostUsd(MODELS.WEBVIEW, usage);
         expect(cost).toBeGreaterThan(0);
     });
 
     it('includes audioInputPerMToken cost for WEBVIEW model', () => {
         const withAudio = calculateCostUsd(
-            'google/gemini-3.1-flash-lite-preview',
+            MODELS.WEBVIEW,
             { promptTokens: 0, responseTokens: 0 },
             { audioTokens: 1_000_000 },
         );

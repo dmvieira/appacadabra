@@ -11,7 +11,6 @@ import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData 
 import { getStorage } from "firebase-admin/storage";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
-import { GoogleGenAI, VideoGenerationReferenceType } from "@google/genai";
 import OpenAI from 'openai';
 
 import * as zlib from 'zlib';
@@ -41,11 +40,6 @@ const db = getFirestore();
 // Constants
 const DEFAULT_TIMEOUT_MS = 480000;
 
-// Initialize Gemini AI (API key from environment)
-const API_KEY = process.env.GEMINI_API_KEY || "";
-let _ai: GoogleGenAI | null = null;
-function getAI(): GoogleGenAI { return _ai ?? (_ai = new GoogleGenAI({ apiKey: API_KEY, httpOptions: { timeout: DEFAULT_TIMEOUT_MS } })); }
-
 // Initialize OpenRouter client (OpenAI-compatible)
 const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
 let _or: OpenAI | null = null;
@@ -71,26 +65,6 @@ function compressContent(text: string): string {
     }
 }
 
-function pcmToWav(pcmData: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16): Buffer {
-    const byteRate = sampleRate * channels * bitsPerSample / 8;
-    const blockAlign = channels * bitsPerSample / 8;
-    const dataSize = pcmData.length;
-    const header = Buffer.alloc(44);
-    header.write('RIFF', 0);
-    header.writeUInt32LE(36 + dataSize, 4);
-    header.write('WAVE', 8);
-    header.write('fmt ', 12);
-    header.writeUInt32LE(16, 16);
-    header.writeUInt16LE(1, 20);        // AudioFormat: PCM
-    header.writeUInt16LE(channels, 22);
-    header.writeUInt32LE(sampleRate, 24);
-    header.writeUInt32LE(byteRate, 28);
-    header.writeUInt16LE(blockAlign, 32);
-    header.writeUInt16LE(bitsPerSample, 34);
-    header.write('data', 36);
-    header.writeUInt32LE(dataSize, 40);
-    return Buffer.concat([header, pcmData]);
-}
 
 function decompressContent(input: string): string {
     if (!input) return '';
@@ -377,7 +351,7 @@ export const suggestSpells = onCall<{ query: string; language: string }>(
     {
         region: "southamerica-east1",
         enforceAppCheck: false,
-        secrets: ["GEMINI_API_KEY", "OPENROUTER_API_KEY"],
+        secrets: ["OPENROUTER_API_KEY"],
     },
     async (request) => {
         if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
@@ -531,7 +505,7 @@ export const processSpellJob = onDocumentCreated(
         region: "southamerica-east1",
         memory: "512MiB",
         timeoutSeconds: 540,
-        secrets: ["GEMINI_API_KEY", "OPENROUTER_API_KEY"],
+        secrets: ["OPENROUTER_API_KEY"],
     },
     async (event) => {
         const snapshot = event.data;
@@ -733,28 +707,27 @@ export const processSpellJob = onDocumentCreated(
                     if (!prompt) throw new Error("Prompt required for app icon generation");
                     console.log(`[Job ${jobId}] [APP_ICON] Generating icon for: ${prompt.substring(0, 80)}...`);
 
-                    const iconResult = await withRetry(() => getAI().models.generateContent({
-                        model: 'gemini-3.1-flash-image-preview',
-                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                        config: {
-                            responseModalities: ['TEXT', 'IMAGE'],
-                            imageConfig: { imageSize: '512' },
-                        },
+                    const iconResult = await withRetry(() => getOR().chat.completions.create({
+                        model: MODELS.IMAGE,
+                        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
                     }));
 
                     usage = sanitizeForFirestore({
-                        promptTokens: Math.max(0, Number(iconResult.usageMetadata?.promptTokenCount) || 0),
-                        responseTokens: Math.max(0, Number(iconResult.usageMetadata?.candidatesTokenCount) || 0),
+                        promptTokens: Math.max(0, iconResult.usage?.prompt_tokens ?? 0),
+                        responseTokens: Math.max(0, iconResult.usage?.completion_tokens ?? 0),
                         thoughtsTokens: 0,
-                        totalTokens: Math.max(0, Number(iconResult.usageMetadata?.totalTokenCount) || 0),
-                        cachedTokens: 0
+                        totalTokens: Math.max(0, iconResult.usage?.total_tokens ?? 0),
+                        cachedTokens: 0,
                     });
 
-                    const iconParts = iconResult.candidates?.[0]?.content?.parts || [];
+                    const iconMsg = iconResult.choices[0]?.message as any;
+                    const iconParts: any[] = Array.isArray(iconMsg?.images) ? iconMsg.images
+                        : Array.isArray(iconMsg?.content) ? iconMsg.content : [];
                     let iconBase64 = '';
                     for (const part of iconParts) {
-                        if ((part as any).inlineData) {
-                            iconBase64 = (part as any).inlineData.data;
+                        if (part?.type === 'image_url') {
+                            const url: string = part.image_url?.url ?? '';
+                            iconBase64 = url.includes(',') ? url.split(',')[1] : url;
                             break;
                         }
                     }
@@ -781,7 +754,7 @@ export const processSpellJob = onDocumentCreated(
 
                     resultText = iconDownloadUrl;
                     creditsUsed = 0.5; // Fixed cost for app icon, independent of base image price
-                    logModelId = 'gemini-3.1-flash-image-preview';
+                    logModelId = MODELS.IMAGE;
                     logExtras.imageCount = 1;
                     logExtras.imageUrl = iconDownloadUrl;
                     break;
@@ -823,33 +796,40 @@ export const processSpellJob = onDocumentCreated(
                         return 'image/jpeg';
                     };
 
-                    const jobImagePartsFromInput = (resolvedImages ?? []).slice(0, 14).map((b64: string) => ({
-                        inlineData: { mimeType: detectMimeTypeJobImg(b64), data: b64 },
-                    }));
+                    const inputImages = (resolvedImages ?? []).slice(0, 14);
+                    const imgModel = inputImages.length > 0 ? MODELS.IMAGE_EDIT : MODELS.IMAGE;
 
-                    const imgResult = await withRetry(() => getAI().models.generateContent({
-                        model: 'gemini-3.1-flash-image-preview',
-                        contents: [{ role: 'user', parts: [{ text: prompt }, ...jobImagePartsFromInput] }],
-                        config: {
-                            responseModalities: ['TEXT', 'IMAGE'],
-                            imageConfig: { imageSize: '512' },
-                        },
+                    const imgResult = await withRetry(() => getOR().chat.completions.create({
+                        model: imgModel,
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'text', text: prompt },
+                                ...inputImages.map((b64: string) => ({
+                                    type: 'image_url' as const,
+                                    image_url: { url: `data:${detectMimeTypeJobImg(b64)};base64,${b64}` },
+                                })),
+                            ],
+                        }],
                     }));
 
                     usage = sanitizeForFirestore({
-                        promptTokens: Math.max(0, Number(imgResult.usageMetadata?.promptTokenCount) || 0),
-                        responseTokens: Math.max(0, Number(imgResult.usageMetadata?.candidatesTokenCount) || 0),
+                        promptTokens: Math.max(0, imgResult.usage?.prompt_tokens ?? 0),
+                        responseTokens: Math.max(0, imgResult.usage?.completion_tokens ?? 0),
                         thoughtsTokens: 0,
-                        totalTokens: Math.max(0, Number(imgResult.usageMetadata?.totalTokenCount) || 0),
-                        cachedTokens: 0
+                        totalTokens: Math.max(0, imgResult.usage?.total_tokens ?? 0),
+                        cachedTokens: 0,
                     });
 
-                    // Extract image from response parts
-                    const imgParts = imgResult.candidates?.[0]?.content?.parts || [];
+                    // Extract image — OpenRouter may return images in message.images or message.content
+                    const imgMsg = imgResult.choices[0]?.message as any;
+                    const imgParts: any[] = Array.isArray(imgMsg?.images) ? imgMsg.images
+                        : Array.isArray(imgMsg?.content) ? imgMsg.content : [];
                     let imageBase64 = '';
                     for (const part of imgParts) {
-                        if ((part as any).inlineData) {
-                            imageBase64 = (part as any).inlineData.data;
+                        if (part?.type === 'image_url') {
+                            const url: string = part.image_url?.url ?? '';
+                            imageBase64 = url.includes(',') ? url.split(',')[1] : url;
                             break;
                         }
                     }
@@ -884,8 +864,8 @@ export const processSpellJob = onDocumentCreated(
 
                     resultText = downloadUrl;
                     // Base cost + extra per inspiration image
-                    creditsUsed = calcImageMana(jobImagePartsFromInput.length);
-                    logModelId = 'gemini-3.1-flash-image-preview';
+                    creditsUsed = calcImageMana(inputImages.length);
+                    logModelId = imgModel;
                     logExtras.imageCount = 1;
                     logExtras.imageUrl = downloadUrl;
                     break;
@@ -901,52 +881,50 @@ export const processSpellJob = onDocumentCreated(
                     };
 
                     const firstImageB64 = resolvedImages?.[0];
-                    const extraImageB64s = resolvedImages?.slice(1, 3) ?? [];
                     const hasImages = !!firstImageB64;
-                    const hasReferenceImages = extraImageB64s.length > 0;
+                    const videoModel = hasImages ? MODELS.VIDEO_STD : MODELS.VIDEO_FAST;
 
-                    const startingFrame = (hasImages && !hasReferenceImages)
-                        ? { imageBytes: firstImageB64!, mimeType: detectMimeType(firstImageB64!) }
-                        : undefined;
-
-                    const referenceImages = hasReferenceImages
-                        ? [
-                            { image: { imageBytes: firstImageB64!, mimeType: detectMimeType(firstImageB64!) }, referenceType: VideoGenerationReferenceType.ASSET },
-                            ...extraImageB64s.map(img => ({
-                                image: { imageBytes: img, mimeType: detectMimeType(img) },
-                                referenceType: VideoGenerationReferenceType.ASSET,
-                            })),
-                        ]
-                        : undefined;
-
-                    let operation = await getAI().models.generateVideos({
-                        model: hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview',
-                        prompt: prompt,
-                        ...(startingFrame ? { image: startingFrame } : {}),
-                        config: {
-                            numberOfVideos: 1,
-                            ...(!hasImages
-                                ? { resolution: "720p" }
-                                : hasReferenceImages
-                                    ? { aspectRatio: "16:9" }
-                                    : {}),
-                            ...(referenceImages ? { referenceImages } : {}),
-                        },
-                    });
-
-                    while (!operation.done) {
-                        console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Waiting for video...`);
-                        await new Promise(resolve => setTimeout(resolve, 8000));
-                        operation = await getAI().operations.getVideosOperation({ operation });
+                    const videoGenBody: Record<string, unknown> = { model: videoModel, prompt };
+                    if (firstImageB64) {
+                        videoGenBody.image = `data:${detectMimeType(firstImageB64)};base64,${firstImageB64}`;
                     }
 
-                    const videoFile = operation.response?.generatedVideos?.[0]?.video;
-                    if (!videoFile?.uri) throw new Error('No video generated by model');
+                    const genResponse = await withRetry(() =>
+                        fetch(`${OR_BASE_URL}/videos/generations`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(videoGenBody),
+                        }).then(async r => {
+                            if (!r.ok) throw new Error(`Video submit failed: ${r.status} ${await r.text()}`);
+                            return r.json() as Promise<{ id: string }>;
+                        })
+                    );
 
-                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Downloading from: ${videoFile.uri.substring(0, 100)}... API_KEY present: ${!!API_KEY}`);
-                    const videoResponse = await fetch(videoFile.uri, {
-                        headers: { 'x-goog-api-key': API_KEY }
-                    });
+                    // Poll with hard timeout (max ~4 min = 30 polls × 8s)
+                    let videoUrl: string | undefined;
+                    const MAX_POLLS = 30;
+                    for (let poll = 0; poll < MAX_POLLS; poll++) {
+                        console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Waiting for video... poll ${poll + 1}/${MAX_POLLS}`);
+                        await new Promise(resolve => setTimeout(resolve, 8000));
+                        const statusResp = await withRetry(() =>
+                            fetch(`${OR_BASE_URL}/videos/generations/${genResponse.id}`, {
+                                headers: { 'Authorization': `Bearer ${OPENROUTER_API_KEY}` },
+                            }).then(r => { if (!r.ok) throw new Error(`Video poll failed: ${r.status}`); return r; })
+                        );
+                        const status = await statusResp.json() as { status: string; data?: Array<{ url?: string; duration_seconds?: number }> };
+                        if (status.status === 'completed') {
+                            videoUrl = status.data?.[0]?.url;
+                            break;
+                        }
+                        if (status.status === 'failed') throw new Error('Video generation failed');
+                    }
+                    if (!videoUrl) throw new Error('Video generation timed out after polling limit');
+
+                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Downloading from signed URL...`);
+                    const videoResponse = await fetch(videoUrl);
 
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Download status: ${videoResponse.status}, Content-Type: ${videoResponse.headers.get('content-type')}`);
                     if (!videoResponse.ok) {
@@ -988,10 +966,9 @@ export const processSpellJob = onDocumentCreated(
 
                     resultText = downloadUrl;
 
-                    const durationSeconds = (videoFile as any).videoMetadata?.durationSeconds ?? 8;
-                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] videoFile metadata:`, JSON.stringify((videoFile as any).videoMetadata));
+                    const durationSeconds = 8; // OpenRouter doesn't expose duration metadata yet
                     creditsUsed = calcVideoMana(durationSeconds, hasImages);
-                    logModelId = hasImages ? 'veo-3.1-generate-preview' : 'veo-3.1-fast-generate-preview';
+                    logModelId = videoModel;
                     logExtras.durationSec = durationSeconds;
                     logExtras.videoUrl = downloadUrl;
                     break;
@@ -1003,13 +980,13 @@ export const processSpellJob = onDocumentCreated(
                     if (items.length < 2) throw new Error("At least 2 items required for similarity");
 
                     const embeddings = await Promise.all(
-                        items.map((item: string) => getAI().models.embedContent({
-                            model: "gemini-embedding-001",
-                            contents: item,
+                        items.map((item: string) => getOR().embeddings.create({
+                            model: MODELS.EMBED,
+                            input: item,
                         }))
                     );
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_SIMILARITY] Embeddings computed, building matrix...`);
-                    const vectors = embeddings.map(e => e.embeddings![0].values!);
+                    const vectors = embeddings.map(e => e.data[0].embedding);
                     if (vectors.some(v => !v?.length)) throw new Error('Similarity model returned empty embeddings');
 
                     function cosine(a: number[], b: number[]): number {
@@ -1040,7 +1017,7 @@ export const processSpellJob = onDocumentCreated(
                     resultText = JSON.stringify({ matrix, vectors, count: items.length });
                     creditsUsed = items.length * 0.01;
                     usage = { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
-                    logModelId = 'gemini-embedding-001';
+                    logModelId = MODELS.EMBED;
                     logExtras.itemCount = items.length;
                     break;
                 }
@@ -1051,41 +1028,30 @@ export const processSpellJob = onDocumentCreated(
                     const selectedVoice = voiceName || 'Aoede';
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_TTS] voice=${selectedVoice}, text="${prompt.substring(0, 60)}..."`);
 
-                    const ttsResult = await withRetry(() => getAI().models.generateContent({
-                        model: 'gemini-2.5-flash-preview-tts',
-                        contents: prompt,
-                        config: {
-                            responseModalities: ['AUDIO'],
-                            speechConfig: {
-                                voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
-                            },
-                        },
-                    }));
+                    const ttsResponse = await withRetry(() =>
+                        getOR().audio.speech.create({
+                            model: MODELS.TTS,
+                            input: prompt,
+                            voice: selectedVoice as any,
+                            response_format: 'wav',
+                        })
+                    );
 
-                    const ttsParts = ttsResult.candidates?.[0]?.content?.parts || [];
-                    let audioBase64 = '';
-                    for (const part of ttsParts as any[]) {
-                        if (part.inlineData) {
-                            audioBase64 = part.inlineData.data;
-                            break;
-                        }
-                    }
+                    const wavBuffer = Buffer.from(await ttsResponse.arrayBuffer());
+                    if (!wavBuffer.length) throw new Error('TTS returned no audio');
 
-                    if (!audioBase64) throw new Error('TTS returned no audio');
-
-                    const u = getUsage(ttsResult);
+                    // Estimate usage for cost calculation (TTS token counts not exposed by OpenRouter audio endpoint)
+                    const estimatedInputTokens = Math.ceil(prompt.length / 4);
+                    const estimatedOutputTokens = Math.ceil(wavBuffer.length / 32);
                     usage = sanitizeForFirestore({
-                        promptTokens: Math.max(0, Number(u.promptTokens) || 0),
-                        responseTokens: Math.max(0, Number(u.responseTokens) || 0),
-                        thoughtsTokens: Math.max(0, Number(u.thoughtsTokens) || 0),
-                        totalTokens: Math.max(0, Number(u.totalTokens) || 0),
-                        cachedTokens: 0
+                        promptTokens: estimatedInputTokens,
+                        responseTokens: estimatedOutputTokens,
+                        thoughtsTokens: 0,
+                        totalTokens: estimatedInputTokens + estimatedOutputTokens,
+                        cachedTokens: 0,
                     });
-                    const ttsCostUsd = calculateCostUsd('gemini-2.5-flash-preview-tts', usage);
+                    const ttsCostUsd = calculateCostUsd(MODELS.TTS, usage);
                     creditsUsed = ttsCostUsd / MANA_VALUE_USD;
-
-                    const pcmBuffer = Buffer.from(audioBase64, 'base64');
-                    const wavBuffer = pcmToWav(pcmBuffer);
 
                     // ====================================================
                     // UPLOAD TO FIREBASE STORAGE (Bypass 1MB Firestore limit)
@@ -1115,7 +1081,7 @@ export const processSpellJob = onDocumentCreated(
                         resultText = wavBuffer.toString('base64');
                     }
 
-                    logModelId = 'gemini-2.5-flash-preview-tts';
+                    logModelId = MODELS.TTS;
                     break;
                 }
 

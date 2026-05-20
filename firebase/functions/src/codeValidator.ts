@@ -87,9 +87,12 @@ function validateJavaScript(js: string): ValidationError[] {
         new vm.Script(js);
     } catch (e: any) {
         if (e instanceof SyntaxError) {
+            const lineMatch = (e as any).stack?.match(/<anonymous>:(\d+):\d+/);
+            const lineNum = lineMatch ? parseInt(lineMatch[1]) : null;
+            const problematicLine = lineNum ? js.split('\n')[lineNum - 1]?.trim() : null;
             errors.push({
                 type: 'js',
-                message: `JavaScript syntax error: ${e.message}`,
+                message: `JavaScript syntax error: ${e.message}${lineNum ? ` (line ${lineNum}${problematicLine ? `: \`${problematicLine}\`` : ''})` : ''}`,
                 fixable: true
             });
             return errors;

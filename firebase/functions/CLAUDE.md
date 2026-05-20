@@ -41,7 +41,7 @@ Trigger: criação/atualização de documento em `jobs/{jobId}`.
 
 **`convert`:** Converte código React/Node → HTML standalone (1 estágio)
 
-**`app_icon`:** Gera ícone via `gemini-3.1-flash-image-preview` → salva no Storage
+**`app_icon`:** Gera ícone via `google/gemini-3.1-flash-image-preview` → salva no Storage
 
 **`webview_ai`:** Geração de texto com ferramentas (search, maps), schema enforcement, inputs de mídia
 
@@ -49,21 +49,25 @@ Trigger: criação/atualização de documento em `jobs/{jobId}`.
 
 **`webview_ai_video`:** Geração de vídeo ou animação image-to-video
 
-**`webview_ai_tts`:** Text-to-speech, converte PCM→WAV, upload ao Storage se > 800KB
+**`webview_ai_tts`:** Text-to-speech via `google/gemini-3.1-flash-tts-preview`, upload ao Storage se > 800KB
 
-**`webview_ai_similarity`:** Matriz de similaridade semântica via `gemini-embedding-001`
+**`webview_ai_similarity`:** Matriz de similaridade semântica via `google/gemini-embedding-001`
 
 ---
 
-## Modelos AI
+## Modelos AI (todos via OpenRouter)
 
-| Modelo | Usado em |
+| Modelo OpenRouter | Usado em |
 |--------|---------|
-| `gemini-3-flash-preview` | create, edit, convert (thinking HIGH, search tools) |
-| `gemini-2.5-flash-lite` | suggestSpells |
-| `gemini-3.1-flash-image-preview` | app_icon, webview_ai_image |
-| `gemini-2.5-flash-preview-tts` | webview_ai_tts |
-| `gemini-embedding-001` | webview_ai_similarity |
+| `deepseek/deepseek-v4-flash` | create, edit, convert (thinking HIGH, search tools) |
+| `deepseek/deepseek-v4-flash:free` | suggestSpells |
+| `google/gemini-3.1-flash-lite` | webview_ai (texto) |
+| `google/gemini-3.1-flash-image-preview` | app_icon, webview_ai_image (sem inputs) |
+| `google/gemini-2.5-flash-image` | webview_ai_image (com imagens de referência) |
+| `google/gemini-3.1-flash-tts-preview` | webview_ai_tts |
+| `google/gemini-embedding-001` | webview_ai_similarity |
+| `google/veo-3.1-fast` | webview_ai_video (só texto) |
+| `google/veo-3.1-lite` | webview_ai_video (image-to-video) |
 
 **Context Caching:** System instructions (~1.800 tokens) cacheadas por 1h por versão do app. Cache reuse = 25% do preço de input. Fallback automático se cache falhar.
 

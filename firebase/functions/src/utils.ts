@@ -64,38 +64,14 @@ const USD_PRICING: Record<string, {
     searchPerQuery?: number;
     mapsPerQuery?: number;
 }> = {
-    'gemini-3-flash-preview': {
-        inputPerMToken: 0.50,
-        outputPerMToken: 3.00,
-        audioInputPerMToken: 1.00,
-        searchPerQuery: 0.014,
-        mapsPerQuery: 0.025,
-    },
-    'gemini-2.5-flash': {
-        inputPerMToken: 0.30,
-        outputPerMToken: 2.50,
-        audioInputPerMToken: 1.00,
-        searchPerQuery: 0.035,
-        mapsPerQuery: 0.025,
-    },
-    'gemini-2.5-flash-lite': {
-        inputPerMToken: 0.10,
-        outputPerMToken: 0.40,
-        audioInputPerMToken: 0.30,
-        mapsPerQuery: 0.025,
-    },
-    'gemini-2.5-flash-preview-tts': {
-        inputPerMToken: 0.50,
-        outputPerMToken: 10.00,
-    },
-    'gemini-embedding-001': {
-        inputPerMToken: 0.15,
-        outputPerMToken: 0,
-    },
     // OpenRouter models
     'deepseek/deepseek-v4-flash:free': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30 },
     'deepseek/deepseek-v4-flash': { inputPerMToken: 0.14, outputPerMToken: 0.28, audioInputPerMToken: 0.00, searchPerQuery: 0.014 },
-    'google/gemini-3.1-flash-lite-preview': { inputPerMToken: 0.30, outputPerMToken: 2.00, audioInputPerMToken: 1.00, searchPerQuery: 0.014 },
+    'google/gemini-3.1-flash-lite': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30, searchPerQuery: 0.014 },
+    'google/gemini-3.1-flash-image-preview': { inputPerMToken: 0.10, outputPerMToken: 0.40 },
+    'google/gemini-2.5-flash-image': { inputPerMToken: 0.30, outputPerMToken: 2.50 },
+    'google/gemini-3.1-flash-tts-preview': { inputPerMToken: 0.50, outputPerMToken: 10.00 },
+    'google/gemini-embedding-001': { inputPerMToken: 0.15, outputPerMToken: 0 },
 };
 
 const USD_IMAGE_PER_UNIT = 0.04;
@@ -145,6 +121,38 @@ export function calcVideoMana(durationSeconds: number, hasImages: boolean): numb
 
 
 // ============= JSON / HTML EXTRACTION =============
+
+function stripJsonEllipsis(text: string): string {
+    let result = '';
+    let inString = false;
+    let escape = false;
+    let i = 0;
+    while (i < text.length) {
+        const ch = text[i];
+        if (escape) {
+            result += ch;
+            escape = false;
+            i++;
+        } else if (ch === '\\' && inString) {
+            result += ch;
+            escape = true;
+            i++;
+        } else if (ch === '"') {
+            inString = !inString;
+            result += ch;
+            i++;
+        } else if (!inString && text[i] === '.' && text[i + 1] === '.' && text[i + 2] === '.') {
+            // Remove preceding comma + whitespace
+            const trimmed = result.trimEnd();
+            result = trimmed.endsWith(',') ? trimmed.slice(0, -1) : trimmed;
+            i += 3;
+        } else {
+            result += ch;
+            i++;
+        }
+    }
+    return result;
+}
 
 function repairJson(text: string): string {
     let result = '';
@@ -287,6 +295,7 @@ export function extractJson(response: string): any {
         throw new Error(`AI response was truncated (depth: ${depth}, inString: ${inString}, originalLength: ${originalLength})`);
     }
 
+    text = stripJsonEllipsis(text);
     text = repairJson(text);
 
     try {
@@ -500,7 +509,7 @@ export function computeManaCost(type: string, data: any): { mana: string; value:
             const chars = (data.text || '').length;
             const inputTk = chars / 4;
             const outputTk = inputTk * 8;
-            const costUsd = calculateCostUsd('gemini-2.5-flash-preview-tts', {
+            const costUsd = calculateCostUsd(MODELS.TTS, {
                 promptTokens: inputTk,
                 responseTokens: outputTk
             });
@@ -513,7 +522,7 @@ export function computeManaCost(type: string, data: any): { mana: string; value:
             const totalChars = items.reduce((s: number, x: string) =>
                 s + (typeof x === 'string' ? x.length : 0), 0);
             const totalTk = totalChars / 4;
-            const costUsd = calculateCostUsd('gemini-embedding-001', {
+            const costUsd = calculateCostUsd(MODELS.EMBED, {
                 promptTokens: totalTk,
                 responseTokens: 0
             });
@@ -553,16 +562,18 @@ export function extractText(result: any): string {
     }
 }
 
-export function getUsage(result: any): { promptTokens: number; responseTokens: number; thoughtsTokens: number; totalTokens: number } {
+export function getUsage(result: any): { promptTokens: number; responseTokens: number; thoughtsTokens: number; totalTokens: number; webSearchRequests: number } {
     // OpenAI / OpenRouter format
     if (result?.usage?.prompt_tokens !== undefined) {
         const thoughtsTokens = result.usage.completion_tokens_details?.reasoning_tokens || 0;
         if (thoughtsTokens > 0) console.log(`[THINKING] ${thoughtsTokens} thinking tokens`);
+        const webSearchRequests = result.usage.server_tool_use?.web_search_requests ?? 0;
         return {
             promptTokens: result.usage.prompt_tokens || 0,
             responseTokens: result.usage.completion_tokens || 0,
             thoughtsTokens,
             totalTokens: result.usage.total_tokens || 0,
+            webSearchRequests,
         };
     }
     // Gemini format
@@ -576,5 +587,6 @@ export function getUsage(result: any): { promptTokens: number; responseTokens: n
         responseTokens: usage?.candidatesTokenCount || 0,
         thoughtsTokens,
         totalTokens: usage?.totalTokenCount || 0,
+        webSearchRequests: 0,
     };
 }

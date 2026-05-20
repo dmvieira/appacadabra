@@ -118,20 +118,23 @@ export async function generateSpellCreate(
         ...validateWithExecution(html).errors,
     ];
 
-    // Fix loop (mirrors production behaviour)
-    if (initErrors.length > 0 && initErrors.some(e => e.fixable)) {
-        const fixResult = await callModel(generateFixPrompt(initErrors, html), coderSys);
+    // Fix loop — up to 2 attempts
+    let currentHtml = html;
+    let currentErrors = initErrors;
+
+    for (let attempt = 0; attempt < 2 && currentErrors.length > 0 && currentErrors.some(e => e.fixable); attempt++) {
+        const fixResult = await callModel(generateFixPrompt(currentErrors, currentHtml), coderSys);
         accUsage(usage, fixResult);
-        html = fixCallbackPatterns(extractHtml(extractText(fixResult)));
-        if (!html) throw new Error('AI returned empty response after fix');
-        const afterErrors = [
-            ...validateGeneratedCode(html).errors,
-            ...validateWithExecution(html).errors,
+        currentHtml = fixCallbackPatterns(extractHtml(extractText(fixResult)));
+        if (!currentHtml) throw new Error('AI returned empty response after fix');
+        currentErrors = [
+            ...validateGeneratedCode(currentHtml).errors,
+            ...validateWithExecution(currentHtml).errors,
         ];
-        if (afterErrors.length > 0) throw new Error(`App generation failed: ${afterErrors[0]?.message}`);
-    } else if (initErrors.length > 0) {
-        throw new Error(`App generation failed: ${initErrors[0]?.message}`);
     }
+
+    if (currentErrors.length > 0) throw new Error(`App generation failed: ${currentErrors[0]?.message}`);
+    html = currentHtml;
 
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     return { html, usage, appName: titleMatch?.[1]?.trim(), initialValidationErrors: initErrors };
@@ -353,8 +356,7 @@ export async function generateWebviewAI(
 
     if (!text) throw new Error('AI returned empty response');
 
-    // TODO: use websearch requests from result
-    const searchQueriesUsed = useWebSearch ? 1 : 0;
+    const searchQueriesUsed = rawUsage.webSearchRequests ?? (useWebSearch ? 1 : 0);
     const creditsUsed = calculateCostUsd(effectiveModel, usage, { searchQueries: searchQueriesUsed }) / MANA_VALUE_USD;
 
     return { text, usage, searchQueriesUsed, creditsUsed };
