@@ -18,6 +18,7 @@ import { CONVERT_PROJECT_PROMPT } from "./prompts";
 import { buildSystemInstructions, ALL_CAPABILITIES } from "./capabilities/index";
 import { NOTIF_I18N } from "./i18n";
 import { MODELS, OR_BASE_URL, OR_REASONING_HIGH, OR_WEB_SEARCH } from "./config";
+import { submitVideoJob, pollAndDownloadVideo } from "./videoJob";
 import { generateSpellCreate, generateSpellEdit, generateWebviewAI } from "./generators";
 import {
     sanitizeForFirestore,
@@ -874,67 +875,24 @@ export const processSpellJob = onDocumentCreated(
                 case 'webview_ai_video': {
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Generating video for: ${prompt.substring(0, 80)}...`);
 
-                    const detectMimeType = (base64: string): string => {
-                        if (base64.startsWith('/9j/')) return 'image/jpeg';
-                        if (base64.startsWith('iVBOR')) return 'image/png';
-                        return 'image/jpeg';
-                    };
-
                     const firstImageB64 = resolvedImages?.[0];
                     const hasImages = !!firstImageB64;
                     const videoModel = hasImages ? MODELS.VIDEO_STD : MODELS.VIDEO_FAST;
 
-                    const videoGenBody: Record<string, unknown> = { model: videoModel, prompt };
-                    if (firstImageB64) {
-                        videoGenBody.image = `data:${detectMimeType(firstImageB64)};base64,${firstImageB64}`;
-                    }
-
                     const genResponse = await withRetry(() =>
-                        fetch(`${OR_BASE_URL}/videos/generations`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(videoGenBody),
-                        }).then(async r => {
-                            if (!r.ok) throw new Error(`Video submit failed: ${r.status} ${await r.text()}`);
-                            return r.json() as Promise<{ id: string }>;
-                        })
+                        submitVideoJob(prompt, firstImageB64, videoModel, OPENROUTER_API_KEY)
                     );
 
-                    // Poll with hard timeout (max ~4 min = 30 polls × 8s)
-                    let videoUrl: string | undefined;
-                    const MAX_POLLS = 30;
-                    for (let poll = 0; poll < MAX_POLLS; poll++) {
-                        console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Waiting for video... poll ${poll + 1}/${MAX_POLLS}`);
-                        await new Promise(resolve => setTimeout(resolve, 8000));
-                        const statusResp = await withRetry(() =>
-                            fetch(`${OR_BASE_URL}/videos/generations/${genResponse.id}`, {
-                                headers: { 'Authorization': `Bearer ${OPENROUTER_API_KEY}` },
-                            }).then(r => { if (!r.ok) throw new Error(`Video poll failed: ${r.status}`); return r; })
-                        );
-                        const status = await statusResp.json() as { status: string; data?: Array<{ url?: string; duration_seconds?: number }> };
-                        if (status.status === 'completed') {
-                            videoUrl = status.data?.[0]?.url;
-                            break;
-                        }
-                        if (status.status === 'failed') throw new Error('Video generation failed');
-                    }
-                    if (!videoUrl) throw new Error('Video generation timed out after polling limit');
-
-                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Downloading from signed URL...`);
-                    const videoResponse = await fetch(videoUrl);
-
-                    console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Download status: ${videoResponse.status}, Content-Type: ${videoResponse.headers.get('content-type')}`);
-                    if (!videoResponse.ok) {
-                        const errBody = await videoResponse.text();
-                        console.error(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Download failed body: ${errBody.substring(0, 200)}`);
-                        throw new Error(`Video download failed: ${videoResponse.status}`);
-                    }
-
-                    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-                    if (!videoBuffer.length) throw new Error('Video generation returned empty data');
+                    // Poll ~30 min max (60 polls × 30s)
+                    const MAX_POLLS = 60;
+                    const videoBuffer = await pollAndDownloadVideo(
+                        genResponse.id,
+                        genResponse.polling_url,
+                        OPENROUTER_API_KEY,
+                        MAX_POLLS,
+                        30000,
+                        (poll, max) => console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Waiting for video... poll ${poll}/${max}`),
+                    );
 
                     // Verify magic bytes for MP4 (00 00 00 ... ftyp)
                     const magic = videoBuffer.subarray(0, 12).toString('hex');
