@@ -1,135 +1,116 @@
 ## Version Name
-✨ Better Beginnings
+✨ Free to Rotate
 
 <en-US>
-• Bonus and welcome-back messages now appear as a bold overlay — visible no matter which onboarding screen you signed in from
-• ManaShop now shows a toast with your bonus/welcome-back message after Google sign-in
-• "Signed out" banner disappears instantly when you log in
-• Fixed the "Get Free Spells" button (purple background + white text — it was unreadable before)
+• Spells now rotate freely on foldables and tablets — the orientation lock has been lifted
+• Your device's auto-rotate toggle is respected everywhere, including the barcode scanner
+• Large-screen support meets Android 16 requirements out of the box
 </en-US>
 
 <pt-BR>
-• As mensagens de bónus e boas-vindas aparecem agora como overlay em destaque — visíveis em qualquer ecrã do onboarding
-• A Loja de Mana mostra um Toast com a mensagem de bónus após login com Google
-• O banner "sessão encerrada" desaparece imediatamente ao fazer login
-• Botão "Obter Feitiços Grátis" corrigido (fundo roxo + texto branco — antes estava ilegível)
+• Os feitiços agora rodam livremente em dobráveis e tablets — o bloqueio de orientação foi removido
+• O botão de rotação automática do dispositivo é respeitado em todo o app, incluindo o leitor de código de barras
+• Suporte a ecrãs grandes conforme os requisitos do Android 16
 </pt-BR>
 
 <es-419>
-• Los mensajes de bono y bienvenida ahora aparecen como overlay prominente — visibles desde cualquier pantalla de onboarding
-• La Tienda de Maná muestra un toast con tu mensaje de bono tras iniciar sesión con Google
-• El banner "sesión cerrada" desaparece al instante cuando inicias sesión
-• Botón "Obtener Hechizos Gratis" corregido (fondo morado + texto blanco — antes era ilegible)
+• Los hechizos ahora rotan libremente en plegables y tablets — se ha eliminado el bloqueo de orientación
+• El interruptor de rotación automática del dispositivo se respeta en todo el app, incluido el escáner de código de barras
+• Compatibilidad con pantallas grandes según los requisitos de Android 16
 </es-419>
 
 <es-ES>
-• Los mensajes de bono y bienvenida aparecen ahora como overlay destacado — visibles en cualquier pantalla de registro
-• La Tienda de Maná muestra un aviso con tu mensaje de bono al iniciar sesión con Google
-• El banner de "sesión cerrada" desaparece en cuanto inicias sesión
-• Botón "Obtener Hechizos Gratis" corregido (fondo morado + texto blanco — antes ilegible)
+• Los hechizos ahora rotan libremente en plegables y tablets — se ha eliminado el bloqueo de orientación
+• El interruptor de rotación automática del dispositivo se respeta en toda la app, incluido el escáner de código de barras
+• Compatibilidad con pantallas grandes conforme a los requisitos de Android 16
 </es-ES>
 
 <fr-FR>
-• Les messages de bonus et de bienvenue apparaissent désormais en overlay mis en avant — visibles depuis n'importe quel écran d'intégration
-• La Boutique de Mana affiche un toast avec votre message de bonus après la connexion Google
-• La bannière "déconnecté" disparaît instantanément à la connexion
-• Bouton "Obtenir des Sorts Gratuits" corrigé (fond violet + texte blanc — illisible auparavant)
+• Les sorts pivotent librement sur les pliables et les tablettes — le verrouillage d'orientation a été levé
+• Le bouton de rotation automatique de votre appareil est respecté partout, y compris dans le scanner de codes-barres
+• Prise en charge des grands écrans conforme aux exigences d'Android 16
 </fr-FR>
 
 <fr-CA>
-• Les messages de bonus et bienvenue s'affichent maintenant en overlay proéminent — visibles depuis n'importe quel écran
-• La Boutique de Mana affiche un toast avec votre message de bonus après la connexion Google
-• La bannière "déconnecté" disparaît immédiatement à la connexion
-• Bouton "Obtenir des Sorts Gratuits" corrigé (fond violet + texte blanc — était illisible)
+• Les sorts pivotent librement sur les appareils pliables et les tablettes — le verrouillage d'orientation a été retiré
+• La bascule de rotation automatique de votre appareil est respectée partout, y compris dans le lecteur de codes-barres
+• Prise en charge des grands écrans conforme aux exigences d'Android 16
 </fr-CA>
 
 <de-DE>
-• Bonus- und Willkommensnachrichten erscheinen jetzt als auffälliges Overlay — sichtbar auf jedem Onboarding-Bildschirm
-• Der Mana-Shop zeigt nach der Google-Anmeldung einen Toast mit deiner Bonus-/Willkommensnachricht
-• Das "Abgemeldet"-Banner verschwindet sofort beim Login
-• Schaltfläche "Kostenlose Zauber holen" repariert (violetter Hintergrund + weißer Text — vorher unleserlich)
+• Zauber drehen sich jetzt frei auf Foldables und Tablets — die Orientierungssperre wurde aufgehoben
+• Der Auto-Drehen-Schalter deines Geräts wird überall respektiert, auch im Barcode-Scanner
+• Unterstützung großer Bildschirme erfüllt die Android-16-Anforderungen
 </de-DE>
 
 <it-IT>
-• I messaggi di bonus e benvenuto appaiono ora come overlay prominente — visibili da qualsiasi schermata di onboarding
-• Il Negozio di Mana mostra un toast con il tuo messaggio di bonus dopo l'accesso con Google
-• Il banner "disconnesso" sparisce immediatamente al login
-• Pulsante "Ottieni Incantesimi Gratis" corretto (sfondo viola + testo bianco — prima era illeggibile)
+• Gli incantesimi ruotano liberamente su pieghevoli e tablet — il blocco di orientamento è stato rimosso
+• L'interruttore di rotazione automatica del dispositivo viene rispettato ovunque, incluso lo scanner di codici a barre
+• Supporto per schermi grandi conforme ai requisiti di Android 16
 </it-IT>
 
 <ja-JP>
-• ボーナスとウェルカムバックのメッセージが目立つオーバーレイとして表示されるように — どのオンボーディング画面からサインインしても確認可能
-• マナショップでGoogleサインイン後にボーナス/ウェルカムメッセージのトーストを表示
-• ログイン時に「サインアウト」バナーが即座に消えるように修正
-• 「無料スペルを取得」ボタンを修正（紫の背景+白テキスト — 以前は読めなかった）
+• フォルダブルやタブレットでスペルが自由に回転するように — 向きのロックを解除しました
+• バーコードスキャナーを含むアプリ全体で、デバイスの自動回転トグルが反映されます
+• Android 16 の大画面要件に対応
 </ja-JP>
 
 <zh-CN>
-• 奖励和欢迎回来的消息现在以突出的浮层显示——无论从哪个引导页面登录均可看到
-• 法力商店在 Google 登录后显示包含奖励/欢迎消息的 Toast 提示
-• 登录时"已登出"横幅立即消失
-• 修复"获取免费咒语"按钮（紫色背景+白色文字——之前无法辨识）
+• 咒语现在可在可折叠设备和平板上自由旋转——方向锁定已解除
+• 设备的自动旋转开关在整个应用中均受到尊重，包括条形码扫描器
+• 大屏幕支持满足 Android 16 的要求
 </zh-CN>
 
 <ko-KR>
-• 보너스 및 환영 메시지가 이제 눈에 띄는 오버레이로 표시됩니다 — 어느 온보딩 화면에서 로그인해도 확인 가능
-• ManaShop이 Google 로그인 후 보너스/환영 메시지 토스트를 표시합니다
-• 로그인 시 "로그아웃됨" 배너가 즉시 사라집니다
-• "무료 주문 받기" 버튼 수정 (보라색 배경 + 흰색 텍스트 — 이전에는 읽기 불가)
+• 폴더블 및 태블릿에서 주문이 이제 자유롭게 회전합니다 — 방향 잠금이 해제되었습니다
+• 바코드 스캐너를 포함한 앱 전체에서 기기의 자동 회전 토글이 적용됩니다
+• Android 16 대형 화면 요구 사항을 충족하는 대형 화면 지원
 </ko-KR>
 
 <ar>
-• رسائل المكافأة والترحيب تظهر الآن كطبقة بارزة — مرئية بغض النظر عن شاشة الإعداد التي سجّلت الدخول منها
-• متجر المانا يعرض الآن إشعاراً بالمكافأة/الترحيب بعد تسجيل الدخول بـ Google
-• لافتة "تم تسجيل الخروج" تختفي فوراً عند تسجيل الدخول
-• تم إصلاح زر "احصل على تعويذات مجانية" (خلفية بنفسجية + نص أبيض — كان غير مقروء)
+• التعويذات تدور الآن بحرية على الأجهزة القابلة للطي والأجهزة اللوحية — تم رفع قفل الاتجاه
+• يُراعى مفتاح تدوير الشاشة التلقائي في الجهاز في كل مكان، بما في ذلك ماسح الرمز الشريطي
+• دعم الشاشات الكبيرة يلبي متطلبات Android 16
 </ar>
 
 <hi-IN>
-• बोनस और वेलकम-बैक संदेश अब प्रमुख ओवरले के रूप में दिखते हैं — किसी भी ऑनबोर्डिंग स्क्रीन से साइन इन करने पर दिखाई देते हैं
-• ManaShop अब Google साइन-इन के बाद बोनस/वेलकम संदेश के साथ Toast दिखाता है
-• लॉगिन करते ही "साइन आउट" बैनर तुरंत गायब हो जाता है
-• "मुफ़्त स्पेल पाएं" बटन ठीक किया (बैंगनी पृष्ठभूमि + सफेद टेक्स्ट — पहले अपठनीय था)
+• फोल्डेबल और टैबलेट पर अब स्पेल स्वतंत्र रूप से घूमते हैं — ओरिएंटेशन लॉक हटा दिया गया है
+• बारकोड स्कैनर सहित पूरे ऐप में डिवाइस का ऑटो-रोटेट टॉगल सम्मानित किया जाता है
+• Android 16 की बड़ी स्क्रीन आवश्यकताओं के अनुरूप सपोर्ट
 </hi-IN>
 
 <ru-RU>
-• Сообщения о бонусе и возвращении теперь отображаются как заметный оверлей — видны с любого экрана онбординга
-• Мана-магазин показывает тост с бонусным/приветственным сообщением после входа через Google
-• Баннер «вы вышли из системы» мгновенно исчезает при входе
-• Исправлена кнопка «Получить бесплатные заклинания» (фиолетовый фон + белый текст — ранее была нечитаемой)
+• Заклинания теперь свободно вращаются на складных устройствах и планшетах — блокировка ориентации снята
+• Переключатель автоповорота экрана на устройстве учитывается везде, включая сканер штрихкодов
+• Поддержка больших экранов соответствует требованиям Android 16
 </ru-RU>
 
 <tr-TR>
-• Bonus ve hoş geldiniz mesajları artık belirgin bir overlay olarak görünüyor — hangi onboarding ekranından giriş yaptığınızdan bağımsız
-• ManaShop, Google girişinin ardından bonus/hoş geldiniz mesajını toast ile gösteriyor
-• Oturum açtığınızda "oturum kapandı" afişi anında kayboluyor
-• "Ücretsiz Büyü Al" düğmesi düzeltildi (mor arka plan + beyaz metin — önceden okunamıyordu)
+• Büyüler artık katlanabilir cihazlarda ve tabletlerde serbestçe döner — yön kilidi kaldırıldı
+• Barkod tarayıcı dahil uygulamanın her yerinde cihazın otomatik döndürme ayarı dikkate alınır
+• Büyük ekran desteği Android 16 gereksinimlerini karşılar
 </tr-TR>
 
 <nl-NL>
-• Bonus- en welkomstberichten verschijnen nu als opvallende overlay — zichtbaar ongeacht welk onboarding-scherm je gebruikte
-• ManaShop toont nu een toast met je bonus-/welkomstbericht na Google-aanmelding
-• De "afgemeld"-banner verdwijnt direct bij inloggen
-• Knop "Gratis spreuken halen" gerepareerd (paarse achtergrond + witte tekst — was eerder onleesbaar)
+• Spreuken draaien nu vrij op foldables en tablets — de oriëntatievergren­deling is opgeheven
+• De schakelaar voor automatisch draaien van je apparaat wordt overal gerespecteerd, inclusief de barcode-scanner
+• Ondersteuning voor grote schermen voldoet aan de Android 16-vereisten
 </nl-NL>
 
 <pl-PL>
-• Wiadomości o bonusie i powrocie wyświetlają się teraz jako wyraźna nakładka — widoczna niezależnie od ekranu onboardingu
-• ManaShop wyświetla teraz toast z wiadomością o bonusie/powitaniu po logowaniu przez Google
-• Baner "wylogowano" znika natychmiast po zalogowaniu
-• Poprawiono przycisk "Zdobądź darmowe zaklęcia" (fioletowe tło + biały tekst — wcześniej nieczytelny)
+• Zaklęcia teraz swobodnie się obracają na urządzeniach składanych i tabletach — blokada orientacji została usunięta
+• Przełącznik automatycznego obracania ekranu jest respektowany w całej aplikacji, włącznie ze skanerem kodów kreskowych
+• Obsługa dużych ekranów spełnia wymagania systemu Android 16
 </pl-PL>
 
 <vi>
-• Thông báo thưởng và chào mừng trở lại giờ xuất hiện dưới dạng overlay nổi bật — hiển thị dù bạn đăng nhập từ màn hình onboarding nào
-• ManaShop hiển thị toast với thông báo thưởng/chào mừng sau khi đăng nhập Google
-• Banner "đã đăng xuất" biến mất ngay khi bạn đăng nhập
-• Đã sửa nút "Nhận Phép Thuật Miễn Phí" (nền tím + chữ trắng — trước đây không đọc được)
+• Phép thuật giờ xoay tự do trên thiết bị gập và máy tính bảng — khóa hướng màn hình đã được gỡ bỏ
+• Công tắc tự động xoay của thiết bị được tuân thủ ở mọi nơi, kể cả máy quét mã vạch
+• Hỗ trợ màn hình lớn đáp ứng yêu cầu của Android 16
 </vi>
 
 <th>
-• ข้อความโบนัสและยินดีต้อนรับกลับปรากฏเป็น overlay ที่เด่นชัด — มองเห็นได้ไม่ว่าจะลงชื่อเข้าใช้จากหน้า onboarding ใด
-• ManaShop แสดง toast พร้อมข้อความโบนัส/ยินดีต้อนรับหลังลงชื่อเข้าใช้ Google
-• แบนเนอร์ "ออกจากระบบแล้ว" หายไปทันทีเมื่อคุณลงชื่อเข้าใช้
-• แก้ไขปุ่ม "รับ Spell ฟรี" (พื้นหลังสีม่วง + ตัวอักษรสีขาว — ก่อนหน้านี้อ่านไม่ออก)
+• ตอนนี้ spell หมุนได้อย่างอิสระบนอุปกรณ์พับได้และแท็บเล็ต — ได้ยกเลิกการล็อกทิศทางแล้ว
+• การตั้งค่าหมุนอัตโนมัติของอุปกรณ์จะถูกนำมาใช้ทุกที่ รวมถึงเครื่องสแกนบาร์โค้ด
+• รองรับหน้าจอขนาดใหญ่ตามข้อกำหนดของ Android 16
 </th>
