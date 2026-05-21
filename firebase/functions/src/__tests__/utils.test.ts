@@ -129,6 +129,33 @@ describe('extractJson', () => {
     it('throws on genuinely malformed JSON', () => {
         expect(() => extractJson('{bad json: true}')).toThrow();
     });
+
+    // Regression: triple-backticks inside string values must not trigger fence stripping
+    it('parses JSON containing triple-backticks inside string values', () => {
+        const input = '{"resumo": "Use ```python``` for this task"}';
+        expect(extractJson(input)).toEqual({ resumo: 'Use ```python``` for this task' });
+    });
+
+    it('parses long JSON with triple-backticks mid-string (job failure regression)', () => {
+        const longValue = 'x'.repeat(500) + ' ```code``` ' + 'y'.repeat(500);
+        const input = JSON.stringify({ resumo_geral: longValue });
+        expect(extractJson(input)).toEqual({ resumo_geral: longValue });
+    });
+
+    it('does not strip ``` appearing mid-response outside a fence context', () => {
+        const input = '{"a": 1, "b": "see ```example```"}';
+        expect(extractJson(input)).toEqual({ a: 1, b: 'see ```example```' });
+    });
+
+    it('still strips legitimate ```json fences at start of response', () => {
+        const input = '```json\n{"key": "value"}\n```';
+        expect(extractJson(input)).toEqual({ key: 'value' });
+    });
+
+    it('still strips bare ``` fences at start of response', () => {
+        const input = '```\n{"key": "value"}\n```';
+        expect(extractJson(input)).toEqual({ key: 'value' });
+    });
 });
 
 // ============= fixCallbackPatterns =============

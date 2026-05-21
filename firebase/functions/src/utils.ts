@@ -238,17 +238,17 @@ export function extractJson(response: string): any {
     const originalLength = text.length;
 
     const openMatch =
-        text.match(/```json[ \t]*[\r\n]/i) ??
-        text.match(/```(?![a-zA-Z])/);
+        text.match(/^```json[ \t]*[\r\n]/i) ??
+        text.match(/^```(?![a-zA-Z])/);
     if (openMatch && openMatch.index !== undefined) {
         const contentStart = openMatch.index + openMatch[0].length;
         const afterOpen = text.substring(contentStart);
         const closeIdx = afterOpen.search(/^```[ \t]*$/m);
-        if (closeIdx !== -1) {
-            text = afterOpen.substring(0, closeIdx).trim();
-        } else {
-            text = afterOpen.trim();
-        }
+        const stripped = closeIdx !== -1
+            ? afterOpen.substring(0, closeIdx).trim()
+            : afterOpen.trim();
+        // Only use stripped result if it still contains JSON
+        text = stripped.indexOf('{') !== -1 ? stripped : text;
     }
 
     const startObj = text.indexOf('{');
