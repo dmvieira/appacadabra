@@ -50,6 +50,9 @@ Reporte o resultado (quantos passaram/falharam) antes de prosseguir com o restan
 - [ ] Feature graphic present (1024×500px)
 - [ ] Release notes updated for this version (all 20 locales)
 
+### Git tag
+- [ ] Git tag for this version exists: run `git tag | grep "v{version}"` and confirm output is non-empty. If missing, run `git tag v{version}` before proceeding.
+
 ### Rollout strategy
 - [ ] Start at 5% staged rollout
 - [ ] Monitor crash-free rate for 24h before expanding

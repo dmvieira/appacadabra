@@ -28,7 +28,7 @@ Release notes must be generated for all 17 locales. Play Store character limit: 
 ## Primary commands
 
 ### `/release-notes [version and features]`
-Generates Play Store release notes for all 17 supported languages. Reads `lib/i18n.ts` for tone and terminology reference. Applies the magic/spell tone consistently. Verifies each locale stays under 500 characters.
+Generates Play Store release notes for all 17 supported languages, bumps the version in `app.json`, `package.json`, and `build.gradle`, writes `docs/RELEASE_NOTES.md`, commits all changed files, and creates a git tag `v{new_version}`. **The tag creation is mandatory — never skip it.** Reads `lib/i18n.ts` for tone and terminology reference. Applies the magic/spell tone consistently. Verifies each locale stays under 500 characters.
 
 ### `/release-checklist [target version]`
 Pre-submission checklist. Reads `app.json`, `build.gradle`, `docs/APP_STORE_REVIEW.md`, `AndroidManifest.xml`. Reports each item as ✅ (confirmed), ❌ (issue found), or ⚠️ (manual check required):

@@ -30,7 +30,7 @@ export async function pollAndDownloadVideo(
     jobId: string,
     pollingUrl: string,
     apiKey: string,
-    maxPolls = 60,
+    maxPolls = 14,
     pollIntervalMs = 30000,
     onPoll?: (poll: number, max: number) => void,
 ): Promise<Buffer> {

@@ -882,20 +882,24 @@ export const processSpellJob = onDocumentCreated(
                     // Reuse the Storage URL if the client already uploaded (large images),
                     // otherwise upload the base64 to a temp path (auto-deleted in 1 day).
                     let referenceImageUrl: string | undefined;
+                    let tempRefFile: any = undefined;
                     const rawRefImage = imagesBase64?.[0];
                     if (rawRefImage) {
                         if (rawRefImage.startsWith('http')) {
                             referenceImageUrl = rawRefImage;
                         } else {
+                            const refMime = rawRefImage.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+                            const refExt = refMime === 'image/png' ? 'png' : 'jpg';
                             const refBucket = getStorage().bucket();
-                            const refFileName = `video_refs/${uid}/${jobId}_ref.jpg`;
+                            const refFileName = `video_refs/${uid}/${jobId}_ref.${refExt}`;
                             const refToken = require('crypto').randomUUID();
                             await refBucket.file(refFileName).save(Buffer.from(rawRefImage, 'base64'), {
-                                contentType: 'image/jpeg',
+                                contentType: refMime,
                                 metadata: { metadata: { firebaseStorageDownloadTokens: refToken } },
                             });
                             referenceImageUrl = `https://firebasestorage.googleapis.com/v0/b/${refBucket.name}/o/${encodeURIComponent(refFileName)}?alt=media&token=${refToken}`;
-                            console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Uploaded reference image to Storage`);
+                            tempRefFile = refBucket.file(refFileName);
+                            console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Uploaded reference image (${refMime}) to Storage`);
                         }
                     }
 
@@ -903,8 +907,8 @@ export const processSpellJob = onDocumentCreated(
                         submitVideoJob(prompt, referenceImageUrl, videoModel, OPENROUTER_API_KEY)
                     );
 
-                    // Poll ~30 min max (60 polls × 30s)
-                    const MAX_POLLS = 60;
+                    // Poll max 14 × 30s = 420s, staying within the 540s function timeout
+                    const MAX_POLLS = 14;
                     const videoBuffer = await pollAndDownloadVideo(
                         genResponse.id,
                         genResponse.polling_url,
@@ -941,6 +945,13 @@ export const processSpellJob = onDocumentCreated(
                     });
 
                     const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
+
+                    // Delete temp reference image now that the video is downloaded
+                    if (tempRefFile) {
+                        tempRefFile.delete().catch((e: any) =>
+                            console.warn(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Failed to delete temp ref image: ${e.message}`)
+                        );
+                    }
 
                     resultText = downloadUrl;
 
@@ -1006,17 +1017,19 @@ export const processSpellJob = onDocumentCreated(
                     const selectedVoice = voiceName || 'Aoede';
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_TTS] voice=${selectedVoice}, text="${prompt.substring(0, 60)}..."`);
 
-                    const ttsResponse = await withRetry(() =>
-                        getOR().audio.speech.create({
+                    const ttsCompletion = await withRetry(() =>
+                        (getOR().chat.completions.create as any)({
                             model: MODELS.TTS,
-                            input: prompt,
-                            voice: selectedVoice as any,
-                            response_format: 'wav',
+                            modalities: ['audio'],
+                            audio: { voice: selectedVoice, format: 'wav' },
+                            messages: [{ role: 'user', content: prompt }],
                         })
-                    );
+                    ) as any;
 
-                    const wavBuffer = Buffer.from(await ttsResponse.arrayBuffer());
-                    if (!wavBuffer.length) throw new Error('TTS returned no audio');
+                    const audioData: string | undefined = ttsCompletion.choices?.[0]?.message?.audio?.data;
+                    if (!audioData) throw new Error('TTS returned no audio');
+                    const wavBuffer = Buffer.from(audioData, 'base64');
+                    if (!wavBuffer.length) throw new Error('TTS returned empty audio buffer');
 
                     // Estimate usage for cost calculation (TTS token counts not exposed by OpenRouter audio endpoint)
                     const estimatedInputTokens = Math.ceil(prompt.length / 4);

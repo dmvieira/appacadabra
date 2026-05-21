@@ -76,68 +76,79 @@ export async function generateSpellCreate(
     appVersion: string,
     or: OpenAI,
 ): Promise<CreateResult> {
-    const usage = emptyUsage();
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= 2; attempt++) {
+        try {
+            const noCache = attempt > 0;
+            if (noCache) console.warn(`[generateSpellCreate] retry attempt ${attempt}, bypassing cache`);
+            const usage = emptyUsage();
 
-    const callModel = (content: string, sysInstr: string) =>
-        raceTimeout(withRetry(async () => {
-            const res = await or.chat.completions.create({
-                model: MODELS.SPELL_S,
-                messages: [{ role: 'system', content: sysInstr }, { role: 'user', content: content }],
-                ...OR_REASONING_HIGH,
-                ...OR_WEB_SEARCH,
-            });
-            if (!extractText(res)) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
-            return res;
-        }));
+            const callModel = (content: string, sysInstr: string) =>
+                raceTimeout(withRetry(async () => {
+                    const res = await or.chat.completions.create({
+                        model: MODELS.SPELL_S,
+                        messages: [{ role: 'system', content: sysInstr }, { role: 'user', content: content }],
+                        ...OR_REASONING_HIGH,
+                        ...OR_WEB_SEARCH,
+                    }, noCache ? { headers: { 'X-OpenRouter-Cache': 'false' } } : undefined);
+                    if (!extractText(res)) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
+                    return res;
+                }));
 
-    // Stage 1: Planning
-    const plannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
-    const planResult = await callModel(`${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`, plannerSys);
-    accUsage(usage, planResult);
-    const appPlan = extractJson(extractText(planResult));
+            // Stage 1: Planning
+            const plannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
+            const planResult = await callModel(`${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`, plannerSys);
+            accUsage(usage, planResult);
+            const appPlan = extractJson(extractText(planResult));
 
-    // Stage 2: Coding
-    const selectedCaps = getCapabilitiesByApiNames(
-        (appPlan?.technicalRequirements?.apis ?? []).map((a: any) => a.name),
-        appVersion,
-        ALL_CAPABILITIES,
-    );
-    const coderSys = buildSystemInstructions(appVersion, selectedCaps);
-    const codeResult = await callModel(
-        `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`,
-        coderSys,
-    );
-    accUsage(usage, codeResult);
+            // Stage 2: Coding
+            const selectedCaps = getCapabilitiesByApiNames(
+                (appPlan?.technicalRequirements?.apis ?? []).map((a: any) => a.name),
+                appVersion,
+                ALL_CAPABILITIES,
+            );
+            const coderSys = buildSystemInstructions(appVersion, selectedCaps);
+            const codeResult = await callModel(
+                `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`,
+                coderSys,
+            );
+            accUsage(usage, codeResult);
 
-    let html = fixCallbackPatterns(extractHtml(extractText(codeResult)));
-    if (!html) throw new Error('AI returned empty response');
+            let html = fixCallbackPatterns(extractHtml(extractText(codeResult)));
+            if (!html) throw new Error('AI returned empty response');
 
-    // Validation (first pass)
-    const initErrors = [
-        ...validateGeneratedCode(html).errors,
-        ...validateWithExecution(html).errors,
-    ];
+            // Validation (first pass)
+            const initErrors = [
+                ...validateGeneratedCode(html).errors,
+                ...validateWithExecution(html).errors,
+            ];
 
-    // Fix loop — up to 2 attempts
-    let currentHtml = html;
-    let currentErrors = initErrors;
+            // Fix loop — up to 2 attempts
+            let currentHtml = html;
+            let currentErrors = initErrors;
 
-    for (let attempt = 0; attempt < 2 && currentErrors.length > 0 && currentErrors.some(e => e.fixable); attempt++) {
-        const fixResult = await callModel(generateFixPrompt(currentErrors, currentHtml), coderSys);
-        accUsage(usage, fixResult);
-        currentHtml = fixCallbackPatterns(extractHtml(extractText(fixResult)));
-        if (!currentHtml) throw new Error('AI returned empty response after fix');
-        currentErrors = [
-            ...validateGeneratedCode(currentHtml).errors,
-            ...validateWithExecution(currentHtml).errors,
-        ];
+            for (let fixAttempt = 0; fixAttempt < 2 && currentErrors.length > 0 && currentErrors.some(e => e.fixable); fixAttempt++) {
+                const fixResult = await callModel(generateFixPrompt(currentErrors, currentHtml), coderSys);
+                accUsage(usage, fixResult);
+                currentHtml = fixCallbackPatterns(extractHtml(extractText(fixResult)));
+                if (!currentHtml) throw new Error('AI returned empty response after fix');
+                currentErrors = [
+                    ...validateGeneratedCode(currentHtml).errors,
+                    ...validateWithExecution(currentHtml).errors,
+                ];
+            }
+
+            if (currentErrors.length > 0) throw new Error(`App generation failed: ${currentErrors[0]?.message}`);
+            html = currentHtml;
+
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            return { html, usage, appName: titleMatch?.[1]?.trim(), initialValidationErrors: initErrors };
+        } catch (err) {
+            lastError = err;
+            if (attempt < 2) console.warn(`[generateSpellCreate] attempt ${attempt + 1} failed, retrying...`, err);
+        }
     }
-
-    if (currentErrors.length > 0) throw new Error(`App generation failed: ${currentErrors[0]?.message}`);
-    html = currentHtml;
-
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    return { html, usage, appName: titleMatch?.[1]?.trim(), initialValidationErrors: initErrors };
+    throw lastError;
 }
 
 // ============================================================
@@ -175,9 +186,8 @@ export async function generateSpellEdit(
     or: OpenAI,
 ): Promise<EditResult> {
     const { currentCode, instruction, previousEdits, selectedContext, storageStructure } = params;
-    const usage = emptyUsage();
 
-    // Self-heal corrupted code (mirrors production behaviour)
+    // Pre-compute inputs that don't change between retries
     let rawCode = currentCode;
     if (rawCode && !rawCode.trimStart().startsWith('<')) {
         const recovered = extractHtml(rawCode);
@@ -197,54 +207,67 @@ export async function generateSpellEdit(
     const editPlannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
     const editPatcherSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
 
-    const callEditModel = (content: string, sysInstr: string) =>
-        raceTimeout(withRetry(async () => {
-            const res = await or.chat.completions.create({
-                model: MODELS.SPELL_S,
-                messages: [{ role: 'system', content: sysInstr }, { role: 'user', content: content }],
-                ...OR_REASONING_HIGH,
-                ...OR_WEB_SEARCH,
-            });
-            if (!extractText(res)) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
-            return res;
-        }));
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= 2; attempt++) {
+        try {
+            const noCache = attempt > 0;
+            if (noCache) console.warn(`[generateSpellEdit] retry attempt ${attempt}, bypassing cache`);
+            const usage = emptyUsage();
 
-    // Stage 1: Plan
-    const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
-    const planResult = await callEditModel(planPrompt, editPlannerSys);
-    accUsage(usage, planResult);
-    const editPlan = extractJson(extractText(planResult));
+            const callEditModel = (content: string, sysInstr: string) =>
+                raceTimeout(withRetry(async () => {
+                    const res = await or.chat.completions.create({
+                        model: MODELS.SPELL_S,
+                        messages: [{ role: 'system', content: sysInstr }, { role: 'user', content: content }],
+                        ...OR_REASONING_HIGH,
+                        ...OR_WEB_SEARCH,
+                    }, noCache ? { headers: { 'X-OpenRouter-Cache': 'false' } } : undefined);
+                    if (!extractText(res)) throw new Error(`Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`);
+                    return res;
+                }));
 
-    // Stage 2: Patch
-    const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
-    const patchResult = await callEditModel(patchPrompt, editPatcherSys);
-    accUsage(usage, patchResult);
-    const patchResponse = extractJson(extractText(patchResult));
+            // Stage 1: Plan
+            const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
+            const planResult = await callEditModel(planPrompt, editPlannerSys);
+            accUsage(usage, planResult);
+            const editPlan = extractJson(extractText(planResult));
 
-    let html = fixCallbackPatterns(applyPatches(normalizedCode, patchResponse?.changes ?? []));
+            // Stage 2: Patch
+            const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
+            const patchResult = await callEditModel(patchPrompt, editPatcherSys);
+            accUsage(usage, patchResult);
+            const patchResponse = extractJson(extractText(patchResult));
 
-    // Validation (first pass)
-    const initErrors = [
-        ...validateGeneratedCode(html).errors,
-        ...validateWithExecution(html).errors,
-    ];
+            let html = fixCallbackPatterns(applyPatches(normalizedCode, patchResponse?.changes ?? []));
 
-    // Fix loop (mirrors production behaviour)
-    if (initErrors.length > 0 && initErrors.some(e => e.fixable)) {
-        const fixResult = await callEditModel(generateFixPrompt(initErrors, html), "Follow instructions and fix these errors in the code");
-        accUsage(usage, fixResult);
-        html = fixCallbackPatterns(extractHtml(extractText(fixResult)));
-        if (!html) throw new Error('AI returned empty response after fix');
-        const afterErrors = [
-            ...validateGeneratedCode(html).errors,
-            ...validateWithExecution(html).errors,
-        ];
-        if (afterErrors.length > 0) throw new Error(`Edit failed: ${afterErrors[0]?.message}`);
-    } else if (initErrors.length > 0) {
-        throw new Error(`Edit failed: ${initErrors[0]?.message}`);
+            // Validation (first pass)
+            const initErrors = [
+                ...validateGeneratedCode(html).errors,
+                ...validateWithExecution(html).errors,
+            ];
+
+            // Fix loop (mirrors production behaviour)
+            if (initErrors.length > 0 && initErrors.some(e => e.fixable)) {
+                const fixResult = await callEditModel(generateFixPrompt(initErrors, html), "Follow instructions and fix these errors in the code");
+                accUsage(usage, fixResult);
+                html = fixCallbackPatterns(extractHtml(extractText(fixResult)));
+                if (!html) throw new Error('AI returned empty response after fix');
+                const afterErrors = [
+                    ...validateGeneratedCode(html).errors,
+                    ...validateWithExecution(html).errors,
+                ];
+                if (afterErrors.length > 0) throw new Error(`Edit failed: ${afterErrors[0]?.message}`);
+            } else if (initErrors.length > 0) {
+                throw new Error(`Edit failed: ${initErrors[0]?.message}`);
+            }
+
+            return { html, usage, initialValidationErrors: initErrors };
+        } catch (err) {
+            lastError = err;
+            if (attempt < 2) console.warn(`[generateSpellEdit] attempt ${attempt + 1} failed, retrying...`, err);
+        }
     }
-
-    return { html, usage, initialValidationErrors: initErrors };
+    throw lastError;
 }
 
 // ============================================================
