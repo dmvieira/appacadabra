@@ -1,22 +1,16 @@
 import { OR_BASE_URL } from './config';
 
-function detectMimeType(base64: string): string {
-    if (base64.startsWith('/9j/')) return 'image/jpeg';
-    if (base64.startsWith('iVBOR')) return 'image/png';
-    return 'image/jpeg';
-}
-
 export async function submitVideoJob(
     prompt: string,
-    imageB64: string | undefined,
+    imageUrl: string | undefined,
     model: string,
     apiKey: string,
 ): Promise<{ id: string; polling_url: string }> {
     const body: Record<string, unknown> = { model, prompt };
-    if (imageB64) {
+    if (imageUrl) {
         body.input_references = [{
             type: 'image_url',
-            image_url: { url: `data:${detectMimeType(imageB64)};base64,${imageB64}` },
+            image_url: { url: imageUrl },
         }];
     }
 

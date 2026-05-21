@@ -875,12 +875,32 @@ export const processSpellJob = onDocumentCreated(
                 case 'webview_ai_video': {
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Generating video for: ${prompt.substring(0, 80)}...`);
 
-                    const firstImageB64 = resolvedImages?.[0];
-                    const hasImages = !!firstImageB64;
+                    const hasImages = !!(imagesBase64?.[0]);
                     const videoModel = hasImages ? MODELS.VIDEO_STD : MODELS.VIDEO_FAST;
 
+                    // OpenRouter input_references requires a public HTTPS URL, not a data URI.
+                    // Reuse the Storage URL if the client already uploaded (large images),
+                    // otherwise upload the base64 to a temp path (auto-deleted in 1 day).
+                    let referenceImageUrl: string | undefined;
+                    const rawRefImage = imagesBase64?.[0];
+                    if (rawRefImage) {
+                        if (rawRefImage.startsWith('http')) {
+                            referenceImageUrl = rawRefImage;
+                        } else {
+                            const refBucket = getStorage().bucket();
+                            const refFileName = `video_refs/${uid}/${jobId}_ref.jpg`;
+                            const refToken = require('crypto').randomUUID();
+                            await refBucket.file(refFileName).save(Buffer.from(rawRefImage, 'base64'), {
+                                contentType: 'image/jpeg',
+                                metadata: { metadata: { firebaseStorageDownloadTokens: refToken } },
+                            });
+                            referenceImageUrl = `https://firebasestorage.googleapis.com/v0/b/${refBucket.name}/o/${encodeURIComponent(refFileName)}?alt=media&token=${refToken}`;
+                            console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Uploaded reference image to Storage`);
+                        }
+                    }
+
                     const genResponse = await withRetry(() =>
-                        submitVideoJob(prompt, firstImageB64, videoModel, OPENROUTER_API_KEY)
+                        submitVideoJob(prompt, referenceImageUrl, videoModel, OPENROUTER_API_KEY)
                     );
 
                     // Poll ~30 min max (60 polls × 30s)

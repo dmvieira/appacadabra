@@ -42,14 +42,14 @@ describe('submitVideoJob', () => {
         expect(body.prompt).toBe('hello');
     });
 
-    it('image: body uses input_references with image_url', async () => {
+    it('image: body uses input_references with the provided HTTPS URL', async () => {
         const spy = mockFetch({ ok: true, json: SUBMIT_RESPONSE });
-        const jpegB64 = '/9j/fakeJpegData';
-        await submitVideoJob('hello', jpegB64, 'google/veo-3.1-lite', FAKE_KEY);
+        const imageUrl = 'https://storage.googleapis.com/bucket/video_refs/uid/job_ref.jpg?alt=media&token=abc';
+        await submitVideoJob('hello', imageUrl, 'google/veo-3.1-lite', FAKE_KEY);
         const body = JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string);
         expect(body.input_references).toHaveLength(1);
         expect(body.input_references[0].type).toBe('image_url');
-        expect(body.input_references[0].image_url.url).toMatch(/^data:image\/jpeg;base64,/);
+        expect(body.input_references[0].image_url.url).toBe(imageUrl);
     });
 
     it('throws on non-ok response', async () => {
