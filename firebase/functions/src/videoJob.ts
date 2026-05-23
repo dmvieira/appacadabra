@@ -2,16 +2,16 @@ import { OR_BASE_URL } from './config';
 
 export async function submitVideoJob(
     prompt: string,
-    imageUrl: string | undefined,
+    imageUrls: string[],
     model: string,
     apiKey: string,
 ): Promise<{ id: string; polling_url: string }> {
     const body: Record<string, unknown> = { model, prompt };
-    if (imageUrl) {
-        body.input_references = [{
+    if (imageUrls.length > 0) {
+        body.input_references = imageUrls.map(url => ({
             type: 'image_url',
-            image_url: { url: imageUrl },
-        }];
+            image_url: { url },
+        }));
     }
 
     const r = await fetch(`${OR_BASE_URL}/videos`, {

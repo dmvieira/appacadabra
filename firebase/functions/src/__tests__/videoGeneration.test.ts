@@ -27,7 +27,7 @@ afterEach(() => jest.restoreAllMocks());
 describe('submitVideoJob', () => {
     it('posts to /api/v1/videos (not /videos/generations)', async () => {
         const spy = mockFetch({ ok: true, json: SUBMIT_RESPONSE });
-        await submitVideoJob('hello', undefined, 'google/veo-3.1-fast', FAKE_KEY);
+        await submitVideoJob('hello', [], 'google/veo-3.1-fast', FAKE_KEY);
         expect(spy).toHaveBeenCalledWith(
             `${OR_BASE_URL}/videos`,
             expect.objectContaining({ method: 'POST' }),
@@ -36,25 +36,40 @@ describe('submitVideoJob', () => {
 
     it('text-only: body has no input_references', async () => {
         const spy = mockFetch({ ok: true, json: SUBMIT_RESPONSE });
-        await submitVideoJob('hello', undefined, 'google/veo-3.1-fast', FAKE_KEY);
+        await submitVideoJob('hello', [], 'google/veo-3.1-fast', FAKE_KEY);
         const body = JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string);
         expect(body).not.toHaveProperty('input_references');
         expect(body.prompt).toBe('hello');
     });
 
-    it('image: body uses input_references with the provided HTTPS URL', async () => {
+    it('single image: body uses input_references with the provided HTTPS URL', async () => {
         const spy = mockFetch({ ok: true, json: SUBMIT_RESPONSE });
-        const imageUrl = 'https://storage.googleapis.com/bucket/video_refs/uid/job_ref.jpg?alt=media&token=abc';
-        await submitVideoJob('hello', imageUrl, 'google/veo-3.1-lite', FAKE_KEY);
+        const imageUrl = 'https://storage.googleapis.com/bucket/video_refs/uid/job_ref0.jpg?alt=media&token=abc';
+        await submitVideoJob('hello', [imageUrl], 'google/veo-3.1-fast', FAKE_KEY);
         const body = JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string);
         expect(body.input_references).toHaveLength(1);
         expect(body.input_references[0].type).toBe('image_url');
         expect(body.input_references[0].image_url.url).toBe(imageUrl);
     });
 
+    it('multiple images: all passed as input_references', async () => {
+        const spy = mockFetch({ ok: true, json: SUBMIT_RESPONSE });
+        const urls = [
+            'https://storage.googleapis.com/bucket/ref0.jpg',
+            'https://storage.googleapis.com/bucket/ref1.jpg',
+            'https://storage.googleapis.com/bucket/ref2.jpg',
+        ];
+        await submitVideoJob('hello', urls, 'google/veo-3.1-fast', FAKE_KEY);
+        const body = JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string);
+        expect(body.input_references).toHaveLength(3);
+        urls.forEach((url, i) => {
+            expect(body.input_references[i].image_url.url).toBe(url);
+        });
+    });
+
     it('throws on non-ok response', async () => {
         mockFetch({ ok: false, text: 'Not Found' });
-        await expect(submitVideoJob('p', undefined, 'm', FAKE_KEY)).rejects.toThrow('Video submit failed: 404');
+        await expect(submitVideoJob('p', [], 'm', FAKE_KEY)).rejects.toThrow('Video submit failed: 404');
     });
 });
 

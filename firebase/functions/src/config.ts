@@ -8,8 +8,8 @@ export const MODELS = {
     IMAGE_EDIT: 'google/gemini-2.5-flash-image',
     TTS: 'google/gemini-3.1-flash-tts-preview',
     EMBED: 'google/gemini-embedding-001',
-    VIDEO_FAST: 'google/veo-3.1-fast',
-    VIDEO_STD: 'google/veo-3.1-lite',
+    VIDEO_FAST: 'google/veo-3.1-lite',
+    VIDEO_STD: 'google/veo-3.1-fast',
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

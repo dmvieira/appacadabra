@@ -54,6 +54,26 @@ function getOR(): OpenAI {
 }
 
 
+// ============= AUDIO UTILS =============
+function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, channels = 1, bitDepth = 16): Buffer {
+    const dataSize = pcmBuffer.length;
+    const header = Buffer.alloc(44);
+    header.write('RIFF', 0);
+    header.writeUInt32LE(36 + dataSize, 4);
+    header.write('WAVE', 8);
+    header.write('fmt ', 12);
+    header.writeUInt32LE(16, 16);
+    header.writeUInt16LE(1, 20);
+    header.writeUInt16LE(channels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(sampleRate * channels * (bitDepth / 8), 28);
+    header.writeUInt16LE(channels * (bitDepth / 8), 32);
+    header.writeUInt16LE(bitDepth, 34);
+    header.write('data', 36);
+    header.writeUInt32LE(dataSize, 40);
+    return Buffer.concat([header, pcmBuffer]);
+}
+
 // ============= COMPRESSION UTILS =============
 function compressContent(text: string): string {
     if (!text) return '';
@@ -875,36 +895,33 @@ export const processSpellJob = onDocumentCreated(
                 case 'webview_ai_video': {
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Generating video for: ${prompt.substring(0, 80)}...`);
 
-                    const hasImages = !!(imagesBase64?.[0]);
-                    const videoModel = hasImages ? MODELS.VIDEO_STD : MODELS.VIDEO_FAST;
-
-                    // OpenRouter input_references requires a public HTTPS URL, not a data URI.
-                    // Reuse the Storage URL if the client already uploaded (large images),
-                    // otherwise upload the base64 to a temp path (auto-deleted in 1 day).
-                    let referenceImageUrl: string | undefined;
-                    let tempRefFile: any = undefined;
-                    const rawRefImage = imagesBase64?.[0];
-                    if (rawRefImage) {
-                        if (rawRefImage.startsWith('http')) {
-                            referenceImageUrl = rawRefImage;
+                    const imageUrls: string[] = [];
+                    const tempRefFiles: any[] = [];
+                    for (const [i, raw] of (imagesBase64?.slice(0, 3) ?? []).entries()) {
+                        if (!raw) continue;
+                        if (raw.startsWith('http')) {
+                            imageUrls.push(raw);
                         } else {
-                            const refMime = rawRefImage.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+                            const refMime = raw.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
                             const refExt = refMime === 'image/png' ? 'png' : 'jpg';
                             const refBucket = getStorage().bucket();
-                            const refFileName = `video_refs/${uid}/${jobId}_ref.${refExt}`;
+                            const refFileName = `video_refs/${uid}/${jobId}_ref${i}.${refExt}`;
                             const refToken = require('crypto').randomUUID();
-                            await refBucket.file(refFileName).save(Buffer.from(rawRefImage, 'base64'), {
+                            await refBucket.file(refFileName).save(Buffer.from(raw, 'base64'), {
                                 contentType: refMime,
                                 metadata: { metadata: { firebaseStorageDownloadTokens: refToken } },
                             });
-                            referenceImageUrl = `https://firebasestorage.googleapis.com/v0/b/${refBucket.name}/o/${encodeURIComponent(refFileName)}?alt=media&token=${refToken}`;
-                            tempRefFile = refBucket.file(refFileName);
-                            console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Uploaded reference image (${refMime}) to Storage`);
+                            imageUrls.push(`https://firebasestorage.googleapis.com/v0/b/${refBucket.name}/o/${encodeURIComponent(refFileName)}?alt=media&token=${refToken}`);
+                            tempRefFiles.push(refBucket.file(refFileName));
+                            console.log(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Uploaded ref image ${i} (${refMime}) to Storage`);
                         }
                     }
 
+                    const hasImages = imageUrls.length > 0;
+                    const videoModel = hasImages ? MODELS.VIDEO_STD : MODELS.VIDEO_FAST;
+
                     const genResponse = await withRetry(() =>
-                        submitVideoJob(prompt, referenceImageUrl, videoModel, OPENROUTER_API_KEY)
+                        submitVideoJob(prompt, imageUrls, videoModel, OPENROUTER_API_KEY)
                     );
 
                     // Poll max 14 × 30s = 420s, staying within the 540s function timeout
@@ -946,9 +963,9 @@ export const processSpellJob = onDocumentCreated(
 
                     const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
 
-                    // Delete temp reference image now that the video is downloaded
-                    if (tempRefFile) {
-                        tempRefFile.delete().catch((e: any) =>
+                    // Delete temp reference images now that the video is downloaded
+                    for (const f of tempRefFiles) {
+                        f.delete().catch((e: any) =>
                             console.warn(`[Job ${jobId}] [WEBVIEW_AI_VIDEO] Failed to delete temp ref image: ${e.message}`)
                         );
                     }
@@ -1017,23 +1034,21 @@ export const processSpellJob = onDocumentCreated(
                     const selectedVoice = voiceName || 'Aoede';
                     console.log(`[Job ${jobId}] [WEBVIEW_AI_TTS] voice=${selectedVoice}, text="${prompt.substring(0, 60)}..."`);
 
-                    const ttsCompletion = await withRetry(() =>
-                        (getOR().chat.completions.create as any)({
+                    const ttsResponse = await withRetry(() =>
+                        getOR().audio.speech.create({
                             model: MODELS.TTS,
-                            modalities: ['audio'],
-                            audio: { voice: selectedVoice, format: 'wav' },
-                            messages: [{ role: 'user', content: prompt }],
+                            input: prompt,
+                            voice: selectedVoice as any,
+                            response_format: 'pcm',
                         })
-                    ) as any;
-
-                    const audioData: string | undefined = ttsCompletion.choices?.[0]?.message?.audio?.data;
-                    if (!audioData) throw new Error('TTS returned no audio');
-                    const wavBuffer = Buffer.from(audioData, 'base64');
-                    if (!wavBuffer.length) throw new Error('TTS returned empty audio buffer');
+                    );
+                    const pcmBuffer = Buffer.from(await ttsResponse.arrayBuffer());
+                    if (!pcmBuffer.length) throw new Error('TTS returned empty audio buffer');
+                    const audioBuffer = pcmToWav(pcmBuffer);
 
                     // Estimate usage for cost calculation (TTS token counts not exposed by OpenRouter audio endpoint)
                     const estimatedInputTokens = Math.ceil(prompt.length / 4);
-                    const estimatedOutputTokens = Math.ceil(wavBuffer.length / 32);
+                    const estimatedOutputTokens = Math.ceil(audioBuffer.length / 32);
                     usage = sanitizeForFirestore({
                         promptTokens: estimatedInputTokens,
                         responseTokens: estimatedOutputTokens,
@@ -1047,14 +1062,14 @@ export const processSpellJob = onDocumentCreated(
                     // ====================================================
                     // UPLOAD TO FIREBASE STORAGE (Bypass 1MB Firestore limit)
                     // ====================================================
-                    if (wavBuffer.length > 800_000) {
-                        console.log(`[Job ${jobId}] [WEBVIEW_AI_TTS] Audio size (${Math.round(wavBuffer.length / 1024)}KB) exceeds threshold. Uploading to Storage...`);
+                    if (audioBuffer.length > 800_000) {
+                        console.log(`[Job ${jobId}] [WEBVIEW_AI_TTS] Audio size (${Math.round(audioBuffer.length / 1024)}KB) exceeds threshold. Uploading to Storage...`);
                         const bucket = getStorage().bucket();
                         const fileName = `generated_audio/${uid}/${jobId}.wav`;
                         const file = bucket.file(fileName);
 
                         const token = require('crypto').randomUUID();
-                        await file.save(wavBuffer, {
+                        await file.save(audioBuffer, {
                             contentType: 'audio/wav',
                             metadata: {
                                 metadata: {
@@ -1069,7 +1084,7 @@ export const processSpellJob = onDocumentCreated(
                         resultText = downloadUrl;
                         logExtras.audioUrl = downloadUrl;
                     } else {
-                        resultText = wavBuffer.toString('base64');
+                        resultText = audioBuffer.toString('base64');
                     }
 
                     logModelId = MODELS.TTS;
