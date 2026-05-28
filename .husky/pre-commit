@@ -1,3 +1,4 @@
+#!/bin/sh
 echo "Running root tests..."
 npm test -- --passWithNoTests
 
