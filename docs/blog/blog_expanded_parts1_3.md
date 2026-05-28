@@ -78,7 +78,7 @@ The Strategy Agent held these constraints as persistent context. Every strategic
 
 ---
 
-## Part 2: The Branding Department. Forging Identity with Vertex AI
+## Part 2: The Branding Department. Forging Identity for Appacadabra
 
 Strategy had given Appacadabra a direction: native Android, four-month window, AI as the staffing model. A positioning angle that had survived twelve rounds of stress-testing. What it hadn't given us yet was a face, and a company without a face is not a company. It is a business plan.
 
@@ -122,15 +122,15 @@ Vertex AI made me a Creative Director by producing options of sufficient quality
 
 This was also the point where the pattern that would define this entire project took shape.
 
-After completing the initial brand work with Vertex AI, I built the **Branding Agent**, a specialized agent configured with Appacadabra's full visual identity as context. I then generated **plugins and MCPs** that encoded our design decisions as executable constraints:
+After completing the initial brand work with Vertex AI, I built the **Branding Agent**, a specialized agent configured with Appacadabra's full visual identity as context. I then generated a **skill** for this agent that encoded our design decisions as executable constraints using VertexAI:
 
-- A **Visual Brief Generator MCP** (`/design-brief`) that takes a product feature description or asset request and produces a structured design brief in Appacadabra's brand voice, including color and typography constraints from `lib/theme.ts`, WCAG AA accessibility requirements, dimension specs, evaluation criteria, and a production-ready prompt for Vertex AI image generation
+- A **Visual Brief Generator MCP** (`/design-brief`) that takes a product feature description or asset request and produces a structured design brief in Appacadabra's brand voice, including color and typography constraints from project theme, WCAG AA accessibility requirements, dimension specs, evaluation criteria, and a production-ready prompt for Vertex AI image or Video generation
 
 The next time I needed a new promotional banner, an in-app illustration, or a social media template, the Branding Agent could produce it already knowing what Appacadabra looks like. Not generic output, but on-brand output. The agent learned the company's aesthetic DNA and held it.
 
 ### The Real Unlock: Taste, Not Tool
 
-The most important insight from this chapter isn't about Vertex AI. It's about what AI does to the relationship between taste and execution.
+The most important insight from this chapter isn't about Vertex AI, because now Canvas and other tools do the same. It's about what AI does to the relationship between taste and execution.
 
 Before AI, taste without technical skill was frustrating. You could see the vision but couldn't build it. After AI, taste becomes the scarce resource. The execution is abundant. The bottleneck shifts from *can you make it* to *do you know what you want*.
 

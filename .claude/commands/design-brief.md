@@ -42,9 +42,10 @@ What sizes/formats are needed? (e.g., 1024×500 Play Store feature graphic, 512�
 
 ### Evaluation criteria
 How will we know if this design is successful?
-1. [criterion 1]
-2. [criterion 2]
-3. [criterion 3]
+1. **Magic without gimmick** — The design feels distinctly spell/magic-themed without relying on clichéd fantasy imagery or generic sparkle overload.
+2. **Element economy** — Every visual element earns its space; removing any one element would weaken the communication, not improve clarity.
+3. **Immediate product legibility** — A non-technical user encountering this asset cold can understand what Appacadabra does without any supporting text.
+4. **WCAG AA contrast** — All text and interactive elements meet the minimum contrast ratios specified above against the dark background (`#0A0A1A`).
 
 ### Prompt for Vertex AI / image generation
 Generate a production-ready prompt for an AI image generation tool (Vertex AI Imagen, Midjourney, DALL-E) that would produce an on-brand result for this brief.
