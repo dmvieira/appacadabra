@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
-import { NativeModules } from 'react-native';
 import * as db from '../database/db';
+import { scheduleAlarm, cancelAlarm } from '../alarmBridge';
 import { markBackupDirty } from '../backupSync';
 import { t } from '../i18n';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
@@ -78,7 +78,7 @@ async function cancelDuplicateNotification(appId: number | null, title: string, 
         for (const [alarmId, entry] of reg.entries()) {
             if (entry.title === title && entry.body === body) {
                 console.log(`[Bridge] Cancelling duplicate alarm: ${alarmId}`);
-                await NativeModules.AlarmModule.cancelAlarm(alarmId).catch(() => { });
+                await cancelAlarm(alarmId).catch(() => { });
                 reg.delete(alarmId);
                 await db.deleteAlarm(appId, alarmId).catch(() => { });
             }
@@ -396,7 +396,7 @@ export const notifyCapability: CapabilityModule = {
                             if (ctx.appId) {
                                 const reg = await getAlarmRegistry(ctx.appId);
                                 if (reg.has(String(data.id))) {
-                                    await NativeModules.AlarmModule.cancelAlarm(String(data.id));
+                                    await cancelAlarm(String(data.id));
                                     reg.delete(String(data.id));
                                     await db.deleteAlarm(ctx.appId, String(data.id)).catch(() => { });
                                 }
@@ -405,7 +405,7 @@ export const notifyCapability: CapabilityModule = {
 
                         if (data.isAlarm) {
                             const alarmId = data.id ? String(data.id) : `alarm-${ctx.appId}-${Date.now()}`;
-                            await NativeModules.AlarmModule.scheduleAlarm(alarmId, titleStr, bodyStr, scheduleDate.getTime());
+                            await scheduleAlarm(alarmId, titleStr, bodyStr, scheduleDate.getTime());
 
                             if (ctx.appId) {
                                 const reg = await getAlarmRegistry(ctx.appId);
@@ -511,7 +511,7 @@ export const notifyCapability: CapabilityModule = {
                     if (ctx.appId) {
                         const reg = await getAlarmRegistry(ctx.appId);
                         if (reg.has(idStr)) {
-                            await NativeModules.AlarmModule.cancelAlarm(idStr);
+                            await cancelAlarm(idStr);
                             reg.delete(idStr);
                             await db.deleteAlarm(ctx.appId, idStr).catch(() => { });
                             markBackupDirty();
@@ -540,7 +540,7 @@ export const notifyCapability: CapabilityModule = {
                         if (ctx.appId) {
                             const reg = await getAlarmRegistry(ctx.appId);
                             for (const alarmId of reg.keys()) {
-                                try { await NativeModules.AlarmModule.cancelAlarm(alarmId); } catch { }
+                                try { await cancelAlarm(alarmId); } catch { }
                                 alarmCancelCount++;
                             }
                             reg.clear();

@@ -7,7 +7,7 @@ import { GeneratedApp, AppVersion, NewGeneratedApp } from './database/types';
 import * as db from './database/db';
 import { reloadStorageForApp } from './storageCache';
 import { cancelSpellNotifications } from './bridges/messageHandlers';
-import { NativeModules } from 'react-native';
+import { scheduleAlarm as scheduleAlarmBridge } from './alarmBridge';
 import { t } from './i18n';
 
 
@@ -517,7 +517,7 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                                 const secondsUntilFire = Math.round((notif.fireDate - now) / 1000);
                                 if (secondsUntilFire < 10) continue;
                                 if (notif.isAlarm) {
-                                    await NativeModules.AlarmModule.scheduleAlarm(notif.identifier, notif.title, notif.body, notif.fireDate);
+                                    await scheduleAlarmBridge(notif.identifier, notif.title, notif.body, notif.fireDate);
                                     await db.saveAlarm(existing.id, notif.identifier, notif.title, notif.body, notif.fireDate);
                                 } else {
                                     await Notifications.scheduleNotificationAsync({
@@ -729,7 +729,7 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                     if (secondsUntilFire < 10) continue; // skip already-past or imminent
                     try {
                         if (notif.isAlarm) {
-                            await NativeModules.AlarmModule.scheduleAlarm(notif.identifier, notif.title, notif.body, notif.fireDate);
+                            await scheduleAlarmBridge(notif.identifier, notif.title, notif.body, notif.fireDate);
                             await db.saveAlarm(newId, notif.identifier, notif.title, notif.body, notif.fireDate);
                         } else {
                             await Notifications.scheduleNotificationAsync({

@@ -13,7 +13,8 @@ import { Audio } from 'expo-av';
 import { WebView } from 'react-native-webview';
 import { useBridgeUIStore } from '../bridgeUIStore';
 import { markBackupDirty } from '../backupSync';
-import { NativeModules } from 'react-native';
+import { Platform } from 'react-native';
+import { scheduleAlarm as scheduleAlarmBridge, cancelAlarm as cancelAlarmBridge } from '../alarmBridge';
 import * as db from '../database/db';
 import { ALL_CAPABILITIES } from '../capabilities/index';
 import { ExpandedStorageItem } from './injectedJS';
@@ -333,9 +334,9 @@ async function getSpellNotifications(appId: number | null) {
 
 export async function cancelAlarmEntry(appId: number, alarmId: string): Promise<void> {
     try {
-        await NativeModules.AlarmModule.cancelAlarm(alarmId);
+        await cancelAlarmBridge(alarmId);
     } catch (e) {
-        console.warn('[cancelAlarmEntry] NativeModule cancel failed:', e);
+        console.warn('[cancelAlarmEntry] alarm cancel failed:', e);
     }
     await db.deleteAlarm(appId, alarmId);
     alarmRegistry.get(appId)?.delete(alarmId);
@@ -348,7 +349,7 @@ export async function cancelSpellNotifications(appId: number): Promise<void> {
     }
     const reg = await getAlarmRegistry(appId);
     for (const alarmId of reg.keys()) {
-        await NativeModules.AlarmModule.cancelAlarm(alarmId).catch(() => { });
+        await cancelAlarmBridge(alarmId).catch(() => { });
     }
     reg.clear();
     alarmRegistryLoaded.delete(appId);
@@ -357,18 +358,17 @@ export async function cancelSpellNotifications(appId: number): Promise<void> {
 
 /**
  * Restore all future alarms from SQLite after a process restart.
- * AlarmManager entries are lost when the RN process dies; this re-registers them.
+ * On Android, AlarmManager entries are lost when the RN process dies; this re-registers them.
+ * On iOS, expo-notifications persists scheduled notifications natively — nothing to restore.
  */
 export async function restoreScheduledAlarms(): Promise<void> {
+    if (Platform.OS !== 'android') return;
     const now = Date.now();
     try {
         const future = (await db.getAllFutureAlarms()).filter(a => a.timeMs > now);
         for (const alarm of future) {
             try {
-                await NativeModules.AlarmModule.scheduleAlarm(
-                    alarm.alarmId, alarm.title, alarm.body, alarm.timeMs
-                );
-                // Update in-memory registry
+                await scheduleAlarmBridge(alarm.alarmId, alarm.title, alarm.body, alarm.timeMs);
                 if (!alarmRegistry.has(alarm.appId)) alarmRegistry.set(alarm.appId, new Map());
                 alarmRegistry.get(alarm.appId)!.set(alarm.alarmId, {
                     id: alarm.alarmId, title: alarm.title, body: alarm.body, timeMs: alarm.timeMs, isAlarm: true
