@@ -1,4 +1,4 @@
-const { withAndroidManifest, withDangerousMod, withPlugins, withMainApplication } = require('@expo/config-plugins');
+const { withAndroidManifest, withDangerousMod, withPlugins, withMainApplication, withEntitlementsPlist } = require('@expo/config-plugins');
 const fs = require('fs-extra');
 const path = require('path');
 
@@ -163,12 +163,22 @@ const withMainApplicationPackageInjection = (config) => {
     });
 };
 
+const withIOSEntitlements = (config) => {
+    return withEntitlementsPlist(config, (config) => {
+        config.modResults['com.apple.developer.healthkit'] = true;
+        config.modResults['com.apple.developer.healthkit.access'] = [];
+        config.modResults['com.apple.security.application-groups'] = ['group.ai.appacadabra.app'];
+        return config;
+    });
+};
+
 const withAppacadabraNative = (config) => {
     return withPlugins(config, [
         withRunnerActivityManifest,
         withUCropTheme,
         withNativeFiles,
-        withMainApplicationPackageInjection
+        withMainApplicationPackageInjection,
+        withIOSEntitlements,
     ]);
 };
 

@@ -24,6 +24,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.appacadabra.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": [],
+        "com.apple.security.application-groups": ["group.ai.appacadabra.app"]
+      },
       "infoPlist": {
         "LSSupportsOpeningDocumentsInPlace": true,
         "CFBundleDocumentTypes": [
@@ -33,6 +39,24 @@
             "LSItemContentTypes": [
               "public.item"
             ]
+          }
+        ],
+        "NSCameraUsageDescription": "O app precisa aceder à câmara para apps gerados que usam câmara.",
+        "NSMicrophoneUsageDescription": "O app precisa aceder ao microfone para gravação de voz e reconhecimento de fala.",
+        "NSPhotoLibraryUsageDescription": "O app precisa aceder às fotos para definir ícones dos apps.",
+        "NSContactsUsageDescription": "O app precisa aceder aos contactos para apps gerados que usam contactos.",
+        "NSCalendarsUsageDescription": "O app precisa aceder ao calendário para ver e criar eventos.",
+        "NSLocationWhenInUseUsageDescription": "O app precisa aceder à localização para apps gerados que usam GPS.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "O app precisa aceder à localização para apps gerados que usam GPS.",
+        "NSMotionUsageDescription": "O app precisa aceder ao sensor de movimento para apps gerados que usam sensores.",
+        "NSHealthShareUsageDescription": "O app precisa aceder aos dados de saúde para apps gerados que monitorizam atividade.",
+        "NSHealthUpdateUsageDescription": "O app pode atualizar dados de saúde para apps gerados.",
+        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"],
+        "UIBackgroundModes": ["fetch", "remote-notification"],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["appacadabra"],
+            "CFBundleURLName": "ai.appacadabra.app"
           }
         ]
       }
@@ -117,7 +141,6 @@
           "locationAlwaysAndWhenInUsePermission": "O app precisa acessar sua localização para apps que usam GPS."
         }
       ],
-      "expo-health-connect",
       [
         "expo-build-properties",
         {
@@ -126,6 +149,13 @@
             "targetSdkVersion": 35,
             "minSdkVersion": 26
           }
+        }
+      ],
+      [
+        "react-native-health",
+        {
+          "NSHealthShareUsageDescription": "O app precisa aceder aos dados de saúde para apps gerados que monitorizam atividade.",
+          "NSHealthUpdateUsageDescription": "O app pode atualizar dados de saúde para apps gerados."
         }
       ],
       [
