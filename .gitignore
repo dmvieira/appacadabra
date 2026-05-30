@@ -114,3 +114,6 @@ website/.firebase/
 # =====================
 .maestro/screenshots/
 .maestro/reports/
+
+# Claude Code
+.claude/worktrees/
