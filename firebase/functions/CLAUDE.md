@@ -60,7 +60,7 @@ Trigger: criação/atualização de documento em `jobs/{jobId}`.
 | Modelo OpenRouter | Usado em |
 |--------|---------|
 | `deepseek/deepseek-v4-flash` | create, edit, convert (thinking HIGH, search tools) |
-| `deepseek/deepseek-v4-flash:free` | suggestSpells |
+| `deepseek/deepseek-v4-flash` | suggestSpells |
 | `google/gemini-3.1-flash-lite` | webview_ai (texto) |
 | `google/gemini-3.1-flash-image-preview` | app_icon, webview_ai_image (sem inputs) |
 | `google/gemini-2.5-flash-image` | webview_ai_image (com imagens de referência) |

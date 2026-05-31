@@ -577,7 +577,7 @@ describe('calculateCostUsd — OpenRouter models', () => {
         expect(cost).toBeGreaterThan(0);
     });
 
-    it('calculates non-zero cost for deepseek/deepseek-v4-flash:free (SUGGEST)', () => {
+    it('calculates non-zero cost for deepseek/deepseek-v4-flash (SUGGEST)', () => {
         const cost = calculateCostUsd(MODELS.SUGGEST, usage);
         expect(cost).toBeGreaterThan(0);
     });

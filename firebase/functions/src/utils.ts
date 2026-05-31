@@ -3,6 +3,7 @@
  * No Firebase or external dependencies — all functions are side-effect-free.
  */
 
+import OpenAI from "openai";
 import { MODELS } from "./config";
 
 // ============= FIRESTORE UTILS =============
@@ -65,7 +66,6 @@ const USD_PRICING: Record<string, {
     mapsPerQuery?: number;
 }> = {
     // OpenRouter models
-    'deepseek/deepseek-v4-flash:free': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30 },
     'deepseek/deepseek-v4-flash': { inputPerMToken: 0.14, outputPerMToken: 0.28, audioInputPerMToken: 0.00, searchPerQuery: 0.014 },
     'google/gemini-3.1-flash-lite': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30, searchPerQuery: 0.014 },
     'google/gemini-3.1-flash-image-preview': { inputPerMToken: 0.10, outputPerMToken: 0.40 },
@@ -560,6 +560,166 @@ export function extractText(result: any): string {
         console.warn(`[extractText] result.text threw: ${e}. finishReason: ${finishReason}`);
         return "";
     }
+}
+
+// ============= SPELL STORE HELPERS =============
+
+export function generateSlug(name: string): string {
+    return name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60);
+}
+
+const SPELL_HTML_ALLOWED_SCRIPT_DOMAINS = [
+    'cdnjs.cloudflare.com',
+    'cdn.jsdelivr.net',
+    'unpkg.com',
+    'fonts.googleapis.com',
+    'cdn.tailwindcss.com',
+];
+
+const SPELL_CSP_META = `<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.tailwindcss.com; connect-src 'none'; form-action 'none'; navigate-to 'self' blob: data:;">`;
+
+export function sanitizeSpellHtml(html: string): { html: string; violations: string[] } {
+    let sanitized = html;
+    const violations: string[] = [];
+
+    sanitized = sanitized.replace(/<!--[\s\S]*?-->/g, '');
+
+    sanitized = sanitized.replace(/<script\b[^>]*\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>\s*<\/script>/gi,
+        (match, dq, sq) => {
+            const src = dq ?? sq ?? '';
+            try {
+                const url = new URL(src, 'https://placeholder.invalid');
+                const host = url.hostname.toLowerCase();
+                const allowed = SPELL_HTML_ALLOWED_SCRIPT_DOMAINS.some(
+                    d => host === d || host.endsWith('.' + d)
+                );
+                return allowed ? match : '';
+            } catch {
+                return '';
+            }
+        }
+    );
+
+    if (/<head\b[^>]*>/i.test(sanitized)) {
+        sanitized = sanitized.replace(/<head\b[^>]*>/i, (m) => `${m}\n${SPELL_CSP_META}`);
+    } else {
+        sanitized = `${SPELL_CSP_META}\n${sanitized}`;
+    }
+
+    const apiKeyPatterns = [
+        /sk-[A-Za-z0-9]{20,}/g,
+        /Bearer\s+[A-Za-z0-9\-._~+/]+=*/g,
+    ];
+    for (const pattern of apiKeyPatterns) {
+        if (pattern.test(sanitized)) {
+            violations.push('possible API key or bearer token');
+            break;
+        }
+    }
+
+    if (/file:\/\//i.test(sanitized)) {
+        violations.push('file:// URL reference');
+    }
+
+    const dataImageRegex = /data:image\/[a-zA-Z+]+;base64,[A-Za-z0-9+/=]+/g;
+    let m: RegExpExecArray | null;
+    while ((m = dataImageRegex.exec(sanitized)) !== null) {
+        if (m[0].length > 67000) {
+            violations.push('inline base64 image larger than 50KB');
+            break;
+        }
+    }
+
+    return { html: sanitized, violations };
+}
+
+export const SPELL_TRANSLATION_LANGS = ['en', 'pt', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ko', 'ar', 'hi', 'ru', 'tr', 'nl', 'pl', 'vi', 'th'];
+
+export interface SpellTranslationEntry {
+    name: string;
+    description: string;
+}
+
+export interface SpellTranslationsResult {
+    originalLang: string;
+    translations: Record<string, SpellTranslationEntry>;
+}
+
+export async function translateSpellMeta(
+    name: string,
+    description: string,
+    or: OpenAI,
+    hintLang?: string,
+): Promise<SpellTranslationsResult> {
+    const safeName = name.slice(0, 200).replace(/[\x00-\x1F]/g, ' ');
+    const safeDescription = (description || '').slice(0, 500).replace(/[\x00-\x1F]/g, ' ');
+    const langInstruction = hintLang
+        ? `The original language is "${hintLang}". Translate both into the other 16 languages.`
+        : `Detect the language of the following spell name and description, then translate both into the other 16 languages.`;
+    const prompt = `${langInstruction} Target languages: ${SPELL_TRANSLATION_LANGS.join(', ')}.
+
+Spell name: ${safeName}
+Spell description: ${safeDescription}
+
+Return a JSON object with this exact shape:
+{
+  "originalLang": "${hintLang ?? '<detected ISO 639-1 code>'}",
+  "translations": {
+    "en": { "name": "...", "description": "..." },
+    "pt": { "name": "...", "description": "..." }
+  }
+}
+
+Rules:
+- Include all 17 language keys: ${SPELL_TRANSLATION_LANGS.join(', ')}.
+- Keep the entry for the original language unchanged (don't translate it).
+- Keep translations natural and concise. Description max 2 sentences.
+- Preserve interpolation variables and proper nouns verbatim.
+- Return ONLY the JSON, no markdown, no explanation.`;
+
+    const result = await or.chat.completions.create({
+        model: MODELS.SUGGEST,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        response_format: { type: 'json_object' },
+    });
+
+    const text = result.choices?.[0]?.message?.content ?? '{}';
+    const clean = text.replace(/^```json\s*|^```\s*|```\s*$/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    const originalLang = typeof parsed.originalLang === 'string'
+        ? parsed.originalLang.toLowerCase().slice(0, 5)
+        : 'en';
+
+    const rawTranslations = (parsed.translations && typeof parsed.translations === 'object')
+        ? parsed.translations
+        : {};
+
+    const translations: Record<string, SpellTranslationEntry> = {};
+    for (const lang of SPELL_TRANSLATION_LANGS) {
+        const entry = rawTranslations[lang];
+        if (entry && typeof entry === 'object'
+            && typeof entry.name === 'string'
+            && typeof entry.description === 'string') {
+            translations[lang] = {
+                name: entry.name.trim(),
+                description: entry.description.trim(),
+            };
+        }
+    }
+
+    if (!translations[originalLang]) {
+        translations[originalLang] = { name, description };
+    }
+
+    return { originalLang, translations };
 }
 
 export function getUsage(result: any): { promptTokens: number; responseTokens: number; thoughtsTokens: number; totalTokens: number; webSearchRequests: number } {
