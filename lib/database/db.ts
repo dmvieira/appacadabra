@@ -146,6 +146,12 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await addColumn('webview_ai_cache', 'jobId', 'TEXT');
     await addColumn('webview_ai_cache', 'resultMediaMime', 'TEXT');
 
+    // Spell Store: link local spells to their published Firestore counterparts
+    await addColumn('generated_apps', 'storeSpellId', 'TEXT');
+    await addColumn('generated_apps', 'storeSpellSlug', 'TEXT');
+    await addColumn('generated_apps', 'source', "TEXT NOT NULL DEFAULT 'local'");
+    await addColumn('generated_apps', 'forkOfStoreSpellId', 'TEXT');
+
     // Drop the unique index on (appId, callbackName) so repeated AI calls accumulate as history
     try {
         await database.execAsync(`DROP INDEX IF EXISTS idx_wac_appId_callbackName;`);
@@ -250,6 +256,14 @@ export async function getAppByJobId(jobId: string): Promise<GeneratedApp | null>
     );
 }
 
+export async function getAppByStoreSpellId(storeSpellId: string): Promise<GeneratedApp | null> {
+    const database = await getDatabase();
+    return database.getFirstAsync<GeneratedApp>(
+        'SELECT * FROM generated_apps WHERE storeSpellId = ?',
+        [storeSpellId]
+    );
+}
+
 export async function insertApp(app: NewGeneratedApp): Promise<number> {
     const database = await getDatabase();
     // Check if app with this jobId already exists to prevent duplicates (idempotency)
@@ -274,15 +288,19 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         app.jobId ? String(app.jobId) : "", // Empty string instead of null to test NPE fix
         app.requiresBiometric ? 1 : 0,
         String(app.shortDescription ?? ''),
-        Number(app.sortOrder ?? 0)
+        Number(app.sortOrder ?? 0),
+        app.source ?? 'local',
+        app.storeSpellId ?? null,
+        app.storeSpellSlug ?? null,
+        app.forkOfStoreSpellId ?? null,
     ];
 
     console.log('[DB] Inserting App. Bindings:', JSON.stringify(bindings));
 
     try {
         const result = await database.runAsync(
-            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription, sortOrder)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, forkOfStoreSpellId)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             bindings as any[]
         );
         return result.lastInsertRowId;
@@ -367,6 +385,18 @@ export async function updateBiometricLock(appId: number, enabled: boolean): Prom
     await database.runAsync(
         'UPDATE generated_apps SET requiresBiometric = ? WHERE id = ?',
         [enabled ? 1 : 0, appId]
+    );
+}
+
+export async function updateAppStoreLink(
+    appId: number,
+    storeSpellId: string | null,
+    storeSpellSlug: string | null
+): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'UPDATE generated_apps SET storeSpellId = ?, storeSpellSlug = ? WHERE id = ?',
+        [storeSpellId, storeSpellSlug, appId]
     );
 }
 

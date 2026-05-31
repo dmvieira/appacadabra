@@ -15,6 +15,10 @@ export interface GeneratedApp {
     requiresBiometric: boolean; // If true, requires biometric auth to open
     shortDescription?: string; // Short description of the app (editable)
     sortOrder: number; // Custom sort order (lower = higher in list)
+    storeSpellId?: string | null; // ID of the published spell in Firestore store_spells (if published)
+    storeSpellSlug?: string | null; // Slug for the public Store URL
+    source?: 'local' | 'store'; // Whether this spell was created locally or learned from the Store
+    forkOfStoreSpellId?: string | null; // store_spells ID this spell was learned from (for variant publishing)
 }
 
 export interface AppVersion {

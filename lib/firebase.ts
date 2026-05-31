@@ -584,6 +584,97 @@ export async function estimateManaCost(type: string, data: any): Promise<{ mana:
     return result.data;
 }
 
+// ============= Spell Store =============
+
+export interface PublishSpellInput {
+    name: string;
+    description?: string;
+    htmlBase64: string;
+    version: number;
+    previewImageBase64?: string;
+    iconBase64?: string;
+    visibility?: 'public' | 'unlisted';
+    forkOfSpellId?: string;
+    /** BCP-47 language code of the user's device locale (e.g. 'pt', 'en'). Used as authoritative originalLang. */
+    locale?: string;
+}
+
+export interface PublishSpellResult {
+    spellId: string;
+    slug: string;
+    storeUrl: string;
+}
+
+export async function publishSpell(input: PublishSpellInput): Promise<PublishSpellResult> {
+    await ensureAuthenticated();
+    const fn = httpsCallable<PublishSpellInput, PublishSpellResult>(
+        getFunctionsInstance(), 'publishSpell'
+    );
+    const result = await fn(input);
+    return result.data;
+}
+
+export async function unpublishSpell(spellId: string): Promise<{ success: boolean }> {
+    await ensureAuthenticated();
+    const fn = httpsCallable<{ spellId: string }, { success: boolean }>(
+        getFunctionsInstance(), 'unpublishSpell'
+    );
+    const result = await fn({ spellId });
+    return result.data;
+}
+
+export interface SyncedSpellItem {
+    spellId: string;
+    slug: string;
+    name: string;
+    description: string;
+    iconPath: string | null;
+    authorName: string;
+    publishedVersion: number;
+    signedHtmlUrl: string;
+    originalLang?: string;
+    translations?: Record<string, { name: string; description: string }>;
+    forkOfSpellId?: string | null;
+    rootSpellId?: string;
+}
+
+export async function syncLearnedSpells(): Promise<{ spells: SyncedSpellItem[] }> {
+    await ensureAuthenticated();
+    const fn = httpsCallable<void, { spells: SyncedSpellItem[] }>(
+        getFunctionsInstance(), 'syncLearnedSpells'
+    );
+    const result = await fn();
+    return result.data;
+}
+
+export async function markSpellSynced(
+    spellId: string,
+    localAppId: number | null,
+    syncedToApp: boolean
+): Promise<{ success: boolean }> {
+    await ensureAuthenticated();
+    const fn = httpsCallable<{ spellId: string; localAppId: number | null; syncedToApp: boolean }, { success: boolean }>(
+        getFunctionsInstance(), 'markSpellSynced'
+    );
+    const result = await fn({ spellId, localAppId, syncedToApp });
+    return result.data;
+}
+
+export async function getStoreSpellStatus(spellId: string): Promise<'active' | 'removed' | 'not_found'> {
+    try {
+        const firestore = firebaseFirestore();
+        const docRef = doc(collection(firestore, 'store_spells'), spellId);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) return 'not_found';
+        const data = snap.data() as { status?: string } | undefined;
+        const status = data?.status;
+        return status === 'active' ? 'active' : 'removed';
+    } catch (e: any) {
+        console.warn('[Firebase] getStoreSpellStatus failed:', e?.message);
+        return 'not_found';
+    }
+}
+
 export async function addCredits(amount: number, source: string, purchaseToken?: string): Promise<AddCreditsResult> {
     await ensureAuthenticated();
 

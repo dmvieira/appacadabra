@@ -27,6 +27,33 @@
                     "order": "DESCENDING"
                 }
             ]
+        },
+        {
+            "collectionGroup": "store_spells",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "publishedAt", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "store_spells",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "visibility", "order": "ASCENDING" },
+                { "fieldPath": "learnCount", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "store_spells",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "rootSpellId", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "publishedAt", "order": "DESCENDING" }
+            ]
         }
     ],
     "fieldOverrides": []

@@ -1,0 +1,18 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Spell Store assets — public read, write only through Cloud Functions (Admin SDK)
+    match /store_html/{spellId}/{file} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /store_previews/{spellId}/{file} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /store_icons/{spellId}/{file} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

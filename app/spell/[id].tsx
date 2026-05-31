@@ -22,6 +22,7 @@ import * as Sharing from 'expo-sharing';
 import { useAppStore } from '../../lib/store';
 import { migrateStorageBlobsToFiles } from '../../lib/bridges/messageHandlers';
 import * as db from '../../lib/database/db';
+import { getStoreSpellStatus } from '../../lib/firebase';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
 
@@ -436,6 +437,24 @@ export default function SpellDataScreen() {
         );
     };
 
+    const handleViewInStore = useCallback(async () => {
+        if (!app?.storeSpellId) return;
+        try {
+            const status = await getStoreSpellStatus(app.storeSpellId);
+            if (status !== 'active') {
+                await db.updateAppStoreLink(appId, null, null);
+                useAppStore.getState().setStatusMessage(t('unknownError'));
+                try { useAppStore.getState().loadApps(); } catch {}
+                return;
+            }
+            const slug = app.storeSpellSlug ?? '';
+            const url = `https://appacadabra.ai/store/${app.storeSpellId}/${slug}`;
+            await Linking.openURL(url);
+        } catch (e) {
+            console.warn('[SpellData] handleViewInStore failed:', e);
+        }
+    }, [app?.storeSpellId, app?.storeSpellSlug, appId]);
+
     const filters: { key: FilterType; label: string }[] = [
         { key: 'all', label: t('relicFilterAll') },
         { key: 'video', label: t('relicFilterVideo') },
@@ -452,7 +471,13 @@ export default function SpellDataScreen() {
                     <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{t('spellDataTitle')}</Text>
-                <View style={styles.backBtn} />
+                {app?.storeSpellId ? (
+                    <TouchableOpacity onPress={handleViewInStore} style={styles.storeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Text style={styles.storeBtnText}>{t('viewInStore')}</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.backBtn} />
+                )}
             </View>
 
             <View style={styles.mainContainer}>
@@ -654,6 +679,19 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: colors.onBackground,
         letterSpacing: -0.3,
+    },
+    storeBtn: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: colors.primary,
+    },
+    storeBtnText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: colors.primary,
+        letterSpacing: 0.3,
     },
 
     // ── Layout ──

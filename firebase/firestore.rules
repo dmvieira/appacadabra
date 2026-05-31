@@ -31,5 +31,14 @@ service cloud.firestore {
       // No updates from client (status updates are server-side)
       allow update, delete: if false;
     }
+    // Spell Store — published spells are public; writes go through Cloud Functions
+    match /store_spells/{spellId} {
+      allow read: if resource.data.status == 'active';
+      allow write: if false;
+    }
+    match /users/{uid}/learned_spells/{spellId} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
   }
 }
