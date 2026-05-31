@@ -315,16 +315,24 @@ function syncPermissions(allCapIds: string[], disabledIds: Set<string>): void {
     const allManifestBlocks = new Map<string, ManifestBlock[]>();
 
     for (const id of allCapIds) {
-        const srcPath = path.join(LIB_CAPS_DIR, `${id}.ts`);
-        if (!fs.existsSync(srcPath)) continue;
-        const src = fs.readFileSync(srcPath, 'utf-8');
-        const perms = parseAndroidPermissions(src);
-        for (const p of perms) {
-            allCapabilityPermissions.add(p);
-            if (!disabledIds.has(id)) activePermissions.add(p);
+        const candidates = [
+            path.join(LIB_CAPS_DIR, `${id}.ts`),
+            path.join(LIB_CAPS_DIR, `${id}.android.ts`),
+        ].filter(p => fs.existsSync(p));
+
+        for (const srcPath of candidates) {
+            const src = fs.readFileSync(srcPath, 'utf-8');
+            const perms = parseAndroidPermissions(src);
+            for (const p of perms) {
+                allCapabilityPermissions.add(p);
+                if (!disabledIds.has(id)) activePermissions.add(p);
+            }
+            const blocks = parseManifestBlocks(src);
+            if (blocks.length > 0) {
+                const existing = allManifestBlocks.get(id) ?? [];
+                allManifestBlocks.set(id, [...existing, ...blocks]);
+            }
         }
-        const blocks = parseManifestBlocks(src);
-        if (blocks.length > 0) allManifestBlocks.set(id, blocks);
     }
 
     // --- Sync app.json ---

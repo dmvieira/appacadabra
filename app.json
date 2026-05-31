@@ -28,7 +28,9 @@
       "entitlements": {
         "com.apple.developer.healthkit": true,
         "com.apple.developer.healthkit.access": [],
-        "com.apple.security.application-groups": ["group.ai.appacadabra.app"]
+        "com.apple.security.application-groups": [
+          "group.ai.appacadabra.app"
+        ]
       },
       "infoPlist": {
         "LSSupportsOpeningDocumentsInPlace": true,
@@ -51,11 +53,20 @@
         "NSMotionUsageDescription": "O app precisa aceder ao sensor de movimento para apps gerados que usam sensores.",
         "NSHealthShareUsageDescription": "O app precisa aceder aos dados de saúde para apps gerados que monitorizam atividade.",
         "NSHealthUpdateUsageDescription": "O app pode atualizar dados de saúde para apps gerados.",
-        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"],
-        "UIBackgroundModes": ["fetch", "remote-notification"],
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ],
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["appacadabra"],
+            "CFBundleURLSchemes": [
+              "appacadabra"
+            ],
             "CFBundleURLName": "ai.appacadabra.app"
           }
         ]
