@@ -4,6 +4,7 @@ import {
 import { getStorage, ref, getDownloadURL }
   from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js';
 import { app } from './auth.js';
+import { t } from './store-i18n.js';
 import { escapeHtml, getSpellMeta, truncate, formatDate } from './utils.js';
 
 const db = getFirestore(app);
