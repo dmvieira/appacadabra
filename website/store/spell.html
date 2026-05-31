@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spell — Appacadabra Store</title>
+  <meta id="og-title" property="og:title" content="Spell Store — Appacadabra">
+  <meta id="og-description" property="og:description" content="Aprenda este feitiço no Appacadabra.">
+  <meta property="og:type" content="website">
+  <script>document.documentElement.lang = (navigator.language || 'en').split('-')[0];</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/store/css/store.css">
+  <link rel="icon" href="/img/favicon.png">
+  <script src="/store/js/firebase-config.js"></script>
+</head>
+<body>
+  <header class="store-header">
+    <a href="/store" class="store-logo">
+      <img src="/img/icon.png" alt="Appacadabra" width="32" height="32">
+      <span>Spell Store</span>
+    </a>
+    <nav class="header-nav" aria-label="Header navigation">
+      <button id="auth-btn" class="auth-btn" type="button">Sign in with Google</button>
+    </nav>
+  </header>
+
+  <div id="preview-notice" style="display:none;" class="preview-notice-page" role="status">
+    <p>✨ Store coming soon</p>
+  </div>
+
+  <main id="detail-content" class="spell-detail-layout">
+    <!-- Left column: metadata + actions -->
+    <section class="spell-meta-section" aria-label="Spell info">
+      <div class="spell-header-row">
+        <img id="spell-icon" class="spell-icon-large" src="/img/icon.png"
+             alt="Spell icon" onerror="this.style.display='none'">
+        <div>
+          <h1 id="spell-name" class="spell-title">Loading…</h1>
+          <p class="spell-byline">
+            by <span id="spell-author"></span> ·
+            <span id="spell-learn-count"></span>
+          </p>
+        </div>
+      </div>
+
+      <div id="variant-badge" class="variant-badge" hidden></div>
+
+      <p id="spell-description" class="spell-description"></p>
+
+      <div class="action-row">
+        <button id="copy-link-btn" class="btn-ghost" type="button">Copiar link</button>
+        <button id="share-btn" class="btn-ghost" type="button">Partilhar</button>
+      </div>
+
+      <div class="learn-section">
+        <button id="learn-btn" class="learn-btn" type="button">
+          Aprender este feitiço ✨
+        </button>
+        <p id="learn-status" class="learn-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <section id="variants-section" class="variants-section" hidden>
+        <h2 class="variants-title"></h2>
+        <div id="variants-list" class="variants-list"></div>
+      </section>
+
+      <!-- Owner-only controls (hidden unless author) -->
+      <div id="owner-controls" class="owner-controls" style="display:none" aria-label="Owner controls">
+        <hr class="divider">
+        <button id="unpublish-btn" class="btn-danger" type="button">
+          ⛔ Despublicar da Loja
+        </button>
+      </div>
+    </section>
+
+    <!-- Right column: live preview -->
+    <section class="spell-preview-section" aria-label="Spell preview">
+      <div id="preview-container" class="preview-container">
+        <iframe
+          id="preview-frame"
+          class="preview-frame"
+          sandbox="allow-scripts"
+          title="Spell preview"
+          loading="lazy"
+        ></iframe>
+      </div>
+      <p class="preview-notice-text">
+        ⚠️ Funcionalidades nativas (câmera, contatos, sensores, etc.) requerem o app
+      </p>
+    </section>
+  </main>
+
+  <!-- App download banner (shown by JS, prominent on Android) -->
+  <div id="app-banner" class="app-banner" style="display:none" role="complementary" aria-label="Download app">
+    <div class="app-banner-inner">
+      <div>
+        <p class="app-banner-title">Use este feitiço no seu Android</p>
+        <p class="app-banner-sub">O feitiço ficará salvo na sua conta quando você instalar o app.</p>
+      </div>
+      <a href="https://play.google.com/store/apps/details?id=ai.appacadabra.app"
+         target="_blank" rel="noopener noreferrer"
+         aria-label="Get it on Google Play">
+        <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+             alt="Get it on Google Play" height="48">
+      </a>
+      <button class="app-banner-close" type="button" aria-label="Fechar">×</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initDetail } from '/store/js/detail.js';
+    document.addEventListener('DOMContentLoaded', initDetail);
+  </script>
+</body>
+</html>

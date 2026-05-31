@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spell Store — Appacadabra</title>
+  <script>document.documentElement.lang = (navigator.language || 'en').split('-')[0];</script>
+  <meta name="description" content="Discover and learn spells created by the Appacadabra community.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/store/css/store.css">
+  <link rel="icon" href="/img/favicon.png">
+  <script src="/store/js/firebase-config.js"></script>
+</head>
+<body>
+  <header class="store-header">
+    <a href="/" class="store-logo">
+      <img src="/img/icon.png" alt="Appacadabra" width="32" height="32">
+      <span>Appacadabra</span>
+    </a>
+    <nav class="header-nav" aria-label="Header navigation">
+      <button id="auth-btn" class="auth-btn" type="button">Sign in with Google</button>
+    </nav>
+  </header>
+
+  <div id="preview-notice" style="display:none;" class="preview-notice-page" role="status">
+    <p>✨ Store coming soon</p>
+  </div>
+
+  <main id="store-content">
+    <div class="store-hero">
+      <h1>Spell Store</h1>
+      <p>Descubra e aprenda feitiços criados pela comunidade</p>
+    </div>
+
+    <div class="tabs-container">
+      <nav class="tabs" aria-label="Sort spells">
+        <button class="tab-btn active" data-sort="new" type="button">✨ Novos</button>
+        <button class="tab-btn" data-sort="popular" type="button">🔥 Populares</button>
+      </nav>
+    </div>
+
+    <div id="spell-grid" class="spell-grid" role="list" aria-label="Spells"></div>
+
+    <div class="load-more-container">
+      <button id="load-more" class="load-more-btn" type="button" style="display:none">
+        Carregar mais
+      </button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initBrowse } from '/store/js/browse.js';
+    import '/store/js/auth.js';
+    document.addEventListener('DOMContentLoaded', initBrowse);
+  </script>
+</body>
+</html>
