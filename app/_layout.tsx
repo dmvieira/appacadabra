@@ -2,7 +2,7 @@ import { Stack, useRouter, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { logScreenView } from '../lib/analytics';
-import { Alert, LogBox, Platform, View } from 'react-native';
+import { Alert, AppState, LogBox, Linking, Platform, View } from 'react-native';
 import * as ShareIntent from 'share-intent';
 import { colors } from '../lib/theme';
 import { t } from '../lib/i18n';
@@ -13,6 +13,8 @@ import { LargePayloadConfirmModal } from '../components/LargePayloadConfirmModal
 import { useManaStore } from '../lib/manaStore';
 import { Toast } from '../components/Toast';
 import { useAppStore } from '../lib/store';
+import { useStoreSyncStore } from '../lib/storeSync';
+import { isGoogleUser } from '../lib/firebase';
 import * as Notifications from 'expo-notifications';
 import { preloadAllStorage } from '../lib/storageCache';
 import { restoreScheduledAlarms } from '../lib/bridges/messageHandlers';
@@ -205,8 +207,33 @@ export default function RootLayout() {
             await SplashScreen.hideAsync().catch((e: any) => console.log('Error hiding splash:', e));
         }, 1000);
 
+        // Spell Store — foreground sync of learned spells
+        const maybeSyncLearnedSpells = () => {
+            if (!isGoogleUser()) return;
+            useStoreSyncStore.getState().syncLearnedSpells().catch(() => {});
+        };
+        setTimeout(maybeSyncLearnedSpells, 2000);
+        const appStateSub = AppState.addEventListener('change', (next) => {
+            if (next === 'active') maybeSyncLearnedSpells();
+        });
+
+        // Deep link: appacadabra://store?spellId=xxx
+        const handleStoreDeepLink = (url: string | null) => {
+            if (!url) return;
+            const match = url.match(/[?&]spellId=([^&]+)/);
+            if (!match) return;
+            const isStoreLink = url.startsWith('appacadabra://store') || url.startsWith('https://appacadabra.ai/store');
+            if (!isStoreLink) return;
+            maybeSyncLearnedSpells();
+            try { router.replace('/'); } catch {}
+        };
+        Linking.getInitialURL().then(handleStoreDeepLink).catch(() => {});
+        const linkingSub = Linking.addEventListener('url', ({ url }) => handleStoreDeepLink(url));
+
         return () => {
             notifSubscription.remove();
+            appStateSub.remove();
+            linkingSub.remove();
         };
     }, []);
 

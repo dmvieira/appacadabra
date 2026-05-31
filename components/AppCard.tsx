@@ -57,7 +57,7 @@ interface AppCardProps {
     onEdit: () => void;
     onDelete: () => void;
     onRename: () => void;
-    onShare?: () => void;
+    onSendSpell?: () => void;
     onShortcut?: () => void;
     onToggleBiometric?: () => void;
     onViewSchedules?: () => void;
@@ -79,7 +79,7 @@ interface AppCardProps {
 
 export function AppCard({
     app, onRun, onEdit, onDelete, onRename,
-    onShare, onShortcut, onToggleBiometric, onViewSchedules,
+    onSendSpell, onShortcut, onToggleBiometric, onViewSchedules,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
     onLongPress, onClearData,
     isActive, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onDismissActive,
@@ -128,10 +128,10 @@ export function AppCard({
             >
                 <TouchableOpacity
                     style={styles.shareFloatBtn}
-                    onPress={() => { onDismissActive?.(); onShare?.(); }}
+                    onPress={() => { onDismissActive?.(); onSendSpell?.(); }}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.shareFloatText}>📤 {t('shareSpell')}</Text>
+                    <Text style={styles.shareFloatText}>📤 {t('sendSpell')}</Text>
                 </TouchableOpacity>
                 <View style={styles.shareFloatStem} />
             </View>
@@ -429,19 +429,20 @@ export function AppCard({
                                         </TouchableOpacity>
                                     )}
 
-                                    {/* Share */}
-                                    {onShare && (
+                                    {/* Send Spell — unified share/publish entry point */}
+                                    {onSendSpell && (
                                         <TouchableOpacity
                                             style={styles.sheetItem}
-                                            onPress={() => { logSpellMenuAction('share'); setShowSheet(false); onShare(); }}
+                                            onPress={() => { logSpellMenuAction('send_spell'); setShowSheet(false); onSendSpell(); }}
                                             accessibilityRole="button"
-                                            accessibilityLabel={t('shareSpell')}
+                                            accessibilityLabel={t('sendSpell')}
                                         >
                                             <View style={styles.sheetItemIconWrap}>
-                                                <Text style={styles.sheetItemIconEmoji}>📤</Text>
+                                                <Text style={styles.sheetItemIconEmoji}>🔗</Text>
                                             </View>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={styles.sheetItemTitle}>{t('shareSpell')}</Text>
+                                                <Text style={styles.sheetItemTitle}>{t('sendSpell')}</Text>
+                                                <Text style={styles.sheetItemSub}>{app.storeSpellId ? t('sendSpellSubLive') : t('sendSpellSubCreate')}</Text>
                                             </View>
                                         </TouchableOpacity>
                                     )}

@@ -16,6 +16,7 @@ import {
     Linking as RNLinking,
     Alert,
     RefreshControl,
+    Share,
     useWindowDimensions,
 } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -50,11 +51,13 @@ import { exportSingleApp, importSpellByNameFromData, readBackupFile, BackupData,
 import * as firebase from '../lib/firebase';
 import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useManaStore } from '../lib/manaStore';
+import { useStoreSyncStore } from '../lib/storeSync';
 import SpellSetup from '../components/SpellSetup';
 import { logIconGenerated, logSpellCreateOpened, logSpellCreateSubmitted } from '../lib/analytics';
 import { useBackupStore } from '../lib/backupStore';
 import BackupSyncModal from '../components/BackupSyncModal';
 import { autoBackupAfterChange, tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup, startAppStateBackupListener, fetchLatestAutoBackup } from '../lib/backupSync';
+import { SendSpellSheet } from '../components/SendSpellSheet';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -149,6 +152,7 @@ export default function HomeScreen() {
     const [suggestions, setSuggestions] = useState<Array<{ title: string; description: string }>>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [showNotifHint, setShowNotifHint] = useState(false);
+    const [sendSpellTarget, setSendSpellTarget] = useState<GeneratedApp | null>(null);
 
     // Backup store
     const { backupMode, localFolderUri, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup, isRestoring, lastBackupAt } = useBackupStore();
@@ -846,17 +850,6 @@ export default function HomeScreen() {
         exportBackup();
     };
 
-    const handleShareApp = async (app: GeneratedApp) => {
-        // Share single app - clean export (no data)
-        setStatusMessage(t('exporting'));
-        const success = await exportSingleApp(app.id);
-        if (success) {
-            setStatusMessage(t('backupExportedSuccess'));
-        } else {
-            setStatusMessage(t('errorExportingBackup'));
-        }
-    };
-
     const handleImport = () => {
         if (isImporting || isPicking) return;
         setShowMenu(false);
@@ -1264,7 +1257,7 @@ export default function HomeScreen() {
                                 }}
                                 onShortcut={() => { setActiveCardId(null); handleCreateShortcut(item); }}
                                 onToggleBiometric={() => { setActiveCardId(null); handleToggleBiometric(item); }}
-                                onShare={() => { setActiveCardId(null); handleShareApp(item); }}
+                                onSendSpell={() => { setActiveCardId(null); setSendSpellTarget(item); }}
                                 onViewSchedules={() => { setActiveCardId(null); setScheduleTarget(item); }}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
@@ -1781,6 +1774,12 @@ export default function HomeScreen() {
                     </Pressable>
                 </Pressable>
             </Modal>
+
+            <SendSpellSheet
+                app={sendSpellTarget}
+                visible={!!sendSpellTarget}
+                onClose={() => setSendSpellTarget(null)}
+            />
         </SafeAreaView>
     );
 }
