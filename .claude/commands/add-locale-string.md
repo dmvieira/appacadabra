@@ -31,10 +31,14 @@ Read the file and extract:
 Build and run this Bash command, replacing `SOURCE_LANG`, `SOURCE_TEXT`, and `NEW_KEY` with values parsed from `$ARGUMENTS`:
 
 ```bash
+export LOCALE_SOURCE_LANG="en"
+export LOCALE_SOURCE_TEXT="The source string from arguments"
+export LOCALE_NEW_KEY="theKeyFromArguments"
+
 PAYLOAD=$(node -e "
-const sourceLang = 'en'; // or 'pt' if pt= was given
-const sourceText = 'The source string from arguments';
-const newKey = 'theKeyFromArguments';
+const sourceLang = process.env.LOCALE_SOURCE_LANG;
+const sourceText = process.env.LOCALE_SOURCE_TEXT;
+const newKey = process.env.LOCALE_NEW_KEY;
 
 const sys = \`You are a mobile app translation engine for Appacadabra, a spell/magic-themed AI app generator.
 Rules:
@@ -52,8 +56,7 @@ Source (\${sourceLang}): \${JSON.stringify(sourceText)}
 Return a JSON object with exactly these keys: en, pt, es, fr, de, it, ja, zh, ko, ar, hi, ru, tr, nl, pl, vi, th\`;
 
 console.log(JSON.stringify({
-  model: 'google/gemma-4-27b-it',
-  response_format: { type: 'json_object' },
+  model: 'deepseek/deepseek-v4-flash',
   messages: [
     { role: 'system', content: sys },
     { role: 'user', content: user }
@@ -71,7 +74,11 @@ echo "$RESULT" | node -e "
   process.stdin.on('end',()=>{
     const r=JSON.parse(d);
     if(!r.choices) { console.error('API error:', JSON.stringify(r)); process.exit(1); }
-    console.log(r.choices[0].message.content);
+    let content = r.choices[0].message.content;
+    const fenceMatch = content.match(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/);
+    if (fenceMatch) content = fenceMatch[1].trim();
+    try { JSON.parse(content); } catch(e) { console.error('Invalid JSON in response:', content); process.exit(1); }
+    console.log(content);
   });
 "
 ```
@@ -87,6 +94,16 @@ Inspect the returned JSON. For JA, ZH, KO, AR, HI, TH: mentally back-translate t
 Using the Edit tool, insert `newKey: 'translation',` immediately after `editJobStarted: '...',` in each of the 17 language blocks. Maintain the exact indentation of surrounding keys.
 
 The locale order in the file is: en, pt, es, fr, de, it, ja, zh, ko, ar, hi, ru, tr, nl, pl, vi, th — insert in the same order you encounter each block.
+
+### 5b. Verify all 17 blocks were written
+
+Run (substituting the actual key name for `THE_KEY`):
+
+```bash
+grep -c "THE_KEY:" lib/i18n.ts
+```
+
+Output must be `17`. If less, run `grep -n "THE_KEY:" lib/i18n.ts` to identify the missing locale blocks and re-apply the Edit tool for each one before continuing.
 
 ### 6. Report
 
