@@ -1,116 +1,154 @@
 ## Version Name
-✨ Free to Rotate
+The Spell Store
 
 <en-US>
-• Spells now rotate freely on foldables and tablets — the orientation lock has been lifted
-• Your device's auto-rotate toggle is respected everywhere, including the barcode scanner
-• Large-screen support meets Android 16 requirements out of the box
+• Spell Store is here — publish your spells for other casters to discover and learn
+• Share privately with a secret link, or list publicly in the Store
+• New unified Send Spell sheet replaces the old scattered share options
+• Alarm bridge: spells can now schedule native device alarms
+• Bug fixes for audio, TTS and critical function reliability
 </en-US>
 
 <pt-BR>
-• Os feitiços agora rodam livremente em dobráveis e tablets — o bloqueio de orientação foi removido
-• O botão de rotação automática do dispositivo é respeitado em todo o app, incluindo o leitor de código de barras
-• Suporte a ecrãs grandes conforme os requisitos do Android 16
+• A Loja de Feitiços chegou — publique os seus feitiços para outros lançadores descobrirem e aprenderem
+• Partilhe de forma privada com um link secreto, ou liste publicamente na Loja
+• Nova folha unificada "Enviar Feitiço" substitui as opções dispersas anteriores
+• Bridge de alarme: os feitiços podem agora agendar alarmes nativos no dispositivo
+• Correções de bugs em áudio, TTS e fiabilidade de funções críticas
 </pt-BR>
 
 <es-419>
-• Los hechizos ahora rotan libremente en plegables y tablets — se ha eliminado el bloqueo de orientación
-• El interruptor de rotación automática del dispositivo se respeta en todo el app, incluido el escáner de código de barras
-• Compatibilidad con pantallas grandes según los requisitos de Android 16
+• La Tienda de Hechizos ya está aquí — publica tus hechizos para que otros lanzadores los descubran y aprendan
+• Comparte de forma privada con un enlace secreto, o publícalos en la Tienda
+• Nueva hoja unificada "Enviar Hechizo" reemplaza las opciones dispersas anteriores
+• Puente de alarma: los hechizos ahora pueden programar alarmas nativas del dispositivo
+• Correcciones de errores en audio, TTS y fiabilidad de funciones críticas
 </es-419>
 
 <es-ES>
-• Los hechizos ahora rotan libremente en plegables y tablets — se ha eliminado el bloqueo de orientación
-• El interruptor de rotación automática del dispositivo se respeta en toda la app, incluido el escáner de código de barras
-• Compatibilidad con pantallas grandes conforme a los requisitos de Android 16
+• La Tienda de Hechizos ya está aquí — publica tus hechizos para que otros lanzadores los descubran y aprendan
+• Comparte de forma privada con un enlace secreto, o publica en la Tienda
+• Nueva hoja unificada "Enviar Hechizo" reemplaza las opciones dispersas anteriores
+• Puente de alarma: los hechizos ahora pueden programar alarmas nativas del dispositivo
+• Correcciones en audio, TTS y fiabilidad de funciones críticas
 </es-ES>
 
 <fr-FR>
-• Les sorts pivotent librement sur les pliables et les tablettes — le verrouillage d'orientation a été levé
-• Le bouton de rotation automatique de votre appareil est respecté partout, y compris dans le scanner de codes-barres
-• Prise en charge des grands écrans conforme aux exigences d'Android 16
+• La Boutique de Sorts est là — publiez vos sorts pour que d'autres lanceurs les découvrent et les apprennent
+• Partagez en privé avec un lien secret, ou listez publiquement dans la Boutique
+• Nouvelle feuille unifiée "Envoyer un Sort" remplace les options dispersées
+• Pont d'alarme : les sorts peuvent désormais programmer des alarmes natives sur l'appareil
+• Corrections de bugs audio, TTS et fiabilité des fonctions critiques
 </fr-FR>
 
 <fr-CA>
-• Les sorts pivotent librement sur les appareils pliables et les tablettes — le verrouillage d'orientation a été retiré
-• La bascule de rotation automatique de votre appareil est respectée partout, y compris dans le lecteur de codes-barres
-• Prise en charge des grands écrans conforme aux exigences d'Android 16
+• La Boutique de Sorts est arrivée — publiez vos sorts pour que d'autres lanceurs les découvrent et les apprennent
+• Partagez en privé avec un lien secret, ou listez publiquement dans la Boutique
+• Nouvelle feuille unifiée "Envoyer un Sort" remplace les options éparpillées
+• Pont d'alarme : les sorts peuvent maintenant programmer des alarmes natives sur l'appareil
+• Corrections de bogues audio, TTS et fiabilité des fonctions critiques
 </fr-CA>
 
 <de-DE>
-• Zauber drehen sich jetzt frei auf Foldables und Tablets — die Orientierungssperre wurde aufgehoben
-• Der Auto-Drehen-Schalter deines Geräts wird überall respektiert, auch im Barcode-Scanner
-• Unterstützung großer Bildschirme erfüllt die Android-16-Anforderungen
+• Der Zauber-Store ist da — veröffentliche deine Zauber für andere Caster zum Entdecken und Erlernen
+• Teile privat mit einem geheimen Link oder liste deinen Zauber öffentlich im Store
+• Neues einheitliches "Zauber senden"-Blatt ersetzt die alten verstreuten Optionen
+• Alarm-Bridge: Zauber können jetzt native Gerätewecker planen
+• Fehlerbehebungen bei Audio, TTS und kritischen Funktionen
 </de-DE>
 
 <it-IT>
-• Gli incantesimi ruotano liberamente su pieghevoli e tablet — il blocco di orientamento è stato rimosso
-• L'interruttore di rotazione automatica del dispositivo viene rispettato ovunque, incluso lo scanner di codici a barre
-• Supporto per schermi grandi conforme ai requisiti di Android 16
+• Lo Spell Store è arrivato — pubblica i tuoi incantesimi perché altri caster li scoprano e li imparino
+• Condividi privatamente con un link segreto, o elenca pubblicamente nello Store
+• Nuovo foglio unificato "Invia Incantesimo" sostituisce le vecchie opzioni sparse
+• Bridge sveglia: gli incantesimi possono ora programmare sveglie native sul dispositivo
+• Correzioni di bug su audio, TTS e affidabilità delle funzioni critiche
 </it-IT>
 
 <ja-JP>
-• フォルダブルやタブレットでスペルが自由に回転するように — 向きのロックを解除しました
-• バーコードスキャナーを含むアプリ全体で、デバイスの自動回転トグルが反映されます
-• Android 16 の大画面要件に対応
+• スペルストアが登場 — スペルを公開して他のキャスターに発見・習得してもらおう
+• シークレットリンクでプライベート共有、またはストアで公開リスト
+• 新しい統合「スペルを送る」シートが旧来の分散した共有オプションを置き換え
+• アラームブリッジ：スペルがデバイスのネイティブアラームをスケジュール可能に
+• オーディオ、TTS、重要機能の信頼性に関するバグ修正
 </ja-JP>
 
 <zh-CN>
-• 咒语现在可在可折叠设备和平板上自由旋转——方向锁定已解除
-• 设备的自动旋转开关在整个应用中均受到尊重，包括条形码扫描器
-• 大屏幕支持满足 Android 16 的要求
+• 法术商店上线 — 发布你的法术，让其他施法者发现并学习
+• 通过私密链接私下分享，或在商店中公开上架
+• 全新统一的"发送法术"面板取代了旧的分散分享选项
+• 闹钟桥接：法术现在可以安排设备原生闹钟
+• 修复音频、TTS 及关键功能可靠性问题
 </zh-CN>
 
 <ko-KR>
-• 폴더블 및 태블릿에서 주문이 이제 자유롭게 회전합니다 — 방향 잠금이 해제되었습니다
-• 바코드 스캐너를 포함한 앱 전체에서 기기의 자동 회전 토글이 적용됩니다
-• Android 16 대형 화면 요구 사항을 충족하는 대형 화면 지원
+• 주문 상점 출시 — 주문을 게시하여 다른 캐스터가 발견하고 배울 수 있도록 하세요
+• 비밀 링크로 비공개 공유하거나 상점에 공개 등록
+• 새로운 통합 "주문 보내기" 시트가 기존의 분산된 공유 옵션을 대체
+• 알람 브리지: 주문이 이제 기기 기본 알람을 예약할 수 있음
+• 오디오, TTS 및 핵심 기능 안정성 버그 수정
 </ko-KR>
 
 <ar>
-• التعويذات تدور الآن بحرية على الأجهزة القابلة للطي والأجهزة اللوحية — تم رفع قفل الاتجاه
-• يُراعى مفتاح تدوير الشاشة التلقائي في الجهاز في كل مكان، بما في ذلك ماسح الرمز الشريطي
-• دعم الشاشات الكبيرة يلبي متطلبات Android 16
+• متجر التعويذات هنا — انشر تعويذاتك ليكتشفها الملقون الآخرون ويتعلموها
+• شارك بشكل خاص برابط سري، أو أدرجها علنًا في المتجر
+• ورقة "إرسال تعويذة" الموحدة الجديدة تحل محل خيارات المشاركة المتفرقة القديمة
+• جسر التنبيه: يمكن للتعويذات الآن جدولة تنبيهات أصلية على الجهاز
+• إصلاحات لأخطاء الصوت وTTS وموثوقية الوظائف الحرجة
 </ar>
 
 <hi-IN>
-• फोल्डेबल और टैबलेट पर अब स्पेल स्वतंत्र रूप से घूमते हैं — ओरिएंटेशन लॉक हटा दिया गया है
-• बारकोड स्कैनर सहित पूरे ऐप में डिवाइस का ऑटो-रोटेट टॉगल सम्मानित किया जाता है
-• Android 16 की बड़ी स्क्रीन आवश्यकताओं के अनुरूप सपोर्ट
+• स्पेल स्टोर आ गया है — अपने स्पेल प्रकाशित करें ताकि अन्य कास्टर उन्हें खोज और सीख सकें
+• गुप्त लिंक से निजी तौर पर साझा करें, या स्टोर में सार्वजनिक रूप से सूचीबद्ध करें
+• नई एकीकृत "स्पेल भेजें" शीट पुराने बिखरे हुए शेयर विकल्पों की जगह लेती है
+• अलार्म ब्रिज: स्पेल अब डिवाइस के नेटिव अलार्म शेड्यूल कर सकते हैं
+• ऑडियो, TTS और महत्वपूर्ण फ़ंक्शन विश्वसनीयता में बग फिक्स
 </hi-IN>
 
 <ru-RU>
-• Заклинания теперь свободно вращаются на складных устройствах и планшетах — блокировка ориентации снята
-• Переключатель автоповорота экрана на устройстве учитывается везде, включая сканер штрихкодов
-• Поддержка больших экранов соответствует требованиям Android 16
+• Магазин заклинаний открыт — публикуйте заклинания, чтобы другие волшебники могли их найти и изучить
+• Делитесь приватно по секретной ссылке или публично выставляйте в Магазине
+• Новый единый лист "Отправить заклинание" заменяет разрозненные опции обмена
+• Мост будильника: заклинания теперь могут планировать нативные будильники устройства
+• Исправления ошибок аудио, TTS и надёжности критических функций
 </ru-RU>
 
 <tr-TR>
-• Büyüler artık katlanabilir cihazlarda ve tabletlerde serbestçe döner — yön kilidi kaldırıldı
-• Barkod tarayıcı dahil uygulamanın her yerinde cihazın otomatik döndürme ayarı dikkate alınır
-• Büyük ekran desteği Android 16 gereksinimlerini karşılar
+• Büyü Mağazası burada — büyülerinizi diğer büyücülerin keşfetmesi ve öğrenmesi için yayınlayın
+• Gizli bir bağlantıyla özel paylaşın veya Mağaza'da herkese açık listeleyin
+• Yeni birleşik "Büyü Gönder" sayfası eski dağınık paylaşım seçeneklerinin yerini alıyor
+• Alarm köprüsü: büyüler artık cihazın yerel alarmlarını zamanlayabilir
+• Ses, TTS ve kritik işlev güvenilirliği hata düzeltmeleri
 </tr-TR>
 
 <nl-NL>
-• Spreuken draaien nu vrij op foldables en tablets — de oriëntatievergren­deling is opgeheven
-• De schakelaar voor automatisch draaien van je apparaat wordt overal gerespecteerd, inclusief de barcode-scanner
-• Ondersteuning voor grote schermen voldoet aan de Android 16-vereisten
+• De Spreukwinkel is er — publiceer je spreuken zodat andere casters ze kunnen ontdekken en leren
+• Deel privé met een geheime link, of zet ze openbaar in de Winkel
+• Nieuw verenigd "Spreuk Versturen"-scherm vervangt de oude verspreide deelknoppen
+• Alarm-brug: spreuken kunnen nu native apparaatwekkers inplannen
+• Bugfixes voor audio, TTS en betrouwbaarheid van kritieke functies
 </nl-NL>
 
 <pl-PL>
-• Zaklęcia teraz swobodnie się obracają na urządzeniach składanych i tabletach — blokada orientacji została usunięta
-• Przełącznik automatycznego obracania ekranu jest respektowany w całej aplikacji, włącznie ze skanerem kodów kreskowych
-• Obsługa dużych ekranów spełnia wymagania systemu Android 16
+• Sklep z Zaklęciami już dostępny — publikuj zaklęcia, by inni rzucający mogli je odkrywać i uczyć się
+• Udostępniaj prywatnie tajnym linkiem lub wystawiaj publicznie w Sklepie
+• Nowy ujednolicony arkusz "Wyślij Zaklęcie" zastępuje stare rozproszone opcje udostępniania
+• Most alarmu: zaklęcia mogą teraz planować natywne alarmy urządzenia
+• Poprawki błędów audio, TTS i niezawodności krytycznych funkcji
 </pl-PL>
 
 <vi>
-• Phép thuật giờ xoay tự do trên thiết bị gập và máy tính bảng — khóa hướng màn hình đã được gỡ bỏ
-• Công tắc tự động xoay của thiết bị được tuân thủ ở mọi nơi, kể cả máy quét mã vạch
-• Hỗ trợ màn hình lớn đáp ứng yêu cầu của Android 16
+• Cửa hàng Phép thuật ra mắt — xuất bản phép thuật để các caster khác khám phá và học hỏi
+• Chia sẻ riêng tư qua liên kết bí mật, hoặc đăng công khai lên Cửa hàng
+• Trang "Gửi Phép thuật" mới thay thế các tùy chọn chia sẻ cũ rải rác
+• Cầu nối báo thức: phép thuật giờ có thể lên lịch báo thức gốc trên thiết bị
+• Sửa lỗi âm thanh, TTS và độ tin cậy của các hàm quan trọng
 </vi>
 
 <th>
-• ตอนนี้ spell หมุนได้อย่างอิสระบนอุปกรณ์พับได้และแท็บเล็ต — ได้ยกเลิกการล็อกทิศทางแล้ว
-• การตั้งค่าหมุนอัตโนมัติของอุปกรณ์จะถูกนำมาใช้ทุกที่ รวมถึงเครื่องสแกนบาร์โค้ด
-• รองรับหน้าจอขนาดใหญ่ตามข้อกำหนดของ Android 16
+• Spell Store มาแล้ว — เผยแพร่ spell ของคุณให้นักร่ายคนอื่นค้นพบและเรียนรู้
+• แชร์แบบส่วนตัวด้วยลิงก์ลับ หรือลงรายการสาธารณะใน Store
+• แผ่น "ส่ง Spell" แบบรวมใหม่แทนที่ตัวเลือกแชร์แบบเก่าที่กระจัดกระจาย
+• Alarm bridge: spell สามารถตั้งนาฬิกาปลุกแบบ native บนอุปกรณ์ได้แล้ว
+• แก้ไขบั๊กด้านเสียง, TTS และความเสถียรของฟังก์ชันสำคัญ
 </th>
