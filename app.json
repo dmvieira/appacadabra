@@ -6,7 +6,7 @@
   "expo": {
     "name": "Appacadabra",
     "slug": "appacadabra",
-    "version": "2.0.10",
+    "version": "2.0.11",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
