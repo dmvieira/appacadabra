@@ -151,6 +151,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     await addColumn('generated_apps', 'storeSpellSlug', 'TEXT');
     await addColumn('generated_apps', 'source', "TEXT NOT NULL DEFAULT 'local'");
     await addColumn('generated_apps', 'forkOfStoreSpellId', 'TEXT');
+    await addColumn('generated_apps', 'storeVisibility', 'TEXT');
 
     // Drop the unique index on (appId, callbackName) so repeated AI calls accumulate as history
     try {
@@ -391,12 +392,20 @@ export async function updateBiometricLock(appId: number, enabled: boolean): Prom
 export async function updateAppStoreLink(
     appId: number,
     storeSpellId: string | null,
-    storeSpellSlug: string | null
+    storeSpellSlug: string | null,
+    storeVisibility: 'public' | 'unlisted' | null = null
 ): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        'UPDATE generated_apps SET storeSpellId = ?, storeSpellSlug = ? WHERE id = ?',
-        [storeSpellId, storeSpellSlug, appId]
+        'UPDATE generated_apps SET storeSpellId = ?, storeSpellSlug = ?, storeVisibility = ? WHERE id = ?',
+        [storeSpellId, storeSpellSlug, storeVisibility, appId]
+    );
+}
+
+export async function getAppsWithStoreSpellId(): Promise<GeneratedApp[]> {
+    const database = await getDatabase();
+    return database.getAllAsync<GeneratedApp>(
+        'SELECT * FROM generated_apps WHERE storeSpellId IS NOT NULL'
     );
 }
 

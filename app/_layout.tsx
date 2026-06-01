@@ -207,14 +207,16 @@ export default function RootLayout() {
             await SplashScreen.hideAsync().catch((e: any) => console.log('Error hiding splash:', e));
         }, 1000);
 
-        // Spell Store — foreground sync of learned spells
-        const maybeSyncLearnedSpells = () => {
-            if (!isGoogleUser()) return;
-            useStoreSyncStore.getState().syncLearnedSpells().catch(() => {});
+        // Spell Store — foreground sync of learned spells and published spell status
+        const maybeSyncStoreState = () => {
+            if (isGoogleUser()) {
+                useStoreSyncStore.getState().syncLearnedSpells().catch(() => {});
+            }
+            useStoreSyncStore.getState().syncPublishedSpellsStatus().catch(() => {});
         };
-        setTimeout(maybeSyncLearnedSpells, 2000);
+        setTimeout(maybeSyncStoreState, 2000);
         const appStateSub = AppState.addEventListener('change', (next) => {
-            if (next === 'active') maybeSyncLearnedSpells();
+            if (next === 'active') maybeSyncStoreState();
         });
 
         // Deep link: appacadabra://store?spellId=xxx

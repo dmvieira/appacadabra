@@ -17,6 +17,7 @@ export interface GeneratedApp {
     sortOrder: number; // Custom sort order (lower = higher in list)
     storeSpellId?: string | null; // ID of the published spell in Firestore store_spells (if published)
     storeSpellSlug?: string | null; // Slug for the public Store URL
+    storeVisibility?: 'public' | 'unlisted' | null; // Visibility mode used when publishing
     source?: 'local' | 'store'; // Whether this spell was created locally or learned from the Store
     forkOfStoreSpellId?: string | null; // store_spells ID this spell was learned from (for variant publishing)
 }

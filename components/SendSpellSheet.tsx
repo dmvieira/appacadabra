@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
+    Image,
     StyleSheet,
     TouchableOpacity,
     TextInput,
@@ -13,9 +14,9 @@ import {
     ScrollView,
     ActivityIndicator,
     KeyboardAvoidingView,
-    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system/legacy';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import type { GeneratedApp } from '../lib/database/types';
@@ -30,7 +31,7 @@ interface Props {
     onClose: () => void;
 }
 
-type SheetView = 'form' | 'publishing' | 'success' | 'already-shared';
+type SheetView = 'form' | 'publishing' | 'unpublishing' | 'success' | 'already-shared';
 
 const COLOR_PAIRS: [string, string][] = [
     ['#1a3a2a', '#4ade80'],
@@ -92,6 +93,18 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
         }
         setView('publishing');
         try {
+            let iconBase64: string | undefined;
+            if (app.iconPath) {
+                try {
+                    iconBase64 = await FileSystem.readAsStringAsync(app.iconPath, {
+                        encoding: FileSystem.EncodingType.Base64,
+                    });
+                } catch (e) {
+                    setView('form');
+                    Alert.alert(t('error'), `Failed to read spell icon: ${(e as any)?.message ?? e}`);
+                    return;
+                }
+            }
             const result = await useStoreSyncStore.getState().publishSpell({
                 appId: app.id,
                 name: mode === 'unlisted' ? app.name : name.trim(),
@@ -99,6 +112,7 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
                     ? (app.shortDescription ?? '')
                     : description.trim(),
                 visibility: mode,
+                iconBase64,
             });
             setOutcome(result);
             setView('success');
@@ -110,18 +124,20 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
     const handleUnpublish = () => {
         if (!app?.storeSpellId) return;
         Alert.alert(
-            t('unpublishSpell'),
-            t('unpublishConsequence'),
+            isUnlisted ? t('removePrivateLink') : t('unpublishSpell'),
+            isUnlisted ? t('unpublishConsequenceUnlisted') : t('unpublishConsequence'),
             [
                 { text: t('cancel'), style: 'cancel' },
                 {
                     text: t('unpublishSpell'),
                     style: 'destructive',
                     onPress: async () => {
+                        setView('unpublishing');
                         try {
                             await useStoreSyncStore.getState().unpublishSpell(app.id, app.storeSpellId!);
                             handleClose();
                         } catch (e: any) {
+                            setView('already-shared');
                             Alert.alert(t('error'), e?.message || 'Failed to unpublish');
                         }
                     },
@@ -132,6 +148,7 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
 
     if (!app) return null;
 
+    const isUnlisted = app.storeVisibility === 'unlisted';
     const { bg: avatarBg, fg: avatarFg } = nameToColors(app.name);
     const initials = app.name.slice(0, 2).toUpperCase();
     const storeUrl = app.storeSpellId
@@ -141,8 +158,12 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
 
     const Header = ({ dimmed = false }: { dimmed?: boolean }) => (
         <View style={[styles.header, dimmed && { opacity: 0.35 }]}>
-            <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
-                <Text style={[styles.avatarText, { color: avatarFg }]}>{initials}</Text>
+            <View style={[styles.avatar, { backgroundColor: app.iconPath ? 'transparent' : avatarBg }]}>
+                {app.iconPath ? (
+                    <Image source={{ uri: app.iconPath }} style={styles.avatarImage} />
+                ) : (
+                    <Text style={[styles.avatarText, { color: avatarFg }]}>{initials}</Text>
+                )}
             </View>
             <View style={styles.headerInfo}>
                 <Text style={styles.headerName} numberOfLines={1}>{app.name}</Text>
@@ -168,6 +189,13 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
                             <View style={styles.urlBox}>
                                 <Text style={styles.urlText} selectable>{storeUrl}</Text>
                             </View>
+                            {app.storeVisibility && (
+                                <View style={styles.visibilityBadge}>
+                                    <Text style={styles.visibilityBadgeText}>
+                                        {isUnlisted ? t('privateLinkMode') : t('publicListingMode')}
+                                    </Text>
+                                </View>
+                            )}
                             <TouchableOpacity
                                 style={styles.btnPrimary}
                                 onPress={() => Share.share({ message: storeUrl, url: storeUrl })}
@@ -184,7 +212,9 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
                                 <Text style={styles.btnGhostText}>{t('close')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.btnDangerText} onPress={handleUnpublish}>
-                                <Text style={styles.btnDangerLabel}>{t('unpublishSpell')}</Text>
+                                <Text style={styles.btnDangerLabel}>
+                                    {isUnlisted ? t('removePrivateLink') : t('unpublishSpell')}
+                                </Text>
                             </TouchableOpacity>
                         </SafeAreaView>
                     </Pressable>
@@ -256,13 +286,36 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
         );
     }
 
+    // ── unpublishing ──────────────────────────────────────────────────────────
+    if (view === 'unpublishing') {
+        return (
+            <Modal transparent visible={visible} onRequestClose={() => {}} animationType="fade">
+                <View style={styles.overlay}>
+                    <Pressable style={styles.sheet} onPress={e => e.stopPropagation()}>
+                        <SafeAreaView edges={['bottom']}>
+                            <View style={styles.handle} />
+                            <Header dimmed />
+                            <View style={styles.publishingCenter}>
+                                <ActivityIndicator size="large" color={colors.primary} />
+                                <Text style={styles.publishingText}>{t('unpublishingSpellMessage')}</Text>
+                            </View>
+                            <TouchableOpacity style={[styles.btnDangerText, { opacity: 0.4 }]} disabled>
+                                <ActivityIndicator size="small" color={colors.error} />
+                            </TouchableOpacity>
+                        </SafeAreaView>
+                    </Pressable>
+                </View>
+            </Modal>
+        );
+    }
+
     // ── form ──────────────────────────────────────────────────────────────────
     return (
         <Modal transparent visible={visible} onRequestClose={handleClose} animationType="fade">
             <Pressable style={styles.overlay} onPress={handleClose}>
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={{ width: '100%' }}
+                    behavior="padding"
+                    style={{ width: '100%', backgroundColor: 'rgba(0,0,0,0.55)' }}
                 >
                 <Pressable style={styles.sheet} onPress={e => e.stopPropagation()}>
                     <SafeAreaView edges={['bottom']}>
@@ -404,6 +457,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
+        overflow: 'hidden',
+    },
+    avatarImage: {
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.md,
     },
     avatarText: {
         fontSize: 18,
@@ -558,6 +617,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: spacing.sm,
         marginTop: spacing.md,
+        backgroundColor: colors.background,
+        paddingBottom: spacing.sm,
     },
     btnPrimary: {
         backgroundColor: colors.primary,
@@ -611,12 +672,26 @@ const styles = StyleSheet.create({
     },
     btnDangerText: {
         paddingVertical: spacing.sm,
+        marginTop: spacing.xs,
+        marginBottom: spacing.md,
         alignItems: 'center',
     },
     btnDangerLabel: {
         color: '#f87171',
         fontSize: 13,
         fontWeight: '600',
+    },
+    visibilityBadge: {
+        alignSelf: 'center',
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        marginBottom: spacing.sm,
+    },
+    visibilityBadgeText: {
+        fontSize: 12,
+        color: colors.textSecondary,
     },
 
     // Success view

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as Localization from 'expo-localization';
 import * as firebase from './firebase';
-import { getAppById, updateAppStoreLink, getAppByStoreSpellId, insertApp } from './database/db';
+import { getAppById, updateAppStoreLink, getAppByStoreSpellId, getAppsWithStoreSpellId, insertApp } from './database/db';
 import { useAppStore } from './store';
 
 /**
@@ -43,6 +43,7 @@ interface StoreSyncState {
     publishSpell: (opts: PublishOptions) => Promise<PublishOutcome>;
     unpublishSpell: (appId: number, storeSpellId: string) => Promise<void>;
     syncLearnedSpells: () => Promise<void>;
+    syncPublishedSpellsStatus: () => Promise<void>;
     clearError: () => void;
 }
 
@@ -72,7 +73,8 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
             });
 
             // Persist the link so the AppCard menu can show "View in Store" / "Unpublish"
-            await updateAppStoreLink(opts.appId, result.spellId, result.slug);
+            await updateAppStoreLink(opts.appId, result.spellId, result.slug, opts.visibility ?? 'public');
+            try { useAppStore.getState().loadApps(); } catch {}
 
             set({ isPublishing: false });
             return result;
@@ -89,6 +91,7 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
         try {
             await firebase.unpublishSpell(storeSpellId);
             await updateAppStoreLink(appId, null, null);
+            try { useAppStore.getState().loadApps(); } catch {}
             set({ isPublishing: false });
         } catch (e: any) {
             const message = e?.message || 'Failed to unpublish spell';
@@ -173,6 +176,26 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
             console.error('[StoreSync] syncLearnedSpells error:', e?.message);
         } finally {
             set({ isSyncing: false });
+        }
+    },
+
+    syncPublishedSpellsStatus: async () => {
+        let cleared = 0;
+        try {
+            const published = await getAppsWithStoreSpellId();
+            for (const app of published) {
+                if (!app.storeSpellId) continue;
+                const status = await firebase.getStoreSpellStatus(app.storeSpellId);
+                if (status !== 'active') {
+                    await updateAppStoreLink(app.id, null, null);
+                    cleared++;
+                }
+            }
+        } catch (e: any) {
+            console.warn('[StoreSync] syncPublishedSpellsStatus error:', e?.message);
+        }
+        if (cleared > 0) {
+            try { useAppStore.getState().loadApps(); } catch {}
         }
     },
 

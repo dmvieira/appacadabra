@@ -152,7 +152,8 @@ export default function HomeScreen() {
     const [suggestions, setSuggestions] = useState<Array<{ title: string; description: string }>>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [showNotifHint, setShowNotifHint] = useState(false);
-    const [sendSpellTarget, setSendSpellTarget] = useState<GeneratedApp | null>(null);
+    const [sendSpellTargetId, setSendSpellTargetId] = useState<number | null>(null);
+    const sendSpellTarget = sendSpellTargetId != null ? (apps.find(a => a.id === sendSpellTargetId) ?? null) : null;
 
     // Backup store
     const { backupMode, localFolderUri, restoredCount, clearRestoredCount, hydrated: backupHydrated, hydrate: hydrateBackup, isRestoring, lastBackupAt } = useBackupStore();
@@ -1257,7 +1258,7 @@ export default function HomeScreen() {
                                 }}
                                 onShortcut={() => { setActiveCardId(null); handleCreateShortcut(item); }}
                                 onToggleBiometric={() => { setActiveCardId(null); handleToggleBiometric(item); }}
-                                onSendSpell={() => { setActiveCardId(null); setSendSpellTarget(item); }}
+                                onSendSpell={() => { setActiveCardId(null); setSendSpellTargetId(item.id); }}
                                 onViewSchedules={() => { setActiveCardId(null); setScheduleTarget(item); }}
                                 isPlaceholder={isPlaceholder}
                                 isLocked={isLocked}
@@ -1778,7 +1779,7 @@ export default function HomeScreen() {
             <SendSpellSheet
                 app={sendSpellTarget}
                 visible={!!sendSpellTarget}
-                onClose={() => setSendSpellTarget(null)}
+                onClose={() => setSendSpellTargetId(null)}
             />
         </SafeAreaView>
     );
