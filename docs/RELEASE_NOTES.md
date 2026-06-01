@@ -1,5 +1,5 @@
 ## Version Name
-The Spell Store
+✨ The Spell Store
 
 <en-US>
 • Spell Store is here — publish your spells for other wizards to discover and learn
