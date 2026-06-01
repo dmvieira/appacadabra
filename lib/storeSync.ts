@@ -70,6 +70,7 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                 visibility: opts.visibility ?? 'public',
                 forkOfSpellId: app.forkOfStoreSpellId ?? undefined,
                 locale: Localization.getLocales()[0]?.languageCode ?? undefined,
+                existingSpellId: app.storeSpellId ?? undefined,
             });
 
             // Persist the link so the AppCard menu can show "View in Store" / "Unpublish"

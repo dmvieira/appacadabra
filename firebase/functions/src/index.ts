@@ -1383,6 +1383,7 @@ interface PublishSpellInput {
     visibility: 'public' | 'unlisted';
     forkOfSpellId?: string;
     locale?: string;
+    existingSpellId?: string;
 }
 
 interface UnpublishSpellInput {
@@ -1440,7 +1441,7 @@ export const publishSpell = onCall<PublishSpellInput>(
             throw new HttpsError('permission-denied', 'Sign in with Google to publish spells to the Store');
         }
 
-        const { name, description, htmlBase64, version, previewImageBase64, iconBase64, visibility, forkOfSpellId, locale } = request.data;
+        const { name, description, htmlBase64, version, previewImageBase64, iconBase64, visibility, forkOfSpellId, locale, existingSpellId } = request.data;
         if (!name || typeof name !== 'string') throw new HttpsError('invalid-argument', 'Spell name required');
         if (!htmlBase64 || typeof htmlBase64 !== 'string') throw new HttpsError('invalid-argument', 'Spell HTML required');
         if (visibility !== 'public' && visibility !== 'unlisted') {
@@ -1475,8 +1476,30 @@ export const publishSpell = onCall<PublishSpellInput>(
         }
 
         const slug = generateSlug(name);
-        const spellRef = db.collection('store_spells').doc();
-        const spellId = spellRef.id;
+
+        // Resolve doc reference: update existing listing or create new
+        let spellRef = db.collection('store_spells').doc();
+        let spellId = spellRef.id;
+        let isUpdate = false;
+        if (existingSpellId && typeof existingSpellId === 'string') {
+            const existingSnap = await db.collection('store_spells').doc(existingSpellId).get();
+            if (existingSnap.exists && existingSnap.data()?.authorUid === request.auth!.uid) {
+                spellRef = existingSnap.ref;
+                spellId = existingSpellId;
+                isUpdate = true;
+            }
+        }
+
+        // Safety net: find other active listings from this user to retire (prevents duplicates
+        // when storeSpellId was lost locally but server doc was still active)
+        let docsToRetire: FirebaseFirestore.DocumentReference[] = [];
+        if (!isUpdate) {
+            const activeSnap = await db.collection('store_spells')
+                .where('authorUid', '==', request.auth!.uid)
+                .where('status', '==', 'active')
+                .get();
+            docsToRetire = activeSnap.docs.filter(d => d.id !== spellId).map(d => d.ref);
+        }
 
         const htmlStoragePath = `store_html/${spellId}/spell.html`;
         const uploadedPaths: string[] = [];
@@ -1544,31 +1567,53 @@ export const publishSpell = onCall<PublishSpellInput>(
 
             const storeUrl = `https://appacadabra.ai/store/${spellId}/${slug}`;
             await db.runTransaction(async (tx) => {
-                tx.set(spellRef, {
-                    authorUid: request.auth!.uid,
-                    authorName,
-                    name,
-                    description: finalDescription,
-                    originalLang,
-                    translations,
-                    slug,
-                    htmlStoragePath,
-                    previewImagePath,
-                    iconPath,
-                    publishedVersion: version,
-                    learnCount: 0,
-                    variantCount: 0,
-                    forkOfSpellId: resolvedForkOfSpellId,
-                    rootSpellId,
-                    publishedAt: FieldValue.serverTimestamp(),
-                    updatedAt: FieldValue.serverTimestamp(),
-                    status: 'active',
-                    visibility,
-                });
-                if (resolvedForkOfSpellId) {
-                    tx.update(db.collection('store_spells').doc(resolvedForkOfSpellId), {
-                        variantCount: FieldValue.increment(1),
+                if (isUpdate) {
+                    tx.update(spellRef, {
+                        name,
+                        description: finalDescription,
+                        originalLang,
+                        translations,
+                        slug,
+                        htmlStoragePath,
+                        previewImagePath,
+                        iconPath,
+                        publishedVersion: version,
+                        forkOfSpellId: resolvedForkOfSpellId,
+                        rootSpellId,
+                        updatedAt: FieldValue.serverTimestamp(),
+                        status: 'active',
+                        visibility,
                     });
+                } else {
+                    for (const ref of docsToRetire) {
+                        tx.update(ref, { status: 'removed', updatedAt: FieldValue.serverTimestamp() });
+                    }
+                    tx.set(spellRef, {
+                        authorUid: request.auth!.uid,
+                        authorName,
+                        name,
+                        description: finalDescription,
+                        originalLang,
+                        translations,
+                        slug,
+                        htmlStoragePath,
+                        previewImagePath,
+                        iconPath,
+                        publishedVersion: version,
+                        learnCount: 0,
+                        variantCount: 0,
+                        forkOfSpellId: resolvedForkOfSpellId,
+                        rootSpellId,
+                        publishedAt: FieldValue.serverTimestamp(),
+                        updatedAt: FieldValue.serverTimestamp(),
+                        status: 'active',
+                        visibility,
+                    });
+                    if (resolvedForkOfSpellId) {
+                        tx.update(db.collection('store_spells').doc(resolvedForkOfSpellId), {
+                            variantCount: FieldValue.increment(1),
+                        });
+                    }
                 }
             });
 

@@ -597,6 +597,8 @@ export interface PublishSpellInput {
     forkOfSpellId?: string;
     /** BCP-47 language code of the user's device locale (e.g. 'pt', 'en'). Used as authoritative originalLang. */
     locale?: string;
+    /** If set, update this existing store listing instead of creating a new one. */
+    existingSpellId?: string;
 }
 
 export interface PublishSpellResult {

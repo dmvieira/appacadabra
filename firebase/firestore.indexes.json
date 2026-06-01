@@ -32,6 +32,14 @@
             "collectionGroup": "store_spells",
             "queryScope": "COLLECTION",
             "fields": [
+                { "fieldPath": "authorUid", "order": "ASCENDING" },
+                { "fieldPath": "status", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "store_spells",
+            "queryScope": "COLLECTION",
+            "fields": [
                 { "fieldPath": "status", "order": "ASCENDING" },
                 { "fieldPath": "visibility", "order": "ASCENDING" },
                 { "fieldPath": "publishedAt", "order": "DESCENDING" }
