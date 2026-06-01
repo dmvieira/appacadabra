@@ -10,15 +10,15 @@ The Spell Store
 </en-US>
 
 <pt-BR>
-• A Loja de Feitiços chegou — publique os seus feitiços para outros lançadores descobrirem e aprenderem
-• Partilhe de forma privada com um link secreto, ou liste publicamente na Loja
+• A Loja de Feitiços chegou — publique os seus feitiços para outros feiticeiros descobrirem e aprenderem
+• Compartilhe de forma privada com um link secreto, ou liste publicamente na Loja
 • Nova folha unificada "Enviar Feitiço" substitui as opções dispersas anteriores
 • Bridge de alarme: os feitiços podem agora agendar alarmes nativos no dispositivo
 • Correções de bugs em áudio, TTS e fiabilidade de funções críticas
 </pt-BR>
 
 <es-419>
-• La Tienda de Hechizos ya está aquí — publica tus hechizos para que otros lanzadores los descubran y aprendan
+• La Tienda de Hechizos ya está aquí — publica tus hechizos para que otros hechiceros los descubran y aprendan
 • Comparte de forma privada con un enlace secreto, o publícalos en la Tienda
 • Nueva hoja unificada "Enviar Hechizo" reemplaza las opciones dispersas anteriores
 • Puente de alarma: los hechizos ahora pueden programar alarmas nativas del dispositivo
@@ -26,7 +26,7 @@ The Spell Store
 </es-419>
 
 <es-ES>
-• La Tienda de Hechizos ya está aquí — publica tus hechizos para que otros lanzadores los descubran y aprendan
+• La Tienda de Hechizos ya está aquí — publica tus hechizos para que otros hechiceros los descubran y aprendan
 • Comparte de forma privada con un enlace secreto, o publica en la Tienda
 • Nueva hoja unificada "Enviar Hechizo" reemplaza las opciones dispersas anteriores
 • Puente de alarma: los hechizos ahora pueden programar alarmas nativas del dispositivo
