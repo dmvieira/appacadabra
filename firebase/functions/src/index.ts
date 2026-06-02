@@ -5,7 +5,7 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { JWT } from "google-auth-library";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, DocumentReference, Transaction, DocumentData } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -1528,20 +1528,11 @@ export const publishSpell = onCall<PublishSpellInput>(
             }
 
             const hintLang = typeof locale === 'string' ? locale.split('-')[0].toLowerCase() : undefined;
-            let translations: Record<string, { name: string; description: string }> = {};
-            let originalLang = hintLang ?? 'en';
-            if (visibility === 'public') {
-                try {
-                    const result = await translateSpellMeta(name, finalDescription, getOR(), hintLang);
-                    translations = result.translations;
-                    originalLang = result.originalLang;
-                } catch (e: any) {
-                    console.warn('[publishSpell] translateSpellMeta failed, storing without translations:', e?.message);
-                    translations = { [originalLang]: { name, description: finalDescription } };
-                }
-            } else {
-                translations = { [originalLang]: { name, description: finalDescription } };
-            }
+            const originalLang = hintLang ?? 'en';
+            const translations: Record<string, { name: string; description: string }> = {
+                [originalLang]: { name, description: finalDescription },
+            };
+            const translationsStatus = visibility === 'public' ? 'pending' : 'skipped';
 
             const userRecord = await getAuth().getUser(request.auth!.uid);
             const authorName = userRecord.displayName || null;
@@ -1566,6 +1557,7 @@ export const publishSpell = onCall<PublishSpellInput>(
                         description: finalDescription,
                         originalLang,
                         translations,
+                        translationsStatus,
                         slug,
                         htmlStoragePath,
                         previewImagePath,
@@ -1585,6 +1577,7 @@ export const publishSpell = onCall<PublishSpellInput>(
                         description: finalDescription,
                         originalLang,
                         translations,
+                        translationsStatus,
                         slug,
                         htmlStoragePath,
                         previewImagePath,
@@ -1656,6 +1649,59 @@ export const unpublishSpell = onCall<UnpublishSpellInput>(
 
         return { success: true };
     }
+);
+
+export const getMyPublishedSpells = onCall(
+    { region: 'southamerica-east1', enforceAppCheck: false },
+    async (request) => {
+        if (!request.auth) throw new HttpsError('unauthenticated', 'Login required');
+        const snap = await db.collection('store_spells')
+            .where('authorUid', '==', request.auth.uid)
+            .where('status', '==', 'active')
+            .get();
+        return {
+            spells: snap.docs.map(d => ({
+                spellId: d.id,
+                name: d.data().name as string,
+                slug: d.data().slug as string,
+                visibility: d.data().visibility as 'public' | 'unlisted',
+            })),
+        };
+    },
+);
+
+export const translateStoreSpell = onDocumentWritten(
+    {
+        document: 'store_spells/{spellId}',
+        region: 'southamerica-east1',
+        timeoutSeconds: 120,
+        secrets: ['OPENROUTER_API_KEY'],
+    },
+    async (event) => {
+        const after = event.data?.after;
+        if (!after?.exists) return;
+        const data = after.data()!;
+        if (data.translationsStatus !== 'pending') return;
+
+        try {
+            await after.ref.update({ translationsStatus: 'processing' });
+        } catch {
+            return;
+        }
+
+        try {
+            const hintLang = typeof data.originalLang === 'string' ? data.originalLang : undefined;
+            const result = await translateSpellMeta(data.name, data.description, getOR(), hintLang);
+            await after.ref.update({
+                translations: result.translations,
+                originalLang: result.originalLang,
+                translationsStatus: 'done',
+            });
+        } catch (e: any) {
+            console.warn('[translateStoreSpell] failed:', e?.message);
+            await after.ref.update({ translationsStatus: 'failed' });
+        }
+    },
 );
 
 export const learnSpell = onCall<{ spellId: string }>(

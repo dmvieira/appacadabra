@@ -660,7 +660,7 @@ export async function translateSpellMeta(
     const safeName = name.slice(0, 200).replace(/[\x00-\x1F]/g, ' ');
     const safeDescription = (description || '').slice(0, 500).replace(/[\x00-\x1F]/g, ' ');
     const langInstruction = hintLang
-        ? `The original language is "${hintLang}". Translate both into the other 16 languages.`
+        ? `Detect the language of the spell name and description from the actual text (the user's device is set to "${hintLang}", but the content may be in a different language). Then translate both into the other 16 languages.`
         : `Detect the language of the following spell name and description, then translate both into the other 16 languages.`;
     const prompt = `${langInstruction} Target languages: ${SPELL_TRANSLATION_LANGS.join(', ')}.
 
@@ -669,7 +669,7 @@ Spell description: ${safeDescription}
 
 Return a JSON object with this exact shape:
 {
-  "originalLang": "${hintLang ?? '<detected ISO 639-1 code>'}",
+  "originalLang": "<detected ISO 639-1 code>",
   "translations": {
     "en": { "name": "...", "description": "..." },
     "pt": { "name": "...", "description": "..." }

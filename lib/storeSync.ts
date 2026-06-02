@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as Localization from 'expo-localization';
 import * as firebase from './firebase';
-import { getAppById, updateAppStoreLink, getAppByStoreSpellId, getAppsWithStoreSpellId, insertApp } from './database/db';
+import { getAppById, updateAppStoreLink, getAppByStoreSpellId, getAppsWithStoreSpellId, getAllApps, insertApp } from './database/db';
 import { useAppStore } from './store';
 
 /**
@@ -198,6 +198,27 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
             console.warn('[StoreSync] syncPublishedSpellsStatus error:', e?.message);
         }
         if (cleared > 0) {
+            try { useAppStore.getState().loadApps(); } catch {}
+        }
+
+        // Restore storeSpellId for spells published on another device / after reinstall
+        let restored = 0;
+        try {
+            const { spells: remoteSpells } = await firebase.getMyPublishedSpells();
+            if (remoteSpells.length > 0) {
+                const allLocalApps = await getAllApps();
+                for (const spell of remoteSpells) {
+                    const match = allLocalApps.find(a => !a.storeSpellId && a.name === spell.name);
+                    if (match) {
+                        await updateAppStoreLink(match.id, spell.spellId, spell.slug, spell.visibility);
+                        restored++;
+                    }
+                }
+            }
+        } catch (e: any) {
+            console.warn('[StoreSync] reconcilePublishedSpells error:', e?.message);
+        }
+        if (restored > 0) {
             try { useAppStore.getState().loadApps(); } catch {}
         }
     },

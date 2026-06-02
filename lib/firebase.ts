@@ -677,6 +677,17 @@ export async function getStoreSpellStatus(spellId: string): Promise<'active' | '
     }
 }
 
+export async function getMyPublishedSpells(): Promise<{
+    spells: { spellId: string; name: string; slug: string; visibility: 'public' | 'unlisted' }[]
+}> {
+    await ensureAuthenticated();
+    const fn = httpsCallable<void, { spells: { spellId: string; name: string; slug: string; visibility: 'public' | 'unlisted' }[] }>(
+        getFunctionsInstance(), 'getMyPublishedSpells'
+    );
+    const result = await fn();
+    return result.data;
+}
+
 export async function addCredits(amount: number, source: string, purchaseToken?: string): Promise<AddCreditsResult> {
     await ensureAuthenticated();
 
