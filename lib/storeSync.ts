@@ -68,7 +68,9 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                 previewImageBase64: opts.previewImageBase64,
                 iconBase64: opts.iconBase64,
                 visibility: opts.visibility ?? 'public',
-                forkOfSpellId: app.forkOfStoreSpellId ?? undefined,
+                forkOfSpellId: app.source === 'store'
+                    ? (app.storeSpellId ?? undefined)
+                    : (app.forkOfStoreSpellId ?? undefined),
                 locale: Localization.getLocales()[0]?.languageCode ?? undefined,
                 existingSpellId: app.storeSpellId ?? undefined,
             });
@@ -187,7 +189,7 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
             for (const app of published) {
                 if (!app.storeSpellId) continue;
                 const status = await firebase.getStoreSpellStatus(app.storeSpellId);
-                if (status !== 'active') {
+                if (status === 'not_found' || status === 'removed') {
                     await updateAppStoreLink(app.id, null, null);
                     cleared++;
                 }

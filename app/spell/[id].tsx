@@ -441,7 +441,12 @@ export default function SpellDataScreen() {
         if (!app?.storeSpellId) return;
         try {
             const status = await getStoreSpellStatus(app.storeSpellId);
-            if (status !== 'active') {
+            if (status === 'unknown') {
+                // Network error — don't clear the link, just surface the issue
+                useAppStore.getState().setStatusMessage(t('unknownError'));
+                return;
+            }
+            if (status === 'not_found' || status === 'removed') {
                 await db.updateAppStoreLink(appId, null, null);
                 useAppStore.getState().setStatusMessage(t('unknownError'));
                 try { useAppStore.getState().loadApps(); } catch {}

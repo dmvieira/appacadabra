@@ -1490,17 +1490,6 @@ export const publishSpell = onCall<PublishSpellInput>(
             }
         }
 
-        // Safety net: find other active listings from this user to retire (prevents duplicates
-        // when storeSpellId was lost locally but server doc was still active)
-        let docsToRetire: FirebaseFirestore.DocumentReference[] = [];
-        if (!isUpdate) {
-            const activeSnap = await db.collection('store_spells')
-                .where('authorUid', '==', request.auth!.uid)
-                .where('status', '==', 'active')
-                .get();
-            docsToRetire = activeSnap.docs.filter(d => d.id !== spellId).map(d => d.ref);
-        }
-
         const htmlStoragePath = `store_html/${spellId}/spell.html`;
         const uploadedPaths: string[] = [];
         try {
@@ -1585,9 +1574,6 @@ export const publishSpell = onCall<PublishSpellInput>(
                         visibility,
                     });
                 } else {
-                    for (const ref of docsToRetire) {
-                        tx.update(ref, { status: 'removed', updatedAt: FieldValue.serverTimestamp() });
-                    }
                     tx.set(spellRef, {
                         authorUid: request.auth!.uid,
                         authorName,

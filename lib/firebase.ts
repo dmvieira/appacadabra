@@ -662,7 +662,7 @@ export async function markSpellSynced(
     return result.data;
 }
 
-export async function getStoreSpellStatus(spellId: string): Promise<'active' | 'removed' | 'not_found'> {
+export async function getStoreSpellStatus(spellId: string): Promise<'active' | 'removed' | 'not_found' | 'unknown'> {
     try {
         const firestore = firebaseFirestore();
         const docRef = doc(collection(firestore, 'store_spells'), spellId);
@@ -673,7 +673,7 @@ export async function getStoreSpellStatus(spellId: string): Promise<'active' | '
         return status === 'active' ? 'active' : 'removed';
     } catch (e: any) {
         console.warn('[Firebase] getStoreSpellStatus failed:', e?.message);
-        return 'not_found';
+        return 'unknown';
     }
 }
 

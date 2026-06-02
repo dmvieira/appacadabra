@@ -294,14 +294,15 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         app.storeSpellId ?? null,
         app.storeSpellSlug ?? null,
         app.forkOfStoreSpellId ?? null,
+        app.storeVisibility ?? null,
     ];
 
     console.log('[DB] Inserting App. Bindings:', JSON.stringify(bindings));
 
     try {
         const result = await database.runAsync(
-            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, forkOfStoreSpellId)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, forkOfStoreSpellId, storeVisibility)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             bindings as any[]
         );
         return result.lastInsertRowId;
@@ -329,7 +330,18 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
                 fallbackBindings as any[]
             );
             console.log('[DB] Fallback Insert Success!');
-            return result.lastInsertRowId;
+            const newId = result.lastInsertRowId;
+            // Best-effort: apply store fields via UPDATE in case the columns exist
+            // (they may not if the migration that added them also failed)
+            if (app.storeSpellId || (app.source && app.source !== 'local') || app.forkOfStoreSpellId) {
+                try {
+                    await updateAppStoreLink(newId, app.storeSpellId ?? null, app.storeSpellSlug ?? null, app.storeVisibility ?? null);
+                    await updateAppSource(newId, app.source ?? 'local', app.forkOfStoreSpellId ?? null);
+                } catch (storeFieldsError) {
+                    console.warn('[DB] Fallback: store fields UPDATE skipped (columns may not exist):', storeFieldsError);
+                }
+            }
+            return newId;
         } catch (fallbackError) {
             console.error('[DB] Fallback Insert Also Failed:', fallbackError);
             throw e; // Throw original error
@@ -399,6 +411,18 @@ export async function updateAppStoreLink(
     await database.runAsync(
         'UPDATE generated_apps SET storeSpellId = ?, storeSpellSlug = ?, storeVisibility = ? WHERE id = ?',
         [storeSpellId, storeSpellSlug, storeVisibility, appId]
+    );
+}
+
+export async function updateAppSource(
+    appId: number,
+    source: 'local' | 'store',
+    forkOfStoreSpellId: string | null
+): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'UPDATE generated_apps SET source = ?, forkOfStoreSpellId = ? WHERE id = ?',
+        [source, forkOfStoreSpellId, appId]
     );
 }
 

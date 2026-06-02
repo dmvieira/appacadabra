@@ -57,6 +57,11 @@ export interface BackupApp {
         delivered: number;
         createdAt: number;
     }>;
+    storeSpellId?: string;
+    storeSpellSlug?: string;
+    storeVisibility?: 'public' | 'unlisted';
+    source?: 'local' | 'store';
+    forkOfStoreSpellId?: string;
 }
 
 export async function createBackup(includeStorage: boolean = true, targetAppId?: number): Promise<BackupData> {
@@ -221,6 +226,13 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             })) : undefined,
             localStorage: includeStorage ? localStorage : undefined,
             aiMedia,
+            // Store link fields are only meaningful in full device backups.
+            // Single-spell .spell exports omit them so a recipient can't impersonate the publisher.
+            storeSpellId: includeStorage ? (app.storeSpellId ?? undefined) : undefined,
+            storeSpellSlug: includeStorage ? (app.storeSpellSlug ?? undefined) : undefined,
+            storeVisibility: includeStorage ? (app.storeVisibility ?? undefined) : undefined,
+            source: includeStorage ? (app.source ?? undefined) : undefined,
+            forkOfStoreSpellId: includeStorage ? (app.forkOfStoreSpellId ?? undefined) : undefined,
         });
     }
 
@@ -489,6 +501,23 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                         sortOrder: app.sortOrder ?? existing.sortOrder,
                         requiresBiometric: app.requiresBiometric ?? existing.requiresBiometric,
                     });
+                    // Restore store link if backup has it but the local row was cleared (e.g. after a previous restore)
+                    if (app.storeSpellId && !existing.storeSpellId) {
+                        await db.updateAppStoreLink(
+                            existing.id,
+                            app.storeSpellId,
+                            app.storeSpellSlug ?? null,
+                            app.storeVisibility ?? null,
+                        );
+                    }
+                    // Restore source/forkOfStoreSpellId if backup has them and local row is stale
+                    if (app.source && app.source !== existing.source) {
+                        await db.updateAppSource(
+                            existing.id,
+                            app.source,
+                            app.forkOfStoreSpellId ?? null,
+                        );
+                    }
                     // Insert versions from backup that don't exist locally
                     const versionsToCheck = app.versions || backup.versions?.[app.id] || [];
                     if (versionsToCheck.length > 0) {
@@ -603,6 +632,11 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                 requiresBiometric: app.requiresBiometric || false,
                 shortDescription: app.shortDescription || undefined,
                 sortOrder: app.sortOrder || 0,
+                storeSpellId: app.storeSpellId ?? undefined,
+                storeSpellSlug: app.storeSpellSlug ?? undefined,
+                storeVisibility: app.storeVisibility ?? undefined,
+                source: app.source ?? 'local',
+                forkOfStoreSpellId: app.forkOfStoreSpellId ?? undefined,
             };
 
             const newId = await db.insertApp(newApp);
