@@ -1530,12 +1530,16 @@ export const publishSpell = onCall<PublishSpellInput>(
             const hintLang = typeof locale === 'string' ? locale.split('-')[0].toLowerCase() : undefined;
             let translations: Record<string, { name: string; description: string }> = {};
             let originalLang = hintLang ?? 'en';
-            try {
-                const result = await translateSpellMeta(name, finalDescription, getOR(), hintLang);
-                translations = result.translations;
-                originalLang = result.originalLang;
-            } catch (e: any) {
-                console.warn('[publishSpell] translateSpellMeta failed, storing without translations:', e?.message);
+            if (visibility === 'public') {
+                try {
+                    const result = await translateSpellMeta(name, finalDescription, getOR(), hintLang);
+                    translations = result.translations;
+                    originalLang = result.originalLang;
+                } catch (e: any) {
+                    console.warn('[publishSpell] translateSpellMeta failed, storing without translations:', e?.message);
+                    translations = { [originalLang]: { name, description: finalDescription } };
+                }
+            } else {
                 translations = { [originalLang]: { name, description: finalDescription } };
             }
 
