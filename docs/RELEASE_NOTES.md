@@ -1,135 +1,135 @@
 ## Version Name
-✨ The Spell Store
+✨ Faster Publishing & Smarter Sharing
 
 <en-US>
-• Spell Store is here — publish your spells for other wizards to discover and learn
-• Share privately with a secret link, or list publicly in the Store
-• New unified Send Spell sheet replaces the old scattered share options
-• Bug fixes for audio, TTS and critical function reliability
+• Publishing a spell no longer hangs — translations now run in the background so the link is instant
+• Unlisted spells skip translation entirely and are stored in their original language only
+• Reinstall or switch device? Your already-published spells are recognised and won't be duplicated
+• Language detection fixed — spell titles and descriptions are now translated from their real language
 </en-US>
 
 <pt-BR>
-• A Loja de Feitiços chegou — publique os seus feitiços para outros feiticeiros descobrirem e aprenderem
-• Compartilhe de forma privada com um link secreto, ou liste publicamente na Loja
-• Nova folha unificada "Enviar Feitiço" substitui as opções dispersas anteriores
-• Correções de bugs em áudio, TTS e fiabilidade de funções críticas
+• Publicar um feitiço não trava mais — traduções correm em segundo plano e o link é imediato
+• Feitiços não listados ignoram tradução e ficam guardados apenas no idioma original
+• Reinstalou ou trocou de dispositivo? Os seus feitiços já publicados são reconhecidos sem duplicação
+• Deteção de idioma corrigida — títulos e descrições são traduzidos a partir do idioma real do texto
 </pt-BR>
 
 <es-419>
-• La Tienda de Hechizos ya está aquí — publica tus hechizos para que otros hechiceros los descubran y aprendan
-• Comparte de forma privada con un enlace secreto, o publícalos en la Tienda
-• Nueva hoja unificada "Enviar Hechizo" reemplaza las opciones dispersas anteriores
-• Correcciones de errores en audio, TTS y fiabilidad de funciones críticas
+• Publicar un hechizo ya no se congela — las traducciones corren en segundo plano y el enlace es instantáneo
+• Los hechizos no listados omiten la traducción y se guardan solo en el idioma original
+• ¿Reinstalaste o cambiaste de dispositivo? Tus hechizos publicados se reconocen sin duplicarlos
+• Detección de idioma corregida — títulos y descripciones se traducen desde el idioma real del texto
 </es-419>
 
 <es-ES>
-• La Tienda de Hechizos ya está aquí — publica tus hechizos para que otros hechiceros los descubran y aprendan
-• Comparte de forma privada con un enlace secreto, o publica en la Tienda
-• Nueva hoja unificada "Enviar Hechizo" reemplaza las opciones dispersas anteriores
-• Correcciones en audio, TTS y fiabilidad de funciones críticas
+• Publicar un hechizo ya no se bloquea — las traducciones van en segundo plano y el enlace es instantáneo
+• Los hechizos no listados omiten la traducción y se guardan solo en el idioma original
+• ¿Reinstalaste o cambiaste de dispositivo? Tus hechizos publicados se reconocen sin duplicarlos
+• Detección de idioma corregida — títulos y descripciones se traducen desde el idioma real
 </es-ES>
 
 <fr-FR>
-• La Boutique de Sorts est là — publiez vos sorts pour que d'autres sorciers les découvrent et les apprennent
-• Partagez en privé avec un lien secret, ou listez publiquement dans la Boutique
-• Nouvelle feuille unifiée "Envoyer un Sort" remplace les options dispersées
-• Corrections de bugs audio, TTS et fiabilité des fonctions critiques
+• Publier un sort ne bloque plus — les traductions tournent en arrière-plan et le lien est instantané
+• Les sorts non listés ignorent la traduction et sont stockés dans leur langue d'origine uniquement
+• Réinstallation ou changement d'appareil ? Vos sorts publiés sont reconnus sans doublon
+• Détection de langue corrigée — titres et descriptions traduits depuis la vraie langue du texte
 </fr-FR>
 
 <fr-CA>
-• La Boutique de Sorts est arrivée — publiez vos sorts pour que d'autres sorciers les découvrent et les apprennent
-• Partagez en privé avec un lien secret, ou listez publiquement dans la Boutique
-• Nouvelle feuille unifiée "Envoyer un Sort" remplace les options éparpillées
-• Corrections de bogues audio, TTS et fiabilité des fonctions critiques
+• Publier un sort ne bloque plus — les traductions s'exécutent en arrière-plan et le lien est instantané
+• Les sorts non listés sautent la traduction et sont stockés dans leur langue d'origine seulement
+• Réinstallation ou changement d'appareil ? Vos sorts publiés sont reconnus sans doublon
+• Détection de langue corrigée — titres et descriptions traduits depuis la vraie langue du texte
 </fr-CA>
 
 <de-DE>
-• Der Zauber-Store ist da — veröffentliche deine Zauber für andere Zauberer zum Entdecken und Erlernen
-• Teile privat mit einem geheimen Link oder liste deinen Zauber öffentlich im Store
-• Neues einheitliches "Zauber senden"-Blatt ersetzt die alten verstreuten Optionen
-• Fehlerbehebungen bei Audio, TTS und kritischen Funktionen
+• Zauberpublikation hängt nicht mehr — Übersetzungen laufen im Hintergrund, der Link ist sofort da
+• Nicht gelistete Zauber überspringen die Übersetzung und werden nur in der Originalsprache gespeichert
+• Neu installiert oder Gerät gewechselt? Bereits veröffentlichte Zauber werden erkannt, kein Duplikat
+• Sprachenerkennung korrigiert — Titel und Beschreibungen werden aus der echten Sprache übersetzt
 </de-DE>
 
 <it-IT>
-• Lo Spell Store è arrivato — pubblica i tuoi incantesimi perché altri stregoni li scoprano e li imparino
-• Condividi privatamente con un link segreto, o elenca pubblicamente nello Store
-• Nuovo foglio unificato "Invia Incantesimo" sostituisce le vecchie opzioni sparse
-• Correzioni di bug su audio, TTS e affidabilità delle funzioni critiche
+• Pubblicare un incantesimo non si blocca più — le traduzioni girano in background e il link è istantaneo
+• Gli incantesimi non elencati saltano la traduzione e vengono salvati solo nella lingua originale
+• Reinstallato o cambiato dispositivo? I tuoi incantesimi già pubblicati sono riconosciuti senza duplicati
+• Rilevamento lingua corretto — titoli e descrizioni tradotti dalla lingua reale del testo
 </it-IT>
 
 <ja-JP>
-• スペルストアが登場 — スペルを公開して他の魔法使いに発見・習得してもらおう
-• シークレットリンクでプライベート共有、またはストアで公開リスト
-• 新しい統合「スペルを送る」シートが旧来の分散した共有オプションを置き換え
-• オーディオ、TTS、重要機能の信頼性に関するバグ修正
+• スペルの公開がフリーズしなくなった — 翻訳はバックグラウンドで実行され、リンクは即座に発行
+• 非公開スペルは翻訳をスキップし、元の言語のみで保存
+• 再インストールやデバイス変更後も公開済みスペルを認識し、重複を防止
+• 言語検出を修正 — タイトルと説明が実際の言語から正しく翻訳されるように
 </ja-JP>
 
 <zh-CN>
-• 法术商店上线 — 发布你的法术，让其他巫师发现并学习
-• 通过私密链接私下分享，或在商店中公开上架
-• 全新统一的"发送法术"面板取代了旧的分散分享选项
-• 修复音频、TTS 及关键功能可靠性问题
+• 发布法术不再卡顿 — 翻译在后台运行，链接即时生成
+• 非公开法术跳过翻译，仅以原始语言保存
+• 重装或换设备？已发布的法术会被识别，不会重复上传
+• 语言检测已修正 — 标题和描述现在从文本的真实语言翻译
 </zh-CN>
 
 <ko-KR>
-• 주문 상점 출시 — 주문을 게시하여 다른 마법사가 발견하고 배울 수 있도록 하세요
-• 비밀 링크로 비공개 공유하거나 상점에 공개 등록
-• 새로운 통합 "주문 보내기" 시트가 기존의 분산된 공유 옵션을 대체
-• 오디오, TTS 및 핵심 기능 안정성 버그 수정
+• 주문 게시 시 멈춤 현상 해소 — 번역이 백그라운드에서 실행되어 링크가 즉시 생성
+• 비공개 주문은 번역을 건너뛰고 원래 언어로만 저장
+• 재설치하거나 기기를 바꿔도 이미 게시된 주문이 인식되어 중복 없음
+• 언어 감지 수정 — 제목과 설명이 텍스트의 실제 언어에서 올바르게 번역
 </ko-KR>
 
 <ar>
-• متجر التعويذات هنا — انشر تعويذاتك ليكتشفها السحرة الآخرون ويتعلموها
-• شارك بشكل خاص برابط سري، أو أدرجها علنًا في المتجر
-• ورقة "إرسال تعويذة" الموحدة الجديدة تحل محل خيارات المشاركة المتفرقة القديمة
-• إصلاحات لأخطاء الصوت وTTS وموثوقية الوظائف الحرجة
+• نشر التعويذة لم يعد يتجمد — الترجمات تعمل في الخلفية والرابط يصدر فوراً
+• التعويذات غير المدرجة تتجاوز الترجمة وتُحفظ باللغة الأصلية فقط
+• أعدت التثبيت أو غيّرت جهازك؟ تعويذاتك المنشورة تُعرَّف تلقائياً دون تكرار
+• تصحيح كشف اللغة — العناوين والأوصاف تُترجم من اللغة الحقيقية للنص
 </ar>
 
 <hi-IN>
-• स्पेल स्टोर आ गया है — अपने स्पेल प्रकाशित करें ताकि अन्य जादूगर उन्हें खोज और सीख सकें
-• गुप्त लिंक से निजी तौर पर साझा करें, या स्टोर में सार्वजनिक रूप से सूचीबद्ध करें
-• नई एकीकृत "स्पेल भेजें" शीट पुराने बिखरे हुए शेयर विकल्पों की जगह लेती है
-• ऑडियो, TTS और महत्वपूर्ण फ़ंक्शन विश्वसनीयता में बग फिक्स
+• स्पेल प्रकाशित करते समय अब रुकावट नहीं — अनुवाद पृष्ठभूमि में होता है, लिंक तुरंत मिलता है
+• अनलिस्टेड स्पेल अनुवाद छोड़ते हैं और केवल मूल भाषा में सहेजे जाते हैं
+• फिर से इंस्टॉल किया या डिवाइस बदला? पहले से प्रकाशित स्पेल पहचाने जाते हैं, कोई डुप्लीकेट नहीं
+• भाषा पहचान ठीक हुई — शीर्षक और विवरण अब पाठ की वास्तविक भाषा से अनुवादित
 </hi-IN>
 
 <ru-RU>
-• Магазин заклинаний открыт — публикуйте заклинания, чтобы другие волшебники могли их найти и изучить
-• Делитесь приватно по секретной ссылке или публично выставляйте в Магазине
-• Новый единый лист "Отправить заклинание" заменяет разрозненные опции обмена
-• Исправления ошибок аудио, TTS и надёжности критических функций
+• Публикация заклинания больше не зависает — переводы работают в фоне, ссылка появляется мгновенно
+• Непубличные заклинания пропускают перевод и хранятся только на исходном языке
+• Переустановили или сменили устройство? Уже опубликованные заклинания распознаются без дублей
+• Исправлено определение языка — названия и описания теперь переводятся с реального языка текста
 </ru-RU>
 
 <tr-TR>
-• Büyü Mağazası burada — büyülerinizi diğer büyücülerin keşfetmesi ve öğrenmesi için yayınlayın
-• Gizli bir bağlantıyla özel paylaşın veya Mağaza'da herkese açık listeleyin
-• Yeni birleşik "Büyü Gönder" sayfası eski dağınık paylaşım seçeneklerinin yerini alıyor
-• Ses, TTS ve kritik işlev güvenilirliği hata düzeltmeleri
+• Büyü yayınlamak artık takılmıyor — çeviriler arka planda çalışıyor, bağlantı anında oluşuyor
+• Listelenmemiş büyüler çeviriyi atlar ve yalnızca orijinal dilde saklanır
+• Yeniden yüklediniz veya cihaz değiştirdiniz? Yayınlanmış büyüleriniz tanınır, kopya oluşmaz
+• Dil algılama düzeltildi — başlık ve açıklamalar artık metnin gerçek dilinden çevriliyor
 </tr-TR>
 
 <nl-NL>
-• De Spreukwinkel is er — publiceer je spreuken zodat andere tovenaars ze kunnen ontdekken en leren
-• Deel privé met een geheime link, of zet ze openbaar in de Winkel
-• Nieuw verenigd "Spreuk Versturen"-scherm vervangt de oude verspreide deelknoppen
-• Bugfixes voor audio, TTS en betrouwbaarheid van kritieke functies
+• Een spreuk publiceren hangt niet meer — vertalingen draaien op de achtergrond en de link is direct beschikbaar
+• Niet-genoteerde spreuken slaan vertaling over en worden alleen in de originele taal opgeslagen
+• Opnieuw geïnstalleerd of van apparaat gewisseld? Reeds gepubliceerde spreuken worden herkend zonder duplicaat
+• Taaldetectie gecorrigeerd — titels en beschrijvingen worden vertaald vanuit de echte taal van de tekst
 </nl-NL>
 
 <pl-PL>
-• Sklep z Zaklęciami już dostępny — publikuj zaklęcia, by inni czarownicy mogli je odkrywać i uczyć się
-• Udostępniaj prywatnie tajnym linkiem lub wystawiaj publicznie w Sklepie
-• Nowy ujednolicony arkusz "Wyślij Zaklęcie" zastępuje stare rozproszone opcje udostępniania
-• Poprawki błędów audio, TTS i niezawodności krytycznych funkcji
+• Publikowanie zaklęcia nie zawiesza się — tłumaczenia działają w tle, link jest natychmiastowy
+• Niewidoczne zaklęcia pomijają tłumaczenie i są zapisywane wyłącznie w oryginalnym języku
+• Reinstalacja lub zmiana urządzenia? Już opublikowane zaklęcia są rozpoznawane bez duplikatów
+• Naprawiono wykrywanie języka — tytuły i opisy tłumaczone z prawdziwego języka tekstu
 </pl-PL>
 
 <vi>
-• Cửa hàng Phép thuật ra mắt — xuất bản phép thuật để các pháp sư khác khám phá và học hỏi
-• Chia sẻ riêng tư qua liên kết bí mật, hoặc đăng công khai lên Cửa hàng
-• Trang "Gửi Phép thuật" mới thay thế các tùy chọn chia sẻ cũ rải rác
-• Sửa lỗi âm thanh, TTS và độ tin cậy của các hàm quan trọng
+• Xuất bản phép thuật không còn bị treo — bản dịch chạy nền và liên kết có ngay lập tức
+• Phép thuật không công khai bỏ qua dịch thuật, chỉ lưu bằng ngôn ngữ gốc
+• Cài lại hoặc đổi thiết bị? Phép thuật đã xuất bản được nhận diện, không bị trùng lặp
+• Sửa lỗi nhận diện ngôn ngữ — tiêu đề và mô tả dịch từ ngôn ngữ thực của văn bản
 </vi>
 
 <th>
-• Spell Store มาแล้ว — เผยแพร่ spell ของคุณให้นักเวทย์คนอื่นค้นพบและเรียนรู้
-• แชร์แบบส่วนตัวด้วยลิงก์ลับ หรือลงรายการสาธารณะใน Store
-• แผ่น "ส่ง Spell" แบบรวมใหม่แทนที่ตัวเลือกแชร์แบบเก่าที่กระจัดกระจาย
-• แก้ไขบั๊กด้านเสียง, TTS และความเสถียรของฟังก์ชันสำคัญ
+• เผยแพร่ spell ไม่ค้างอีกต่อไป — การแปลทำงานเบื้องหลัง ลิงก์พร้อมใช้ทันที
+• Spell แบบไม่แสดงรายการข้ามการแปล และบันทึกในภาษาต้นฉบับเท่านั้น
+• ติดตั้งใหม่หรือเปลี่ยนอุปกรณ์? Spell ที่เผยแพร่ไว้แล้วถูกจดจำโดยไม่ซ้ำกัน
+• แก้ไขการตรวจจับภาษา — ชื่อและคำอธิบายแปลจากภาษาจริงของข้อความแล้ว
 </th>
