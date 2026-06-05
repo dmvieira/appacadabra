@@ -141,9 +141,16 @@ function setupLearnButton(spellId, spell) {
 
   async function checkAlreadyLearned(user) {
     if (!user) {
+      const learnSection = document.querySelector('.learn-section');
+      if (learnSection) learnSection.style.display = '';
       btn.textContent = t('learnGuest');
       btn.disabled = false;
       btn.classList.remove('learned');
+      return;
+    }
+    if (user.uid === spell.authorUid) {
+      const learnSection = document.querySelector('.learn-section');
+      if (learnSection) learnSection.style.display = 'none';
       return;
     }
     try {
