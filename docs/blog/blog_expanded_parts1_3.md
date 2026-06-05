@@ -142,7 +142,7 @@ That shift has massive implications for who can build a company. A solo technica
 
 ---
 
-## Part 3: The UX/Product Department. Fast UI Mockups with Claude
+## Part 3: The UX/Product Department. Fast UI Mockups with Agents
 
 The brand existed: a color system, a visual language, a name that encoded personality. Vertex AI had produced outputs that a design studio would have been proud to ship. But a brand that lives only in style guides is not yet a product. It needed screens, and before screens, it needed a harder question: *Does this flow actually work when a real person tries to use it?*
 
@@ -150,7 +150,7 @@ In 2001, Jeff Hawkins, the inventor of the PalmPilot, famously walked around wit
 
 He was prototyping. With a block of wood. The insight was profound: **the fidelity of the prototype matters far less than the quality of the question it lets you ask.**
 
-I kept coming back to that story throughout Part 3 of building Appacadabra.
+I kept coming back to that story throughout this Part 3 of building Appacadabra.
 
 ### The Design-to-Code Pipeline Has Always Been Broken
 
@@ -178,28 +178,51 @@ These are not code questions. They are product questions. And the browser let me
 
 ### The Translation Step
 
-Once I was confident in the UX, once the wooden block had been tested enough that I knew it was the right shape, the translation step was straightforward.
+The trick that made this whole pipeline work is worth naming directly, because it is the lesson I would carry into every subsequent department: **validate the mockup before you implement.** Have the agent draft the mockup. Have a human approve it against real UX questions. Only then hand the approved mockup to implementation. The browser prototype is the artifact you agree on. Native code is the artifact you ship. The two steps are sequential, not parallel, and the order is the entire point.
 
-I gave Claude the HTML prototype and a set of Android-specific constraints (Material Design 3 guidelines, our design system tokens from Part 2, Jetpack Compose component naming conventions) and instructed it to produce production-ready native Android UI code.
+Once the wooden block had been tested enough that I knew it was the right shape, the rest was almost mechanical. And critically, the browser prototype was never just visual layout. It carried the **operational logic** of each screen: state transitions, conditional rendering, validation rules, and the behavior of every interactive element. What I was validating in the browser was not "does this look right." It was "does this actually do the right thing."
 
-Because the structural decisions had already been made and validated in the browser prototype, the native code that came back was clean. It wasn't exploratory code that would need to be rearchitected. It was implementation code for a design that had already been thought through.
+I handed Claude that full artifact, alongside the constraints that pinned the implementation to the rest of the system:
 
-And here's the key point: **as a software engineer, I could validate native Android code with much higher confidence than I could validate a design decision.** I was moving work into the domain where I had expertise, and using AI to do the exploratory work in the domain where I didn't.
+* The validated HTML/CSS/JS prototype, with its interactive behavior intact
+* The design tokens from Part 2 (colors, spacing, typography)
+* The navigation conventions of Expo Router
+* The component model of React Native
+
+What came back was production-ready code that matched a design I had already signed off on, with the same operational logic the prototype had been validated against.
+
+The same pattern then applied one level up, at the architecture itself. Partway through the project I hit a decision I could not evaluate alone: continue down the native Android path committed to in Part 1, or migrate to React Native with Expo Router. I applied the Validation Gap question from Part 1 (*what is the largest decision in this choice that I cannot evaluate myself?*) and asked for analysis. The answer was specific. For a WebView-first product with a four-month window, React Native closed the prototype-to-production gap more efficiently, and HTML maps cleanly to RN's flexbox and composable trees in a way it does not to Compose. I could follow the reasoning, test it against constraints I already knew, and own the call. The mockup-first workflow worked partly because the framework underneath was chosen to make it work.
+
+And here is why the order matters: **as a software engineer, I could validate React Native and TypeScript code with much higher confidence than I could validate a design decision.** The pipeline was structured so the work I could judge ran last, and the work I could not judge alone always reached me wrapped in a validated artifact.
 
 ### The UX Agent and Its Skills
 
 The UX Agent that emerged from this department was particularly powerful.
 
-Its **MCPs** included:
-- A **Screen Specification MCP** (`/screen-spec`) that takes a user story and produces a structured screen spec: information hierarchy, key actions, empty states, error states, navigation behavior, Zustand/DB/Firebase data requirements, and a browser-testable HTML mockup scaffold, all grounded in Appacadabra's Expo Router navigation structure and `lib/theme.ts` design tokens
+Its **Skill** included:
+- A **Screen Specification** (`/screen-spec`) that takes a user story and produces a structured screen spec: information hierarchy, key actions, empty states, error states, navigation behavior, Zustand/DB/Firebase data requirements, and a browser-testable HTML mockup scaffold, all grounded in Appacadabra's Expo Router navigation structure and `lib/theme.ts` design tokens
 
 Every subsequent product decision in the project ran through this agent. New features were specified through `/screen-spec`, the resulting HTML scaffold validated in the browser, and then implemented natively against the agreed spec. The agent knew the product's navigation structure and data layer well enough to produce screen specs that required minimal revision before build.
+
+```mermaid
+flowchart TD
+    STORY[User Story or Feature Idea] --> SPEC["/screen-spec<br/>UX Agent generates structured spec"]
+    SPEC --> HTML[HTML/CSS Browser Prototype]
+    HTML --> Q{"Validate UX questions:<br/>Is the primary action discoverable?<br/>Does the empty state guide a first-time user?<br/>Is the paywall positioned right?"}
+    Q -- "Not yet" --> HTML
+    Q -- "Validated by founder" --> ARCH{"Architecture decision<br/>outside founder's expertise?"}
+    ARCH -- "Yes" --> VG["Apply Validation Gap question (Part 1)<br/>AI surfaces analysis, founder evaluates reasoning"]
+    ARCH -- "No" --> TRANSLATE[Translate to React Native + Expo Router]
+    VG --> TRANSLATE
+    TRANSLATE --> CODE["Founder validates code<br/>(domain where expertise exists)"]
+    CODE --> SHIP[Ship to production]
+```
 
 ### What This Taught Me About Where AI Excels
 
 There's a framing I find useful: AI performs best when the problem has **a right answer that can be evaluated by reference to known standards**.
 
-HTML/CSS layout has known standards: browser rendering, accessibility guidelines, visual hierarchy principles. Native Android code has known standards: official API contracts, compile-time errors, performance profiling.
+HTML/CSS layout has known standards: browser rendering, accessibility guidelines, visual hierarchy principles. React Native and TypeScript have known standards: official API contracts, compile-time type errors, component rendering contracts.
 
 Where AI struggles is where evaluation requires *accumulated human judgment*, the kind of taste that develops over years of shipping products and watching real users interact with them. That's the gap I filled as the human in this loop.
 

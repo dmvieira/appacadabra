@@ -88,7 +88,18 @@ flowchart LR
 
 This is not a perfect validation method. I want to be honest about that. Back-translation catches semantic errors but misses cultural connotation, humor register, and regional idiom. The honest acknowledgment: **this was a calculated acceptance of imperfect validation in exchange for global reach that would otherwise have been impossible.**
 
-The **Locale String MCP** that emerged from this work has two commands. `/add-locale-string` handles new keys: given any UI string key added in English, it automatically generates translations across all 17 supported locales via a single OpenRouter API call (using a cheap multilingual model, fractions of a cent per run), applies back-translation verification, flags strings with confidence below a threshold, and inserts them into `lib/i18n.ts` with consistent formatting. `/update-locale-string` handles updates: given an existing key and a new English value, it re-translates into all 17 locales and replaces the values in both `lib/i18n.ts` and `website/js/translations.js`. What had been a multi-week project at a well-funded startup became a pipeline that ran in minutes, and changing a single word across 17 languages became a one-liner.
+The **Locale String MCP** that emerged from this work has two commands:
+
+- **`/add-locale-string`** handles new keys. Given any UI string key added in English, it:
+  - Generates translations across all 17 supported locales via a single OpenRouter API call, using a cheap multilingual model at fractions of a cent per run
+  - Applies back-translation verification
+  - Flags strings with confidence below a threshold
+  - Inserts the translations into `lib/i18n.ts` with consistent formatting
+- **`/update-locale-string`** handles updates. Given an existing key and a new English value, it:
+  - Re-translates into all 17 locales
+  - Replaces the values in both `lib/i18n.ts` and `website/js/translations.js`
+
+What had been a multi-week project at a well-funded startup became a pipeline that ran in minutes, and changing a single word across 17 languages became a one-liner.
 
 *The product could now be built in any language. The question became: could the business survive long enough to need that capability? That question sent me to the Finance Department.*
 
@@ -126,7 +137,17 @@ I needed a CFO who could hold all of this in their head simultaneously and run s
 
 My Finance Department was staffed by **Google Sheets with Gemini integration**, a combination that is, frankly, underestimated in the entrepreneurial community.
 
-The setup: a structured financial model in Google Sheets, with Gemini providing the analytical layer. I fed the model our cost structure (API pricing tiers from OpenAI, Anthropic, and Google; Firebase infrastructure costs at various scale points; estimated App Store fees), our hypothetical user acquisition scenarios (conservative, moderate, aggressive), and our candidate pricing structures.
+The setup: a structured financial model in Google Sheets, with Gemini providing the analytical layer. I fed the model three categories of inputs:
+
+- **Cost structure**
+  - API pricing tiers from OpenAI, Anthropic, and Google
+  - Firebase infrastructure costs at various scale points
+  - Estimated App Store fees
+- **Hypothetical user acquisition scenarios**
+  - Conservative
+  - Moderate
+  - Aggressive
+- **Candidate pricing structures** to evaluate against the scenarios above
 
 Gemini ran what I can only describe as Monte Carlo-style scenario analysis. Not the formal mathematical implementation, but the conceptual equivalent: generating hundreds of combinations of assumptions and evaluating which pricing structures remained profitable across the widest range of scenarios.
 
@@ -134,7 +155,7 @@ What emerged was our **Mana system**.
 
 ### The Architecture of Mana
 
-"Mana" is a concept borrowed from role-playing game design: a resource that powers magical abilities, regenerates over time, and can be expanded through purchases. In game design terms, mana is the canonical solution to the "how do you price a consumable feature" problem.
+"Mana" is a concept borrowed from role-playing game design: a resource that powers magical abilities, regenerates over time, and can be expanded through purchases. In game design terms, mana is the canonical solution to the "how do you price a consumable feature" problem. It also slotted perfectly into the brand identity defined back in Part 2: the entire product already spoke the language of spells and magic, so the pricing primitive needed to speak that language too. Pricing wasn't a layer bolted on top of the brand. It was an extension of it.
 
 The Appacadabra implementation: users receive a base mana allocation with their subscription tier. Each AI generation consumes a defined mana amount calibrated to its actual API cost plus margin. Mana can be expanded through in-app purchase bundles. The system is transparent to the user (they always know their remaining capacity), gamified (spending mana feels like using a resource, not paying a fee), and profitable (every unit of mana issued has been paid for).
 
@@ -155,7 +176,12 @@ graph LR
 
 ### From Model to Implementation
 
-Once the financial structure was proven mathematically, it moved to the Engineering Department. The implementation touched multiple layers of the stack: in-app purchase integration with Google Play Billing, server-side mana ledger in Firestore, real-time balance display in the UI, and consumption logic gated at the Cloud Function layer.
+Once the financial structure was proven mathematically, it moved to the Engineering Department. The implementation touched multiple layers of the stack:
+
+- In-app purchase integration with Google Play Billing
+- A server-side mana ledger in Firestore
+- Real-time balance display in the UI
+- Consumption logic gated at the Cloud Function layer
 
 This was pure code, and therefore something I could validate with full confidence. The financial model told me *what* to build. Engineering told me *how* to build it. The Finance Agent connected them.
 
@@ -226,7 +252,7 @@ I read every single line.
 
 ### The Validation Protocol
 
-This is not a detail to skim over. Reading a legal document you didn't write, in a domain you don't formally understand, is an uncomfortable exercise. But I developed a validation protocol:
+This is not a detail to skim over. Reading a legal document you didn't write, in a domain you don't formally understand, is an uncomfortable exercise. It is the same situation the Strategy Department first taught me to recognize in Part 1: the **Validation Gap**. *What is the largest decision in this choice that I cannot evaluate myself?* For a Privacy Policy, the answer is "almost everything beyond the first paragraph." The protocol below is what I built to operate inside that gap without surrendering judgment.
 
 1. **Factual Accuracy**: Every clause describing what Appacadabra does must match the actual technical reality of the product. If the document says "we do not share your data with third parties for marketing purposes," I need to verify that is actually true in every data flow.
 2. **Reference Checking**: Any specific regulatory citation (Article 13, LGPD Article 7, COPPA Section 312) should be cross-referenced against the actual legislative text to ensure it's cited accurately.
@@ -234,6 +260,25 @@ This is not a detail to skim over. Reading a legal document you didn't write, in
 4. **Contradiction Detection**: Legal documents often contain internal tensions. I would ask the AI to evaluate the document for internal consistency.
 
 This protocol doesn't replace a qualified attorney. But it transforms the engagement with legal documents from passive acceptance to active evaluation, and it makes a qualified attorney's time dramatically more efficient if you do eventually engage one.
+
+```mermaid
+flowchart TD
+    FEATURE[New Feature or Data Flow] --> AUDIT["/compliance-check<br/>Legal Agent generates checklist"]
+    AUDIT --> SCOPE{"What is the<br/>compliance surface?"}
+    SCOPE --> GDPR[GDPR Article 13]
+    SCOPE --> LGPD[LGPD basis declaration]
+    SCOPE --> COPPA[COPPA age restriction]
+    GDPR --> DRAFT[Claude Opus drafts<br/>policy updates]
+    LGPD --> DRAFT
+    COPPA --> DRAFT
+    DRAFT --> READ["Founder reads every line<br/>4-step Validation Protocol"]
+    READ --> Q{"Pass all 4 checks?<br/>Factual · Reference · Omission · Contradiction"}
+    Q -- "No" --> DRAFT
+    Q -- "Yes" --> DIFF["/policy-diff<br/>Plain-language change summary"]
+    DIFF --> CONSENT{Requires<br/>user re-consent?}
+    CONSENT -- "Yes" --> NOTIFY[Trigger consent flow]
+    CONSENT -- "No" --> SHIP[Ship update]
+```
 
 ### The Legal Agent and Its Skills
 

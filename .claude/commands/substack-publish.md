@@ -53,14 +53,14 @@ Substack's paste handler drops several Unicode characters. Normalize these to AS
 
 | Unicode | Char | Replacement |
 |---------|------|-------------|
-| U+2014 | `--` (em-dash) | `--` |
-| U+2013 | `-` (en-dash) | `-` |
+| U+2014 | `—` (em-dash) | `--` |
+| U+2013 | `–` (en-dash) | `-` |
 | U+2018 | `'` (left single quote) | `'` |
 | U+2019 | `'` (right single quote / apostrophe) | `'` |
 | U+201C | `"` (left double quote) | `"` |
 | U+201D | `"` (right double quote) | `"` |
-| U+2026 | `...` (ellipsis) | `...` |
-| U+2192 | `->` (right arrow) | `->` |
+| U+2026 | `…` (ellipsis) | `...` |
+| U+2192 | `→` (right arrow) | `->` |
 
 Also reduce excessive em-dash usage in prose: prefer commas, colons, semicolons, or parentheses.
 

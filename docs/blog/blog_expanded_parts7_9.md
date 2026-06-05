@@ -32,7 +32,23 @@ What this produced:
 
 **Pitch Deck Material**: This one surprised me. I asked the Analytics Agent to summarize our growth trajectory for an investor context. It produced a crisp, data-backed narrative (the kind of thing that typically takes a founder an afternoon to write) in minutes, cross-referencing our Firebase metrics against publicly available benchmarks for comparable apps.
 
-The Analytics Agent had become my intelligence function: always aware of what was happening in the product, always able to interpret it, always ready to translate data into decision.
+The Analytics Agent had become my intelligence function: always aware of what was happening in the product, always able to interpret it, always ready to translate data into decision. And critically, I was still the one asking the questions and judging the answers. The agent surfaced patterns; I decided which patterns mattered enough to change the product over.
+
+```mermaid
+flowchart TD
+    FIRESTORE[(Firestore<br/>jobs, users, usageLogs, creditLogs)] --> MCP["Google Cloud MCP<br/>Semantic data layer"]
+    LOGS[(Cloud Function logs<br/>Crashlytics signals)] --> MCP
+    MCP --> AGENT["Analytics Agent"]
+    FOUNDER["Founder asks a question<br/>e.g. 'Day-7 retention by cohort?'"] --> AGENT
+    AGENT --> METRICS["/metrics<br/>Structured report"]
+    AGENT --> COHORT["/cohort-analysis<br/>Segmented behavior"]
+    AGENT --> ANOMALY["/anomaly-detect<br/>2σ deviation alerts"]
+    AGENT --> INVESTOR["/investor-summary<br/>Pitch-ready narrative"]
+    METRICS --> JUDGE["Founder evaluates the answer<br/>decides what changes"]
+    COHORT --> JUDGE
+    ANOMALY --> JUDGE
+    INVESTOR --> JUDGE
+```
 
 ### The Analytics Agent and Its Skills
 
@@ -70,6 +86,8 @@ The lesson: **AI saves you from architectural complexity. It does not save you f
 ## Part 8: Release Management. The App Store Maze with Gemini
 
 The product was running. Analytics were flowing. Metrics were legible. Appacadabra existed as a complete, observable system, and it existed entirely on a development device that no user could access. Getting from that state to "available on the Play Store" turned out to be one of the most unexpectedly complex transitions in the entire project.
+
+This was the moment where every prior department had to converge into a single shippable artifact. The compliance scaffolding from the Legal Department in Part 6 had to translate into the Play Store's Data Safety form and policy declarations. The observability built by the Analytics Department in Part 7 had to feed a go/no-go decision gate at each rollout step. The financial model from Part 5 had to map cleanly to Google Play Billing SKUs that a Play Store reviewer could validate. Release was not a new layer. It was the place where every other layer got tested.
 
 William Gibson wrote that "the street finds its own uses for things." In technology, this tends to mean that the processes built around a platform develop their own complexity, entirely independent of the underlying technology's complexity.
 
@@ -180,6 +198,18 @@ This is where Parts 4 and 9 connect explicitly: the localization infrastructure 
 Market strategy without localization is aspiration. Localization without market strategy is translation. The combination (Deepseek's strategic intelligence feeding the localization system's execution capability) produced something different: **culturally coherent market entry, executed at the speed of automation**.
 
 The International Strategy Agent integrated with the Localization MCP from Part 4 to create a compound system: propose a market, receive a localized product strategy, automatically generate the required UI string translations, back-translate for verification, and produce the App Store metadata in the target language, calibrated for the local search behavior in that market's app store.
+
+```mermaid
+flowchart TD
+    TARGET["Target market<br/>e.g. India, Japan, Brazil"] --> ME["/market-entry<br/>International Agent + Deepseek"]
+    ME --> ANALYSIS["Channels · Culture<br/>Regulation · Competition"]
+    ANALYSIS --> FOUNDER["Founder reviews assessment<br/>picks priority markets"]
+    FOUNDER --> GLOCAL["/glocalization-check<br/>UX, copy, regulatory deltas"]
+    GLOCAL --> LOC["Localization MCP from Part 4<br/>GPT OSS 120B bulk translation"]
+    LOC --> BT["Back-translation verification"]
+    BT --> META["Store metadata per locale<br/>Release Agent (Part 8) packages it"]
+    META --> LAUNCH[Staged rollout in target market]
+```
 
 ### The International Agent and Its Skills
 

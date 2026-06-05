@@ -32,7 +32,7 @@ I brought **Claude** in as my Marketing Department. The specific challenge it ne
 
 The distinction matters enormously. There is a register of AI-generated marketing content that has become immediately recognizable: a certain formulaic structure, an overuse of em-dashes, a tone that is simultaneously enthusiastic and hollow. It performs adequately in engagement metrics and drives exactly zero emotional connection with the reader.
 
-What makes Appacadabra's voice different is the magic metaphor: spells, mana, casting, conjuring. This is not just branding decoration — it is the product's actual UI language. The app calls operations "spells." The credit system is "mana." The act of creating an app is "casting." When marketing content uses this vocabulary consistently and naturally, it doesn't feel like a theme slapped on top of a tech product. It feels like the product has a genuine personality.
+What makes Appacadabra's voice different is the magic metaphor: spells, mana, casting, conjuring. This is not just branding decoration. It is the product's actual UI language, established back in the Branding Department in Part 2 and carried into every other layer since (the Mana pricing primitive in Part 5 inherited it directly). The app calls operations "spells." The credit system is "mana." The act of creating an app is "casting." When marketing content uses this vocabulary consistently and naturally, it doesn't feel like a theme slapped on top of a tech product. It feels like the product has a genuine personality.
 
 Getting Claude to maintain this voice required the same architectural approach that made every other department work: not a prompt, but a **configured agent** that knew the company's vocabulary, the audience's level of sophistication, and the distinct format requirements of each platform.
 
@@ -72,6 +72,25 @@ Every piece of marketing content maps to a product event:
 | Behind-the-scenes | Thread: "Here's how [department] actually works at Appacadabra" | Long-form post on the architecture or decision |
 
 The calendar is not a rigid schedule. It is a **trigger list**: when a product event happens, the Marketing Agent knows which content formats it maps to and can produce the drafts immediately, in the right voice, at the right length for each platform.
+
+```mermaid
+flowchart TD
+    SOURCE["The 11 expanded articles<br/>The Appacadabra Chronicles"] --> EVENT{Product event<br/>or new article}
+    FOUNDER["Founder chooses<br/>which insight to surface"] --> EVENT
+    EVENT --> AGENT["Marketing Agent"]
+    AGENT --> DRAFT["/draft-post<br/>Hook, body, close"]
+    AGENT --> ADAPT["/adapt-post<br/>Cross-platform repurpose"]
+    AGENT --> PLAN["/content-plan<br/>Calendar of triggers"]
+    AGENT --> SUB["/substack-publish<br/>Long-form transform"]
+    DRAFT --> X[X thread<br/>280-char tweets]
+    DRAFT --> LI[LinkedIn post<br/>narrative arc]
+    ADAPT --> X
+    ADAPT --> LI
+    SUB --> SUBSTACK[Substack article<br/>compounding SEO]
+    X --> REVIEW["Founder reviews voice<br/>publishes or revises"]
+    LI --> REVIEW
+    SUBSTACK --> REVIEW
+```
 
 ### The Marketing Agent and Its Skills
 
