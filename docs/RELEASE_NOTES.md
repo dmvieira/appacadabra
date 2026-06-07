@@ -1,135 +1,116 @@
 ## Version Name
-✨ Faster Publishing & Smarter Sharing
+Spells Survive Reinstalls
 
 <en-US>
-• Publishing a spell no longer hangs — translations now run in the background so the link is instant
-• Unlisted spells skip translation entirely and are stored in their original language only
-• Reinstall or switch device? Your already-published spells are recognised and won't be duplicated
-• Language detection fixed — spell titles and descriptions are now translated from their real language
+• Tap a "Learn Spell" link right after a cold start and it now works — the app waits for sign-in before acting on the link, so you never land on a blank screen
+• Reinstalled the app? Spells you already learned are recovered automatically — no need to tap the link again
+• Learn Spell now shows a toast at every step: downloading, already owned, or success, so you always know what happened
 </en-US>
 
 <pt-BR>
-• Publicar um feitiço não trava mais — traduções correm em segundo plano e o link é imediato
-• Feitiços não listados ignoram tradução e ficam guardados apenas no idioma original
-• Reinstalou ou trocou de dispositivo? Os seus feitiços já publicados são reconhecidos sem duplicação
-• Deteção de idioma corrigida — títulos e descrições são traduzidos a partir do idioma real do texto
+• Toca num link "Aprender Feitiço" logo após arrancar o app e funciona — o app aguarda o login antes de agir, sem ecrã em branco
+• Reinstalou o app? Os feitiços que já tinhas aprendido são recuperados automaticamente
+• Aprender Feitiço mostra uma notificação em cada etapa: a descarregar, já tens, ou sucesso
 </pt-BR>
 
 <es-419>
-• Publicar un hechizo ya no se congela — las traducciones corren en segundo plano y el enlace es instantáneo
-• Los hechizos no listados omiten la traducción y se guardan solo en el idioma original
-• ¿Reinstalaste o cambiaste de dispositivo? Tus hechizos publicados se reconocen sin duplicarlos
-• Detección de idioma corregida — títulos y descripciones se traducen desde el idioma real del texto
+• Toca un enlace "Aprender Hechizo" al abrir el app en frío y funciona — espera el inicio de sesión antes de actuar, sin pantalla en blanco
+• ¿Reinstalaste el app? Los hechizos que ya aprendiste se recuperan automáticamente
+• Aprender Hechizo muestra un aviso en cada paso: descargando, ya lo tienes o listo
 </es-419>
 
 <es-ES>
-• Publicar un hechizo ya no se bloquea — las traducciones van en segundo plano y el enlace es instantáneo
-• Los hechizos no listados omiten la traducción y se guardan solo en el idioma original
-• ¿Reinstalaste o cambiaste de dispositivo? Tus hechizos publicados se reconocen sin duplicarlos
-• Detección de idioma corregida — títulos y descripciones se traducen desde el idioma real
+• Toca un enlace "Aprender Hechizo" al arrancar el app y funciona — espera el inicio de sesión antes de actuar, sin pantalla en blanco
+• ¿Reinstalaste el app? Los hechizos que ya aprendiste se recuperan automáticamente
+• Aprender Hechizo muestra un aviso en cada paso: descargando, ya lo tienes o completado
 </es-ES>
 
 <fr-FR>
-• Publier un sort ne bloque plus — les traductions tournent en arrière-plan et le lien est instantané
-• Les sorts non listés ignorent la traduction et sont stockés dans leur langue d'origine uniquement
-• Réinstallation ou changement d'appareil ? Vos sorts publiés sont reconnus sans doublon
-• Détection de langue corrigée — titres et descriptions traduits depuis la vraie langue du texte
+• Tapez un lien "Apprendre un sort" dès le démarrage et ça marche — l'app attend la connexion avant d'agir, sans écran vide
+• Réinstallé l'app ? Les sorts déjà appris sont récupérés automatiquement
+• Apprendre un sort affiche un message à chaque étape : téléchargement, déjà possédé ou succès
 </fr-FR>
 
 <fr-CA>
-• Publier un sort ne bloque plus — les traductions s'exécutent en arrière-plan et le lien est instantané
-• Les sorts non listés sautent la traduction et sont stockés dans leur langue d'origine seulement
-• Réinstallation ou changement d'appareil ? Vos sorts publiés sont reconnus sans doublon
-• Détection de langue corrigée — titres et descriptions traduits depuis la vraie langue du texte
+• Appuyez sur un lien "Apprendre un sort" au démarrage et ça fonctionne — l'app attend la connexion, sans écran vide
+• Réinstallé l'app ? Les sorts déjà appris sont récupérés automatiquement
+• Apprendre un sort affiche un avis à chaque étape : téléchargement, déjà possédé ou succès
 </fr-CA>
 
 <de-DE>
-• Zauberpublikation hängt nicht mehr — Übersetzungen laufen im Hintergrund, der Link ist sofort da
-• Nicht gelistete Zauber überspringen die Übersetzung und werden nur in der Originalsprache gespeichert
-• Neu installiert oder Gerät gewechselt? Bereits veröffentlichte Zauber werden erkannt, kein Duplikat
-• Sprachenerkennung korrigiert — Titel und Beschreibungen werden aus der echten Sprache übersetzt
+• Link „Zauber lernen" direkt beim Kaltstart antippen und er funktioniert — die App wartet auf die Anmeldung, kein leerer Bildschirm
+• App neu installiert? Bereits gelernte Zauber werden automatisch wiederhergestellt
+• Zauber lernen zeigt bei jedem Schritt einen Hinweis: Herunterladen, bereits vorhanden oder Erfolg
 </de-DE>
 
 <it-IT>
-• Pubblicare un incantesimo non si blocca più — le traduzioni girano in background e il link è istantaneo
-• Gli incantesimi non elencati saltano la traduzione e vengono salvati solo nella lingua originale
-• Reinstallato o cambiato dispositivo? I tuoi incantesimi già pubblicati sono riconosciuti senza duplicati
-• Rilevamento lingua corretto — titoli e descrizioni tradotti dalla lingua reale del testo
+• Tocca un link "Impara Incantesimo" all'avvio a freddo e funziona — l'app aspetta l'accesso prima di agire, nessuna schermata bianca
+• Hai reinstallato l'app? Gli incantesimi già appresi vengono recuperati automaticamente
+• Impara Incantesimo mostra un avviso a ogni passaggio: scaricamento, già posseduto o successo
 </it-IT>
 
 <ja-JP>
-• スペルの公開がフリーズしなくなった — 翻訳はバックグラウンドで実行され、リンクは即座に発行
-• 非公開スペルは翻訳をスキップし、元の言語のみで保存
-• 再インストールやデバイス変更後も公開済みスペルを認識し、重複を防止
-• 言語検出を修正 — タイトルと説明が実際の言語から正しく翻訳されるように
+• コールドスタート直後に「スペルを学ぶ」リンクをタップしても動作するようになった — サインイン待機により空白画面が出なくなった
+• アプリを再インストールしても、すでに学んだスペルは自動的に復元される
+• 各ステップでトースト通知が表示されるようになった：ダウンロード中、取得済み、または成功
 </ja-JP>
 
 <zh-CN>
-• 发布法术不再卡顿 — 翻译在后台运行，链接即时生成
-• 非公开法术跳过翻译，仅以原始语言保存
-• 重装或换设备？已发布的法术会被识别，不会重复上传
-• 语言检测已修正 — 标题和描述现在从文本的真实语言翻译
+• 冷启动后点击"学习法术"链接即可生效 — 应用等待登录后再处理链接，不再出现空白页面
+• 重新安装应用？已学法术会自动恢复，无需重新点击链接
+• 学习法术的每个步骤都会显示提示：下载中、已拥有或成功
 </zh-CN>
 
 <ko-KR>
-• 주문 게시 시 멈춤 현상 해소 — 번역이 백그라운드에서 실행되어 링크가 즉시 생성
-• 비공개 주문은 번역을 건너뛰고 원래 언어로만 저장
-• 재설치하거나 기기를 바꿔도 이미 게시된 주문이 인식되어 중복 없음
-• 언어 감지 수정 — 제목과 설명이 텍스트의 실제 언어에서 올바르게 번역
+• 콜드 스타트 직후 "주문 배우기" 링크를 눌러도 작동 — 앱이 로그인 후 링크를 처리해 빈 화면이 사라짐
+• 앱을 재설치해도 이미 배운 주문이 자동으로 복구됨
+• 주문 배우기의 각 단계에서 알림 표시: 다운로드 중, 이미 보유 또는 성공
 </ko-KR>
 
 <ar>
-• نشر التعويذة لم يعد يتجمد — الترجمات تعمل في الخلفية والرابط يصدر فوراً
-• التعويذات غير المدرجة تتجاوز الترجمة وتُحفظ باللغة الأصلية فقط
-• أعدت التثبيت أو غيّرت جهازك؟ تعويذاتك المنشورة تُعرَّف تلقائياً دون تكرار
-• تصحيح كشف اللغة — العناوين والأوصاف تُترجم من اللغة الحقيقية للنص
+• اضغط على رابط "تعلّم التعويذة" فور بدء التشغيل البارد وسيعمل — التطبيق ينتظر تسجيل الدخول قبل المتابعة، لا شاشة فارغة
+• أعدت تثبيت التطبيق؟ التعويذات التي تعلّمتها تُستعاد تلقائياً
+• يعرض تعلّم التعويذة إشعاراً في كل خطوة: جارٍ التنزيل، تمتلكه أو نجاح
 </ar>
 
 <hi-IN>
-• स्पेल प्रकाशित करते समय अब रुकावट नहीं — अनुवाद पृष्ठभूमि में होता है, लिंक तुरंत मिलता है
-• अनलिस्टेड स्पेल अनुवाद छोड़ते हैं और केवल मूल भाषा में सहेजे जाते हैं
-• फिर से इंस्टॉल किया या डिवाइस बदला? पहले से प्रकाशित स्पेल पहचाने जाते हैं, कोई डुप्लीकेट नहीं
-• भाषा पहचान ठीक हुई — शीर्षक और विवरण अब पाठ की वास्तविक भाषा से अनुवादित
+• कोल्ड स्टार्ट के तुरंत बाद "स्पेल सीखें" लिंक टैप करें, अब काम करेगा — ऐप साइन-इन का इंतजार करके लिंक प्रोसेस करता है, कोई खाली स्क्रीन नहीं
+• ऐप फिर से इंस्टॉल किया? पहले से सीखे स्पेल अपने आप वापस आ जाते हैं
+• स्पेल सीखने के हर चरण पर टोस्ट: डाउनलोड हो रहा है, पहले से है, या सफल
 </hi-IN>
 
 <ru-RU>
-• Публикация заклинания больше не зависает — переводы работают в фоне, ссылка появляется мгновенно
-• Непубличные заклинания пропускают перевод и хранятся только на исходном языке
-• Переустановили или сменили устройство? Уже опубликованные заклинания распознаются без дублей
-• Исправлено определение языка — названия и описания теперь переводятся с реального языка текста
+• Нажмите ссылку «Выучить заклинание» сразу после холодного запуска — приложение ждёт входа в аккаунт, пустой экран не появится
+• Переустановили приложение? Уже выученные заклинания восстановятся автоматически
+• При каждом шаге обучения появляется уведомление: загрузка, уже есть или успех
 </ru-RU>
 
 <tr-TR>
-• Büyü yayınlamak artık takılmıyor — çeviriler arka planda çalışıyor, bağlantı anında oluşuyor
-• Listelenmemiş büyüler çeviriyi atlar ve yalnızca orijinal dilde saklanır
-• Yeniden yüklediniz veya cihaz değiştirdiniz? Yayınlanmış büyüleriniz tanınır, kopya oluşmaz
-• Dil algılama düzeltildi — başlık ve açıklamalar artık metnin gerçek dilinden çevriliyor
+• Soğuk başlatma sonrası "Büyü Öğren" bağlantısına dokunun, artık çalışıyor — app oturum açmayı bekleyerek işlem yapar, boş ekran yok
+• Uygulamayı yeniden yüklediniz? Öğrendiğiniz büyüler otomatik olarak geri yüklenir
+• Her adımda bildirim gösterilir: indiriliyor, zaten var veya başarılı
 </tr-TR>
 
 <nl-NL>
-• Een spreuk publiceren hangt niet meer — vertalingen draaien op de achtergrond en de link is direct beschikbaar
-• Niet-genoteerde spreuken slaan vertaling over en worden alleen in de originele taal opgeslagen
-• Opnieuw geïnstalleerd of van apparaat gewisseld? Reeds gepubliceerde spreuken worden herkend zonder duplicaat
-• Taaldetectie gecorrigeerd — titels en beschrijvingen worden vertaald vanuit de echte taal van de tekst
+• Tik op een "Spreuk Leren"-link direct bij een koude start en het werkt — de app wacht op aanmelden voor het de link verwerkt, geen leeg scherm
+• App opnieuw geïnstalleerd? Reeds geleerde spreuken worden automatisch hersteld
+• Bij elke stap verschijnt een melding: downloaden, al in bezit of gelukt
 </nl-NL>
 
 <pl-PL>
-• Publikowanie zaklęcia nie zawiesza się — tłumaczenia działają w tle, link jest natychmiastowy
-• Niewidoczne zaklęcia pomijają tłumaczenie i są zapisywane wyłącznie w oryginalnym języku
-• Reinstalacja lub zmiana urządzenia? Już opublikowane zaklęcia są rozpoznawane bez duplikatów
-• Naprawiono wykrywanie języka — tytuły i opisy tłumaczone z prawdziwego języka tekstu
+• Dotknij linku „Naucz się zaklęcia" zaraz po zimnym starcie i zadziała — aplikacja czeka na logowanie przed wykonaniem akcji, bez pustego ekranu
+• Ponownie zainstalowałeś aplikację? Już poznane zaklęcia są przywracane automatycznie
+• Na każdym etapie nauki pojawia się powiadomienie: pobieranie, już posiadasz lub sukces
 </pl-PL>
 
 <vi>
-• Xuất bản phép thuật không còn bị treo — bản dịch chạy nền và liên kết có ngay lập tức
-• Phép thuật không công khai bỏ qua dịch thuật, chỉ lưu bằng ngôn ngữ gốc
-• Cài lại hoặc đổi thiết bị? Phép thuật đã xuất bản được nhận diện, không bị trùng lặp
-• Sửa lỗi nhận diện ngôn ngữ — tiêu đề và mô tả dịch từ ngôn ngữ thực của văn bản
+• Nhấn vào liên kết "Học Phép Thuật" ngay sau khi mở lạnh ứng dụng, giờ hoạt động được — ứng dụng chờ đăng nhập trước khi xử lý liên kết, không còn màn hình trắng
+• Cài lại ứng dụng? Các phép thuật đã học được khôi phục tự động
+• Mỗi bước học phép thuật đều hiện thông báo: đang tải, đã có, hoặc thành công
 </vi>
 
 <th>
-• เผยแพร่ spell ไม่ค้างอีกต่อไป — การแปลทำงานเบื้องหลัง ลิงก์พร้อมใช้ทันที
-• Spell แบบไม่แสดงรายการข้ามการแปล และบันทึกในภาษาต้นฉบับเท่านั้น
-• ติดตั้งใหม่หรือเปลี่ยนอุปกรณ์? Spell ที่เผยแพร่ไว้แล้วถูกจดจำโดยไม่ซ้ำกัน
-• แก้ไขการตรวจจับภาษา — ชื่อและคำอธิบายแปลจากภาษาจริงของข้อความแล้ว
+• แตะลิงก์ "เรียน Spell" ทันทีหลังเปิดแอปแบบ cold start ก็ทำงานได้แล้ว — แอปรอการลงชื่อเข้าใช้ก่อนประมวลผลลิงก์ ไม่มีหน้าจอว่างอีกต่อไป
+• ติดตั้งแอปใหม่? Spell ที่เรียนไว้แล้วจะถูกกู้คืนอัตโนมัติ
+• ทุกขั้นตอนของการเรียน Spell จะแสดงการแจ้งเตือน: กำลังดาวน์โหลด มีแล้ว หรือสำเร็จ
 </th>
