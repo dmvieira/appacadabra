@@ -1771,7 +1771,7 @@ interface SyncedSpellItem {
     rootSpellId?: string;
 }
 
-export const syncLearnedSpells = onCall<{ lastSyncedAt?: number } | undefined>(
+export const syncLearnedSpells = onCall<{ lastSyncedAt?: number; forceSpellId?: string } | undefined>(
     {
         region: 'southamerica-east1',
         timeoutSeconds: 30,
@@ -1785,6 +1785,7 @@ export const syncLearnedSpells = onCall<{ lastSyncedAt?: number } | undefined>(
             throw new HttpsError('unauthenticated', 'Sign in with Google to sync learned spells.');
         }
         const uid = request.auth.uid;
+        const forceSpellId = typeof request.data?.forceSpellId === 'string' ? request.data.forceSpellId : null;
 
         const learnedSnap = await db
             .collection('users').doc(uid)
@@ -1792,13 +1793,25 @@ export const syncLearnedSpells = onCall<{ lastSyncedAt?: number } | undefined>(
             .where('syncedToApp', '==', false)
             .get();
 
-        if (learnedSnap.empty) return { spells: [] };
+        // Invariant: forceSpellId covers reinstall — a learned spell can be returned even if
+        // it was previously marked syncedToApp on a different installation.
+        const candidateIds = new Set<string>(learnedSnap.docs.map(d => d.id));
+        if (forceSpellId && !candidateIds.has(forceSpellId)) {
+            const forcedSnap = await db
+                .collection('users').doc(uid)
+                .collection('learned_spells').doc(forceSpellId)
+                .get();
+            if (forcedSnap.exists) {
+                candidateIds.add(forceSpellId);
+            }
+        }
+
+        if (candidateIds.size === 0) return { spells: [] };
 
         const bucket = getStorage().bucket();
         const expiresAt = Date.now() + 60 * 60 * 1000;
 
-        const results = await Promise.all(learnedSnap.docs.map(async (learnedDoc) => {
-            const spellId = learnedDoc.id;
+        const results = await Promise.all(Array.from(candidateIds).map(async (spellId) => {
             try {
                 const spellSnap = await db.collection('store_spells').doc(spellId).get();
                 if (!spellSnap.exists) return null;

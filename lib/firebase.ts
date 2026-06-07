@@ -640,12 +640,12 @@ export interface SyncedSpellItem {
     rootSpellId?: string;
 }
 
-export async function syncLearnedSpells(): Promise<{ spells: SyncedSpellItem[] }> {
+export async function syncLearnedSpells(input?: { forceSpellId?: string }): Promise<{ spells: SyncedSpellItem[] }> {
     await ensureAuthenticated();
-    const fn = httpsCallable<void, { spells: SyncedSpellItem[] }>(
+    const fn = httpsCallable<{ forceSpellId?: string } | undefined, { spells: SyncedSpellItem[] }>(
         getFunctionsInstance(), 'syncLearnedSpells'
     );
-    const result = await fn();
+    const result = await fn(input && input.forceSpellId ? { forceSpellId: input.forceSpellId } : undefined);
     return result.data;
 }
 

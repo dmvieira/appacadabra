@@ -3,6 +3,18 @@ import * as Localization from 'expo-localization';
 import * as firebase from './firebase';
 import { getAppById, updateAppStoreLink, getAppByStoreSpellId, getAppsWithStoreSpellId, getAllApps, insertApp } from './database/db';
 import { useAppStore } from './store';
+import { t } from './i18n';
+
+export interface SyncLearnedSpellsOptions {
+    triggeredByDeepLink?: boolean;
+    forceSpellId?: string;
+}
+
+export interface SyncLearnedSpellsResult {
+    imported: number;
+    dedupHits: number;
+    failed: number;
+}
 
 /**
  * Spell Store sync — owns the round-trip between a local spell and its
@@ -42,7 +54,7 @@ interface StoreSyncState {
 
     publishSpell: (opts: PublishOptions) => Promise<PublishOutcome>;
     unpublishSpell: (appId: number, storeSpellId: string) => Promise<void>;
-    syncLearnedSpells: () => Promise<void>;
+    syncLearnedSpells: (opts?: SyncLearnedSpellsOptions) => Promise<SyncLearnedSpellsResult>;
     syncPublishedSpellsStatus: () => Promise<void>;
     clearError: () => void;
 }
@@ -104,13 +116,21 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
         }
     },
 
-    syncLearnedSpells: async () => {
+    syncLearnedSpells: async (opts) => {
+        const triggeredByDeepLink = opts?.triggeredByDeepLink === true;
+        const forceSpellId = opts?.forceSpellId;
         const { isSyncing } = get();
-        if (isSyncing) return; // prevent concurrent runs
+        if (isSyncing) return { imported: 0, dedupHits: 0, failed: 0 };
         set({ isSyncing: true });
+        let imported = 0;
+        let dedupHits = 0;
+        let failed = 0;
+        let lastImportedAppId: number | null = null;
+        let dedupHitAppId: number | null = null;
         try {
-            const { spells } = await firebase.syncLearnedSpells();
-            let imported = 0;
+            const { spells } = await firebase.syncLearnedSpells(
+                forceSpellId ? { forceSpellId } : undefined
+            );
             const now = Date.now();
             for (const spell of spells) {
                 // Dedup: skip if already imported
@@ -122,6 +142,12 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                     } catch (e: any) {
                         console.warn('[StoreSync] markSpellSynced (dedup) failed:', e?.message);
                     }
+                    dedupHits++;
+                    if (forceSpellId && spell.spellId === forceSpellId) {
+                        dedupHitAppId = existing.id;
+                    } else if (dedupHitAppId == null) {
+                        dedupHitAppId = existing.id;
+                    }
                     continue;
                 }
                 // Download HTML from signed URL
@@ -130,11 +156,13 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                     const response = await fetch(spell.signedHtmlUrl);
                     if (!response.ok) {
                         console.warn(`[StoreSync] HTML fetch failed for ${spell.spellId}: ${response.status}`);
+                        failed++;
                         continue;
                     }
                     html = await response.text();
                 } catch (e: any) {
                     console.warn(`[StoreSync] HTML fetch error for ${spell.spellId}:`, e?.message);
+                    failed++;
                     continue;
                 }
                 // Pick the locale-matched metadata; fall back to EN, then to the raw fields.
@@ -168,18 +196,43 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                         console.warn('[StoreSync] markSpellSynced failed:', e?.message);
                     }
                     imported++;
+                    lastImportedAppId = appId;
                 } catch (e: any) {
                     console.warn(`[StoreSync] insertApp failed for ${spell.spellId}:`, e?.message);
+                    failed++;
                 }
             }
             if (imported > 0) {
                 try { useAppStore.getState().loadApps(); } catch {}
             }
+
+            if (triggeredByDeepLink) {
+                const store = useAppStore.getState();
+                if (imported > 0) {
+                    store.setStatusMessage(t('learnSpellSuccess'));
+                    if (lastImportedAppId != null) {
+                        try { useAppStore.setState({ statusActionAppId: lastImportedAppId }); } catch {}
+                    }
+                } else if (dedupHits > 0) {
+                    store.setStatusMessage(t('learnSpellAlreadyOwned'));
+                    if (dedupHitAppId != null) {
+                        try { useAppStore.setState({ statusActionAppId: dedupHitAppId }); } catch {}
+                    }
+                } else if (failed > 0) {
+                    try { useAppStore.setState({ error: t('learnSpellFailed') }); } catch {}
+                } else {
+                    store.setStatusMessage(t('learnSpellNothingToSync'));
+                }
+            }
         } catch (e: any) {
             console.error('[StoreSync] syncLearnedSpells error:', e?.message);
+            if (triggeredByDeepLink) {
+                try { useAppStore.setState({ error: t('learnSpellFailed') }); } catch {}
+            }
         } finally {
             set({ isSyncing: false });
         }
+        return { imported, dedupHits, failed };
     },
 
     syncPublishedSpellsStatus: async () => {

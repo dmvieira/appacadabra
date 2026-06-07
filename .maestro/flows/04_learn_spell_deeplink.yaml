@@ -1,0 +1,43 @@
+# Learn Spell deep-link flow
+#
+# Validates the appacadabra://store?spellId=... entry point.
+#
+# PREREQUISITES (skip-by-default — see "skip" flags below):
+#   1. The user must NOT be signed in to Google (or be signed in — see two branches).
+#   2. For the "signed-in" branch only: a fixture spellId must exist in Firestore
+#      under users/{uid}/learned_spells/{fixtureSpellId} with syncedToApp=false,
+#      AND under store_spells/{fixtureSpellId} with status=active and htmlStoragePath set.
+#      Replace LEARN_SPELL_FIXTURE_ID below with the real fixture id before running.
+#
+# To exercise both branches you would normally run two flows: this file covers
+# only the signed-OUT branch because it has no backend fixture requirement.
+# The signed-IN branch is left in place but tagged skip until a fixture exists.
+appId: ai.appacadabra.app
+---
+
+# --- BRANCH A: signed-out user gets sign-in prompt ---
+- launchApp:
+    stopApp: true
+    arguments:
+      deepLink: "appacadabra://store?spellId=fixture-needed"
+# Toast appears with the sign-in prompt. We assert on Portuguese label (default locale).
+- extendedWaitUntil:
+    visible: "Entre com o Google para aprender este feitiço."
+    timeout: 15000
+- assertVisible: "Entre com o Google para aprender este feitiço."
+
+# --- BRANCH B: signed-in user learns spell (SKIPPED — needs fixture) ---
+# Uncomment and replace LEARN_SPELL_FIXTURE_ID once a fixture spell is provisioned.
+#
+# - runFlow: 03_login_logout.yaml
+# - launchApp:
+#     stopApp: true
+#     arguments:
+#       deepLink: "appacadabra://store?spellId=LEARN_SPELL_FIXTURE_ID"
+# - extendedWaitUntil:
+#     visible: "Baixando feitiço…"
+#     timeout: 15000
+# - extendedWaitUntil:
+#     visible: "Feitiço aprendido! Toque para abrir."
+#     timeout: 60000
+# - assertVisible: "Feitiço aprendido! Toque para abrir."

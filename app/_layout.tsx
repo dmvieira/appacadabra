@@ -14,7 +14,7 @@ import { useManaStore } from '../lib/manaStore';
 import { Toast } from '../components/Toast';
 import { useAppStore } from '../lib/store';
 import { useStoreSyncStore } from '../lib/storeSync';
-import { isGoogleUser } from '../lib/firebase';
+import { isGoogleUser, onAuthStateChanged } from '../lib/firebase';
 import * as Notifications from 'expo-notifications';
 import { preloadAllStorage } from '../lib/storageCache';
 import { restoreScheduledAlarms } from '../lib/bridges/messageHandlers';
@@ -220,15 +220,48 @@ export default function RootLayout() {
         });
 
         // Deep link: appacadabra://store?spellId=xxx
+        // Invariant: Firebase Auth may not be ready when getInitialURL() resolves on cold start.
+        // We buffer the deep link until the first auth state callback fires.
+        let pendingDeepLinkSpellId: string | null = null;
+        let authReady = false;
+
+        const processStoreDeepLink = (spellId: string) => {
+            const store = useAppStore.getState();
+            if (!isGoogleUser()) {
+                store.setStatusMessage(t('learnSpellSignInRequired'));
+                try { router.replace('/'); } catch {}
+                return;
+            }
+            store.setStatusMessage(t('learnSpellDownloading'));
+            useStoreSyncStore.getState().syncLearnedSpells({
+                triggeredByDeepLink: true,
+                forceSpellId: spellId,
+            });
+            useStoreSyncStore.getState().syncPublishedSpellsStatus().catch(() => {});
+            try { router.replace('/'); } catch {}
+        };
+
         const handleStoreDeepLink = (url: string | null) => {
             if (!url) return;
             const match = url.match(/[?&]spellId=([^&]+)/);
             if (!match) return;
             const isStoreLink = url.startsWith('appacadabra://store') || url.startsWith('https://appacadabra.ai/store');
             if (!isStoreLink) return;
-            maybeSyncLearnedSpells();
-            try { router.replace('/'); } catch {}
+            const spellId = decodeURIComponent(match[1]);
+            if (!authReady) {
+                pendingDeepLinkSpellId = spellId;
+                return;
+            }
+            processStoreDeepLink(spellId);
         };
+        const unsubscribeAuth = onAuthStateChanged(() => {
+            authReady = true;
+            if (pendingDeepLinkSpellId) {
+                const id = pendingDeepLinkSpellId;
+                pendingDeepLinkSpellId = null;
+                processStoreDeepLink(id);
+            }
+        });
         Linking.getInitialURL().then(handleStoreDeepLink).catch(() => {});
         const linkingSub = Linking.addEventListener('url', ({ url }) => handleStoreDeepLink(url));
 
@@ -236,6 +269,7 @@ export default function RootLayout() {
             notifSubscription.remove();
             appStateSub.remove();
             linkingSub.remove();
+            try { unsubscribeAuth(); } catch {}
         };
     }, []);
 
