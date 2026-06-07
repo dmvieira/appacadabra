@@ -273,6 +273,20 @@ const BACKUP_FILE_REGEX = /appacadabra_backup(\s\(\d+\))?\.spell(\.json)?$/i;
 
 /** Write backup to a SAF directory, cleaning up duplicate/suffixed files first */
 async function writeToLocalFolder(folderUri: string, backupJson: string): Promise<boolean> {
+    if (Platform.OS === 'ios') {
+        try {
+            await FileSystem.makeDirectoryAsync(folderUri, { intermediates: true });
+            const fileUri = `${folderUri}${BACKUP_FILENAME}`;
+            await FileSystem.writeAsStringAsync(fileUri, backupJson, {
+                encoding: FileSystem.EncodingType.UTF8,
+            });
+            console.log('[BackupSync] Local folder write success (iOS):', fileUri);
+            return true;
+        } catch (e) {
+            console.error('[BackupSync] Local folder write error (iOS):', e);
+            return false;
+        }
+    }
     if (Platform.OS !== 'android') return false;
     try {
         const SAF = FileSystem.StorageAccessFramework;
@@ -311,6 +325,30 @@ async function writeToLocalFolder(folderUri: string, backupJson: string): Promis
 
 /** Read backup from a SAF directory */
 async function readFromLocalFolder(folderUri: string): Promise<BackupData | null> {
+    if (Platform.OS === 'ios') {
+        try {
+            const fileUri = `${folderUri}${BACKUP_FILENAME}`;
+            const info = await FileSystem.getInfoAsync(fileUri);
+            if (!info.exists) {
+                console.log('[BackupSync] No backup file found in local folder (iOS):', fileUri);
+                return null;
+            }
+            const text = await FileSystem.readAsStringAsync(fileUri, {
+                encoding: FileSystem.EncodingType.UTF8,
+            });
+            const trimmed = text.trim();
+            console.log('[BackupSync] Local file read success (iOS), length:', text.length);
+            try {
+                return JSON.parse(trimmed) as BackupData;
+            } catch (e) {
+                console.error('[BackupSync] JSON Parse Error (iOS):', (e as any).message);
+                return null;
+            }
+        } catch (e) {
+            console.error('[BackupSync] Local folder read error (iOS):', e);
+            return null;
+        }
+    }
     if (Platform.OS !== 'android') return null;
     try {
         const SAF = FileSystem.StorageAccessFramework;
@@ -345,6 +383,16 @@ async function readFromLocalFolder(folderUri: string): Promise<BackupData | null
 
 /** Check if the local folder is accessible and contains a backup */
 export async function checkLocalBackupExists(folderUri: string): Promise<boolean> {
+    if (Platform.OS === 'ios') {
+        try {
+            const info = await FileSystem.getInfoAsync(`${folderUri}${BACKUP_FILENAME}`);
+            console.log('[BackupSync] checkLocalBackupExists (iOS):', info.exists);
+            return info.exists;
+        } catch (e) {
+            console.warn('[BackupSync] checkLocalBackupExists failed (iOS):', e);
+            return false;
+        }
+    }
     if (Platform.OS !== 'android') return false;
     try {
         console.log('[BackupSync] checkLocalBackupExists: reading dir', folderUri);
@@ -361,6 +409,18 @@ export async function checkLocalBackupExists(folderUri: string): Promise<boolean
 
 /** Pick a local folder using SAF (Android only) */
 export async function pickLocalFolder(): Promise<string | null> {
+    if (Platform.OS === 'ios') {
+        try {
+            // iOS: no picker — the location is fixed to the app's Documents/backups folder,
+            // which is exposed to the Files app via UIFileSharingEnabled.
+            const folderUri = `${FileSystem.documentDirectory}backups/`;
+            await FileSystem.makeDirectoryAsync(folderUri, { intermediates: true });
+            return folderUri;
+        } catch (e) {
+            console.error('[BackupSync] Folder picker error (iOS):', e);
+            return null;
+        }
+    }
     if (Platform.OS !== 'android') return null;
     try {
         const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();

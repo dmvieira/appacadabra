@@ -34,6 +34,7 @@
       },
       "infoPlist": {
         "LSSupportsOpeningDocumentsInPlace": true,
+        "UIFileSharingEnabled": true,
         "CFBundleDocumentTypes": [
           {
             "CFBundleTypeName": "All Files",
@@ -143,7 +144,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "O app precisa acessar o microfone para entrada de voz."
+          "microphonePermission": "O app precisa acessar o microfone para entrada de voz.",
+          "speechRecognitionPermission": "O app precisa de reconhecimento de fala para converter sua voz em texto."
         }
       ],
       [
@@ -176,7 +178,10 @@
           "iosAppId": "ca-app-pub-2256826632523784~6570613208"
         }
       ],
-      "./plugins/withAppacadabraNative"
+      "./plugins/withAppacadabraNative",
+      "./plugins/withIosShareExtension",
+      "./plugins/withIosQuickActions",
+      "./plugins/withIosLocalizedInfoPlist"
     ]
   }
 }

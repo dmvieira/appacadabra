@@ -6,7 +6,6 @@ import {
     Modal,
     StyleSheet,
     ActivityIndicator,
-    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius } from '../lib/theme';
@@ -183,25 +182,23 @@ export default function BackupSyncModal({ visible, mode, onClose }: BackupSyncMo
                         </View>
                     </TouchableOpacity>
 
-                    {/* Local folder option (Android only) */}
-                    {Platform.OS === 'android' && (
-                        <TouchableOpacity
-                            style={[s.optionCard, selected === 'local_folder' && s.optionCardSelected]}
-                            onPress={() => setSelected('local_folder')}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[s.optionIconWrap, { backgroundColor: 'rgba(251,191,36,0.15)' }]}>
-                                <Text style={s.optionIcon}>📁</Text>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={s.optionTitle}>{t('backupLocalFolder')}</Text>
-                                <Text style={s.optionDesc}>{t('backupLocalFolderDesc')}</Text>
-                            </View>
-                            <View style={[s.radio, selected === 'local_folder' && s.radioSelected]}>
-                                {selected === 'local_folder' && <View style={s.radioDot} />}
-                            </View>
-                        </TouchableOpacity>
-                    )}
+                    {/* Local folder option (Android: SAF picker; iOS: app Documents folder exposed via Files) */}
+                    <TouchableOpacity
+                        style={[s.optionCard, selected === 'local_folder' && s.optionCardSelected]}
+                        onPress={() => setSelected('local_folder')}
+                        activeOpacity={0.8}
+                    >
+                        <View style={[s.optionIconWrap, { backgroundColor: 'rgba(251,191,36,0.15)' }]}>
+                            <Text style={s.optionIcon}>📁</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={s.optionTitle}>{t('backupLocalFolder')}</Text>
+                            <Text style={s.optionDesc}>{t('backupLocalFolderDesc')}</Text>
+                        </View>
+                        <View style={[s.radio, selected === 'local_folder' && s.radioSelected]}>
+                            {selected === 'local_folder' && <View style={s.radioDot} />}
+                        </View>
+                    </TouchableOpacity>
 
                     {/* Confirm button */}
                     <TouchableOpacity
