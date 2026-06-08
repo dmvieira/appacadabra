@@ -45,9 +45,20 @@ async function loadCard(card, spellId, lang) {
   let spell;
   try {
     const snap = await getDoc(doc(db, 'store_spells', spellId));
-    if (!snap.exists() || snap.data().status !== 'active') return;
+    if (!snap.exists()) {
+      console.warn(`[showcase] spell not found: ${spellId}`);
+      card.style.display = 'none';
+      return;
+    }
+    if (snap.data().status !== 'active') {
+      console.warn(`[showcase] spell not active: ${spellId} (status=${snap.data().status})`);
+      card.style.display = 'none';
+      return;
+    }
     spell = snap.data();
-  } catch (_) {
+  } catch (err) {
+    console.warn(`[showcase] failed to load spell ${spellId}:`, err);
+    card.style.display = 'none';
     return;
   }
 

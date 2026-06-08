@@ -8,7 +8,7 @@ Spells Survive Reinstalls
 </en-US>
 
 <pt-BR>
-• Toca num link "Aprender Feitiço" logo após arrancar o app e funciona — o app aguarda o login antes de agir, sem ecrã em branco
+• Toca num link "Aprender Feitiço" logo após arrancar o app e funciona — o app aguarda o login antes de agir, sem tela em branco
 • Reinstalou o app? Os feitiços que já tinhas aprendido são recuperados automaticamente
 • Aprender Feitiço mostra uma notificação em cada etapa: a descarregar, já tens, ou sucesso
 </pt-BR>

@@ -11,6 +11,13 @@ import { escapeHtml, getSpellMeta, buildDeepLink, parseSpellId } from './utils.j
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+function getPlatform() {
+  const ua = navigator.userAgent || '';
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+  if (/android/i.test(ua)) return 'android';
+  return 'desktop';
+}
+
 async function initDetail() {
   const spellId = parseSpellId(location.pathname);
 
@@ -137,6 +144,9 @@ function setupLearnButton(spellId, spell) {
   const statusEl = document.getElementById('learn-status');
   if (!btn) return;
 
+  const platform = getPlatform();
+  const learnLabel = () => (platform === 'android' ? t('learnBtnAndroid') : t('learnBtn'));
+
   btn.textContent = t('learnGuest');
 
   async function checkAlreadyLearned(user) {
@@ -159,9 +169,16 @@ function setupLearnButton(spellId, spell) {
         btn.textContent = t('alreadyLearned');
         btn.disabled = true;
         btn.classList.add('learned');
-        if (statusEl) statusEl.textContent = t('alreadyLearnedStatus');
+        if (statusEl) {
+          if (platform === 'ios') {
+            statusEl.textContent = t('alreadyLearnedStatus');
+          } else {
+            const deepLink = buildDeepLink(spellId);
+            statusEl.innerHTML = `${t('alreadyLearnedStatus')}<br><a href="${deepLink}" class="btn-open-app" role="button">${t('openInApp')}</a>`;
+          }
+        }
       } else {
-        btn.textContent = t('learnBtn');
+        btn.textContent = learnLabel();
         btn.disabled = false;
         btn.classList.remove('learned');
       }
@@ -176,17 +193,28 @@ function setupLearnButton(spellId, spell) {
       if (result.alreadyLearned) {
         btn.textContent = t('alreadyLearned');
         btn.classList.add('learned');
-        if (statusEl) statusEl.textContent = t('alreadyLearnedStatus');
+        if (statusEl) {
+          if (platform === 'ios') {
+            statusEl.textContent = t('alreadyLearnedStatus');
+          } else {
+            const deepLink = buildDeepLink(spellId);
+            statusEl.innerHTML = `${t('alreadyLearnedStatus')}<br><a href="${deepLink}" class="btn-open-app" role="button">${t('openInApp')}</a>`;
+          }
+        }
       } else {
         btn.textContent = t('learned');
         btn.classList.add('learned');
         if (statusEl) {
-          const deepLink = buildDeepLink(spellId);
-          statusEl.innerHTML = `${t('learnedStatus')} <a href="${deepLink}" class="open-app-link">${t('openInApp')}</a>`;
+          if (platform === 'ios') {
+            statusEl.textContent = t('learnedStatus');
+          } else {
+            const deepLink = buildDeepLink(spellId);
+            statusEl.innerHTML = `${t('learnedStatus')}<br><a href="${deepLink}" class="btn-open-app" role="button">${t('openInApp')}</a>`;
+          }
         }
       }
     } catch (err) {
-      btn.textContent = t('learnBtn');
+      btn.textContent = learnLabel();
       btn.disabled = false;
       if (statusEl) statusEl.textContent = t('learnError') + (err.message || t('retryHint'));
     }
@@ -315,11 +343,20 @@ function showInlineAlert(container, msg) {
 }
 
 function setupAppBanner() {
+  const platform = getPlatform();
+  const ctaBlock = document.getElementById('app-cta-block');
+
+  if (platform === 'ios' && ctaBlock) {
+    ctaBlock.innerHTML = `<p>${t('iosFallback')}</p><a href="/" rel="noopener">${t('iosWaitlist')} →</a>`;
+    ctaBlock.style.display = '';
+  }
+
   const banner = document.getElementById('app-banner');
   if (!banner) return;
   if (sessionStorage.getItem('app-banner-dismissed')) return;
+  if (platform === 'ios') return;
 
-  if (/android/i.test(navigator.userAgent)) banner.classList.add('prominent');
+  if (platform === 'android') banner.classList.add('prominent');
   banner.style.display = 'block';
 
   banner.querySelector('.app-banner-close')?.addEventListener('click', () => {

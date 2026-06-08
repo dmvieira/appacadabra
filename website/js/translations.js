@@ -1655,3 +1655,5 @@ const translations = {
         finalCtaSubtitle: "เริ่มต้นฟรี เครื่องมือของคุณ ข้อมูลของคุณ โทรศัพท์ของคุณ"
     }
 };
+
+window.translations = translations;
