@@ -18,6 +18,9 @@ const mockUpdateAppStoreLink = jest.fn(() => Promise.resolve());
 const mockGetAppsWithStoreSpellId = jest.fn(() => Promise.resolve([]));
 const mockGetAllApps = jest.fn(() => Promise.resolve([]));
 const mockGetAppById = jest.fn(() => Promise.resolve(null as any));
+const mockGetDeletedStoreSpellTombstones = jest.fn(() => Promise.resolve([] as string[]));
+const mockRemoveDeletedStoreSpellTombstone = jest.fn(() => Promise.resolve());
+const mockTouchAppLastUpdated = jest.fn(() => Promise.resolve());
 
 jest.mock('../database/db', () => ({
     getAppById: (...args: any[]) => mockGetAppById(...args),
@@ -26,6 +29,9 @@ jest.mock('../database/db', () => ({
     getAllApps: (...args: any[]) => mockGetAllApps(...args),
     insertApp: (...args: any[]) => mockInsertApp(...args),
     updateAppStoreLink: (...args: any[]) => mockUpdateAppStoreLink(...args),
+    getDeletedStoreSpellTombstones: (...args: any[]) => mockGetDeletedStoreSpellTombstones(...args),
+    removeDeletedStoreSpellTombstone: (...args: any[]) => mockRemoveDeletedStoreSpellTombstone(...args),
+    touchAppLastUpdated: (...args: any[]) => mockTouchAppLastUpdated(...args),
 }));
 
 const mockSyncLearnedSpells = jest.fn();
@@ -118,6 +124,7 @@ beforeEach(() => {
     useStoreSyncStore.setState({ isSyncing: false, isPublishing: false, lastError: null });
     mockGetAppByStoreSpellId.mockResolvedValue(null);
     mockInsertApp.mockResolvedValue(42);
+    mockGetDeletedStoreSpellTombstones.mockResolvedValue([]);
     mockFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve('<html>spell</html>') });
 });
 
@@ -213,5 +220,78 @@ describe('syncLearnedSpells — Learn Spell deep-link flow', () => {
 
         expect(result).toEqual({ imported: 0, dedupHits: 0, failed: 0 });
         expect(mockSyncLearnedSpells).not.toHaveBeenCalled();
+    });
+
+    it('forceSpellId bypasses the in-flight guard so deep links never silently no-op', async () => {
+        useStoreSyncStore.setState({ isSyncing: true });
+        mockSyncLearnedSpells.mockResolvedValue({ spells: [makeSpell()] });
+
+        const result = await useStoreSyncStore.getState().syncLearnedSpells({
+            triggeredByDeepLink: true,
+            forceSpellId: 'spell-1',
+        });
+
+        expect(mockSyncLearnedSpells).toHaveBeenCalledWith({ forceSpellId: 'spell-1' });
+        expect(result).toEqual({ imported: 1, dedupHits: 0, failed: 0 });
+    });
+
+    it('triggeredByDeepLink with dedupHits>0 still refreshes the listing via loadApps()', async () => {
+        mockSyncLearnedSpells.mockResolvedValue({ spells: [makeSpell()] });
+        mockGetAppByStoreSpellId.mockResolvedValue({ id: 7, name: 'Existing' });
+
+        await useStoreSyncStore.getState().syncLearnedSpells({ triggeredByDeepLink: true });
+
+        expect(mockLoadApps).toHaveBeenCalled();
+    });
+
+    it('tombstoned spells are filtered out during recoverAll', async () => {
+        mockSyncLearnedSpells.mockResolvedValue({
+            spells: [makeSpell({ spellId: 'spell-tombstoned' }), makeSpell({ spellId: 'spell-keep' })],
+        });
+        mockGetDeletedStoreSpellTombstones.mockResolvedValue(['spell-tombstoned']);
+
+        await useStoreSyncStore.getState().syncLearnedSpells({ recoverAll: true });
+
+        // Only the non-tombstoned spell should reach insertApp.
+        expect(mockInsertApp).toHaveBeenCalledTimes(1);
+        const insertedSpellId = mockInsertApp.mock.calls[0][0].storeSpellId;
+        expect(insertedSpellId).toBe('spell-keep');
+    });
+
+    it('forceSpellId overrides the tombstone filter (re-learn after delete)', async () => {
+        mockSyncLearnedSpells.mockResolvedValue({
+            spells: [makeSpell({ spellId: 'spell-deleted' })],
+        });
+        mockGetDeletedStoreSpellTombstones.mockResolvedValue(['spell-deleted']);
+
+        const result = await useStoreSyncStore.getState().syncLearnedSpells({
+            triggeredByDeepLink: true,
+            forceSpellId: 'spell-deleted',
+        });
+
+        expect(mockInsertApp).toHaveBeenCalledTimes(1);
+        expect(result.imported).toBe(1);
+        // Re-import must clear the tombstone so future recoverAll syncs work normally.
+        expect(mockRemoveDeletedStoreSpellTombstone).toHaveBeenCalledWith('spell-deleted');
+    });
+
+    it('recoverAll: true is forwarded to the firebase callable', async () => {
+        mockSyncLearnedSpells.mockResolvedValue({ spells: [] });
+
+        await useStoreSyncStore.getState().syncLearnedSpells({ recoverAll: true });
+
+        expect(mockSyncLearnedSpells).toHaveBeenCalledWith({ recoverAll: true });
+    });
+
+    it('dedup hit with forceSpellId touches lastUpdated to bubble the spell to the top', async () => {
+        mockSyncLearnedSpells.mockResolvedValue({ spells: [makeSpell({ spellId: 'spell-x' })] });
+        mockGetAppByStoreSpellId.mockResolvedValue({ id: 99, name: 'Existing' });
+
+        await useStoreSyncStore.getState().syncLearnedSpells({
+            triggeredByDeepLink: true,
+            forceSpellId: 'spell-x',
+        });
+
+        expect(mockTouchAppLastUpdated).toHaveBeenCalledWith(99);
     });
 });

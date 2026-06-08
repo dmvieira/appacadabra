@@ -207,10 +207,18 @@ export default function RootLayout() {
             await SplashScreen.hideAsync().catch((e: any) => console.log('Error hiding splash:', e));
         }, 1000);
 
-        // Spell Store — foreground sync of learned spells and published spell status
+        // Spell Store — foreground sync of learned spells and published spell status.
+        // recoverAll covers reinstall and cross-device cases: we pull every learned spell
+        // each foreground sync; tombstones + storeSpellId dedup keep this idempotent.
+        // Throttled to 60s because AppState 'active' fires on every return-to-foreground,
+        // and recoverAll generates a signed URL per learned spell on the backend.
+        let lastStoreSyncAt = 0;
         const maybeSyncStoreState = () => {
+            const now = Date.now();
+            if (now - lastStoreSyncAt < 60_000) return;
+            lastStoreSyncAt = now;
             if (isGoogleUser()) {
-                useStoreSyncStore.getState().syncLearnedSpells().catch(() => {});
+                useStoreSyncStore.getState().syncLearnedSpells({ recoverAll: true }).catch(() => {});
             }
             useStoreSyncStore.getState().syncPublishedSpellsStatus().catch(() => {});
         };

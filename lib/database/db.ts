@@ -108,6 +108,11 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_app_alarms_appId ON app_alarms(appId);
+
+    CREATE TABLE IF NOT EXISTS deleted_store_spell_tombstones (
+      storeSpellId TEXT PRIMARY KEY NOT NULL,
+      deletedAt INTEGER NOT NULL
+    );
   `);
 
     // Helper to safely add column if missing
@@ -797,6 +802,42 @@ export async function getDeletedAppNames(): Promise<{ name: string; deletedAt: n
     );
 }
 
+export async function touchAppLastUpdated(appId: number): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'UPDATE generated_apps SET lastUpdated = ? WHERE id = ?',
+        [Date.now(), appId]
+    );
+}
+
+// ============= Deleted Store Spell Tombstones =============
+// Records locally-deleted store spells so bulk recovery (recoverAll) does not re-import them.
+// Removed automatically when the user re-learns the same spell.
+
+export async function insertDeletedStoreSpellTombstone(storeSpellId: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'INSERT OR REPLACE INTO deleted_store_spell_tombstones (storeSpellId, deletedAt) VALUES (?, ?)',
+        [storeSpellId, Date.now()]
+    );
+}
+
+export async function getDeletedStoreSpellTombstones(): Promise<string[]> {
+    const database = await getDatabase();
+    const rows = await database.getAllAsync<{ storeSpellId: string }>(
+        'SELECT storeSpellId FROM deleted_store_spell_tombstones'
+    );
+    return rows.map(r => r.storeSpellId);
+}
+
+export async function removeDeletedStoreSpellTombstone(storeSpellId: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'DELETE FROM deleted_store_spell_tombstones WHERE storeSpellId = ?',
+        [storeSpellId]
+    );
+}
+
 export async function wipeAllData(): Promise<void> {
     const database = await getDatabase();
     await database.execAsync(`
@@ -805,6 +846,7 @@ export async function wipeAllData(): Promise<void> {
         DELETE FROM processed_jobs;
         DELETE FROM app_settings;
         DELETE FROM deleted_app_names;
+        DELETE FROM deleted_store_spell_tombstones;
     `);
     // Note: app_versions, app_storage, and mana_events are deleted via CASCADE from generated_apps
 }

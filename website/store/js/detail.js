@@ -149,13 +149,43 @@ function setupLearnButton(spellId, spell) {
 
   btn.textContent = t('learnGuest');
 
+  // Morph the learn button into "Open in app" on Android (deepLink) or into the disabled
+  // "Learned" state on iOS (deepLink === null). Replaces the previous pattern of a
+  // disabled learn button + separate .btn-open-app injected into #learn-status.
+  function setLearnedState(deepLink, justLearned) {
+    btn.classList.add('learned');
+    if (deepLink) {
+      btn.classList.add('open-app');
+      btn.textContent = t('openInApp');
+      btn.disabled = false;
+      btn.dataset.deepLink = deepLink;
+    } else {
+      btn.classList.remove('open-app');
+      btn.textContent = t('learned');
+      btn.disabled = true;
+      delete btn.dataset.deepLink;
+    }
+    if (statusEl) {
+      statusEl.textContent = justLearned ? t('learnedStatus') : t('alreadyLearnedStatus');
+    }
+  }
+
+  function setUnlearnedState() {
+    btn.classList.remove('learned', 'open-app');
+    btn.textContent = learnLabel();
+    btn.disabled = false;
+    delete btn.dataset.deepLink;
+    if (statusEl) statusEl.textContent = '';
+  }
+
   async function checkAlreadyLearned(user) {
     if (!user) {
       const learnSection = document.querySelector('.learn-section');
       if (learnSection) learnSection.style.display = '';
       btn.textContent = t('learnGuest');
       btn.disabled = false;
-      btn.classList.remove('learned');
+      btn.classList.remove('learned', 'open-app');
+      delete btn.dataset.deepLink;
       return;
     }
     if (user.uid === spell.authorUid) {
@@ -166,21 +196,10 @@ function setupLearnButton(spellId, spell) {
     try {
       const snap = await getDoc(doc(db, 'users', user.uid, 'learned_spells', spellId));
       if (snap.exists()) {
-        btn.textContent = t('alreadyLearned');
-        btn.disabled = true;
-        btn.classList.add('learned');
-        if (statusEl) {
-          if (platform === 'ios') {
-            statusEl.textContent = t('alreadyLearnedStatus');
-          } else {
-            const deepLink = buildDeepLink(spellId);
-            statusEl.innerHTML = `${t('alreadyLearnedStatus')}<br><a href="${deepLink}" class="btn-open-app" role="button">${t('openInApp')}</a>`;
-          }
-        }
+        const deepLink = platform === 'android' ? buildDeepLink(spellId) : null;
+        setLearnedState(deepLink, false);
       } else {
-        btn.textContent = learnLabel();
-        btn.disabled = false;
-        btn.classList.remove('learned');
+        setUnlearnedState();
       }
     } catch { /* ignore */ }
   }
@@ -190,32 +209,14 @@ function setupLearnButton(spellId, spell) {
     btn.textContent = t('learning');
     try {
       const result = await learnSpell(spellId);
-      if (result.alreadyLearned) {
-        btn.textContent = t('alreadyLearned');
-        btn.classList.add('learned');
-        if (statusEl) {
-          if (platform === 'ios') {
-            statusEl.textContent = t('alreadyLearnedStatus');
-          } else {
-            const deepLink = buildDeepLink(spellId);
-            statusEl.innerHTML = `${t('alreadyLearnedStatus')}<br><a href="${deepLink}" class="btn-open-app" role="button">${t('openInApp')}</a>`;
-          }
-        }
-      } else {
-        btn.textContent = t('learned');
-        btn.classList.add('learned');
-        if (statusEl) {
-          if (platform === 'ios') {
-            statusEl.textContent = t('learnedStatus');
-          } else {
-            const deepLink = buildDeepLink(spellId);
-            statusEl.innerHTML = `${t('learnedStatus')}<br><a href="${deepLink}" class="btn-open-app" role="button">${t('openInApp')}</a>`;
-          }
-        }
-      }
+      const deepLink = platform === 'android' ? buildDeepLink(spellId) : null;
+      // alreadyLearned and freshly learned share the same end state; only the microtext differs.
+      setLearnedState(deepLink, !result.alreadyLearned);
     } catch (err) {
       btn.textContent = learnLabel();
       btn.disabled = false;
+      btn.classList.remove('learned', 'open-app');
+      delete btn.dataset.deepLink;
       if (statusEl) statusEl.textContent = t('learnError') + (err.message || t('retryHint'));
     }
   }
@@ -232,6 +233,12 @@ function setupLearnButton(spellId, spell) {
 
   btn.addEventListener('click', () => {
     if (btn.disabled) return;
+    // Post-learn morph: button now opens the app instead of triggering a learn round-trip.
+    if (btn.classList.contains('open-app')) {
+      const deepLink = btn.dataset.deepLink;
+      if (deepLink) window.location.href = deepLink;
+      return;
+    }
     const user = getCurrentUser();
     if (!user) {
       sessionStorage.setItem('pendingLearn', spellId);

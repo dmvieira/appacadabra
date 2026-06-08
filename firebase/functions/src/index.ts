@@ -1756,6 +1756,41 @@ export const learnSpell = onCall<{ spellId: string }>(
     }
 );
 
+export const unlearnSpell = onCall<{ spellId: string }>(
+    {
+        region: 'southamerica-east1',
+        timeoutSeconds: 30,
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new HttpsError('unauthenticated', 'Sign in with Google to unlearn spells.');
+        }
+        const provider = (request.auth.token as any)?.firebase?.sign_in_provider;
+        if (provider === 'anonymous') {
+            throw new HttpsError('unauthenticated', 'Sign in with Google to unlearn spells.');
+        }
+        const uid = request.auth.uid;
+        const { spellId } = request.data;
+        if (!spellId || typeof spellId !== 'string') {
+            throw new HttpsError('invalid-argument', 'spellId is required.');
+        }
+
+        const learnedRef = db.collection('users').doc(uid)
+            .collection('learned_spells').doc(spellId);
+        const learnedSnap = await learnedRef.get();
+        if (!learnedSnap.exists) {
+            return { ok: true, alreadyUnlearned: true };
+        }
+        await learnedRef.delete();
+        // Best-effort decrement of learnCount; failure here is non-fatal because the
+        // user-facing source of truth (learned_spells doc) is already gone.
+        await db.collection('store_spells').doc(spellId).update({
+            learnCount: FieldValue.increment(-1),
+        }).catch(() => {});
+        return { ok: true };
+    }
+);
+
 interface SyncedSpellItem {
     spellId: string;
     slug: string;
@@ -1771,7 +1806,7 @@ interface SyncedSpellItem {
     rootSpellId?: string;
 }
 
-export const syncLearnedSpells = onCall<{ lastSyncedAt?: number; forceSpellId?: string } | undefined>(
+export const syncLearnedSpells = onCall<{ lastSyncedAt?: number; forceSpellId?: string; recoverAll?: boolean } | undefined>(
     {
         region: 'southamerica-east1',
         timeoutSeconds: 30,
@@ -1786,12 +1821,17 @@ export const syncLearnedSpells = onCall<{ lastSyncedAt?: number; forceSpellId?: 
         }
         const uid = request.auth.uid;
         const forceSpellId = typeof request.data?.forceSpellId === 'string' ? request.data.forceSpellId : null;
+        const recoverAll = request.data?.recoverAll === true;
 
-        const learnedSnap = await db
+        // When recoverAll, return every learned spell so the client can re-import any that
+        // are missing locally (covers reinstall and cross-device cases). The client filters
+        // out tombstoned spells before re-inserting.
+        const baseQuery = db
             .collection('users').doc(uid)
-            .collection('learned_spells')
-            .where('syncedToApp', '==', false)
-            .get();
+            .collection('learned_spells');
+        const learnedSnap = recoverAll
+            ? await baseQuery.get()
+            : await baseQuery.where('syncedToApp', '==', false).get();
 
         // Invariant: forceSpellId covers reinstall — a learned spell can be returned even if
         // it was previously marked syncedToApp on a different installation.

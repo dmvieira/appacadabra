@@ -1,13 +1,24 @@
 import { create } from 'zustand';
 import * as Localization from 'expo-localization';
 import * as firebase from './firebase';
-import { getAppById, updateAppStoreLink, getAppByStoreSpellId, getAppsWithStoreSpellId, getAllApps, insertApp } from './database/db';
+import {
+    getAppById,
+    updateAppStoreLink,
+    getAppByStoreSpellId,
+    getAppsWithStoreSpellId,
+    getAllApps,
+    insertApp,
+    getDeletedStoreSpellTombstones,
+    removeDeletedStoreSpellTombstone,
+    touchAppLastUpdated,
+} from './database/db';
 import { useAppStore } from './store';
 import { t } from './i18n';
 
 export interface SyncLearnedSpellsOptions {
     triggeredByDeepLink?: boolean;
     forceSpellId?: string;
+    recoverAll?: boolean;
 }
 
 export interface SyncLearnedSpellsResult {
@@ -119,8 +130,13 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
     syncLearnedSpells: async (opts) => {
         const triggeredByDeepLink = opts?.triggeredByDeepLink === true;
         const forceSpellId = opts?.forceSpellId;
-        const { isSyncing } = get();
-        if (isSyncing) return { imported: 0, dedupHits: 0, failed: 0 };
+        const recoverAll = opts?.recoverAll === true;
+        // Bypass the in-flight guard only when a deep link demands a specific spell — the
+        // dedup-by-storeSpellId guard inside the loop prevents any duplicate inserts even
+        // if a parallel sync completes between calls.
+        if (get().isSyncing && !forceSpellId) {
+            return { imported: 0, dedupHits: 0, failed: 0 };
+        }
         set({ isSyncing: true });
         let imported = 0;
         let dedupHits = 0;
@@ -128,9 +144,22 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
         let lastImportedAppId: number | null = null;
         let dedupHitAppId: number | null = null;
         try {
-            const { spells } = await firebase.syncLearnedSpells(
-                forceSpellId ? { forceSpellId } : undefined
+            const callablePayload: { forceSpellId?: string; recoverAll?: boolean } = {};
+            if (forceSpellId) callablePayload.forceSpellId = forceSpellId;
+            if (recoverAll) callablePayload.recoverAll = true;
+            const { spells: rawSpells } = await firebase.syncLearnedSpells(
+                Object.keys(callablePayload).length > 0 ? callablePayload : undefined
             );
+
+            // Filter out tombstoned spells so locally-deleted spells never bounce back via recoverAll.
+            const tombstones = new Set(await getDeletedStoreSpellTombstones());
+            // forceSpellId always overrides tombstones: an explicit deep link means the user wants
+            // this spell back (re-learn after delete), so clear the tombstone if present below.
+            const spells = rawSpells.filter(s => {
+                if (forceSpellId && s.spellId === forceSpellId) return true;
+                return !tombstones.has(s.spellId);
+            });
+
             const now = Date.now();
             for (const spell of spells) {
                 // Dedup: skip if already imported
@@ -145,6 +174,9 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                     dedupHits++;
                     if (forceSpellId && spell.spellId === forceSpellId) {
                         dedupHitAppId = existing.id;
+                        // Deep link explicitly targets this spell — bubble it to the top of the
+                        // listing so the "Open in app" CTA lands on a visible row, not buried.
+                        try { await touchAppLastUpdated(existing.id); } catch {}
                     } else if (dedupHitAppId == null) {
                         dedupHitAppId = existing.id;
                     }
@@ -190,6 +222,10 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                         requiresBiometric: false,
                         sortOrder: 0,
                     });
+                    // Clear any tombstone for this spell now that the user has it locally again.
+                    if (tombstones.has(spell.spellId)) {
+                        try { await removeDeletedStoreSpellTombstone(spell.spellId); } catch {}
+                    }
                     try {
                         await firebase.markSpellSynced(spell.spellId, appId, true);
                     } catch (e: any) {
@@ -202,7 +238,10 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                     failed++;
                 }
             }
-            if (imported > 0) {
+            // Refresh the listing whenever we imported something OR a deep-link arrived for a
+            // spell that already existed locally (dedup hit) — the user expects the listing to
+            // surface the spell either way so the "Open in app" button feels responsive.
+            if (imported > 0 || (triggeredByDeepLink && (dedupHits > 0 || forceSpellId))) {
                 try { useAppStore.getState().loadApps(); } catch {}
             }
 
@@ -221,6 +260,16 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                 } else if (failed > 0) {
                     try { useAppStore.setState({ error: t('learnSpellFailed') }); } catch {}
                 } else {
+                    if (forceSpellId) {
+                        // Backend returned no spells despite an explicit forceSpellId — almost
+                        // always means syncLearnedSpells wasn't deployed with the forceSpellId
+                        // branch, OR the learned_spells/{spellId} doc was never created.
+                        console.warn(
+                            `[StoreSync] forceSpellId="${forceSpellId}" returned no spells from backend. ` +
+                            `Check that syncLearnedSpells is deployed with forceSpellId support and that ` +
+                            `users/{uid}/learned_spells/${forceSpellId} exists.`
+                        );
+                    }
                     store.setStatusMessage(t('learnSpellNothingToSync'));
                 }
             }

@@ -640,12 +640,24 @@ export interface SyncedSpellItem {
     rootSpellId?: string;
 }
 
-export async function syncLearnedSpells(input?: { forceSpellId?: string }): Promise<{ spells: SyncedSpellItem[] }> {
+export async function syncLearnedSpells(input?: { forceSpellId?: string; recoverAll?: boolean }): Promise<{ spells: SyncedSpellItem[] }> {
     await ensureAuthenticated();
-    const fn = httpsCallable<{ forceSpellId?: string } | undefined, { spells: SyncedSpellItem[] }>(
+    const fn = httpsCallable<{ forceSpellId?: string; recoverAll?: boolean } | undefined, { spells: SyncedSpellItem[] }>(
         getFunctionsInstance(), 'syncLearnedSpells'
     );
-    const result = await fn(input && input.forceSpellId ? { forceSpellId: input.forceSpellId } : undefined);
+    const payload: { forceSpellId?: string; recoverAll?: boolean } = {};
+    if (input?.forceSpellId) payload.forceSpellId = input.forceSpellId;
+    if (input?.recoverAll) payload.recoverAll = true;
+    const result = await fn(Object.keys(payload).length > 0 ? payload : undefined);
+    return result.data;
+}
+
+export async function unlearnSpell(spellId: string): Promise<{ ok: boolean; alreadyUnlearned?: boolean }> {
+    await ensureAuthenticated();
+    const fn = httpsCallable<{ spellId: string }, { ok: boolean; alreadyUnlearned?: boolean }>(
+        getFunctionsInstance(), 'unlearnSpell'
+    );
+    const result = await fn({ spellId });
     return result.data;
 }
 

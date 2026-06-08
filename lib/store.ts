@@ -694,6 +694,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     deleteApp: async (id: number) => {
         try {
             const appToDelete = get().apps.find(a => a.id === id);
+            // Capture store linkage before SQLite delete so we can tombstone + unlearn after.
+            const storeSpellIdToUnlearn = (appToDelete && appToDelete.source === 'store' && appToDelete.storeSpellId)
+                ? appToDelete.storeSpellId
+                : null;
 
             // Cancel all scheduled notifications before removing the channel
             try {
@@ -762,6 +766,19 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (appToDelete) {
                 await db.addDeletedAppName(appToDelete.name, Date.now(), snapshotJson);
                 markBackupDirty();
+            }
+
+            // For store-sourced spells: block bulk recovery from re-importing this spell,
+            // and best-effort tell the server to forget the learned link so the store UI
+            // re-shows "Learn" instead of "Already learned".
+            if (storeSpellIdToUnlearn) {
+                try {
+                    await db.insertDeletedStoreSpellTombstone(storeSpellIdToUnlearn);
+                } catch (e) {
+                    console.warn('[Store] Failed to insert store-spell tombstone:', e);
+                }
+                // Fire-and-forget: tombstone is the local source of truth, so offline is fine.
+                firebase.unlearnSpell(storeSpellIdToUnlearn).catch(() => {});
             }
 
             // Remove from Direct Share shortcuts
