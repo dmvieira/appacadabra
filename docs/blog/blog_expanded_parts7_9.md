@@ -1,16 +1,16 @@
-# The Appacadabra Chronicles: Expanded Blog Posts (Parts 7–9)
+# The Appacadabra Chronicles: Expanded Blog Posts (Parts 8, 9, 11)
 
 ---
 
-## Part 7: Data Analytics & DevOps. Cloud Infrastructure Friction
+## Part 8: Data Analytics & DevOps. Cloud Infrastructure Friction
 
-Six departments. A company that existed on paper, in code, in financial models, and in legal documents. Appacadabra was real, but invisible to itself. No one was watching what was happening inside it. No one was measuring whether the decisions made in the first six departments were actually working in practice. That was about to change.
+Seven departments. A company that existed on paper, in code, validated by automated tests, modeled financially, and grounded in legal documents. Appacadabra was real, but invisible to itself. No one was watching what was happening inside it. No one was measuring whether the decisions made in the first seven departments were actually working in practice. That was about to change.
 
 There is a concept in reliability engineering called **observability**: the degree to which you can infer the internal state of a system from its external outputs. In traditional software operations, observability is achieved through three pillars: logs, metrics, and traces. Building this infrastructure (the agents, dashboards, alerting pipelines, and on-call runbooks) is itself a significant engineering discipline.
 
 In the modern AI-first enterprise, observability has a fourth dimension: **the AI layer that interprets the first three.**
 
-This is where Part 7 begins: not with code, but with data. Specifically, the question of how a solo founder, with no dedicated data analyst and no BI platform budget, could understand what was actually happening inside their product.
+This is where Part 8 begins: not with code, but with data. Specifically, the question of how a solo founder, with no dedicated data analyst and no BI platform budget, could understand what was actually happening inside their product.
 
 ### The AIOps Revolution (and Why It Matters for Startups)
 
@@ -62,7 +62,7 @@ The **Analytics Agent's MCPs** included:
 
 Now for the honest part of this chapter, and I think it's the most important part.
 
-If you are reading this series and drawing the conclusion that AI can handle everything, Part 7 exists to correct that conclusion.
+If you are reading this series and drawing the conclusion that AI can handle everything, Part 8 exists to correct that conclusion.
 
 Integrating **Firebase Analytics and Crashlytics** into the Android ecosystem proved exceptionally resistant to AI automation. The failure mode was specific: not that the AI didn't know the correct configuration (it did), but that configuration problems in Android development are not logic problems. They are *environment* problems.
 
@@ -77,13 +77,13 @@ This is not a failure of AI. This is a genuine boundary of where AI's capability
 
 The lesson: **AI saves you from architectural complexity. It does not save you from environmental complexity.** Know the difference before you plan your timeline.
 
-*The product was running, observable, and understood. But observed in production by whom? Part 8 addresses the final mile of getting an app into users' hands, and why it is an entirely separate discipline from building it.*
+*The product was running, observable, and understood. But observed in production by whom? Part 9 addresses the final mile of getting an app into users' hands, and why it is an entirely separate discipline from building it.*
 
 ---
 
 ---
 
-## Part 8: Release Management. The App Store Maze with Gemini
+## Part 9: Release Management. The App Store Maze with Gemini
 
 The product was running. Analytics were flowing. Metrics were legible. Appacadabra existed as a complete, observable system, and it existed entirely on a development device that no user could access. Getting from that state to "available on the Play Store" turned out to be one of the most unexpectedly complex transitions in the entire project.
 
@@ -151,13 +151,13 @@ Its **MCPs** included:
 
 The Release Agent transformed launch from an event into a pipeline: a repeatable, managed process rather than a sprint of manual configuration and hope.
 
-*The app was live in staged rollout. The pipeline was running. But available and known are two different things, and a product that exists without being talked about does not yet exist in the market. In Part 9, we staff the department that bridges that gap: Marketing.*
+*The app was live in staged rollout. The pipeline was running. But available and known are two different things, and a product that exists without being talked about does not yet exist in the market. In Part 10, we staff the department that bridges that gap: Marketing.*
 
 ---
 
 ---
 
-## Part 10: International Strategy. Conquering New Markets
+## Part 11: International Strategy. Conquering New Markets
 
 The Marketing Department had made the product visible: content was flowing, X threads were reaching builders, LinkedIn articles were building credibility. Analytics were confirming that real users were creating real spells, consuming real mana, and returning. The product worked in one market, in one primary language, reaching one demographic. The marketing was working in that same market. The next question was inevitable: where else does this work, and what has to change when we try to find out?
 
@@ -193,7 +193,7 @@ What Deepseek delivered went beyond the generic market entry frameworks that any
 
 ### The Intersection With Localization
 
-This is where Parts 4 and 9 connect explicitly: the localization infrastructure built by the GPT OSS models in Part 4 was not just a technical exercise. It was the foundation that made the Deepseek strategy actionable.
+This is where Parts 4 and 10 connect explicitly: the localization infrastructure built by the GPT OSS models in Part 4 was not just a technical exercise. It was the foundation that made the Deepseek strategy actionable.
 
 Market strategy without localization is aspiration. Localization without market strategy is translation. The combination (Deepseek's strategic intelligence feeding the localization system's execution capability) produced something different: **culturally coherent market entry, executed at the speed of automation**.
 
@@ -207,7 +207,7 @@ flowchart TD
     FOUNDER --> GLOCAL["/glocalization-check<br/>UX, copy, regulatory deltas"]
     GLOCAL --> LOC["Localization MCP from Part 4<br/>GPT OSS 120B bulk translation"]
     LOC --> BT["Back-translation verification"]
-    BT --> META["Store metadata per locale<br/>Release Agent (Part 8) packages it"]
+    BT --> META["Store metadata per locale<br/>Release Agent (Part 9) packages it"]
     META --> LAUNCH[Staged rollout in target market]
 ```
 
@@ -221,4 +221,4 @@ Its **MCPs** included:
 
 The International Agent meant that expansion decisions (which market to enter next, which adaptations to prioritize, which channels to activate) could be informed by structured intelligence rather than instinct.
 
-*Ten departments built. Ten agents configured. One remains: the most technically demanding challenge of the entire project, automating the validation of a product I had built with a machine, using another machine. Part 11: QA.*
+*Eleven departments built. Eleven agents configured. A company assembled from a blank document, one department at a time, in the order the business actually needed them. The conclusion that follows steps outside the individual departments and maps the full architecture that emerged: the complete constellation of what was built, how the pieces connect, and what it means for the companies that come after.*

@@ -1,8 +1,8 @@
-# The Appacadabra Chronicles — Expanded Blog Post (Part 9)
+# The Appacadabra Chronicles — Expanded Blog Post (Part 10)
 
 ---
 
-## Part 9: The Marketing Department — Making the Product Visible
+## Part 10: The Marketing Department — Making the Product Visible
 
 There is a paradox at the center of technical founding: the better an engineer you are, the more convinced you become that if the product is good enough, it will find its audience on its own.
 
@@ -53,7 +53,7 @@ This is the point in the article where I should acknowledge something that will 
 It is not supplementary to the marketing strategy. It is not a documentation effort that happens to be public. The act of writing, in depth, about how Appacadabra was built — department by department, agent by agent, decision by decision — is the highest-leverage piece of content I could produce. Because:
 
 1. It demonstrates the product's capabilities better than any feature list. Every article is evidence that the AI agents work.
-2. It builds trust through transparency. Showing the failures (the DevOps wall in Part 7, the validation gap throughout) is more credible than a success story with no friction.
+2. It builds trust through transparency. Showing the failures (the DevOps wall in Part 8, the validation gap throughout) is more credible than a success story with no friction.
 3. It generates content at every level of the funnel simultaneously. Individual posts on X drive top-of-funnel awareness. The full series on a blog or Substack drives bottom-of-funnel conviction.
 4. It compounds. An article published today generates search traffic indefinitely. A tweet published today is gone by tomorrow afternoon.
 
@@ -110,6 +110,6 @@ The Marketing Agent meant that the moment a new feature shipped, a new article w
 
 Because they were.
 
-*Marketing had made the product visible. But visible in one market is not the same as visible in the right market. In Part 10, we take the distribution question global — and discover that the biggest differences between markets have almost nothing to do with language.*
+*Marketing had made the product visible. But visible in one market is not the same as visible in the right market. In Part 11, we take the distribution question global — and discover that the biggest differences between markets have almost nothing to do with language.*
 
 ---

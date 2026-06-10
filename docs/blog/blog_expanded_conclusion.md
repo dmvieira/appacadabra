@@ -225,7 +225,7 @@ Every department required acting as a senior leader in a discipline not formally
 
 The validation gap is real. For departments where I had expertise (engineering, product architecture, technical decision-making) AI was a force multiplier. For departments where I lacked expertise (legal nuance, branding taste at the pixel level, cross-cultural consumer psychology) AI was a capable but imperfect partner, and the decisions were made with incomplete certainty. That is not a comfortable position. It is the only honest one available.
 
-The DevOps wall in Part 7 is the clearest evidence of this limit: Android environment debugging, with its combinatorial explosion of interacting variables, remains a domain where human intuition built from years of shipping is still irreplaceable. AI explained errors once they were found. It could not find them.
+The DevOps wall in Part 8 is the clearest evidence of this limit: Android environment debugging, with its combinatorial explosion of interacting variables, remains a domain where human intuition built from years of shipping is still irreplaceable. AI explained errors once they were found. It could not find them.
 
 ### What Comes Next
 
@@ -245,4 +245,4 @@ And it is just beginning.
 
 ---
 
-*The Appacadabra Chronicles is a 13-part series (Preface + Parts 1–11 + Conclusion) documenting the AI-driven construction of a full software company. The series covers Strategy, Branding, UX/Product, Engineering & Localization, Finance, Legal, Data Analytics & DevOps, Release Management, Marketing, International Strategy, and Quality Assurance.*
+*The Appacadabra Chronicles is a 13-part series (Preface + Parts 1–11 + Conclusion) documenting the AI-driven construction of a full software company. The series covers Strategy, Branding, UX/Product, Engineering & Localization, Quality Assurance, Finance, Legal, Data Analytics & DevOps, Release Management, Marketing, and International Strategy.*

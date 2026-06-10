@@ -12,7 +12,7 @@ Nearly forty years later, I believe AI has changed the terms of this argument. B
 
 ### The Mixture of Experts Problem
 
-In modern machine learning, there's an architectural pattern called **Mixture of Experts (MoE)**. The intuition is elegant: instead of training one massive model that must be good at everything, you train several specialized models and learn a routing mechanism that sends each input to the model best suited to handle it. Models like Google's Gemini Ultra are widely believed to use MoE architectures internally.
+In modern machine learning, there's an architectural pattern called **Mixture of Experts (MoE)**. The intuition is elegant: instead of training one massive model that must be good at everything, you train several specialized models and learn a routing mechanism that sends each input to the model best suited to handle it. Models like Google's Gemini are widely believed to use MoE architectures internally.
 
 I applied this concept to my Engineering Department.
 
@@ -27,9 +27,9 @@ No single AI model navigates all of these with equal depth. I learned this throu
 
 **Claude Opus** (accessed through Claude Code, which served as the development environment throughout the project) was the primary engine across the stack. Claude Code is the tool, the agentic coding interface that maintains full codebase context, proposes changes, and runs commands. Claude Opus is the model powering it, and its grasp of component patterns, TypeScript generics, Firebase architecture, and context propagation is, at time of writing, the strongest available for this kind of full-stack work. It was my senior engineer across the board.
 
-**Gemini** was brought in for Android-native depth and broad research tasks. When I needed to understand how Android's ViewModel lifecycle interacts with Jetpack Compose recomposition, or why a specific hardware permission was silently failing on API 34, Gemini's massive context window allowed me to paste entire SDK documentation sections alongside the failing code and receive coherent, targeted analysis.
+**Gemini** was brought in for Android-native depth and broad research tasks, accessed directly from inside **VS Code** through the official Gemini extension rather than through Claude Code. When I needed to understand how Android's ViewModel lifecycle interacts with Jetpack Compose recomposition, or why a specific hardware permission was silently failing on API 34, Gemini's massive context window and Google's institutional knowledge of Android architecture allowed me to paste entire SDK documentation sections alongside the failing code and receive coherent, targeted analysis. Different IDE, different model, same project — used for the slice of work where it had a real edge.
 
-**GPT OSS 120B** had a specific and narrow role: bulk localization. As an open-source model optimized for cost efficiency at scale, it was the right tool for running translation jobs across hundreds of UI strings. These are tasks where correctness-by-pattern matters more than deep contextual reasoning, and where running thousands of inferences at low cost is the actual constraint.
+**GPT OSS 120B** had a specific and narrow role: bulk localization. It was reached through an **OpenRouter MCP server** wired into Claude Code, so the Engineering Agent could dispatch translation jobs to it without me ever leaving the harness. As an open-source model optimized for cost efficiency at scale, it was the right tool for running translation jobs across hundreds of UI strings — tasks where correctness-by-pattern matters more than deep contextual reasoning, and where running thousands of inferences at low cost is the actual constraint. The MCP layer that made this possible is detailed later in the series; for now, the relevant point is that an external model became reachable as if it were just another internal tool.
 
 The Engineering Agent's routing layer became one of the most valuable assets in the project: a configuration that would receive a task, classify it by domain, and route it to the appropriate model. Not as magic, but as deliberate architecture.
 
@@ -54,12 +54,12 @@ graph TD
 
 The **Engineering Agent** was the most complex agent in the system, and the most consequential.
 
-Its **Skills and MCPs** included:
-- A **Code Review MCP** (`/code-review`) that evaluated generated code against our established architecture patterns (SOLID principles, our specific folder structure, our error handling conventions)
-- A **Dependency Audit MCP** (`/dependency-audit`) that cross-referenced any new package against our existing dependency tree to catch conflicts before they reached the build
-- A **Stack Router MCP** (`/stack-router`) that classified incoming engineering tasks and dispatched them to the appropriate AI model (Claude for full-stack TypeScript/React Native, Gemini for Android-native depth, GPT OSS for bulk localization) with the right context injected for each
-- A **Test Generation MCP** (`/gen-tests`) that, given a new function or component, auto-generated unit test scaffolding in our established testing style (Jest for the JS layer, JUnit for the Android native layer)
-- A **Schema Validator MCP** (`/validate-schema`) that validated Firestore document structures and SQLite schema migrations against our TypeScript type definitions
+Its **skills** included:
+- A **code review skill** (`/code-review`) that evaluated generated code against our established architecture patterns (SOLID principles, our specific folder structure, our error handling conventions)
+- A **dependency audit skill** (`/dependency-audit`) that cross-referenced any new package against our existing dependency tree to catch conflicts before they reached the build
+- A **stack router skill** (`/stack-router`) that classified incoming engineering tasks and dispatched them to the appropriate AI model (Claude for full-stack TypeScript/React Native, Gemini for Android-native depth as human handoff, GPT OSS for bulk localization) with the right context injected for each
+- A **test generation skill** (`/gen-tests`) that, given a new function or component, auto-generated Jest unit test scaffolding following the patterns in `lib/capabilities/__tests__/` and `lib/bridges/__tests__/`, with the mana-not-charged-on-failure path always exercised for any mana-related function
+- A **schema validation skill** (`/validate-schema`) that validated Firestore document structures and SQLite schema migrations against our TypeScript type definitions
 
 A design principle emerged here that would shape every subsequent agent: **skills must live inside agents, not float as standalone tools.** Early in the project, `/gen-tests` and `/code-review` existed as isolated commands I ran manually. The problem was me: I was the routing layer, remembering which tool to invoke, in what order, with what context. When those skills moved into the Engineering Agent, the agent could orchestrate them as a workflow: review the code, generate tests for the reviewed code, validate the schema the code touches. Skills composed into a pipeline; loose tools did not. The Conclusion returns to this principle, and its failure modes, in detail.
 
@@ -88,7 +88,7 @@ flowchart LR
 
 This is not a perfect validation method. I want to be honest about that. Back-translation catches semantic errors but misses cultural connotation, humor register, and regional idiom. The honest acknowledgment: **this was a calculated acceptance of imperfect validation in exchange for global reach that would otherwise have been impossible.**
 
-The **Locale String MCP** that emerged from this work has two commands:
+The **locale string skills** that emerged from this work are a pair of commands inside the Engineering Agent:
 
 - **`/add-locale-string`** handles new keys. Given any UI string key added in English, it:
   - Generates translations across all 17 supported locales via a single OpenRouter API call, using a cheap multilingual model at fractions of a cent per run
@@ -101,15 +101,15 @@ The **Locale String MCP** that emerged from this work has two commands:
 
 What had been a multi-week project at a well-funded startup became a pipeline that ran in minutes, and changing a single word across 17 languages became a one-liner.
 
-*The product could now be built in any language. The question became: could the business survive long enough to need that capability? That question sent me to the Finance Department.*
+*The product could now be built, in any language, by a Mixture-of-Experts routing layer. What did not yet exist was any structured proof that the resulting code did what it was supposed to do. Code without tests is just hope written in TypeScript. In Part 5, we hand the engineering output to the only department whose job is to assume nothing: Quality Assurance.*
 
 ---
 
 ---
 
-## Part 5: The Finance Department. Engineering "Mana"
+## Part 6: The Finance Department. Engineering "Mana"
 
-The Engineering Department had produced a working product: a native Android app that could generate mini-apps from text descriptions, run them locally, and bridge to device capabilities through a custom WebView. It was technically impressive. Whether it was financially viable was a completely separate question, one that I had been deliberately deferring until I had a real product to price.
+Engineering had produced a working product. QA had produced the proof: a native Android app that could generate mini-apps from text descriptions, run them locally, bridge to device capabilities through a custom WebView, and survive an automated regression suite every time the code changed. It was technically impressive. *Mechanically*, it worked. Whether it was financially viable was a completely separate question, one that I had been deliberately deferring until I had a real product to price.
 
 There is a scene in the HBO series *Silicon Valley* where the founder of Pied Piper realizes, after building a technically magnificent product, that he has no idea whether his business model actually works. He had optimized for compression ratios. He had not optimized for revenue.
 
@@ -194,13 +194,13 @@ Its **MCPs** included:
 
 The Finance Agent meant that pricing decisions (which in a traditional startup would require a CFO, a financial analyst, and a board conversation) could be simulated and evaluated in minutes, with Appacadabra-specific data already loaded.
 
-*The economics were sound. But even an app with a privacy-first, local-first architecture, as Appacadabra deliberately is, cannot exist in a legal vacuum. In Part 6, we encounter the most intimidating department to outsource to a machine: Legal.*
+*The economics were sound. But even an app with a privacy-first, local-first architecture, as Appacadabra deliberately is, cannot exist in a legal vacuum. In Part 7, we encounter the most intimidating department to outsource to a machine: Legal.*
 
 ---
 
 ---
 
-## Part 6: The Legal Department. Navigating Compliance with Claude Opus
+## Part 7: The Legal Department. Navigating Compliance with Claude Opus
 
 The financial model was sound. The Mana system had passed every scenario the model could generate. The product worked, had a price, and had been built for scale. What it didn't yet have was a legal foundation, and an app without one is a single Play Store policy review away from disappearing entirely.
 
@@ -298,4 +298,4 @@ Customer Service, Sales, PR, Investor Relations, HR, Accounting: none of these d
 
 The agent-and-plugin architecture means that when these departments do become necessary (when the first user emails with a support question, when the first partnership opportunity emerges) I will build the agent for that department the same way I built the others: starting with the specific context of Appacadabra, encoding the first manual interactions as skills, and formalizing them as MCPs. The pattern scales.
 
-*With strategy, design, UX, engineering, finance, and legal in place, Appacadabra existed: on paper, in code, and in compliance. But a company that exists only in code is not a company. It's a repository. In Part 7, we turn to making the company legible: Data Analytics and DevOps.*
+*With strategy, design, UX, engineering, QA, finance, and legal in place, Appacadabra existed: on paper, in code, validated, financed, and in compliance. But a company that exists only in code is not a company. It's a repository. In Part 8, we turn to making the company legible: Data Analytics and DevOps.*

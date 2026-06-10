@@ -20,7 +20,7 @@ The constraint that shaped everything: **four months of nights and weekends**, w
 
 Can a solo founder, working with AI as their staff, build a company (not just a product, but a company, with all the departments a real business requires) in four months?
 
-I wanted to know if AI could serve as a Strategy Advisor who could run competitive analysis and stress-test positioning. A Branding Studio that could produce professional visual identity. A UX Department that could prototype every screen before a line of native code was written. An Engineering Team that could navigate a genuinely complex polyglot stack and manage localization across 17 languages. A Finance Department that could model unit economics and design a sustainable pricing system. A Legal Counsel that could draft privacy policies grounded in the actual architecture. A Data Analyst who could interpret live Firebase metrics. A Release Manager who could navigate the Play Store compliance maze. A Marketing Department that could create and distribute content across X and LinkedIn. An International Strategist who could map cultural and regulatory entry requirements for 10 markets. And a QA Team that could automate the validation of an AI-generated product.
+I wanted to know if AI could serve as a Strategy Advisor who could run competitive analysis and stress-test positioning. A Branding Studio that could produce professional visual identity. A UX Department that could prototype every screen before a line of native code was written. An Engineering Team that could navigate a genuinely complex polyglot stack and manage localization across 17 languages. A QA Team that could automate the validation of an AI-generated product. A Finance Department that could model unit economics and design a sustainable pricing system. A Legal Counsel that could draft privacy policies grounded in the actual architecture. A Data Analyst who could interpret live Firebase metrics. A Release Manager who could navigate the Play Store compliance maze. A Marketing Department that could create and distribute content across X and LinkedIn. And an International Strategist who could map cultural and regulatory entry requirements for 10 markets.
 
 The answer: yes. But not in the way the hype suggests.
 
@@ -61,7 +61,7 @@ One warning before you dive in, because every genuinely powerful technology earn
 
 ### How to Read This Series
 
-Each of the eleven articles that follow covers one department. They are designed to be read in sequence, because each department was built in sequence, and each one depends on decisions made in the ones before it. The strategic decisions in Part 1 constrain the branding decisions in Part 2. The financial model in Part 5 shapes what Engineering in Part 4 actually builds. The legal groundwork in Part 6 informs the release strategy in Part 8. The marketing content in Part 9 feeds the international expansion in Part 10.
+Each of the eleven articles that follow covers one department. They are designed to be read in sequence, because each department was built in sequence, and each one depends on decisions made in the ones before it. The strategic decisions in Part 1 constrain the branding decisions in Part 2. The QA harness in Part 5 keeps the Engineering output in Part 4 honest. The financial model in Part 6 shapes what Engineering actually builds. The legal groundwork in Part 7 informs the release strategy in Part 9. The marketing content in Part 10 feeds the international expansion in Part 11.
 
 But if you have a specific domain you care about, here is the map:
 
@@ -71,13 +71,13 @@ But if you have a specific domain you care about, here is the map:
 **Part 2: Branding** - AI gives you options. Taste gives you answers.
 **Part 3: UX/Product** - Prototyping a mobile app in a browser before writing a single line of native code.
 **Part 4: Engineering & Localization** - Three AI models, one stack. Why routing matters more than prompting.
-**Part 5: Finance** - The math that has to work before a single user pays.
-**Part 6: Legal** - Building a Privacy Policy you actually understand.
-**Part 7: Analytics & DevOps** - Where AI breaks entirely. The honest chapter.
-**Part 8: Release Management** - 47 configuration areas that have nothing to do with engineering.
-**Part 9: Marketing** - The meta-insight: this series itself is the marketing strategy.
-**Part 10: International Strategy** - Why distribution in India runs through YouTube, not app store search.
-**Part 11: QA** - How do you validate a system that generates different output every time?
+**Part 5: QA** - How do you validate a system that generates different output every time?
+**Part 6: Finance** - The math that has to work before a single user pays.
+**Part 7: Legal** - Building a Privacy Policy you actually understand.
+**Part 8: Analytics & DevOps** - Where AI breaks entirely. The honest chapter.
+**Part 9: Release Management** - 47 configuration areas that have nothing to do with engineering.
+**Part 10: Marketing** - The meta-insight: this series itself is the marketing strategy.
+**Part 11: International Strategy** - Why distribution in India runs through YouTube, not app store search.
 
 ---
 
