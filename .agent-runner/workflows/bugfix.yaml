@@ -1,0 +1,36 @@
+name: bugfix
+description: "Engineering Agent (fix) -> QA Agent (regression test) -> npm test (deterministic re-run)"
+
+params:
+  - name: bug_summary
+    required: true
+
+steps:
+  - id: fix
+    agent: eng_role
+    session: new
+    prompt: |
+      Invoke the Engineering Agent (Agent tool, subagent_type="Engineering Agent")
+      to fix:
+
+      {{bug_summary}}
+
+      Constrain the change to the bug surface: no refactors, no incidental
+      cleanup, no surrounding modernization. Follow CLAUDE.md invariants.
+
+  - id: qa-regression
+    agent: qa_role
+    session: new
+    prompt: |
+      Invoke the QA Agent (Agent tool, subagent_type="QA Agent") to add a
+      regression test for:
+
+      {{bug_summary}}
+
+      Use the /gen-tests skill if the bug surface is unit-level. Run
+      `npm test` once and confirm both the new regression test and the
+      existing suite pass.
+
+  - id: jest-rerun
+    command: npm test -- --passWithNoTests
+    capture: jest_output

@@ -1,0 +1,61 @@
+name: feature
+description: "UX Agent (design) -> Engineering Agent (implement) -> QA Agent (validate + generate tests) -> npm test -> Maestro E2E"
+
+params:
+  - name: feature_name
+    required: true
+  - name: description
+    required: true
+
+steps:
+  - id: ux-design
+    agent: ux_role
+    session: new
+    prompt: |
+      Invoke the UX Agent (Agent tool, subagent_type="UX Agent") to design the
+      screen and flow for: {{feature_name}}.
+
+      Brief from the founder:
+      {{description}}
+
+      The UX Agent should consider Appacadabra's brand identity (the
+      magic/spell metaphor) and how this feature fits the existing Expo
+      Router navigation. Produce a screen spec plus an HTML scaffold and
+      write the result to docs/specs/{{feature_name}}.md (create the
+      directory if needed).
+
+  - id: implement
+    agent: eng_role
+    session: new
+    prompt: |
+      Invoke the Engineering Agent (Agent tool, subagent_type="Engineering Agent")
+      to implement {{feature_name}} per the UX spec at
+      docs/specs/{{feature_name}}.md.
+
+      Follow CLAUDE.md architecture invariants (mana guard, db.incrementManaCost
+      rules, Zustand store patterns). Add i18n strings via the /add-locale-string
+      skill for all 17 locales.
+
+  - id: qa-validate
+    agent: qa_role
+    session: new
+    prompt: |
+      Invoke the QA Agent (Agent tool, subagent_type="QA Agent") to:
+        1. Generate Jest tests via /gen-tests for any new functions in
+           {{feature_name}}.
+        2. Generate a Maestro E2E flow via /gen-e2e-tests for the user
+           journey introduced by {{feature_name}}.
+        3. Run `npm test` and `npm run test:e2e` once and report
+           pass/fail per suite.
+
+      If failures, suggest minimal fixes but do not apply them: surface to
+      the founder so the deterministic re-run steps below can confirm the
+      suite stays green without an agent in the loop.
+
+  - id: jest-rerun
+    command: npm test -- --passWithNoTests
+    capture: jest_output
+
+  - id: maestro-rerun
+    command: npm run test:e2e
+    capture: maestro_output
