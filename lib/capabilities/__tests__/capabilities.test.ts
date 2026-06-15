@@ -89,6 +89,28 @@ jest.mock('react-native-health-connect', () => ({
     SdkAvailabilityStatus: { SDK_AVAILABLE: 3 },
 }));
 
+jest.mock('react-native-health', () => ({
+    __esModule: true,
+    default: {
+        Constants: {
+            Permissions: {
+                StepCount: 'StepCount',
+                HeartRate: 'HeartRate',
+                SleepAnalysis: 'SleepAnalysis',
+                ActiveEnergyBurned: 'ActiveEnergyBurned',
+                Workout: 'Workout',
+            },
+        },
+        initHealthKit: jest.fn((_perms: any, cb: (err: string | null) => void) => cb(null as any)),
+        getStepCount: jest.fn((_opts: any, cb: (err: string | null, result: { value: number }) => void) => cb(null as any, { value: 0 })),
+        getDailyStepCountSamples: jest.fn((_opts: any, cb: (err: string | null, results: any[]) => void) => cb(null as any, [])),
+        getHeartRateSamples: jest.fn((_opts: any, cb: (err: string | null, results: any[]) => void) => cb(null as any, [])),
+        getSamples: jest.fn((_opts: any, cb: (err: string | null, results: any[]) => void) => cb(null as any, [])),
+        getSleepSamples: jest.fn((_opts: any, cb: (err: string | null, results: any[]) => void) => cb(null as any, [])),
+        getActiveEnergyBurned: jest.fn((_opts: any, cb: (err: string | null, results: any[]) => void) => cb(null as any, [])),
+    },
+}));
+
 
 jest.mock('expo-linking', () => ({
     openURL: jest.fn(() => Promise.resolve()),
@@ -473,7 +495,10 @@ describeCapability('health')('handleMessage — health', () => {
 
     it('HEALTH_INITIALIZE: returns success without native calls', async () => {
         const result = await cap.handleMessage('HEALTH_INITIALIZE', {}, ctx);
-        expect(result).toMatchObject({ success: true, result: 'Health Connect initialized' });
+        // Platform-tolerant: Android variant returns 'Health Connect initialized',
+        // iOS variant returns 'HealthKit initialized'. Both are valid.
+        expect(result).toMatchObject({ success: true });
+        expect(result?.result).toMatch(/initialized/);
     });
 
     it('HEALTH_GET_STEPS: returns step data when SDK is available', async () => {

@@ -138,6 +138,57 @@ describe('codeValidator', () => {
             expect(result.errors.some(e => e.type === 'css' && e.message.includes('braces'))).toBe(true);
         });
 
+        it('regression: detects unclosed <style> tag (spell j6P8qyl7aBskj8SJhT2a "Fábrica de Sonhos" shipped as a blank page)', () => {
+            // The published HTML for spell j6P8qyl7aBskj8SJhT2a had an opening <style>
+            // with no matching </style> before </head>. Browsers parsed the entire body
+            // as CSS text, so the store iframe and the in-app WebView rendered white.
+            // validateHtmlStructure must flag mismatched <style> open/close counts so the
+            // auto-fix loop can repair the document before publish.
+            const htmlUnclosedStyle = `
+        <html>
+        <head>
+          <style>
+            body { margin: 0; background: #fff; }
+        </head>
+        <body>
+          <div>Hello</div>
+          <script>console.log('hi');</script>
+        </body>
+        </html>
+      `;
+
+            const result = validateGeneratedCode(htmlUnclosedStyle);
+
+            expect(result.valid).toBe(false);
+            expect(
+                result.errors.some(
+                    e => e.type === 'html' && /unclosed\s+<style>/i.test(e.message)
+                )
+            ).toBe(true);
+        });
+
+        it('does not flag a properly balanced <style> tag', () => {
+            const htmlBalancedStyle = `
+        <html>
+        <head>
+          <style>body { margin: 0; }</style>
+        </head>
+        <body>
+          <div>Hi</div>
+          <script>console.log('hi');</script>
+        </body>
+        </html>
+      `;
+
+            const result = validateGeneratedCode(htmlBalancedStyle);
+
+            expect(
+                result.errors.some(
+                    e => e.type === 'html' && /unclosed\s+<style>/i.test(e.message)
+                )
+            ).toBe(false);
+        });
+
         it('should detect inline callbacks in Appacadabra API calls', () => {
             const htmlBadCallback = `
         <html>

@@ -61,4 +61,22 @@ describe('ensureViewportMeta', () => {
         const result = ensureViewportMeta('');
         expect(result).toContain('viewport');
     });
+
+    it('regression: inserts viewport after uppercase <HEAD> tag (case-insensitive)', () => {
+        // Regression guard: the head-insertion path uses a case-insensitive regex,
+        // so uppercase or mixed-case <HEAD> must still be detected and have the
+        // viewport injected right after it (not fall through to the body/prepend branch).
+        const html = '<html><HEAD><title>App</title></HEAD><body><p>Hi</p></body></html>';
+        const result = ensureViewportMeta(html);
+        expect(result).toContain('width=device-width');
+        expect(result).toContain('<HEAD>');
+        // Viewport must appear after <HEAD>, before <title>
+        const headIdx = result.indexOf('<HEAD>');
+        const viewportIdx = result.indexOf('width=device-width');
+        const titleIdx = result.indexOf('<title>');
+        expect(headIdx).toBeLessThan(viewportIdx);
+        expect(viewportIdx).toBeLessThan(titleIdx);
+        // Should not have prepended at document start
+        expect(result.startsWith('<meta')).toBe(false);
+    });
 });

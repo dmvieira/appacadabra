@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "codagent": {
+      "source": {
+        "source": "github",
+        "repo": "Codagent-AI/agent-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "codagent@codagent": true
+  }
+}

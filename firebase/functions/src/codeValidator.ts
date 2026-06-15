@@ -53,6 +53,15 @@ function validateHtmlStructure(html: string): ValidationError[] {
             fixable: true
         });
     }
+    const styleOpenCount = (html.match(/<style\b/gi) || []).length;
+    const styleCloseCount = (html.match(/<\/style>/gi) || []).length;
+    if (styleOpenCount > styleCloseCount) {
+        errors.push({
+            type: 'html',
+            message: `Unclosed <style> tag — body content will render as CSS text (${styleOpenCount} open, ${styleCloseCount} closed)`,
+            fixable: true
+        });
+    }
 
     // Check for script tags
     if (!html.includes('<script')) {

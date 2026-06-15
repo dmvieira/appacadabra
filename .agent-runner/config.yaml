@@ -1,25 +1,37 @@
 active_profile: appacadabra
-
 profiles:
-  appacadabra:
-    extends: default
-    agents:
-      # Three profiles, one per department in the feature/bugfix workflows.
-      # All run autonomous because the Windows build of agent-runner stubs
-      # interactive mode. Subagent selection happens inside the prompt via
-      # the Agent tool's subagent_type parameter, not here.
-      ux_role:
-        default_mode: autonomous
-        cli: claude
-        model: opus
-        effort: high
-      eng_role:
-        default_mode: autonomous
-        cli: claude
-        model: opus
-        effort: high
-      qa_role:
-        default_mode: autonomous
-        cli: claude
-        model: opus
-        effort: high
+    appacadabra:
+        extends: default
+        agents:
+            # Three profiles, one per department in the feature/bugfix workflows.
+
+            # All run autonomous because the Windows build of agent-runner stubs
+
+            # interactive mode. Subagent selection happens inside the prompt via
+
+            # the Agent tool's subagent_type parameter, not here.
+            ux_role:
+                default_mode: autonomous
+                cli: claude
+                model: opus
+                effort: high
+            eng_role:
+                default_mode: autonomous
+                cli: claude
+                model: opus
+                effort: high
+            qa_role:
+                default_mode: autonomous
+                cli: claude
+                model: opus
+                effort: high
+    default:
+        agents:
+            planner:
+                default_mode: interactive
+                cli: claude
+                model: opus
+            implementor:
+                default_mode: autonomous
+                cli: claude
+                model: opus

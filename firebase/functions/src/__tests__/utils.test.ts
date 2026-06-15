@@ -8,6 +8,7 @@ import {
     computeManaCost,
     getUsage,
     sanitizeForFirestore,
+    sanitizeSpellHtml,
     withRetry,
     Patch,
 } from '../utils';
@@ -604,5 +605,39 @@ describe('calculateCostUsd — OpenRouter models', () => {
 
     it('returns 0 for unknown model ID', () => {
         expect(calculateCostUsd('unknown/model', usage)).toBe(0);
+    });
+});
+
+// ============= sanitizeSpellHtml =============
+
+describe('sanitizeSpellHtml', () => {
+    it('flags unclosed <style> tag (regression: spell j6P8qyl7aBskj8SJhT2a rendered as blank page)', () => {
+        const html = '<html><head><style>body{background:#fff;}</head><body><h1>hi</h1></body></html>';
+        const { violations } = sanitizeSpellHtml(html);
+        expect(violations.some(v => v.includes('unclosed <style>'))).toBe(true);
+    });
+
+    it('does not flag a properly closed <style> tag', () => {
+        const html = '<html><head><style>body{background:#fff;}</style></head><body><h1>hi</h1></body></html>';
+        const { violations } = sanitizeSpellHtml(html);
+        expect(violations.some(v => v.includes('unclosed <style>'))).toBe(false);
+    });
+
+    it('flags unclosed <script> tag', () => {
+        const html = '<html><head></head><body><script>console.log(1);</body></html>';
+        const { violations } = sanitizeSpellHtml(html);
+        expect(violations.some(v => v.includes('unclosed <script>'))).toBe(true);
+    });
+
+    it('does not flag a properly closed <script> tag', () => {
+        const html = '<html><head></head><body><script>console.log(1);</script></body></html>';
+        const { violations } = sanitizeSpellHtml(html);
+        expect(violations.some(v => v.includes('unclosed <script>'))).toBe(false);
+    });
+
+    it('does not flag CDN <script src=> tags (open+close pair, both counted)', () => {
+        const html = '<html><head><script src="https://cdn.tailwindcss.com"></script></head><body></body></html>';
+        const { violations } = sanitizeSpellHtml(html);
+        expect(violations.some(v => v.includes('unclosed <script>'))).toBe(false);
     });
 });

@@ -627,6 +627,20 @@ export function sanitizeSpellHtml(html: string): { html: string; violations: str
         violations.push('file:// URL reference');
     }
 
+    // Unclosed <style> swallows the rest of the document as CSS text → page renders white.
+    // Caught a real production bug (spell j6P8qyl7aBskj8SJhT2a "Fábrica de Sonhos") where the
+    // edit pipeline dropped </style> and the spell shipped to the store as a blank page.
+    const styleOpenCount = (sanitized.match(/<style\b/gi) || []).length;
+    const styleCloseCount = (sanitized.match(/<\/style\s*>/gi) || []).length;
+    if (styleOpenCount > styleCloseCount) {
+        violations.push(`unclosed <style> tag (${styleOpenCount} open, ${styleCloseCount} closed)`);
+    }
+    const scriptOpenCount = (sanitized.match(/<script\b(?![^>]*\/>)/gi) || []).length;
+    const scriptCloseCount = (sanitized.match(/<\/script\s*>/gi) || []).length;
+    if (scriptOpenCount > scriptCloseCount) {
+        violations.push(`unclosed <script> tag (${scriptOpenCount} open, ${scriptCloseCount} closed)`);
+    }
+
     const dataImageRegex = /data:image\/[a-zA-Z+]+;base64,[A-Za-z0-9+/=]+/g;
     let m: RegExpExecArray | null;
     while ((m = dataImageRegex.exec(sanitized)) !== null) {
