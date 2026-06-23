@@ -1,12 +1,8 @@
 {
-  "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-2256826632523784~6570613208",
-    "ios_app_id": "ca-app-pub-2256826632523784~6570613208"
-  },
   "expo": {
     "name": "Appacadabra",
     "slug": "appacadabra",
-    "version": "2.0.15",
+    "version": "3.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -169,13 +165,6 @@
         {
           "NSHealthShareUsageDescription": "O app precisa aceder aos dados de saúde para apps gerados que monitorizam atividade.",
           "NSHealthUpdateUsageDescription": "O app pode atualizar dados de saúde para apps gerados."
-        }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-2256826632523784~6570613208",
-          "iosAppId": "ca-app-pub-2256826632523784~6570613208"
         }
       ],
       "./plugins/withAppacadabraNative",

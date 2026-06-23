@@ -1,7 +1,9 @@
-# Racional de Precificação — Mana (appacadabra)
+# Racional de Precificação — Mana (appacadabra) — HISTÓRICO
 
-Última atualização: 2026-03-05
-Versão implementada: 1.1.0
+> **⚠️ OBSOLETO (3.0.0):** Este documento descreve o modelo Mana/IAP que foi removido na refactor 3.0.0. Appacadabra é agora gratuito; usuários pagam OpenRouter diretamente via BYOK. Mantido apenas como referência histórica para análise de dados pré-3.0.0. Para precificação atual veja `lib/api/pricing.ts` e o modal de cost-estimate.
+
+Última atualização: 2026-03-05 (obsoleto desde 3.0.0)
+Versão implementada: 1.1.0 (substituída na 3.0.0)
 
 ---
 
@@ -57,8 +59,6 @@ Em BRL (× R$5,85):        R$0,90/mana mínimo
 > Pro ainda perde ~$0,005 no edit médio — aceitável porque a maioria dos usos são
 > creates e webview_ai (mais baratos). Para cobrir edits no Pro 100%: precisaria R$109,90.
 
-**Constante de referência adotada:** `MANA_VALUE_USD = 0.060`
-(1 mana ≡ $0,060 de AI compute, baseado no mana_50 — ponto de equilíbrio do negócio)
 
 ---
 
@@ -161,7 +161,7 @@ Os divisores eram derivados de $0,030/mana (budget antigo), não de $0,060.
 
 ```typescript
 const ttsCostUsd = calculateCostUsd('gemini-2.5-flash-preview-tts', usage);
-creditsUsed = ttsCostUsd / MANA_VALUE_USD;
+// historical: creditsUsed = ttsCostUsd / 0.060
 ```
 
 ### Exemplo: 200 input + 5.000 output tokens

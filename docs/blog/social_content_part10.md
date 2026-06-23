@@ -29,7 +29,7 @@
 ---
 
 **Tweet 3**
-> My solution: Google Conductor framework + Maestro.
+> My solution: Maestro.
 >
 > Industry leaders are shifting toward declarative, cross-platform testing.
 > This stack was the perfect fit for an AI workflow.
@@ -111,7 +111,7 @@ A maioria das abordagens de QA com IA quebra exatamente aqui.
 
 ---
 
-Minha solução: **Google Conductor + Maestro**.
+Minha solução: **Maestro**.
 
 Os líderes da indústria estão migrando para testes declarativos e cross-platform — e esse stack foi o fit perfeito para um fluxo de trabalho com IA.
 

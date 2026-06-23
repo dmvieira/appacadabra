@@ -28,9 +28,18 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       currentVersion INTEGER NOT NULL DEFAULT 1,
       iconPath TEXT,
       lastUpdated INTEGER NOT NULL,
+      createdAt INTEGER NOT NULL DEFAULT 0,
       consoleLogs TEXT NOT NULL DEFAULT '',
-      totalManaCost REAL NOT NULL DEFAULT 0,
-      shortDescription TEXT
+      totalSpendUsd REAL NOT NULL DEFAULT 0,
+      jobId TEXT,
+      requiresBiometric INTEGER NOT NULL DEFAULT 0,
+      shortDescription TEXT,
+      sortOrder INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL DEFAULT 'local',
+      storeSpellId TEXT,
+      storeSpellSlug TEXT,
+      forkOfStoreSpellId TEXT,
+      storeVisibility TEXT
     );
 
     CREATE TABLE IF NOT EXISTS app_versions (
@@ -41,6 +50,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       instruction TEXT,
       selectedContext TEXT,
       createdAt INTEGER NOT NULL,
+      jobId TEXT,
       FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
     );
 
@@ -56,30 +66,22 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_app_storage_appId_key ON app_storage(appId, key);
 
-    CREATE TABLE IF NOT EXISTS mana_events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      appId INTEGER NOT NULL,
-      amount REAL NOT NULL,
-      timestamp INTEGER NOT NULL,
-      FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
-    );
-
     CREATE TABLE IF NOT EXISTS dismissed_uris (
       uri_key TEXT PRIMARY KEY NOT NULL,
       timestamp INTEGER NOT NULL
     );
 
-    CREATE INDEX IF NOT EXISTS idx_mana_events_appId_ts ON mana_events(appId, timestamp);
-
     CREATE TABLE IF NOT EXISTS webview_ai_cache (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       appId INTEGER NOT NULL,
+      jobId TEXT,
       callbackName TEXT NOT NULL,
       action TEXT NOT NULL,
       requestData TEXT,
       result TEXT NOT NULL,
       mediaLocalPath TEXT,
-      creditsUsed REAL NOT NULL DEFAULT 0,
+      resultMediaMime TEXT,
+      costUsd REAL NOT NULL DEFAULT 0,
       success INTEGER NOT NULL DEFAULT 1,
       delivered INTEGER NOT NULL DEFAULT 0,
       createdAt INTEGER NOT NULL,
@@ -94,7 +96,8 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS deleted_app_names (
       name TEXT PRIMARY KEY NOT NULL,
-      deletedAt INTEGER NOT NULL
+      deletedAt INTEGER NOT NULL,
+      snapshot_json TEXT
     );
 
     CREATE TABLE IF NOT EXISTS app_alarms (
@@ -113,107 +116,13 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       storeSpellId TEXT PRIMARY KEY NOT NULL,
       deletedAt INTEGER NOT NULL
     );
-  `);
 
-    // Helper to safely add column if missing
-    const addColumn = async (table: string, column: string, definition: string) => {
-        try {
-            const columns = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
-            if (!columns.some(c => c.name === column)) {
-                await database.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-                console.log(`[DB] Added column ${table}.${column}`);
-            }
-        } catch (e) {
-            console.log(`[DB] Migration error (${table}.${column}):`, e);
-        }
-    };
-
-    await addColumn('generated_apps', 'totalManaCost', 'REAL NOT NULL DEFAULT 0');
-    await addColumn('generated_apps', 'jobId', 'TEXT');
-    await addColumn('deleted_app_names', 'snapshot_json', 'TEXT');
-    await addColumn('generated_apps', 'requiresBiometric', 'INTEGER NOT NULL DEFAULT 0');
-    await addColumn('generated_apps', 'shortDescription', 'TEXT');
-    await addColumn('generated_apps', 'createdAt', 'INTEGER NOT NULL DEFAULT 0');
-    await addColumn('generated_apps', 'sortOrder', 'INTEGER NOT NULL DEFAULT 0');
-    await addColumn('app_versions', 'jobId', 'TEXT');
-
-    // mana_events: token breakdown for cost calibration
-    await addColumn('mana_events', 'eventType', 'TEXT');
-    await addColumn('mana_events', 'promptTokens', 'INTEGER');
-    await addColumn('mana_events', 'responseTokens', 'INTEGER');
-    await addColumn('mana_events', 'thoughtsTokens', 'INTEGER');
-    await addColumn('mana_events', 'cachedTokens', 'INTEGER');
-    await addColumn('mana_events', 'totalTokens', 'INTEGER');
-    await addColumn('mana_events', 'modelId', 'TEXT');
-    await addColumn('mana_events', 'versionNumber', 'INTEGER');
-
-    // webview_ai_cache: new columns for job tracking and recovery
-    await addColumn('webview_ai_cache', 'jobId', 'TEXT');
-    await addColumn('webview_ai_cache', 'resultMediaMime', 'TEXT');
-
-    // Spell Store: link local spells to their published Firestore counterparts
-    await addColumn('generated_apps', 'storeSpellId', 'TEXT');
-    await addColumn('generated_apps', 'storeSpellSlug', 'TEXT');
-    await addColumn('generated_apps', 'source', "TEXT NOT NULL DEFAULT 'local'");
-    await addColumn('generated_apps', 'forkOfStoreSpellId', 'TEXT');
-    await addColumn('generated_apps', 'storeVisibility', 'TEXT');
-
-    // Drop the unique index on (appId, callbackName) so repeated AI calls accumulate as history
-    try {
-        await database.execAsync(`DROP INDEX IF EXISTS idx_wac_appId_callbackName;`);
-    } catch (e) {
-        console.log('[DB] Migration error (drop webview_ai_cache unique index):', e);
-    }
-
-    await database.execAsync(`
     CREATE TABLE IF NOT EXISTS processed_jobs (
       jobId TEXT PRIMARY KEY NOT NULL,
       action TEXT,
       timestamp INTEGER NOT NULL
     );
   `);
-
-    // Migration: Backfill processed_jobs
-    try {
-        await database.execAsync(`
-      INSERT OR IGNORE INTO processed_jobs (jobId, action, timestamp)
-      SELECT jobId, 'create', lastUpdated FROM generated_apps WHERE jobId IS NOT NULL;
-      INSERT OR IGNORE INTO processed_jobs (jobId, action, timestamp)
-      SELECT jobId, 'edit', createdAt FROM app_versions WHERE jobId IS NOT NULL;
-
-      -- Backfill shortDescription for existing apps from their first version instruction
-      UPDATE generated_apps 
-      SET shortDescription = (
-        SELECT instruction 
-        FROM app_versions 
-        WHERE appId = generated_apps.id 
-        ORDER BY version ASC 
-        LIMIT 1
-      ) 
-      WHERE shortDescription IS NULL;
-
-      -- Backfill createdAt from the earliest version; fall back to lastUpdated
-      UPDATE generated_apps
-      SET createdAt = COALESCE(
-        (SELECT MIN(createdAt) FROM app_versions WHERE appId = generated_apps.id),
-        lastUpdated
-      )
-      WHERE createdAt = 0;
-
-      -- Backfill sortOrder for apps that still have default 0
-      -- Assign sequential order based on lastUpdated DESC (preserves current visual order)
-
-      -- Backfill mana_events for existing spells that have totalManaCost but no events yet.
-      -- Uses createdAt as timestamp so the windowed query picks it up correctly.
-      INSERT OR IGNORE INTO mana_events (appId, amount, timestamp)
-      SELECT id, totalManaCost, COALESCE(createdAt, lastUpdated)
-      FROM generated_apps
-      WHERE totalManaCost > 0
-        AND id NOT IN (SELECT DISTINCT appId FROM mana_events);
-    `);
-    } catch (e) {
-        // Ignore backfill errors
-    }
 
     // Clean up tombstones older than 90 days
     try {
@@ -229,20 +138,9 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
 export async function getAllApps(): Promise<GeneratedApp[]> {
     const database = await getDatabase();
-    // Compute recentManaCost: sum of mana_events in the window [max(createdAt, now-30d), now]
-    // This respects the spell's age — new spells show since creation, old ones show last 30 days.
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     return database.getAllAsync<GeneratedApp>(
-        `SELECT g.*,
-           COALESCE((
-             SELECT SUM(me.amount)
-             FROM mana_events me
-             WHERE me.appId = g.id
-               AND me.timestamp >= MAX(g.createdAt, ?)
-           ), 0) AS recentManaCost
-         FROM generated_apps g
-         ORDER BY CASE WHEN g.sortOrder = 0 THEN 0 ELSE 1 END, g.sortOrder ASC, g.lastUpdated DESC`,
-        [thirtyDaysAgo]
+        `SELECT * FROM generated_apps
+         ORDER BY CASE WHEN sortOrder = 0 THEN 0 ELSE 1 END, sortOrder ASC, lastUpdated DESC`
     );
 }
 
@@ -290,7 +188,7 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         Number(app.lastUpdated ?? now),
         Number(app.createdAt ?? now),
         String(app.consoleLogs ?? ''),
-        Number(app.totalManaCost ?? 0),
+        Number(app.totalSpendUsd ?? 0),
         app.jobId ? String(app.jobId) : "", // Empty string instead of null to test NPE fix
         app.requiresBiometric ? 1 : 0,
         String(app.shortDescription ?? ''),
@@ -302,62 +200,18 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         app.storeVisibility ?? null,
     ];
 
-    console.log('[DB] Inserting App. Bindings:', JSON.stringify(bindings));
-
-    try {
-        const result = await database.runAsync(
-            `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, forkOfStoreSpellId, storeVisibility)
+    const result = await database.runAsync(
+        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalSpendUsd, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, forkOfStoreSpellId, storeVisibility)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            bindings as any[]
-        );
-        return result.lastInsertRowId;
-    } catch (e) {
-        console.error('[DB] Insert App Failed (Primary). Attempting Fallback...', e);
-
-        // Fallback: Try inserting without jobId (in case migration failed)
-        try {
-            const fallbackBindings = [
-                String(app.name ?? 'Untitled'),
-                String(app.code ?? ''),
-                Number(app.currentVersion ?? 1),
-                app.iconPath ? String(app.iconPath) : "",
-                Number(app.lastUpdated ?? now),
-                Number(app.createdAt ?? now),
-                String(app.consoleLogs ?? ''),
-                Number(app.totalManaCost ?? 0),
-                app.requiresBiometric ? 1 : 0,
-                String(app.shortDescription ?? '')
-            ];
-
-            const result = await database.runAsync(
-                `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalManaCost, requiresBiometric, shortDescription)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                fallbackBindings as any[]
-            );
-            console.log('[DB] Fallback Insert Success!');
-            const newId = result.lastInsertRowId;
-            // Best-effort: apply store fields via UPDATE in case the columns exist
-            // (they may not if the migration that added them also failed)
-            if (app.storeSpellId || (app.source && app.source !== 'local') || app.forkOfStoreSpellId) {
-                try {
-                    await updateAppStoreLink(newId, app.storeSpellId ?? null, app.storeSpellSlug ?? null, app.storeVisibility ?? null);
-                    await updateAppSource(newId, app.source ?? 'local', app.forkOfStoreSpellId ?? null);
-                } catch (storeFieldsError) {
-                    console.warn('[DB] Fallback: store fields UPDATE skipped (columns may not exist):', storeFieldsError);
-                }
-            }
-            return newId;
-        } catch (fallbackError) {
-            console.error('[DB] Fallback Insert Also Failed:', fallbackError);
-            throw e; // Throw original error
-        }
-    }
+        bindings as any[]
+    );
+    return result.lastInsertRowId;
 }
 
 export async function updateApp(app: GeneratedApp): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalManaCost = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?, sortOrder = ?
+        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalSpendUsd = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?, sortOrder = ?
      WHERE id = ?`,
         [
             app.name ?? 'Untitled',
@@ -366,7 +220,7 @@ export async function updateApp(app: GeneratedApp): Promise<void> {
             app.iconPath ?? "",
             app.lastUpdated ?? Date.now(),
             app.consoleLogs ?? '',
-            app.totalManaCost ?? 0,
+            app.totalSpendUsd ?? 0,
             app.jobId ?? "",
             app.requiresBiometric ? 1 : 0,
             app.shortDescription ?? '',
@@ -386,15 +240,15 @@ export async function updateAppContent(
     id: number,
     code: string,
     currentVersion: number,
-    totalManaCost: number,
+    totalSpendUsd: number,
     jobId: string
 ): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
         `UPDATE generated_apps
-         SET code = ?, currentVersion = ?, lastUpdated = ?, totalManaCost = ?, jobId = ?
+         SET code = ?, currentVersion = ?, lastUpdated = ?, totalSpendUsd = ?, jobId = ?
          WHERE id = ?`,
-        [code, currentVersion, Date.now(), totalManaCost, jobId, id]
+        [code, currentVersion, Date.now(), totalSpendUsd, jobId, id]
     );
 }
 
@@ -449,50 +303,13 @@ export async function updateSortOrders(updates: { id: number; sortOrder: number 
     }
 }
 
-export interface ManaEventOpts {
-    eventType?: string;
-    promptTokens?: number;
-    responseTokens?: number;
-    thoughtsTokens?: number;
-    cachedTokens?: number;
-    totalTokens?: number;
-    modelId?: string;
-    versionNumber?: number;
-}
-
-export async function incrementManaCost(appId: number, amount: number, opts?: ManaEventOpts): Promise<void> {
+export async function incrementSpendUsd(appId: number, amount: number): Promise<void> {
     if (amount <= 0) return;
     const database = await getDatabase();
-    const now = Date.now();
     await database.runAsync(
-        'UPDATE generated_apps SET totalManaCost = totalManaCost + ? WHERE id = ?',
+        'UPDATE generated_apps SET totalSpendUsd = totalSpendUsd + ? WHERE id = ?',
         [amount, appId]
     );
-    await database.runAsync(
-        `INSERT INTO mana_events (appId, amount, timestamp, eventType, promptTokens, responseTokens, thoughtsTokens, cachedTokens, totalTokens, modelId, versionNumber)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [appId, amount, now,
-         opts?.eventType ?? null,
-         opts?.promptTokens ?? null,
-         opts?.responseTokens ?? null,
-         opts?.thoughtsTokens ?? null,
-         opts?.cachedTokens ?? null,
-         opts?.totalTokens ?? null,
-         opts?.modelId ?? null,
-         opts?.versionNumber ?? null]
-    );
-}
-
-/** Bulk-insert mana events preserving their original timestamps (used by backup restore). */
-export async function insertManaEvents(events: { appId: number; amount: number; timestamp: number }[]): Promise<void> {
-    if (events.length === 0) return;
-    const database = await getDatabase();
-    for (const ev of events) {
-        await database.runAsync(
-            'INSERT INTO mana_events (appId, amount, timestamp) VALUES (?, ?, ?)',
-            [ev.appId, ev.amount, ev.timestamp]
-        );
-    }
 }
 
 // ============= Version Operations =============
@@ -625,16 +442,16 @@ export interface WebviewAiCacheEntry {
 export async function saveWebviewAiCache(entry: {
     appId: number; callbackName: string; action: string;
     requestData?: string; result: string; mediaLocalPath?: string;
-    creditsUsed: number; success: number;
+    costUsd: number; success: number;
 }): Promise<number> {
     const database = await getDatabase();
     const r = await database.runAsync(
         `INSERT INTO webview_ai_cache
-         (appId, callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt)
+         (appId, callbackName, action, requestData, result, mediaLocalPath, costUsd, success, delivered, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
         [entry.appId, entry.callbackName, entry.action,
          entry.requestData ?? null, entry.result,
-         entry.mediaLocalPath ?? null, entry.creditsUsed,
+         entry.mediaLocalPath ?? null, entry.costUsd,
          entry.success, Date.now()]
     );
     return r.lastInsertRowId;
@@ -705,12 +522,12 @@ export async function getWebviewAiMediaPaths(appId: number): Promise<string[]> {
 
 export async function getAllWebviewAiCacheForApp(appId: number): Promise<Array<{
     id: number; callbackName: string; action: string; requestData: string | null;
-    result: string; mediaLocalPath: string | null; creditsUsed: number;
+    result: string; mediaLocalPath: string | null; costUsd: number;
     success: number; delivered: number; createdAt: number;
 }>> {
     const database = await getDatabase();
     return await database.getAllAsync(
-        `SELECT id, callbackName, action, requestData, result, mediaLocalPath, creditsUsed, success, delivered, createdAt
+        `SELECT id, callbackName, action, requestData, result, mediaLocalPath, costUsd, success, delivered, createdAt
          FROM webview_ai_cache WHERE appId = ? ORDER BY createdAt DESC`,
         [appId]
     ) as any[];
@@ -848,7 +665,7 @@ export async function wipeAllData(): Promise<void> {
         DELETE FROM deleted_app_names;
         DELETE FROM deleted_store_spell_tombstones;
     `);
-    // Note: app_versions, app_storage, and mana_events are deleted via CASCADE from generated_apps
+    // Note: app_versions and app_storage are deleted via CASCADE from generated_apps
 }
 
 // ============= Alarm Operations =============

@@ -1,6 +1,8 @@
 Segment Appacadabra users by behavior using Firestore data and analyze cohort patterns.
 
-**Cohort to analyze (e.g., "users who bought mana", "users with > 5 spells", "new users this week"):** $ARGUMENTS
+**Cohort to analyze (e.g., "users who published a spell", "users who learned > 3 spells", "new users this week"):** $ARGUMENTS
+
+> **⚠️ POST-BYOK NOTICE (3.0.0):** Mana-purchase and credit-usage cohorts are no longer queryable for current data — the underlying collections were retired. Only `store_spells` and `learned_spells` accumulate new writes; build live cohorts from those.
 
 ## Available Firestore data for cohort segmentation
 

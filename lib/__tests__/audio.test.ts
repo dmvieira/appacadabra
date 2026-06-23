@@ -3,30 +3,18 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import { HandlerContext } from '../capabilities/types';
 
-// Mock stores
-jest.mock('../manaStore', () => ({
-    useManaStore: {
-        getState: jest.fn(() => ({
-            balance: 100,
-            openShop: jest.fn(),
-        })),
-    },
-}));
-
+// Mock stores — Phase 4 (BYOK) baseline. No mana, no shop.
 jest.mock('../bridgeUIStore', () => ({
     useBridgeUIStore: {
         getState: jest.fn(() => ({
-            requestManaConfirmation: jest.fn(() => Promise.resolve(true)),
+            requestCostEstimate: jest.fn(() => Promise.resolve(true)),
+            requestKeyMissing: jest.fn(() => Promise.resolve('openSettings')),
         })),
     },
 }));
 
-jest.mock('../store', () => ({
-    useAppStore: {
-        getState: jest.fn(() => ({
-            incrementAppManaCost: jest.fn(),
-        })),
-    },
+jest.mock('../api/keyStorage', () => ({
+    hasOpenRouterKey: jest.fn(() => Promise.resolve(true)),
 }));
 
 jest.mock('../database/db', () => ({
@@ -40,8 +28,7 @@ jest.mock('../capabilities/mediaHelpers', () => ({
 }));
 
 jest.mock('../api/ai', () => ({
-    estimateManaCost: jest.fn(() => Promise.resolve({ mana: '0.1 Mana', value: 0.1 })),
-    aiGenerateTTS: jest.fn(() => Promise.resolve({ audioBase64: 'mock-base64', creditsUsed: 0.1 })),
+    aiGenerateTTS: jest.fn(() => Promise.resolve({ audioBase64: 'mock-base64', creditsUsed: 0 })),
 }));
 
 // Helper to create mock context

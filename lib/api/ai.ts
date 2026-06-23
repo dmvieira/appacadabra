@@ -1,7 +1,14 @@
 import { t } from '../i18n';
-import * as firebase from '../firebase';
-import { GenerationResult } from '../firebase';
 import { logAppCreated, logAppEdited, logAiGenerate, logAiGenerateImage } from '../analytics';
+import {
+    generateSpellCreate as byokGenerateSpellCreate,
+    generateSpellEdit as byokGenerateSpellEdit,
+    generateConvert as byokGenerateConvert,
+    generateWebviewAI as byokGenerateWebviewAI,
+} from './generators';
+import * as openrouter from './openrouter';
+import { MODELS } from './pricing';
+import Constants from 'expo-constants';
 
 // ============= CONTENT MODERATION =============
 // Validation disabled as per user request (2026-01-20)
@@ -13,6 +20,10 @@ export interface ContentValidationResult {
 
 export function validateContentRequest(text: string): ContentValidationResult {
     return { allowed: true };
+}
+
+function getAppVersion(): string {
+    return Constants.expoConfig?.version ?? '2.0.15';
 }
 
 // Helper for timeout and retry
@@ -48,52 +59,62 @@ async function withTimeoutAndRetry<T>(
     return runOp();
 }
 
-async function resolveStorageUrlToBase64(urlOrBase64: string): Promise<string> {
-    if (!urlOrBase64 || !urlOrBase64.startsWith('http')) return urlOrBase64;
+// ============= AI FUNCTIONS (BYOK direct via OpenRouter) =============
 
-    console.log('[AI] resolveStorageUrlToBase64: Downloading...', urlOrBase64.substring(0, 100));
-    try {
-        const response = await fetch(urlOrBase64);
-        const blob = await response.blob();
-        return await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64 = (reader.result as string).split(',')[1] || (reader.result as string);
-                resolve(base64);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-    } catch (err) {
-        console.error('[AI] Failed to resolve storage URL:', err);
-        throw err;
-    }
+export interface ByokGenerationResult {
+    text: string;
+    usage: {
+        promptTokens: number;
+        responseTokens: number;
+        totalTokens: number;
+    };
+    costUsd: number;
+    appName?: string;
 }
 
-// ============= AI FUNCTIONS (FIREBASE WRAPPERS) =============
+function toGenerationResult(r: { html?: string; text?: string; usage: { promptTokens: number; responseTokens: number; totalTokens: number }; costUsd?: number; appName?: string }): ByokGenerationResult {
+    return {
+        text: r.html ?? r.text ?? '',
+        usage: {
+            promptTokens: r.usage.promptTokens,
+            responseTokens: r.usage.responseTokens,
+            totalTokens: r.usage.totalTokens,
+        },
+        costUsd: r.costUsd ?? 0,
+        appName: r.appName,
+    };
+}
 
-export async function generateApp(description: string): Promise<GenerationResult> {
-    // 1. Local Moderation (Fail fast) - currently bypassed
+export async function generateApp(description: string): Promise<ByokGenerationResult> {
     const validation = validateContentRequest(description);
     if (!validation.allowed) {
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    // 2. Call Firebase with retry
-    const result = await withTimeoutAndRetry(() => firebase.generateSpellCreate(description));
-    logAppCreated(result.creditsUsed || 0);
-    return result;
+    const result = await withTimeoutAndRetry(() =>
+        byokGenerateSpellCreate({ prompt: description, appVersion: getAppVersion() })
+    );
+    const wrapped = toGenerationResult(result);
+    logAppCreated(0);
+    return wrapped;
 }
 
-export async function editApp(currentCode: string, instructions: string): Promise<GenerationResult> {
+export async function editApp(currentCode: string, instructions: string): Promise<ByokGenerationResult> {
     const validation = validateContentRequest(instructions);
     if (!validation.allowed) {
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    const result = await withTimeoutAndRetry(() => firebase.generateSpellEdit(currentCode, instructions));
-    logAppEdited(result.creditsUsed || 0);
-    return result;
+    const result = await withTimeoutAndRetry(() =>
+        byokGenerateSpellEdit({
+            currentCode,
+            instruction: instructions,
+            appVersion: getAppVersion(),
+        })
+    );
+    const wrapped = toGenerationResult(result);
+    logAppEdited(0);
+    return wrapped;
 }
 
 export async function editAppWithContext(
@@ -101,27 +122,39 @@ export async function editAppWithContext(
     instructions: string,
     selectedContext: string,
     previousEdits: { version: number; instruction: string | null }[]
-): Promise<GenerationResult> {
+): Promise<ByokGenerationResult> {
     const validation = validateContentRequest(instructions);
     if (!validation.allowed) {
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    // Map previousEdits to the format expected by firebase
     const validEdits = previousEdits
         .filter(e => e.instruction !== null)
         .map(e => ({ version: e.version, instruction: e.instruction as string }));
 
-    const result = await withTimeoutAndRetry(() => firebase.generateSpellEdit(currentCode, instructions, {
-        previousEdits: validEdits,
-        selectedContext
-    }));
-    logAppEdited(result.creditsUsed || 0);
-    return result;
+    const result = await withTimeoutAndRetry(() =>
+        byokGenerateSpellEdit({
+            currentCode,
+            instruction: instructions,
+            appVersion: getAppVersion(),
+            previousEdits: validEdits,
+            selectedContext,
+        })
+    );
+    const wrapped = toGenerationResult(result);
+    logAppEdited(0);
+    return wrapped;
 }
 
-export async function convertNodeProject(sourceCode: string, frameworkHint: string): Promise<GenerationResult> {
-    return withTimeoutAndRetry(() => firebase.generateSpellConvert(sourceCode, frameworkHint));
+export async function convertNodeProject(sourceCode: string, frameworkHint: string): Promise<ByokGenerationResult> {
+    const result = await withTimeoutAndRetry(() =>
+        byokGenerateConvert({
+            sourceCode,
+            frameworkHint,
+            appVersion: getAppVersion(),
+        })
+    );
+    return toGenerationResult(result);
 }
 
 // ============= BRIDGE AI FUNCTIONS =============
@@ -133,100 +166,182 @@ export interface AIGenerateOptions {
     images?: string[]; // base64 array
     videos?: string[]; // base64 array
     audios?: string[]; // base64 array
-    onJobCreated?: (jobId: string) => void;
 }
 
 // Used by WebView Bridge
-export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: string, usage: any, creditsUsed: number }> {
-    console.log('[AI] aiGenerate (via Firebase)', JSON.stringify({ ...options, images: options.images?.length || 0, videos: options.videos?.length || 0, audios: options.audios?.length || 0 }));
+export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: string, usage: any, creditsUsed: number, costUsd: number }> {
+    console.log('[AI] aiGenerate (BYOK)', JSON.stringify({ ...options, images: options.images?.length || 0, videos: options.videos?.length || 0, audios: options.audios?.length || 0 }));
 
-    const { prompt, search, schema, images, videos, audios, onJobCreated } = options;
+    const { prompt, search, schema, images, audios } = options;
 
     // Clean base64 prefixes aggressively (handle redundant or double prefixes)
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
     const cleanImages = images?.map(cleanPrefix);
-    const cleanVideos = videos?.map(cleanPrefix);
     const cleanAudios = audios?.map(cleanPrefix);
 
-    const result = await firebase.generateSpellWebviewAI(prompt, {
-        schema,
-        imagesBase64: cleanImages,
-        videosBase64: cleanVideos,
-        audiosBase64: cleanAudios,
+    const result = await byokGenerateWebviewAI({
+        prompt,
+        schema: schema as Record<string, unknown> | undefined,
+        images: cleanImages,
+        audios: cleanAudios,
         useSearch: search,
-        onJobCreated,
     });
 
-    const creditsUsed = result.creditsUsed || 0;
-    logAiGenerate(creditsUsed, !!(cleanImages?.length), !!(cleanAudios?.length));
+    logAiGenerate(0, !!(cleanImages?.length), !!(cleanAudios?.length));
     return {
         text: result.text,
         usage: result.usage,
-        creditsUsed,
+        creditsUsed: 0,
+        costUsd: result.costUsd ?? 0,
     };
 }
 
 // Used by WebView Bridge - Similarity
-export async function aiSimilarity(items: string[], onJobCreated?: (jobId: string) => void): Promise<{ text: string, creditsUsed: number }> {
-    console.log('[AI] aiSimilarity (via Firebase)', items.length, 'items');
+// Embeddings via OpenRouter; cosine-similarity matrix computed client-side so
+// the WebView consumer can keep treating `text` as a JSON-stringified matrix.
+export async function aiSimilarity(items: string[], signal?: AbortSignal): Promise<{ text: string, creditsUsed: number, costUsd: number }> {
+    console.log('[AI] aiSimilarity (BYOK)', items.length, 'items');
 
-    const result = await firebase.generateSpellSimilarity(items, onJobCreated);
+    const { vectors, usage } = await openrouter.embed({
+        model: MODELS.EMBED,
+        input: items,
+        signal,
+    });
+
+    // Server returned a flat Float32-style row-major matrix as JSON. Mirror the
+    // exact shape so the spell-side helper does not need to change.
+    const n = vectors.length;
+    const matrix: number[][] = [];
+    for (let i = 0; i < n; i++) {
+        const row: number[] = new Array(n);
+        for (let j = 0; j < n; j++) {
+            row[j] = cosineSim(vectors[i], vectors[j]);
+        }
+        matrix.push(row);
+    }
+
     return {
-        text: result.text,
-        creditsUsed: result.creditsUsed || 0,
+        text: JSON.stringify(matrix),
+        creditsUsed: 0,
+        costUsd: usage?.cost ?? 0,
     };
 }
 
+function cosineSim(a: number[], b: number[]): number {
+    let dot = 0, na = 0, nb = 0;
+    const len = Math.min(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+        dot += a[i] * b[i];
+        na += a[i] * a[i];
+        nb += b[i] * b[i];
+    }
+    if (na === 0 || nb === 0) return 0;
+    return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
 // Used by WebView Bridge - Generate Image
-export async function aiGenerateImage(prompt: string, imagesBase64?: string[], onJobCreated?: (jobId: string) => void): Promise<{ imageBase64: string, usage: any, creditsUsed: number }> {
-    console.log('[AI] aiGenerateImage (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
+export async function aiGenerateImage(prompt: string, imagesBase64?: string[], signal?: AbortSignal): Promise<{ imageBase64: string, usage: any, creditsUsed: number, costUsd: number }> {
+    console.log('[AI] aiGenerateImage (BYOK)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
     const cleanImages = imagesBase64?.map(cleanPrefix);
-    const result = await firebase.generateSpellImageGen(prompt, cleanImages, onJobCreated);
-    const imageBase64 = await resolveStorageUrlToBase64(result.text);
 
-    const creditsUsed = result.creditsUsed || 0;
-    logAiGenerateImage(creditsUsed);
+    const model = cleanImages?.length ? MODELS.IMAGE_EDIT : MODELS.IMAGE;
+    const { images: outImages, usage } = await openrouter.generateImage({
+        model,
+        prompt,
+        referenceImagesBase64: cleanImages,
+        signal,
+    });
+
+    const first = outImages[0] ?? '';
+    // Strip data: prefix if present so the bridge receives raw base64.
+    const imageBase64 = first.startsWith('data:')
+        ? (first.split(',')[1] ?? '')
+        : first;
+
+    logAiGenerateImage(0);
     return {
         imageBase64,
-        usage: result.usage,
-        creditsUsed,
+        usage,
+        creditsUsed: 0,
+        costUsd: usage?.cost ?? 0,
     };
 }
 
 // Used by WebView Bridge - Generate TTS Audio
-export async function aiGenerateTTS(text: string, voiceName?: string, onJobCreated?: (jobId: string) => void): Promise<{ audioBase64: string, usage: any, creditsUsed: number }> {
-    console.log('[AI] aiGenerateTTS (via Firebase)', text?.substring(0, 80), 'voice:', voiceName);
+export async function aiGenerateTTS(text: string, voiceName?: string, signal?: AbortSignal): Promise<{ audioBase64: string, usage: any, creditsUsed: number, costUsd: number }> {
+    console.log('[AI] aiGenerateTTS (BYOK)', text?.substring(0, 80), 'voice:', voiceName);
 
-    const result = await firebase.generateSpellTTS(text, voiceName, onJobCreated);
-    const audioBase64 = await resolveStorageUrlToBase64(result.text);
+    const { audioBase64, usage } = await openrouter.tts({
+        model: MODELS.TTS,
+        text,
+        voice: voiceName,
+        signal,
+    });
 
-    const creditsUsed = result.creditsUsed || 0;
     return {
         audioBase64,
-        usage: result.usage,
-        creditsUsed,
+        usage,
+        creditsUsed: 0,
+        costUsd: usage?.cost ?? 0,
     };
 }
 
 // Used by WebView Bridge - Generate Video
-export async function aiGenerateVideo(prompt: string, imagesBase64?: string[], onJobCreated?: (jobId: string) => void): Promise<{ videoBase64: string, usage: any, creditsUsed: number }> {
-    console.log('[AI] aiGenerateVideo (via Firebase)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
+// Submits + polls. Default cap of 8 minutes matches the old server timeout.
+const VIDEO_POLL_INTERVAL_MS = 5_000;
+const VIDEO_POLL_TIMEOUT_MS = 8 * 60_000;
+
+export async function aiGenerateVideo(prompt: string, imagesBase64?: string[], signal?: AbortSignal): Promise<{ videoBase64: string, usage: any, creditsUsed: number, costUsd: number }> {
+    console.log('[AI] aiGenerateVideo (BYOK)', prompt?.substring(0, 80), imagesBase64?.length ? `with ${imagesBase64.length} image(s)` : '');
 
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
     const cleanImages = imagesBase64?.map(cleanPrefix);
-    const result = await firebase.generateSpellVideoGen(prompt, cleanImages, onJobCreated);
-    const videoBase64 = await resolveStorageUrlToBase64(result.text);
+    const firstImage = cleanImages?.[0];
+    const model = firstImage ? MODELS.VIDEO_STD : MODELS.VIDEO_FAST;
 
-    const creditsUsed = result.creditsUsed || 0;
-    return {
-        videoBase64,
-        usage: result.usage,
-        creditsUsed,
-    };
+    const submission = await openrouter.submitVideo({
+        model,
+        prompt,
+        inputImageBase64: firstImage,
+        signal,
+    });
+
+    const deadline = Date.now() + VIDEO_POLL_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+        if (signal?.aborted) {
+            throw new Error('aborted');
+        }
+        await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
+        const polled = await openrouter.pollVideo(submission.pollingUrl, signal);
+        if (polled) {
+            // OpenRouter may return either inline base64 or a URL — resolve to base64.
+            let videoBase64 = polled.videoBase64 ?? '';
+            if (!videoBase64 && polled.videoUrl) {
+                videoBase64 = await urlToBase64(polled.videoUrl);
+            }
+            return {
+                videoBase64,
+                usage: polled.usage,
+                creditsUsed: 0,
+                costUsd: polled.usage?.cost ?? 0,
+            };
+        }
+    }
+    throw new Error('Video generation timed out');
 }
 
-export async function estimateManaCost(type: string, data: any): Promise<{ mana: string; value: number }> {
-    return firebase.estimateManaCost(type, data);
+async function urlToBase64(url: string): Promise<string> {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result as string;
+            resolve(result.includes(',') ? result.split(',')[1] : result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
 }

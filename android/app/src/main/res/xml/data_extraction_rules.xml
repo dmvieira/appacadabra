@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ replacement for backup_rules.xml. Covers both cloud backup and
+  device-to-device transfer. Excludes expo-secure-store encrypted prefs so the
+  OpenRouter API key cannot exfiltrate via either path.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="SecureStore.xml"/>
+        <exclude domain="sharedpref" path="expo-secure-store.xml"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="SecureStore.xml"/>
+        <exclude domain="sharedpref" path="expo-secure-store.xml"/>
+    </device-transfer>
+</data-extraction-rules>

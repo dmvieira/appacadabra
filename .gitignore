@@ -97,6 +97,9 @@ Thumbs.db
 # =====================
 # Firebase Functions
 # =====================
+firebase/.runtimeconfig.json
+firebase/functions/.env
+firebase/functions/.env.*
 firebase/functions/node_modules/
 firebase/functions/lib/
 firebase/functions/lib.zip

@@ -20,6 +20,7 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { hasOpenRouterKey } from '../lib/api/keyStorage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -33,7 +34,6 @@ import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../lib/store';
 import { AppCard } from '../components/AppCard';
 import { EmptyState } from '../components/EmptyState';
-import { EmptySearchState } from '../components/EmptySearchState';
 import { ChatDialog, ConfirmDialog, BugReportDialog } from '../components/Dialogs';
 import * as MailComposer from 'expo-mail-composer';
 import Constants from 'expo-constants';
@@ -45,19 +45,19 @@ import SignOutModal from '../components/SignOutModal';
 import { GeneratedApp } from '../lib/database/types';
 import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
 import { t, getCurrentLanguage } from '../lib/i18n';
-import { ManaDisplay } from '../components/ManaDisplay';
 import * as db from '../lib/database/db';
 import { exportSingleApp, importSpellByNameFromData, readBackupFile, BackupData, createBackup } from '../lib/backup';
 import * as firebase from '../lib/firebase';
 import { ScheduledNotifications } from '../components/ScheduledNotifications';
-import { useManaStore } from '../lib/manaStore';
+import { useUserStore } from '../lib/userStore';
 import { useStoreSyncStore } from '../lib/storeSync';
 import SpellSetup from '../components/SpellSetup';
 import { logIconGenerated, logSpellCreateOpened, logSpellCreateSubmitted } from '../lib/analytics';
 import { useBackupStore } from '../lib/backupStore';
 import BackupSyncModal from '../components/BackupSyncModal';
-import { autoBackupAfterChange, tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup, startAppStateBackupListener, fetchLatestAutoBackup } from '../lib/backupSync';
+import { tryRestoreOnLogin, checkLocalBackupExists, markBackupDirty, startPeriodicBackup, stopPeriodicBackup, startAppStateBackupListener, fetchLatestAutoBackup } from '../lib/backupSync';
 import { SendSpellSheet } from '../components/SendSpellSheet';
+import { AiProviderButton } from '../components/AiProviderButton';
 
 const ONBOARDING_KEY = 'appacadabra_onboarding_seen';
 
@@ -66,7 +66,7 @@ export default function HomeScreen() {
     const insets = useSafeAreaInsets();
     const { width, height } = useWindowDimensions();
     const { setupAppId } = useLocalSearchParams<{ setupAppId?: string }>();
-    const { balance, openShop, isAnonymous } = useManaStore();
+    const isAnonymous = useUserStore(s => s.isAnonymous);
     const {
         apps,
         isLoading,
@@ -149,8 +149,6 @@ export default function HomeScreen() {
     const [showDeletedSpells, setShowDeletedSpells] = useState(false);
     const [deletedSpellsList, setDeletedSpellsList] = useState<{ name: string; deletedAt: number }[]>([]);
     const [restoringSpell, setRestoringSpell] = useState<string | null>(null);
-    const [suggestions, setSuggestions] = useState<Array<{ title: string; description: string }>>([]);
-    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [showNotifHint, setShowNotifHint] = useState(false);
     const [sendSpellTargetId, setSendSpellTargetId] = useState<number | null>(null);
     const sendSpellTarget = sendSpellTargetId != null ? (apps.find(a => a.id === sendSpellTargetId) ?? null) : null;
@@ -458,46 +456,14 @@ export default function HomeScreen() {
         }
     }, [showSearch]);
 
-    // Fetch AI suggestions when search has no matches
-    useEffect(() => {
-        const trimmed = searchQuery.trim();
-        if (!trimmed || apps.length === 0) {
-            setSuggestions([]);
-            return;
-        }
-        const hasMatch = apps.some(a =>
-            a.name.toLowerCase().includes(trimmed.toLowerCase()) ||
-            (a.shortDescription || '').toLowerCase().includes(trimmed.toLowerCase())
-        );
-        if (hasMatch) { setSuggestions([]); return; }
-
-        setIsLoadingSuggestions(true);
-        const timer = setTimeout(async () => {
-            try {
-                const result = await firebase.suggestSpells(trimmed);
-                setSuggestions(result);
-            } catch {
-                setSuggestions([]);
-            } finally {
-                setIsLoadingSuggestions(false);
-            }
-        }, 600);
-        return () => { clearTimeout(timer); setIsLoadingSuggestions(false); };
-    }, [searchQuery, apps]);
-
     const handleCreateApp = async (description: string) => {
         clearLastFailedPrompt();
         logSpellCreateSubmitted(apps.length === 0);
-        // Double check mana before submitting (though button should be intercepted)
-        if (balance <= 0) {
-            Alert.alert(
-                t('manaDepletedTitle'),
-                t('manaDepletedMessage'),
-                [
-                    { text: t('buyMana'), onPress: () => openShop() },
-                    { text: t('cancel'), style: 'cancel' }
-                ]
-            );
+
+        // BYOK key gate. Without an OpenRouter key, redirect to Settings.
+        const hasKey = await hasOpenRouterKey();
+        if (!hasKey) {
+            router.push('/settings/openrouter');
             return false;
         }
         // Async: createApp returns true if job submitted
@@ -636,7 +602,7 @@ export default function HomeScreen() {
         if (deleteTarget) {
             await deleteApp(deleteTarget.id);
             setDeleteTarget(null);
-            autoBackupAfterChange();
+            markBackupDirty();
         }
     };
 
@@ -769,30 +735,12 @@ export default function HomeScreen() {
             const prompt = `App icon for "${setupTarget.name}". ${creationPrompt ? `The app does: ${creationPrompt}.` : ''} REALLY simple, colorful, minimalist icon for a mobile app. No text. No border. No frame. No outline. No padding. No drop shadow. No background ring. No decorative edge. The icon fills the entire canvas edge to edge.`;
             const { iconPath, creditsUsed } = await generateAndSaveAppIcon(setupTarget.id, prompt);
             if (iconPath) {
-                if (creditsUsed > 0) {
-                    firebase.getCredits().then(c => useManaStore.getState().setBalance(c)).catch(() => { });
-                }
                 logIconGenerated('setup', creditsUsed);
                 setStatusMessage(t('iconGenerated'));
             }
         } catch (e: any) {
             console.error('Error generating setup icon with AI:', e);
-            const errorMsg = e?.message || String(e);
-            const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
-                errorMsg.toLowerCase().includes('insufficient mana') ||
-                errorMsg.toLowerCase().includes('no credits');
-            if (isManaError) {
-                Alert.alert(
-                    t('manaDepletedTitle') || 'Out of Mana',
-                    t('manaDepletedMessage') || 'You need more Mana to generate icons.',
-                    [
-                        { text: t('getMana') || 'Get Mana', onPress: () => { setTimeout(() => useManaStore.getState().openShop(), 300); } },
-                        { text: t('cancel'), style: 'cancel' }
-                    ]
-                );
-            } else {
-                Alert.alert(t('iconGenError'));
-            }
+            Alert.alert(t('iconGenError'));
         } finally {
             setIsGeneratingIcon(false);
         }
@@ -976,7 +924,7 @@ export default function HomeScreen() {
         lastUpdated: Date.now(),
         createdAt: Date.now(),
         consoleLogs: '',
-        totalManaCost: 0,
+        totalSpendUsd: 0,
         requiresBiometric: false,
         sortOrder: 0,
         isPlaceholder: true, // Marker property
@@ -1024,8 +972,8 @@ export default function HomeScreen() {
                         {t('appName')}
                     </Text>
                 </View>
-                <ManaDisplay onPress={() => setActiveCardId(null)} />
-                <TouchableOpacity onPress={() => { setActiveCardId(null); setShowMenu(true); }} style={[styles.menuBtn, { marginStart: spacing.md }]} accessibilityLabel={t('options')} accessibilityRole="button">
+                <AiProviderButton />
+                <TouchableOpacity onPress={() => { setActiveCardId(null); setShowMenu(true); }} style={[styles.menuBtn, { marginStart: spacing.sm }]} accessibilityLabel={t('options')} accessibilityRole="button">
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
             </View>
@@ -1067,25 +1015,6 @@ export default function HomeScreen() {
                             </Text>
                         </View>
                         <Text style={styles.statusBannerClose}>✕</Text>
-                    </TouchableOpacity>
-                )}
-
-                {balance <= 0 && (
-                    <TouchableOpacity
-                        style={styles.manaWarningBanner}
-                        onPress={() => openShop()}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.manaWarningEmoji}>⚡</Text>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.manaWarningTitle}>
-                                {t(isAnonymous ? 'loginForManaTitle' : 'manaDepletedTitle')}
-                            </Text>
-                            <Text style={styles.manaWarningText}>
-                                {t(isAnonymous ? 'loginForManaMessage' : 'manaDepletedMessage')}
-                            </Text>
-                        </View>
-                        <Text style={styles.manaWarningAction}>›</Text>
                     </TouchableOpacity>
                 )}
 
@@ -1199,20 +1128,7 @@ export default function HomeScreen() {
 
             {filteredApps.length === 0 && !isGenerating ? (
                 <View style={{ flex: 1, paddingBottom: listBottomPadding }}>
-                    {searchQuery.trim() && apps.length > 0 ? (
-                        <EmptySearchState
-                            query={searchQuery}
-                            suggestions={suggestions}
-                            isLoading={isLoadingSuggestions}
-                            onSuggestionPress={(s) => {
-                                setSearchQuery(''); // Clear search to return to listing
-                                setCreateDialogInitialText(s.description);
-                                setShowCreateDialog(true);
-                            }}
-                        />
-                    ) : (
-                        <EmptyState />
-                    )}
+                    <EmptyState />
                 </View>
             ) : (
                 <FlatList
@@ -1291,31 +1207,9 @@ export default function HomeScreen() {
                     style={styles.fab}
                     onPress={() => {
                         setActiveCardId(null);
-                        if (balance <= 0) {
-                            if (isAnonymous) {
-                                Alert.alert(
-                                    t('loginForManaTitle'),
-                                    t('loginForManaMessage'),
-                                    [
-                                        { text: t('signInGoogle'), onPress: () => openShop() },
-                                        { text: t('cancel'), style: 'cancel' }
-                                    ]
-                                );
-                            } else {
-                                Alert.alert(
-                                    t('manaDepletedTitle'),
-                                    t('manaDepletedMessage'),
-                                    [
-                                        { text: t('buyMana'), onPress: () => openShop() },
-                                        { text: t('cancel'), style: 'cancel' }
-                                    ]
-                                );
-                            }
-                        } else {
-                            logSpellCreateOpened(apps.length === 0);
-                            clearError();
-                            setShowCreateDialog(true);
-                        }
+                        logSpellCreateOpened(apps.length === 0);
+                        clearError();
+                        setShowCreateDialog(true);
                     }}
                     accessibilityLabel={t('createApp')}
                     accessibilityRole="button"
@@ -1571,15 +1465,6 @@ export default function HomeScreen() {
                                 multiline
                                 numberOfLines={3}
                             />
-
-                            {/* Cost notice — only in create mode */}
-                            {setupMode === 'create' && (
-                                <View style={styles.setupCostNotice}>
-                                    <Text style={styles.setupCostText}>
-                                        💡 {t('setupCostNotice', { cost: (setupTarget?.totalManaCost ?? 0).toLocaleString(getCurrentLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}
-                                    </Text>
-                                </View>
-                            )}
 
                             <TouchableOpacity style={styles.setupSaveBtn} onPress={handleSetupSave}>
                                 <Text style={styles.setupSaveBtnText}>
@@ -2330,20 +2215,6 @@ const styles = StyleSheet.create({
     setupTextArea: {
         height: 90,
         textAlignVertical: 'top',
-    },
-    setupCostNotice: {
-        backgroundColor: '#F59E0B18',
-        borderRadius: borderRadius.md,
-        padding: spacing.md,
-        marginTop: spacing.lg,
-        marginBottom: spacing.md,
-        borderWidth: 1,
-        borderColor: '#F59E0B30',
-    },
-    setupCostText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 13,
-        lineHeight: 20,
     },
     setupSaveBtn: {
         backgroundColor: colors.primary,

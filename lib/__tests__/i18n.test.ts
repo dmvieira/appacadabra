@@ -42,13 +42,13 @@ describe('i18n', () => {
         });
 
         it('should support interpolation', () => {
-            const result = t('manaConfirmBalance', { balance: 150, locale: 'en' });
-            expect(result).toContain('150');
+            const result = t('appReadyNotify', { name: 'Test', locale: 'en' });
+            expect(result).toContain('Test');
         });
 
-        it('should have mana-related translations', () => {
-            const title = t('manaDepletedTitle');
-            const message = t('manaDepletedMessage');
+        it('should have BYOK key-missing translations', () => {
+            const title = t('noKeyConfiguredTitle');
+            const message = t('noKeyConfiguredFromSpell');
 
             expect(title.length).toBeGreaterThan(0);
             expect(message.length).toBeGreaterThan(0);

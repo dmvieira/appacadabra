@@ -7,6 +7,7 @@ export interface AiCacheSaveArgs {
     type: string;
     success: boolean;
     result: string;
+    /** WebView bridge API contract: kept as `creditsUsed` for caller stability; translated to `costUsd` at the DB boundary. */
     creditsUsed: number;
     appId: number;
     callbackName: string;
@@ -30,7 +31,7 @@ export async function saveAiResultToCache(args: AiCacheSaveArgs): Promise<number
                 appId, callbackName, action: type,
                 requestData: JSON.stringify(requestData),
                 result,
-                creditsUsed,
+                costUsd: creditsUsed,
                 success: 1,
             });
         } catch (e) {
@@ -47,7 +48,7 @@ export async function saveAiResultToCache(args: AiCacheSaveArgs): Promise<number
                 requestData: JSON.stringify(requestData),
                 result,
                 mediaLocalPath,
-                creditsUsed,
+                costUsd: creditsUsed,
                 success: success ? 1 : 0,
             });
         } catch (e) {

@@ -2,6 +2,8 @@ Detect anomalies in Appacadabra's key metrics by comparing recent data against a
 
 **Metric to focus on (or "all" for full scan):** $ARGUMENTS
 
+> **⚠️ POST-BYOK NOTICE (3.0.0):** Mana/credit metrics, job-pipeline metrics, and `users.credits*` were retired in 3.0.0. The collections referenced below are HISTORICAL — for live anomaly detection, only `store_spells` and `learned_spells` collect new data.
+
 ## How this works
 
 This command queries Firestore for recent data (last 48h) and compares it against a baseline window (7 days prior). Statistical anomaly = a metric that deviates > 2 standard deviations from its recent mean, or crosses a defined threshold.

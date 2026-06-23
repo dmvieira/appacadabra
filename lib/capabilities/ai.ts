@@ -1,17 +1,70 @@
 import * as ai from '../api/ai';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useManaStore } from '../manaStore';
-import { useBridgeUIStore } from '../bridgeUIStore';
-import { useAppStore } from '../store';
+import { useBridgeUIStore, ManaOperationType } from '../bridgeUIStore';
 import * as db from '../database/db';
 import { buildBlobMarker } from './mediaHelpers';
-import { t } from '../i18n';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
+import { hasOpenRouterKey } from '../api/keyStorage';
+import { estimateUsd, formatUsd, MODELS, type EstimateType } from '../api/pricing';
 
-async function estimateManaCost(type: string, data: any): Promise<{ display: string; value: number }> {
-    const manaLabel = t('mana');
-    const result = await ai.estimateManaCost(type, data);
-    return { display: `${result.mana} ${manaLabel}`, value: result.value };
+/**
+ * BYOK pre-check + cost confirmation. Returns `{ ok: true }` when the call
+ * should proceed (key configured, user confirmed cost). When `ok` is false,
+ * the message handler short-circuits with the supplied error.
+ */
+async function gateAiOperation(
+    operationType: ManaOperationType,
+    appId: number | null,
+    data: any,
+): Promise<{ ok: true } | { ok: false; result: string }> {
+    const hasKey = await hasOpenRouterKey();
+    if (!hasKey) {
+        const action = await useBridgeUIStore.getState().requestKeyMissing(operationType);
+        return {
+            ok: false,
+            result:
+                action === 'openSettings'
+                    ? 'AI key required. Configure OpenRouter to continue.'
+                    : 'AI key not configured.',
+        };
+    }
+    const estimateType: EstimateType =
+        operationType === 'generate'
+            ? 'webview_ai'
+            : operationType === 'image'
+              ? 'webview_ai_image'
+              : operationType === 'video'
+                ? 'webview_ai_video'
+                : operationType === 'audio'
+                  ? 'webview_ai_tts'
+                  : 'webview_ai_similarity';
+    const modelId =
+        operationType === 'image'
+            ? data?.images?.length
+                ? MODELS.IMAGE_EDIT
+                : MODELS.IMAGE
+            : operationType === 'video'
+              ? data?.images?.length
+                  ? MODELS.VIDEO_STD
+                  : MODELS.VIDEO_FAST
+              : operationType === 'audio'
+                ? MODELS.TTS
+                : operationType === 'similarity'
+                  ? MODELS.EMBED
+                  : MODELS.WEBVIEW;
+    const usd = estimateUsd({
+        type: estimateType,
+        promptLength: typeof data?.prompt === 'string' ? data.prompt.length : 0,
+        inputImages: data?.images?.length ?? 0,
+        videoHasImages: !!data?.images?.length,
+        ttsCharacters: typeof data?.text === 'string' ? data.text.length : 0,
+        similarityItems: data?.items?.length ?? 0,
+    });
+    const confirmed = await useBridgeUIStore
+        .getState()
+        .requestCostEstimate(appId, operationType, formatUsd(usd), modelId);
+    if (!confirmed) return { ok: false, result: 'Cost confirmation cancelled.' };
+    return { ok: true };
 }
 
 async function checkAndMarkFirstAiUse(): Promise<boolean> {
@@ -434,22 +487,8 @@ export const aiCapability: CapabilityModule = {
     handleMessage: async (type: string, data: any, ctx: HandlerContext): Promise<Partial<HandlerResult> | null> => {
         switch (type) {
             case 'AI_GENERATE': {
-                let generateCostDisplay: string;
-                let generateCostValue: number;
-                try {
-                    ({ display: generateCostDisplay, value: generateCostValue } = await estimateManaCost('generate', data));
-                } catch (e) {
-                    console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
-                    useManaStore.getState().openShop();
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                if (generateCostValue > useManaStore.getState().balance) {
-                    useManaStore.getState().openShop(generateCostValue);
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                const manaConfirmedGenerate = await useBridgeUIStore.getState()
-                    .requestManaConfirmation(ctx.appId, 'generate', generateCostDisplay);
-                if (!manaConfirmedGenerate) { return { success: false, result: t('manaConfirmCancelled') }; }
+                const gate = await gateAiOperation('generate', ctx.appId, data);
+                if (!gate.ok) return { success: false, result: gate.result };
                 console.log(`[Bridge] AI Generate request: ${data.prompt?.substring(0, 50)}...`);
                 try {
                     const genResult = await ai.aiGenerate({
@@ -459,158 +498,65 @@ export const aiCapability: CapabilityModule = {
                         images: data.images,
                         videos: data.videos,
                         audios: data.audios,
-                        onJobCreated: ctx.onJobCreated,
                     });
                     const result = genResult.text;
+                    const costUsd = genResult.costUsd || 0;
+                    console.log(`[Bridge] AI generated. costUsd: ${costUsd}`);
 
-                    const creditsUsed = genResult.creditsUsed || 0;
-                    console.log(`[Bridge] AI generated. Credits used: ${creditsUsed}`);
-
-                    if (ctx.appId && creditsUsed > 0) {
-                        try {
-                            await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
-                            console.log(`[Bridge] App ${ctx.appId} mana cost increased by ${creditsUsed}`);
-                        } catch (e) {
-                            console.warn('Failed to update app mana cost:', e);
-                        }
-                    }
+                    if (ctx.appId) await db.incrementSpendUsd(ctx.appId, costUsd);
 
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
-                    return { success: true, result, creditsUsed, isFirstAiUse };
+                    return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
                     const errorMsg = e instanceof Error ? e.message : 'Error';
-
-                    const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
-                        errorMsg.toLowerCase().includes('insufficient mana');
-
-                    if (isManaError) {
-                        useManaStore.getState().openShop();
-                        return { success: false, result: t('manaDepletedMessage') };
-                    } else {
-                        return { success: false, result: errorMsg };
-                    }
+                    return { success: false, result: errorMsg };
                 }
             }
 
             case 'AI_SIMILARITY': {
-                let similarityCostDisplay: string;
-                let similarityCostValue: number;
-                try {
-                    ({ display: similarityCostDisplay, value: similarityCostValue } = await estimateManaCost('similarity', data));
-                } catch (e) {
-                    console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
-                    useManaStore.getState().openShop();
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                if (similarityCostValue > useManaStore.getState().balance) {
-                    useManaStore.getState().openShop(similarityCostValue);
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                const manaConfirmedSimilarity = await useBridgeUIStore.getState()
-                    .requestManaConfirmation(ctx.appId, 'similarity', similarityCostDisplay);
-                if (!manaConfirmedSimilarity) { return { success: false, result: t('manaConfirmCancelled') }; }
+                const gate = await gateAiOperation('similarity', ctx.appId, data);
+                if (!gate.ok) return { success: false, result: gate.result };
                 console.log(`[Bridge] AI Similarity request: ${data.items?.length || 0} items`);
                 try {
-                    const simResult = await ai.aiSimilarity(data.items || [], ctx.onJobCreated);
+                    const simResult = await ai.aiSimilarity(data.items || []);
                     const result = simResult.text;
+                    const costUsd = simResult.costUsd || 0;
 
-                    const creditsUsed = simResult.creditsUsed || 0;
-                    console.log(`[Bridge] AI similarity. Credits used: ${creditsUsed}`);
-
-                    if (ctx.appId && creditsUsed > 0) {
-                        try {
-                            await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
-                        } catch (e) {
-                            console.warn('Failed to update app mana cost:', e);
-                        }
-                    }
+                    if (ctx.appId) await db.incrementSpendUsd(ctx.appId, costUsd);
 
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
-                    return { success: true, result, creditsUsed, isFirstAiUse };
+                    return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
                     const errorMsg = e instanceof Error ? e.message : 'Error';
-                    const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
-                        errorMsg.toLowerCase().includes('insufficient mana');
-                    if (isManaError) {
-                        useManaStore.getState().openShop();
-                        return { success: false, result: t('manaDepletedMessage') };
-                    } else {
-                        return { success: false, result: errorMsg };
-                    }
+                    return { success: false, result: errorMsg };
                 }
             }
 
             case 'AI_GENERATE_IMAGE': {
-                let imageCostDisplay: string;
-                let imageCostValue: number;
-                try {
-                    ({ display: imageCostDisplay, value: imageCostValue } = await estimateManaCost('image', data));
-                } catch (e) {
-                    console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
-                    useManaStore.getState().openShop();
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                if (imageCostValue > useManaStore.getState().balance) {
-                    useManaStore.getState().openShop(imageCostValue);
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                const manaConfirmedImage = await useBridgeUIStore.getState()
-                    .requestManaConfirmation(ctx.appId, 'image', imageCostDisplay);
-                if (!manaConfirmedImage) { return { success: false, result: t('manaConfirmCancelled') }; }
+                const gate = await gateAiOperation('image', ctx.appId, data);
+                if (!gate.ok) return { success: false, result: gate.result };
                 console.log(`[Bridge] AI Image Gen request: ${data.prompt?.substring(0, 50)}...`);
                 try {
-                    const imgResult = await ai.aiGenerateImage(data.prompt, data.images ?? undefined, ctx.onJobCreated);
+                    const imgResult = await ai.aiGenerateImage(data.prompt, data.images ?? undefined);
                     const result = imgResult.imageBase64;
+                    const costUsd = imgResult.costUsd || 0;
 
-                    const creditsUsed = imgResult.creditsUsed || 0;
-                    console.log(`[Bridge] AI image generated. Credits used: ${creditsUsed}`);
-
-                    if (ctx.appId && creditsUsed > 0) {
-                        try {
-                            await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
-                            console.log(`[Bridge] App ${ctx.appId} mana cost increased by ${creditsUsed}`);
-                        } catch (e) {
-                            console.warn('Failed to update app mana cost:', e);
-                        }
-                    }
+                    if (ctx.appId) await db.incrementSpendUsd(ctx.appId, costUsd);
 
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
-                    return { success: true, result, creditsUsed, isFirstAiUse };
+                    return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
                     const errorMsg = e instanceof Error ? e.message : 'Error';
-
-                    const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
-                        errorMsg.toLowerCase().includes('insufficient mana');
-
-                    if (isManaError) {
-                        useManaStore.getState().openShop();
-                        return { success: false, result: t('manaDepletedMessage') };
-                    } else {
-                        return { success: false, result: errorMsg };
-                    }
+                    return { success: false, result: errorMsg };
                 }
             }
 
             case 'AI_GENERATE_VIDEO': {
-                let videoCostDisplay: string;
-                let videoCostValue: number;
-                try {
-                    ({ display: videoCostDisplay, value: videoCostValue } = await estimateManaCost('video', data));
-                } catch (e) {
-                    console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
-                    useManaStore.getState().openShop();
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                if (videoCostValue > useManaStore.getState().balance) {
-                    useManaStore.getState().openShop(videoCostValue);
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                const manaConfirmedVideo = await useBridgeUIStore.getState()
-                    .requestManaConfirmation(ctx.appId, 'video', videoCostDisplay);
-                if (!manaConfirmedVideo) { return { success: false, result: t('manaConfirmCancelled') }; }
+                const gate = await gateAiOperation('video', ctx.appId, data);
+                if (!gate.ok) return { success: false, result: gate.result };
                 console.log(`[Bridge] AI Video Gen request: ${data.prompt?.substring(0, 50)}...`);
                 try {
-                    const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined, ctx.onJobCreated);
+                    const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined);
                     let permanentVideoPath: string | undefined;
                     if (ctx.appId && ctx.callbackName) {
                         try {
@@ -626,33 +572,15 @@ export const aiCapability: CapabilityModule = {
                         }
                     }
                     const result = permanentVideoPath ?? videoResult.videoBase64;
+                    const costUsd = videoResult.costUsd || 0;
 
-                    const creditsUsed = videoResult.creditsUsed || 0;
-                    console.log(`[Bridge] AI video generated. Credits used: ${creditsUsed}`);
-
-                    if (ctx.appId && creditsUsed > 0) {
-                        try {
-                            await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
-                            console.log(`[Bridge] App ${ctx.appId} mana cost increased by ${creditsUsed}`);
-                        } catch (e) {
-                            console.warn('Failed to update app mana cost:', e);
-                        }
-                    }
+                    if (ctx.appId) await db.incrementSpendUsd(ctx.appId, costUsd);
 
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
-                    return { success: true, result, creditsUsed, isFirstAiUse };
+                    return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
                     const errorMsg = e instanceof Error ? e.message : 'Error';
-
-                    const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
-                        errorMsg.toLowerCase().includes('insufficient mana');
-
-                    if (isManaError) {
-                        useManaStore.getState().openShop();
-                        return { success: false, result: t('manaDepletedMessage') };
-                    } else {
-                        return { success: false, result: errorMsg };
-                    }
+                    return { success: false, result: errorMsg };
                 }
             }
 

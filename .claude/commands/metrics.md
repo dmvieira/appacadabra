@@ -1,8 +1,10 @@
 Query Appacadabra's Firestore data to produce a product metrics report.
 
-**Period or focus (e.g., "last 7 days", "mana consumption", "job failures"):** $ARGUMENTS
+**Period or focus (e.g., "last 7 days", "spell publications", "learned-spell trends"):** $ARGUMENTS
 
-## Available data sources (Firebase MCP)
+> **⚠️ POST-BYOK NOTICE (3.0.0):** `jobs`, `users.credits`, `creditLogs`, and `usageLogs` were retired with the BYOK refactor. Live writes only happen on `store_spells` and `learned_spells`. The schema below is HISTORICAL — usable only for queries over pre-3.0.0 data ranges.
+
+## Available data sources (Firebase MCP) — HISTORICAL
 
 The Firestore schema has:
 - `jobs/{jobId}` — `action`, `status`, `createdAt`, `result.creditsUsed`, `uid`, `payload`

@@ -33,13 +33,11 @@ export interface BackupApp {
     lastUpdated: number;
     createdAt?: number;
     consoleLogs?: string;
-    totalManaCost?: number;
+    totalSpendUsd?: number;
     jobId?: string;
     shortDescription?: string;
     sortOrder?: number;
     requiresBiometric?: boolean;
-    // Individual mana charge events with original timestamps
-    manaEvents?: { amount: number; timestamp: number }[];
     // Scheduled notifications (absolute fire timestamps)
     notifications?: { identifier: string; title: string; body: string; fireDate: number; isAlarm?: boolean }[];
     // Android nested format
@@ -52,7 +50,7 @@ export interface BackupApp {
         mediaBase64: string | null;
         mediaType: string | null;
         textResult: string | null;
-        creditsUsed: number;
+        costUsd: number;
         success: number;
         delivered: number;
         createdAt: number;
@@ -90,8 +88,6 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
 
         // Collect scheduled notifications for this app
         let notifications: { identifier: string; title: string; body: string; fireDate: number; isAlarm?: boolean }[] = [];
-        // Collect mana events for this app
-        let manaEvents: { amount: number; timestamp: number }[] = [];
         if (includeStorage) {
             const now = Date.now();
             try {
@@ -137,16 +133,6 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
                 console.warn('Failed to read alarms for backup:', e);
             }
 
-            try {
-                const dbInst = await db.getDatabase();
-                const rows = await dbInst.getAllAsync<{ amount: number; timestamp: number }>(
-                    'SELECT amount, timestamp FROM mana_events WHERE appId = ? ORDER BY timestamp ASC',
-                    [app.id]
-                );
-                manaEvents = rows;
-            } catch (e) {
-                console.warn('Failed to read mana events for backup:', e);
-            }
         }
 
         // Collect AI media cache entries
@@ -177,7 +163,7 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
                             mediaBase64,
                             mediaType,
                             textResult,
-                            creditsUsed: row.creditsUsed,
+                            costUsd: row.costUsd,
                             success: row.success,
                             delivered: row.delivered,
                             createdAt: row.createdAt,
@@ -211,11 +197,10 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             lastUpdated: app.lastUpdated,
             createdAt: includeStorage ? app.createdAt : undefined,
             consoleLogs: includeStorage ? (app.consoleLogs || '') : undefined,
-            totalManaCost: includeStorage ? (app.totalManaCost || 0) : undefined,
+            totalSpendUsd: includeStorage ? (app.totalSpendUsd || 0) : undefined,
             shortDescription: app.shortDescription,
             sortOrder: app.sortOrder || 0,
             requiresBiometric: app.requiresBiometric || false,
-            manaEvents: manaEvents.length > 0 ? manaEvents : undefined,
             notifications: notifications.length > 0 ? notifications : undefined,
             versions: versions.length > 0 ? versions.map(v => ({
                 version: v.version,
@@ -496,7 +481,7 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                         lastUpdated: app.lastUpdated,
                         iconPath: updatedIconPath,
                         consoleLogs: app.consoleLogs ?? existing.consoleLogs,
-                        totalManaCost: app.totalManaCost ?? existing.totalManaCost,
+                        totalSpendUsd: app.totalSpendUsd ?? existing.totalSpendUsd,
                         shortDescription: app.shortDescription ?? existing.shortDescription,
                         sortOrder: app.sortOrder ?? existing.sortOrder,
                         requiresBiometric: app.requiresBiometric ?? existing.requiresBiometric,
@@ -627,7 +612,7 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                 lastUpdated: isFullBackup ? app.lastUpdated : now,
                 createdAt: isFullBackup ? app.createdAt! : now,
                 consoleLogs: app.consoleLogs || '',
-                totalManaCost: app.totalManaCost || 0,
+                totalSpendUsd: app.totalSpendUsd ?? 0,
                 jobId: app.jobId || undefined,
                 requiresBiometric: app.requiresBiometric || false,
                 shortDescription: app.shortDescription || undefined,
@@ -713,35 +698,12 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                             requestData: item.requestData ?? undefined,
                             result,
                             mediaLocalPath,
-                            creditsUsed: item.creditsUsed,
+                            costUsd: item.costUsd,
                             success: item.success,
                         });
                     } catch (e) {
                         console.warn('Failed to restore AI cache item:', e);
                     }
-                }
-            }
-
-            // Restore mana events preserving original timestamps so recentManaCost
-            // is computed correctly based on the original spell creation date.
-            const eventsToRestore: { appId: number; amount: number; timestamp: number }[] = [];
-            if (app.manaEvents && app.manaEvents.length > 0) {
-                // Use real per-event history from the backup
-                for (const ev of app.manaEvents) {
-                    eventsToRestore.push({ appId: newId, amount: ev.amount, timestamp: ev.timestamp });
-                }
-            } else if ((app.totalManaCost ?? 0) > 0) {
-                // Legacy backup without per-event data — create one synthetic event
-                // at the original createdAt so the windowed query can still find it
-                eventsToRestore.push({
-                    appId: newId,
-                    amount: app.totalManaCost!,
-                    timestamp: app.createdAt || app.lastUpdated,
-                });
-            }
-            if (eventsToRestore.length > 0) {
-                try { await db.insertManaEvents(eventsToRestore); } catch (e) {
-                    console.warn('Failed to restore mana events:', e);
                 }
             }
 

@@ -26,8 +26,9 @@ Always read `CLAUDE.md` before making architectural decisions. It is the authori
 
 ## Architecture invariants (never violate)
 
-- `db.incrementManaCost` / `incrementAppManaCost` only called after successful API response with `creditsUsed > 0`
+- `db.incrementSpendUsd` / `incrementAppSpendUsd` only called after successful OpenRouter response with `costUsd > 0`
 - All Firebase calls routed through `lib/firebase.ts` — never direct SDK calls from UI
+- OpenRouter key read lazily on every call from `lib/api/keyStorage.ts` (SecureStore) — never cached at module level, never written to AsyncStorage/SQLite/SharedPreferences
 - All DB access via `lib/database/db.ts` — never raw SQLite from components
 - All capability handlers stateless — no global side-effects outside the bridge
 - No comments unless the WHY is non-obvious (hidden constraint, workaround, subtle invariant)
@@ -38,18 +39,19 @@ Always read `CLAUDE.md` before making architectural decisions. It is the authori
 Run before merging any significant change. Reviews against:
 - Folder structure rules from CLAUDE.md
 - Zustand mutation patterns (no direct state mutation)
-- Mana guard invariant
+- BYOK key-handling invariant (no key in logs/Crashlytics, no plaintext persistence outside SecureStore)
+- Spend-tracking invariant (`incrementSpendUsd` only after successful response with `costUsd > 0`)
 - TypeScript `any` usage, `console.log` leftovers, missing error boundaries
 
 **Invoke when:** Before any PR, after AI-generated code, when reviewing a large diff.
 
 ### `/gen-tests <file or function>`
-Generate Jest unit test scaffolding following patterns in `lib/capabilities/__tests__/` and `lib/bridges/__tests__/`. Always tests the mana-not-charged-on-failure path for any mana-related function.
+Generate Jest unit test scaffolding following patterns in `lib/capabilities/__tests__/` and `lib/bridges/__tests__/`. Always tests the spend-not-incremented-on-failure path for any function that calls `incrementSpendUsd`.
 
 **Invoke when:** After implementing a new function, new capability handler, new store action.
 
 ### `/validate-schema <operation or document>`
-Validates Firestore document shapes against TypeScript interfaces and SQLite schema against `lib/database/types.ts`. Checks mana fields (`creditsUsed` always number, never string), document paths, and `preDeductedMana` lifecycle.
+Validates Firestore document shapes against TypeScript interfaces and SQLite schema against `lib/database/types.ts`. Checks `totalSpendUsd` and `costUsd` fields (always number, never string) and document paths for `store_spells` / `learned_spells`.
 
 **Invoke when:** Before writing a new Firestore document shape, before adding a DB column, when a type error involves a DB/Firebase type.
 
@@ -92,7 +94,6 @@ EN, PT, ES, FR, DE, IT, JA, ZH, KO, AR, HI, RU, TR, NL, PL, VI, TH
 ### Tone and terminology
 - **Appacadabra** is never translated — kept as-is in all languages
 - **"Spell"** established translations: PT=Feitiço, ES=Hechizo, JA=呪文, ZH=咒语, KO=주문, AR=تعويذة, HI=जादू, RU=заклинание
-- **"Mana"** stays as "Mana" across all languages (game concept, universally understood)
 - **"Cast"** (verb) follows local gaming idiom per language
 - Tone: magical, playful, empowering — never technical or corporate
 - UI space is limited on mobile — prefer shorter strings, especially for JA/KO/ZH

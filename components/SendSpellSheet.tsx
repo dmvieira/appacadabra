@@ -22,7 +22,7 @@ import { t } from '../lib/i18n';
 import type { GeneratedApp } from '../lib/database/types';
 import { useStoreSyncStore } from '../lib/storeSync';
 import type { PublishOutcome } from '../lib/storeSync';
-import { useManaStore } from '../lib/manaStore';
+import { useUserStore } from '../lib/userStore';
 import { linkWithGoogle } from '../lib/firebase';
 
 interface Props {
@@ -64,7 +64,7 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
 
     const lastError = useStoreSyncStore(s => s.lastError);
     const clearError = useStoreSyncStore(s => s.clearError);
-    const isAnonymous = useManaStore(s => s.isAnonymous);
+    const isAnonymous = useUserStore(s => s.isAnonymous);
 
     useEffect(() => {
         if (!visible || !app) return;

@@ -155,7 +155,7 @@ What emerged was our **Mana system**.
 
 ### The Architecture of Mana
 
-"Mana" is a concept borrowed from role-playing game design: a resource that powers magical abilities, regenerates over time, and can be expanded through purchases. In game design terms, mana is the canonical solution to the "how do you price a consumable feature" problem. It also slotted perfectly into the brand identity defined back in Part 2: the entire product already spoke the language of spells and magic, so the pricing primitive needed to speak that language too. Pricing wasn't a layer bolted on top of the brand. It was an extension of it.
+"Mana" is a concept borrowed from role-playing game design: a resource that powers magical abilities, regenerates over time, and can be expanded through purchases. In game design terms, mana is the canonical solution to the "how do you price a consumable feature" problem. It also slotted perfectly into the brand identity defined by the Branding Department back in Part 2: the entire product already spoke the language of spells and magic, so the pricing primitive needed to speak that language too. Pricing wasn't a layer bolted on top of the brand. It was an extension of it.
 
 The Appacadabra implementation: users receive a base mana allocation with their subscription tier. Each AI generation consumes a defined mana amount calibrated to its actual API cost plus margin. Mana can be expanded through in-app purchase bundles. The system is transparent to the user (they always know their remaining capacity), gamified (spending mana feels like using a resource, not paying a fee), and profitable (every unit of mana issued has been paid for).
 
@@ -189,8 +189,8 @@ This was pure code, and therefore something I could validate with full confidenc
 
 The **Finance Agent** was built to make the ongoing financial health of the company legible without requiring me to rebuild the model from scratch every time a variable changed.
 
-Its **MCPs** included:
-- A **Mana Calibration MCP** (`/mana-calibrate`): given the current API pricing for each model and observed token consumption from Firestore usage logs, recalculate the mana cost of each feature to maintain target margins, outputting a ready-to-apply diff against the current cost constants
+Its **Skills** included:
+- A **Mana Calibration Skill** (`/mana-calibrate`): given the current API pricing for each model and observed token consumption from Firestore usage logs, recalculate the mana cost of each feature to maintain target margins, outputting a ready-to-apply diff against the current cost constants
 
 The Finance Agent meant that pricing decisions (which in a traditional startup would require a CFO, a financial analyst, and a board conversation) could be simulated and evaluated in minutes, with Appacadabra-specific data already loaded.
 
@@ -237,7 +237,7 @@ The legal document set I needed was precise, not generic.
 
 I turned to **Claude Opus** (via Claude Code) as my primary legal drafting tool. The LegalTech industry has produced compelling evidence that LLMs can navigate dense legal text with high fidelity. Companies like **Harvey AI** (backed by Sequoia and General Catalyst) and **Ironclad** have built enterprise-grade products on exactly this capability.
 
-A key advantage of using Claude Opus through Claude Code for legal work: the agent already had full context of the codebase (every data flow, every third-party integration, every permission request) through the Google Conductor context-driven development framework. I didn't need to manually describe what the app does. The agent *already knew*, because it had been working alongside me building it.
+A key advantage of using Claude Opus through Claude Code for legal work: the agent already had full context of the codebase (every data flow, every third-party integration, every permission request). I didn't need to manually describe what the app does. The agent *already knew*, because it had been working alongside me building it.
 
 My approach was structured and specific. I did not ask the AI to "write a privacy policy." I provided:
 
@@ -284,9 +284,9 @@ flowchart TD
 
 The **Legal Agent** became the compliance backbone of the company.
 
-Its **Skills and MCPs** included:
-- A **Feature Compliance Audit MCP** (`/compliance-check`): given a description of a new product feature, generate a compliance checklist. What new data processing does this introduce? What disclosures might need updating? What consent mechanisms are required? Evaluated against GDPR, LGPD, and COPPA obligations specific to Appacadabra's privacy-first architecture
-- A **Policy Diff MCP** (`/policy-diff`): given a proposed change to the Privacy Policy or Terms of Service, generate a plain-language summary of what changed, flag whether user re-consent is required, and identify any internal contradictions introduced by the change
+Its **Skills** included:
+- A **Feature Compliance Audit Skill** (`/compliance-check`): given a description of a new product feature, generate a compliance checklist. What new data processing does this introduce? What disclosures might need updating? What consent mechanisms are required? Evaluated against GDPR, LGPD, and COPPA obligations specific to Appacadabra's privacy-first architecture
+- A **Policy Diff Skill** (`/policy-diff`): given a proposed change to the Privacy Policy or Terms of Service, generate a plain-language summary of what changed, flag whether user re-consent is required, and identify any internal contradictions introduced by the change
 
 The Legal Agent meant that as Appacadabra evolved (as new AI models were integrated, as new features were built) the compliance layer evolved with it, not months later when a lawyer finally reviewed it.
 
@@ -296,6 +296,6 @@ At this point in the series, it's worth acknowledging something explicitly: not 
 
 Customer Service, Sales, PR, Investor Relations, HR, Accounting: none of these departments were created. Not because they're unimportant, but because **the app is only now going to production**. The principle I applied was the same one that drove the entire project: build what the company actually needs at this stage, not what a fully mature company would need at scale.
 
-The agent-and-plugin architecture means that when these departments do become necessary (when the first user emails with a support question, when the first partnership opportunity emerges) I will build the agent for that department the same way I built the others: starting with the specific context of Appacadabra, encoding the first manual interactions as skills, and formalizing them as MCPs. The pattern scales.
+The agent-and-plugin architecture means that when these departments do become necessary (when the first user emails with a support question, when the first partnership opportunity emerges) I will build the agent for that department the same way I built the others: starting with the specific context of Appacadabra and encoding the first manual interactions as Skills. The pattern scales.
 
 *With strategy, design, UX, engineering, QA, finance, and legal in place, Appacadabra existed: on paper, in code, validated, financed, and in compliance. But a company that exists only in code is not a company. It's a repository. In Part 8, we turn to making the company legible: Data Analytics and DevOps.*

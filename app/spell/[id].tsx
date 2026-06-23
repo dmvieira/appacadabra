@@ -36,7 +36,7 @@ type RelicEntry = {
     requestData: string | null;
     result: string;
     mediaLocalPath: string | null;
-    creditsUsed: number;
+    costUsd: number;
     success: number;
     delivered: number;
     createdAt: number;
@@ -165,7 +165,7 @@ export default function SpellDataScreen() {
                     requestData: null,
                     result: `${mediaDirBare}/${f}`,
                     mediaLocalPath: `${mediaDirBare}/${f}`,
-                    creditsUsed: 0,
+                    costUsd: 0,
                     success: 1,
                     delivered: 1,
                     createdAt: Date.now(),
@@ -548,8 +548,8 @@ export default function SpellDataScreen() {
                                                     <View style={styles.relicMeta}>
                                                         {active && <Text style={styles.activeBadgeText}>{t('relicActive')}</Text>}
                                                         <Text style={styles.relicDate}>{formatShortDate(entry.createdAt)}</Text>
-                                                        {entry.creditsUsed > 0 && (
-                                                            <Text style={styles.relicMana}>⚡ {entry.creditsUsed.toFixed(2).replace('.', ',')}</Text>
+                                                        {entry.costUsd > 0 && (
+                                                            <Text style={styles.relicMana}>⚡ ${entry.costUsd.toFixed(4)}</Text>
                                                         )}
                                                     </View>
                                                 </View>

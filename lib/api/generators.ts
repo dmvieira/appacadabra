@@ -1,0 +1,608 @@
+/**
+ * Client-side AI generators (Phase 2 implementation).
+ *
+ * Direct port of `firebase/functions/src/generators.ts` — the planner+coder
+ * ordering, prompts, reasoning effort, web-search tools, fix loop iterations,
+ * and outer retry policy must match the server byte-for-byte so generation
+ * quality stays identical after BYOK rolls out.
+ *
+ * The only mechanical difference: `or.chat.completions.create(...)` becomes
+ * `openrouter.chat({...})` (our thin fetch wrapper) — same request shape,
+ * same response shape.
+ */
+
+import { chat as openrouterChat, type ChatResponse, type ChatMessage } from './openrouter';
+import { MODELS, OR_REASONING_HIGH, OR_WEB_SEARCH, calculateCostUsd } from './pricing';
+import {
+    UNIFIED_CREATE_PLANNER_PROMPT,
+    UNIFIED_CREATE_CODE_PROMPT,
+    UNIFIED_EDIT_PLANNER_PROMPT,
+    UNIFIED_EDIT_MIGRATE_PROMPT,
+    CONVERT_PROJECT_PROMPT,
+} from './prompts';
+import {
+    buildSystemInstructions,
+    buildPlannerSystemInstructions,
+    getCapabilitiesByApiNames,
+} from './systemPrompt';
+import { ALL_CAPABILITIES } from '../capabilities';
+import {
+    extractHtml,
+    extractJson,
+    extractText,
+    fixCallbackPatterns,
+    applyPatches,
+    withRetry,
+    accUsage,
+    emptyUsage,
+    type GenerationUsage,
+} from './generationUtils';
+import {
+    validateGeneratedCode,
+    generateFixPrompt,
+    type ValidationError,
+} from '../validators/codeValidator';
+import { validateWithExecution } from '../validators/executionValidator';
+
+// ============================================================
+// Shared types
+// ============================================================
+
+const GENERATION_TIMEOUT_MS = 480_000;
+
+export type ProgressEvent =
+    | { type: 'plan_started' }
+    | { type: 'plan_completed'; planSummary?: string }
+    | { type: 'code_started' }
+    | { type: 'code_progress'; charsSoFar: number }
+    | { type: 'code_completed' }
+    | { type: 'validation_failed'; attempt: number; errorCount: number }
+    | { type: 'fix_started'; attempt: number }
+    | { type: 'completed' };
+
+// Race a generation call against the global timeout (mirrors server raceTimeout).
+async function raceTimeout<T>(promise: Promise<T>): Promise<T> {
+    const timeout = new Promise<never>((_, reject) =>
+        setTimeout(
+            () => reject(new Error(`AI Generation Timeout (${GENERATION_TIMEOUT_MS / 1000}s)`)),
+            GENERATION_TIMEOUT_MS,
+        ),
+    );
+    return Promise.race([promise, timeout]);
+}
+
+function makeUserContent(text: string): ChatMessage {
+    return { role: 'user', content: text };
+}
+
+function makeSystemContent(text: string): ChatMessage {
+    return { role: 'system', content: text };
+}
+
+// ============================================================
+// generateSpellCreate
+// ============================================================
+
+export interface CreateResult {
+    html: string;
+    usage: GenerationUsage;
+    costUsd: number;
+    appName?: string;
+    /** Validation errors found before the fix loop ran. Empty = first-pass was valid. */
+    initialValidationErrors: ValidationError[];
+}
+
+export interface CreateParams {
+    prompt: string;
+    appVersion: string;
+    signal?: AbortSignal;
+    onProgress?: (e: ProgressEvent) => void;
+}
+
+/**
+ * Two-stage planner + coder. Mirrors server's `generateSpellCreate`:
+ *   1. `UNIFIED_CREATE_PLANNER_PROMPT` → JSON plan
+ *   2. `UNIFIED_CREATE_CODE_PROMPT` + plan → HTML
+ *   3. Validate via codeValidator + executionValidator
+ *   4. Auto-fix loop up to 2 iterations with `generateFixPrompt`
+ *   5. Outer retry up to 3 attempts (attempt 0, 1, 2)
+ */
+export async function generateSpellCreate(params: CreateParams): Promise<CreateResult> {
+    const { prompt, appVersion, signal, onProgress } = params;
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= 2; attempt++) {
+        try {
+            if (attempt > 0) {
+                console.warn(`[generateSpellCreate] retry attempt ${attempt}`);
+            }
+            const usage = emptyUsage();
+
+            const callModel = (content: string, sysInstr: string): Promise<ChatResponse> =>
+                raceTimeout(
+                    withRetry(async () => {
+                        const res = await openrouterChat({
+                            model: MODELS.SPELL_S,
+                            messages: [makeSystemContent(sysInstr), makeUserContent(content)],
+                            ...OR_REASONING_HIGH,
+                            ...OR_WEB_SEARCH,
+                            signal,
+                        });
+                        if (!extractText(res)) {
+                            throw new Error(
+                                `Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`,
+                            );
+                        }
+                        return res;
+                    }),
+                );
+
+            // Stage 1: Planning
+            onProgress?.({ type: 'plan_started' });
+            const plannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
+            const planResult = await callModel(
+                `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`,
+                plannerSys,
+            );
+            accUsage(usage, planResult);
+            const appPlan = extractJson(extractText(planResult));
+            onProgress?.({ type: 'plan_completed', planSummary: appPlan?.appName });
+
+            // Stage 2: Coding
+            onProgress?.({ type: 'code_started' });
+            const selectedCaps = getCapabilitiesByApiNames(
+                (appPlan?.technicalRequirements?.apis ?? []).map((a: any) => a.name),
+                appVersion,
+                ALL_CAPABILITIES,
+            );
+            const coderSys = buildSystemInstructions(appVersion, selectedCaps);
+            const codeResult = await callModel(
+                `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`,
+                coderSys,
+            );
+            accUsage(usage, codeResult);
+
+            let html = fixCallbackPatterns(extractHtml(extractText(codeResult)));
+            if (!html) throw new Error('AI returned empty response');
+            onProgress?.({ type: 'code_completed' });
+
+            // Validation (first pass)
+            const initErrors: ValidationError[] = [
+                ...validateGeneratedCode(html).errors,
+                ...validateWithExecution(html).errors,
+            ];
+
+            // Fix loop — up to 2 attempts
+            let currentHtml = html;
+            let currentErrors = initErrors;
+
+            for (
+                let fixAttempt = 0;
+                fixAttempt < 2 &&
+                currentErrors.length > 0 &&
+                currentErrors.some(e => e.fixable);
+                fixAttempt++
+            ) {
+                onProgress?.({
+                    type: 'validation_failed',
+                    attempt: fixAttempt,
+                    errorCount: currentErrors.length,
+                });
+                onProgress?.({ type: 'fix_started', attempt: fixAttempt });
+                const fixResult = await callModel(
+                    generateFixPrompt(currentErrors, currentHtml),
+                    coderSys,
+                );
+                accUsage(usage, fixResult);
+                currentHtml = fixCallbackPatterns(extractHtml(extractText(fixResult)));
+                if (!currentHtml) throw new Error('AI returned empty response after fix');
+                currentErrors = [
+                    ...validateGeneratedCode(currentHtml).errors,
+                    ...validateWithExecution(currentHtml).errors,
+                ];
+            }
+
+            if (currentErrors.length > 0) {
+                throw new Error(`App generation failed: ${currentErrors[0]?.message}`);
+            }
+            html = currentHtml;
+
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            const costUsd = calculateCostUsd(MODELS.SPELL_S, usage);
+            onProgress?.({ type: 'completed' });
+            return {
+                html,
+                usage,
+                costUsd,
+                appName: titleMatch?.[1]?.trim(),
+                initialValidationErrors: initErrors,
+            };
+        } catch (err) {
+            lastError = err;
+            if (attempt < 2) {
+                console.warn(
+                    `[generateSpellCreate] attempt ${attempt + 1} failed, retrying...`,
+                    err,
+                );
+            }
+        }
+    }
+    throw lastError;
+}
+
+// ============================================================
+// generateSpellEdit
+// ============================================================
+
+export interface PreviousEdit {
+    version: number;
+    instruction: string;
+}
+
+export interface StorageKey {
+    key: string;
+    schema: unknown;
+}
+
+export interface EditParams {
+    currentCode: string;
+    instruction: string;
+    appVersion: string;
+    previousEdits?: PreviousEdit[];
+    selectedContext?: string;
+    storageStructure?: StorageKey[];
+    signal?: AbortSignal;
+    onProgress?: (e: ProgressEvent) => void;
+}
+
+export interface EditResult {
+    html: string;
+    usage: GenerationUsage;
+    costUsd: number;
+    initialValidationErrors: ValidationError[];
+}
+
+/**
+ * Two-stage edit. Mirrors server's `generateSpellEdit`:
+ *   1. `UNIFIED_EDIT_PLANNER_PROMPT` → JSON patch plan
+ *   2. `UNIFIED_EDIT_MIGRATE_PROMPT` → JSON `changes` array of patches
+ *   3. Apply patches → validate → 1 fix iteration
+ *   4. Guardrail: refuses renames/removals of existing localStorage keys via
+ *      the warning embedded in the prompt.
+ */
+export async function generateSpellEdit(params: EditParams): Promise<EditResult> {
+    const {
+        currentCode,
+        instruction,
+        appVersion,
+        previousEdits,
+        selectedContext,
+        storageStructure,
+        signal,
+        onProgress,
+    } = params;
+
+    // Pre-compute inputs that don't change between retries
+    let rawCode = currentCode;
+    if (rawCode && !rawCode.trimStart().startsWith('<')) {
+        const recovered = extractHtml(rawCode);
+        if (recovered?.trimStart().startsWith('<')) rawCode = recovered;
+    }
+    const normalizedCode = rawCode.replace(/\r\n/g, '\n');
+    const numberedCode = normalizedCode
+        .split('\n')
+        .map((l, i) => `${i + 1}| ${l}`)
+        .join('\n');
+
+    const historyContext = previousEdits?.length
+        ? `\nPrevious edits:\n${previousEdits.map(e => `- v${e.version}: ${e.instruction}`).join('\n')}\n`
+        : '';
+    const selectionPart = selectedContext
+        ? `\nSelected code:\n"""\n${selectedContext}\n"""\n`
+        : '';
+    const storageKeysPart = storageStructure?.length
+        ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(s => `- localStorage["${s.key}"]: ${JSON.stringify(s.schema)}`).join('\n')}\n`
+        : '';
+
+    const editPlannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
+    const editPatcherSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= 2; attempt++) {
+        try {
+            if (attempt > 0) {
+                console.warn(`[generateSpellEdit] retry attempt ${attempt}`);
+            }
+            const usage = emptyUsage();
+
+            const callEditModel = (content: string, sysInstr: string): Promise<ChatResponse> =>
+                raceTimeout(
+                    withRetry(async () => {
+                        const res = await openrouterChat({
+                            model: MODELS.SPELL_S,
+                            messages: [makeSystemContent(sysInstr), makeUserContent(content)],
+                            ...OR_REASONING_HIGH,
+                            ...OR_WEB_SEARCH,
+                            signal,
+                        });
+                        if (!extractText(res)) {
+                            throw new Error(
+                                `Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`,
+                            );
+                        }
+                        return res;
+                    }),
+                );
+
+            // Stage 1: Plan
+            onProgress?.({ type: 'plan_started' });
+            const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
+            const planResult = await callEditModel(planPrompt, editPlannerSys);
+            accUsage(usage, planResult);
+            const editPlan = extractJson(extractText(planResult));
+            onProgress?.({ type: 'plan_completed' });
+
+            // Stage 2: Patch
+            onProgress?.({ type: 'code_started' });
+            const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
+            const patchResult = await callEditModel(patchPrompt, editPatcherSys);
+            accUsage(usage, patchResult);
+            const patchResponse = extractJson(extractText(patchResult));
+
+            let html = fixCallbackPatterns(
+                applyPatches(normalizedCode, patchResponse?.changes ?? []),
+            );
+            onProgress?.({ type: 'code_completed' });
+
+            // Validation (first pass)
+            const initErrors: ValidationError[] = [
+                ...validateGeneratedCode(html).errors,
+                ...validateWithExecution(html).errors,
+            ];
+
+            // Fix loop — 1 iteration (mirrors server's production behaviour)
+            if (initErrors.length > 0 && initErrors.some(e => e.fixable)) {
+                onProgress?.({
+                    type: 'validation_failed',
+                    attempt: 0,
+                    errorCount: initErrors.length,
+                });
+                onProgress?.({ type: 'fix_started', attempt: 0 });
+                const fixResult = await callEditModel(
+                    generateFixPrompt(initErrors, html),
+                    'Follow instructions and fix these errors in the code',
+                );
+                accUsage(usage, fixResult);
+                html = fixCallbackPatterns(extractHtml(extractText(fixResult)));
+                if (!html) throw new Error('AI returned empty response after fix');
+                const afterErrors = [
+                    ...validateGeneratedCode(html).errors,
+                    ...validateWithExecution(html).errors,
+                ];
+                if (afterErrors.length > 0) {
+                    throw new Error(`Edit failed: ${afterErrors[0]?.message}`);
+                }
+            } else if (initErrors.length > 0) {
+                throw new Error(`Edit failed: ${initErrors[0]?.message}`);
+            }
+
+            const costUsd = calculateCostUsd(MODELS.SPELL_S, usage);
+            onProgress?.({ type: 'completed' });
+            return { html, usage, costUsd, initialValidationErrors: initErrors };
+        } catch (err) {
+            lastError = err;
+            if (attempt < 2) {
+                console.warn(
+                    `[generateSpellEdit] attempt ${attempt + 1} failed, retrying...`,
+                    err,
+                );
+            }
+        }
+    }
+    throw lastError;
+}
+
+// ============================================================
+// generateConvert
+// ============================================================
+
+export interface ConvertParams {
+    sourceCode: string;
+    frameworkHint?: string;
+    appVersion: string;
+    signal?: AbortSignal;
+}
+
+export interface ConvertResult {
+    html: string;
+    usage: GenerationUsage;
+    costUsd: number;
+}
+
+/** One-shot React/Node → standalone HTML conversion. */
+export async function generateConvert(params: ConvertParams): Promise<ConvertResult> {
+    const { sourceCode, frameworkHint, appVersion, signal } = params;
+    const usage = emptyUsage();
+    const sys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+
+    const userMsg = `${CONVERT_PROJECT_PROMPT}\n\n--- SOURCE${frameworkHint ? ` (${frameworkHint})` : ''} ---\n\`\`\`\n${sourceCode}\n\`\`\``;
+
+    const result = await raceTimeout(
+        withRetry(async () => {
+            const res = await openrouterChat({
+                model: MODELS.SPELL_S,
+                messages: [makeSystemContent(sys), makeUserContent(userMsg)],
+                ...OR_REASONING_HIGH,
+                signal,
+            });
+            if (!extractText(res)) {
+                throw new Error(
+                    `Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`,
+                );
+            }
+            return res;
+        }),
+    );
+    accUsage(usage, result);
+
+    const html = fixCallbackPatterns(extractHtml(extractText(result)));
+    if (!html) throw new Error('AI returned empty response');
+    const costUsd = calculateCostUsd(MODELS.SPELL_S, usage);
+    return { html, usage, costUsd };
+}
+
+// ============================================================
+// generateWebviewAI (text generation called from inside a spell)
+// ============================================================
+
+export interface WebviewAIParams {
+    prompt: string;
+    schema?: Record<string, unknown>;
+    images?: string[];
+    audios?: string[];
+    useSearch?: boolean;
+    requestedModel?: string;
+    requestedTools?: string[];
+    signal?: AbortSignal;
+}
+
+export interface WebviewAIResult {
+    text: string;
+    usage: GenerationUsage;
+    searchQueriesUsed: number;
+    costUsd: number;
+}
+
+function inferSchema(data: any): any {
+    if (data === null || data === undefined) return { type: 'string' };
+    if (typeof data === 'string') return { type: 'string' };
+    if (typeof data === 'number') {
+        return Number.isInteger(data) ? { type: 'integer' } : { type: 'number' };
+    }
+    if (typeof data === 'boolean') return { type: 'boolean' };
+    if (Array.isArray(data)) {
+        return {
+            type: 'array',
+            items: data.length > 0 ? inferSchema(data[0]) : { type: 'string' },
+        };
+    }
+    if (typeof data === 'object') {
+        const properties: any = {};
+        const required: string[] = [];
+        Object.keys(data).forEach(key => {
+            properties[key] = inferSchema(data[key]);
+            required.push(key);
+        });
+        return { type: 'object', properties, required };
+    }
+    return { type: 'string' };
+}
+
+export async function generateWebviewAI(params: WebviewAIParams): Promise<WebviewAIResult> {
+    const {
+        prompt,
+        schema,
+        images,
+        audios,
+        useSearch,
+        requestedModel,
+        requestedTools,
+        signal,
+    } = params;
+
+    let tools = requestedTools ?? [];
+    if (useSearch && !tools.includes('googleSearch')) tools = [...tools, 'googleSearch'];
+    const useWebSearch = tools.includes('googleSearch') || tools.includes('googleMaps');
+    const effectiveModel = requestedModel ?? MODELS.WEBVIEW;
+
+    const userContent: Array<{ type: string; [key: string]: unknown }> = [
+        { type: 'text', text: prompt },
+    ];
+    if (images?.length) {
+        for (const img of images) {
+            userContent.push({
+                type: 'image_url',
+                image_url: { url: `data:image/jpeg;base64,${img}` },
+            });
+        }
+    }
+    if (audios?.length) {
+        for (const aud of audios) {
+            userContent.push({
+                type: 'input_audio',
+                input_audio: { data: aud, format: 'wav' },
+            });
+        }
+    }
+
+    const resolvedSchema = schema
+        ? !(schema as any).type
+            ? inferSchema(schema)
+            : schema
+        : undefined;
+
+    const messages: ChatMessage[] = [];
+    const sContent =
+        'Do exactly what the user asks for. Do not add any extra information or explanations.';
+    if (useWebSearch) {
+        messages.push(
+            makeSystemContent(
+                sContent +
+                    '\n\nYou have access to web search and web fetch. Use web_search to find relevant links and web_fetch to read the full content of documentation or specific pages when needed for accuracy.',
+            ),
+        );
+    }
+    messages.push({ role: 'user', content: userContent });
+
+    const result = await withRetry(() =>
+        openrouterChat({
+            model: effectiveModel,
+            messages,
+            max_tokens: 65536,
+            ...OR_REASONING_HIGH,
+            ...(useWebSearch ? OR_WEB_SEARCH : {}),
+            ...(resolvedSchema
+                ? {
+                      extra: {
+                          response_format: {
+                              type: 'json_schema',
+                              json_schema: {
+                                  name: 'response',
+                                  schema: resolvedSchema as any,
+                                  strict: false,
+                              },
+                          },
+                      },
+                  }
+                : {}),
+            signal,
+        }),
+    );
+
+    const usage = emptyUsage();
+    accUsage(usage, result);
+
+    let text = extractText(result);
+
+    if (schema && text) {
+        try {
+            text = JSON.stringify(extractJson(text));
+        } catch (e: any) {
+            const snippet = text.length > 200 ? text.substring(0, 200) + '...' : text;
+            throw new Error(`JSON Extraction Failed: ${e.message} | Raw: ${snippet}`);
+        }
+    }
+
+    if (!text) throw new Error('AI returned empty response');
+
+    // Best-effort: OpenRouter doesn't expose web-search request count today, so
+    // we approximate. The server used the same approximation.
+    const searchQueriesUsed = useWebSearch ? 1 : 0;
+    const reportedCost = (result.usage as any)?.cost;
+    const costUsd =
+        typeof reportedCost === 'number' && reportedCost > 0
+            ? reportedCost
+            : calculateCostUsd(effectiveModel, usage, { searchQueries: searchQueriesUsed });
+
+    return { text, usage, searchQueriesUsed, costUsd };
+}

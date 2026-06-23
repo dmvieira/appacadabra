@@ -2,24 +2,17 @@ import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ai from '../api/ai';
-import { useManaStore } from '../manaStore';
 import { useBridgeUIStore } from '../bridgeUIStore';
-import { useAppStore } from '../store';
 import * as db from '../database/db';
 import { saveAiMediaToFile, buildBlobMarker } from './mediaHelpers';
-import { t } from '../i18n';
+import { hasOpenRouterKey } from '../api/keyStorage';
+import { estimateUsd, formatUsd, MODELS } from '../api/pricing';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
 
 // Module-level state
 let currentRecording: Audio.Recording | null = null;
 let audioRecordingTimeout: NodeJS.Timeout | null = null;
 let currentAITTS: Audio.Sound | null = null;
-
-async function estimateManaCost(type: string, data: any): Promise<{ display: string; value: number }> {
-    const manaLabel = t('mana');
-    const result = await ai.estimateManaCost(type, data);
-    return { display: `${result.mana} ${manaLabel}`, value: result.value };
-}
 
 async function checkAndMarkFirstAiUse(): Promise<boolean> {
     const hasUsed = await db.getSetting('has_used_ai_ever');
@@ -190,26 +183,30 @@ window.onAudioResult = function(success, base64) {
             }
 
             case 'AUDIO_SPEAK_AI': {
-                let audioCostDisplay: string;
-                let audioCostValue: number;
-                try {
-                    ({ display: audioCostDisplay, value: audioCostValue } = await estimateManaCost('audio', data));
-                } catch (e) {
-                    console.warn('[Bridge] Mana estimation failed, blocking operation:', e);
-                    useManaStore.getState().openShop();
-                    return { success: false, result: t('manaDepletedMessage') };
+                const hasKey = await hasOpenRouterKey();
+                if (!hasKey) {
+                    const action = await useBridgeUIStore.getState().requestKeyMissing('audio');
+                    return {
+                        success: false,
+                        result:
+                            action === 'openSettings'
+                                ? 'AI key required. Configure OpenRouter to continue.'
+                                : 'AI key not configured.',
+                    };
                 }
-                if (audioCostValue > useManaStore.getState().balance) {
-                    useManaStore.getState().openShop(audioCostValue);
-                    return { success: false, result: t('manaDepletedMessage') };
-                }
-                const manaConfirmedAudio = await useBridgeUIStore.getState()
-                    .requestManaConfirmation(ctx.appId, 'audio', audioCostDisplay);
-                if (!manaConfirmedAudio) { return { success: false, result: t('manaConfirmCancelled') }; }
+                const audioUsd = estimateUsd({
+                    type: 'webview_ai_tts',
+                    promptLength: 0,
+                    ttsCharacters: typeof data?.text === 'string' ? data.text.length : 0,
+                });
+                const confirmedAudio = await useBridgeUIStore.getState()
+                    .requestCostEstimate(ctx.appId, 'audio', formatUsd(audioUsd), MODELS.TTS);
+                if (!confirmedAudio) { return { success: false, result: 'Cost confirmation cancelled.' }; }
                 console.log(`[Bridge] AI TTS request: "${data.text?.substring(0, 50)}..." voice=${data.voiceName || 'Aoede'}`);
                 try {
-                    const ttsResult = await ai.aiGenerateTTS(data.text, data.voiceName, ctx.onJobCreated);
-                    const { audioBase64, creditsUsed } = ttsResult;
+                    const ttsResult = await ai.aiGenerateTTS(data.text, data.voiceName);
+                    const { audioBase64 } = ttsResult;
+                    const costUsd = ttsResult.costUsd || 0;
 
                     let permanentPath: string | undefined;
                     if (ctx.appId && ctx.callbackName) {
@@ -245,14 +242,7 @@ window.onAudioResult = function(success, base64) {
                         }
                     });
 
-                    if (ctx.appId && creditsUsed > 0) {
-                        try {
-                            await useAppStore.getState().incrementAppManaCost(ctx.appId, creditsUsed);
-                            console.log(`[Bridge] App ${ctx.appId} mana cost increased by ${creditsUsed}`);
-                        } catch (e) {
-                            console.warn('Failed to update app mana cost:', e);
-                        }
-                    }
+                    if (ctx.appId) await db.incrementSpendUsd(ctx.appId, costUsd);
 
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
 
@@ -264,24 +254,15 @@ window.onAudioResult = function(success, base64) {
                         result = audioBase64;
                     }
 
-                    return { success: true, result, creditsUsed, isFirstAiUse };
+                    return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
                     const errorMsg = e instanceof Error ? e.message : 'Error';
-
-                    const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
-                        errorMsg.toLowerCase().includes('insufficient mana');
-
-                    if (isManaError) {
-                        useManaStore.getState().openShop();
-                        return { success: false, result: t('manaDepletedMessage') };
-                    } else {
-                        console.warn('[AUDIO_SPEAK_AI] AI TTS failed, falling back to Speech.speak:', errorMsg);
-                        try {
-                            Speech.speak(data.text, { language: data.language || undefined });
-                            return { success: true, result: 'Speaking' };
-                        } catch (fallbackErr) {
-                            return { success: false, result: errorMsg };
-                        }
+                    console.warn('[AUDIO_SPEAK_AI] AI TTS failed, falling back to Speech.speak:', errorMsg);
+                    try {
+                        Speech.speak(data.text, { language: data.language || undefined });
+                        return { success: true, result: 'Speaking' };
+                    } catch (fallbackErr) {
+                        return { success: false, result: errorMsg };
                     }
                 }
             }

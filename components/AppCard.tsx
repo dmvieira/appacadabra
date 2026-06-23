@@ -41,13 +41,13 @@ function nameToColors(name: string): { bg: string; fg: string } {
     return { bg: pair[0], fg: pair[1] };
 }
 
-function getManaLevel(total: number): 'low' | 'mid' | 'high' {
-    if (total > 30) return 'high';
-    if (total > 2) return 'mid';
+function getSpendLevel(totalUsd: number): 'low' | 'mid' | 'high' {
+    if (totalUsd > 1.8) return 'high';
+    if (totalUsd > 0.12) return 'mid';
     return 'low';
 }
 
-const MANA_COLOR = { low: '#22c55e', mid: '#f59e0b', high: '#ef4444' } as const;
+const SPEND_COLOR = { low: '#22c55e', mid: '#f59e0b', high: '#ef4444' } as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -102,20 +102,15 @@ export function AppCard({
 
     const isInteractionDisabled = isPlaceholder || isLocked;
     const avatarColors = nameToColors(app.name);
-    const recentMana = app.recentManaCost ?? app.totalManaCost ?? 0;
-    const manaLevel = getManaLevel(recentMana);
-    const manaColor = MANA_COLOR[manaLevel];
-    const manaStr = recentMana.toLocaleString(locale, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
+    const totalSpend = app.totalSpendUsd ?? 0;
+    const spendLevel = getSpendLevel(totalSpend);
+    const spendColor = SPEND_COLOR[spendLevel];
+    const spendStr = totalSpend.toLocaleString(locale, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
     });
-    // Period: from spell creation (max 30 days)
-    const msPerDay = 86_400_000;
-    const ageDays = Math.floor((Date.now() - (app.createdAt || app.lastUpdated)) / msPerDay);
-    const windowDays = Math.min(ageDays, 30) || 1;
-    const periodLabel = windowDays < 30
-        ? t('manaLastDays', { days: windowDays })
-        : t('manaLast30Days');
 
     const hasNotifs = (notificationCount ?? 0) > 0;
 
@@ -280,8 +275,8 @@ export function AppCard({
                             onPress={() => { if (isActive) onDismissActive?.(); }}
                         >
                             <View style={styles.usage}>
-                                <View style={[styles.usageDot, { backgroundColor: manaColor }]} />
-                                <Text style={styles.usageText}>⚡ {manaStr} {periodLabel}</Text>
+                                <View style={[styles.usageDot, { backgroundColor: spendColor }]} />
+                                <Text style={styles.usageText}>⚡ {spendStr}</Text>
                             </View>
                             <TouchableOpacity
                                 style={styles.btnOpen}

@@ -116,15 +116,6 @@ jest.mock('expo-linking', () => ({
     openURL: jest.fn(() => Promise.resolve()),
 }));
 
-jest.mock('../../manaStore', () => ({
-    useManaStore: {
-        getState: jest.fn(() => ({
-            spendMana: jest.fn(() => Promise.resolve(true)),
-            getManaBalance: jest.fn(() => 100),
-        })),
-    },
-}));
-
 jest.mock('../../bridgeUIStore', () => ({
     useBridgeUIStore: {
         getState: jest.fn(() => ({
@@ -132,9 +123,14 @@ jest.mock('../../bridgeUIStore', () => ({
             openVideoPlayer: jest.fn(),
             openScanner: jest.fn(),
             closeScanner: jest.fn(),
-            showManaConfirm: jest.fn(),
+            requestCostEstimate: jest.fn(() => Promise.resolve(true)),
+            requestKeyMissing: jest.fn(() => Promise.resolve('openSettings')),
         })),
     },
+}));
+
+jest.mock('../../api/keyStorage', () => ({
+    hasOpenRouterKey: jest.fn(() => Promise.resolve(true)),
 }));
 
 jest.mock('../../store', () => ({

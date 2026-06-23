@@ -36,7 +36,7 @@ import { useBridgeUIStore } from './lib/bridgeUIStore';
 import { cleanupWatchersForApp as cleanupSheetsWatchers } from './lib/capabilities/sheets';
 import { cleanupWatchersForApp as cleanupDocsWatchers } from './lib/capabilities/docs';
 import { cleanupWatchersForApp as cleanupFormsWatchers } from './lib/capabilities/forms';
-import { ManaConfirmModal } from './components/ManaConfirmModal';
+import { CostEstimateModal } from './components/CostEstimateModal';
 import { LargePayloadConfirmModal } from './components/LargePayloadConfirmModal';
 
 function isLargeAiPayload(type: string, data: any): boolean {
@@ -155,7 +155,6 @@ function RunnerContent({ appId }: Props) {
             const store = useBridgeUIStore.getState();
             store.closeScanner();
             store.closeVideoPlayer();
-            store.resolveManaConfirmation(false);
             if ((store.webViewRef as any) === webViewRef) {
                 store.setWebViewRef(null as any);
             }
@@ -428,7 +427,7 @@ function RunnerContent({ appId }: Props) {
                     if (!confirmed) {
                         if (callbackName && webViewRef.current) {
                             webViewRef.current.injectJavaScript(
-                                `if(window[${JSON.stringify(callbackName)}]){window[${JSON.stringify(callbackName)}](false,${JSON.stringify(t('manaConfirmCancelled'))});} true;`
+                                `if(window[${JSON.stringify(callbackName)}]){window[${JSON.stringify(callbackName)}](false,${JSON.stringify(t('largePayloadCancelled'))});} true;`
                             );
                         }
                         return;
@@ -934,7 +933,7 @@ export default function RunnerApp(props: RunnerAppProps) {
             <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
                 <RunnerContent key={appId} appId={appId} />
             </SafeAreaView>
-            <ManaConfirmModal />
+            <CostEstimateModal />
         </SafeAreaProvider>
     );
 }

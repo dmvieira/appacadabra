@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as Localization from 'expo-localization';
+import firebaseFirestore, { collection, query, where, getDocs } from '@react-native-firebase/firestore';
 import * as firebase from './firebase';
 import {
     getAppById,
@@ -14,6 +15,58 @@ import {
 } from './database/db';
 import { useAppStore } from './store';
 import { t } from './i18n';
+
+/**
+ * Server flag mirror. The callable wrapper was removed with the BYOK refactor
+ * and Firestore rules block client writes to users/{uid}/learned_spells/{id}
+ * (`allow write: if false`). The local SQLite row (storeSpellId column) is the
+ * source of truth, so a stale `syncedAt` flag on the server doc is non-fatal.
+ * TODO(Phase4-rules): if/when rules grow a self-write allowance, replace this
+ * with a `setDoc({ syncedAt, localAppId }, { merge: true })`.
+ */
+async function markSpellSyncedStub(_spellId: string, _appId: number, _synced: boolean): Promise<void> {
+    return;
+}
+
+interface MyPublishedSpellEntry {
+    spellId: string;
+    name: string;
+    slug: string;
+    visibility: 'public' | 'unlisted';
+}
+
+/**
+ * Lists the current user's published store spells by querying
+ * `store_spells where authorUid == uid and status == 'active'`. Firestore
+ * rules allow reads on active store_spells, so this works client-side.
+ */
+async function getMyPublishedSpells(): Promise<{ spells: MyPublishedSpellEntry[] }> {
+    const uid = firebase.getCurrentUserId();
+    if (!uid) return { spells: [] };
+    try {
+        const firestore = firebaseFirestore();
+        const q = query(
+            collection(firestore, 'store_spells'),
+            where('authorUid', '==', uid),
+            where('status', '==', 'active'),
+        );
+        const snap = await getDocs(q);
+        const spells: MyPublishedSpellEntry[] = snap.docs.map((d: any) => {
+            const data = d.data() ?? {};
+            const visibility: 'public' | 'unlisted' = data.visibility === 'unlisted' ? 'unlisted' : 'public';
+            return {
+                spellId: d.id,
+                name: typeof data.name === 'string' ? data.name : '',
+                slug: typeof data.slug === 'string' ? data.slug : '',
+                visibility,
+            };
+        });
+        return { spells };
+    } catch (e: any) {
+        console.warn('[StoreSync] getMyPublishedSpells query failed:', e?.message);
+        return { spells: [] };
+    }
+}
 
 export interface SyncLearnedSpellsOptions {
     triggeredByDeepLink?: boolean;
@@ -167,7 +220,7 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                 if (existing) {
                     // Already imported — make sure the server-side flag is in sync
                     try {
-                        await firebase.markSpellSynced(spell.spellId, existing.id, true);
+                        await markSpellSyncedStub(spell.spellId, existing.id, true);
                     } catch (e: any) {
                         console.warn('[StoreSync] markSpellSynced (dedup) failed:', e?.message);
                     }
@@ -218,7 +271,7 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                         lastUpdated: now,
                         createdAt: now,
                         consoleLogs: '',
-                        totalManaCost: 0,
+                        totalSpendUsd: 0,
                         requiresBiometric: false,
                         sortOrder: 0,
                     });
@@ -227,7 +280,7 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                         try { await removeDeletedStoreSpellTombstone(spell.spellId); } catch {}
                     }
                     try {
-                        await firebase.markSpellSynced(spell.spellId, appId, true);
+                        await markSpellSyncedStub(spell.spellId, appId, true);
                     } catch (e: any) {
                         console.warn('[StoreSync] markSpellSynced failed:', e?.message);
                     }
@@ -306,7 +359,7 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
         // Restore storeSpellId for spells published on another device / after reinstall
         let restored = 0;
         try {
-            const { spells: remoteSpells } = await firebase.getMyPublishedSpells();
+            const { spells: remoteSpells } = await getMyPublishedSpells();
             if (remoteSpells.length > 0) {
                 const allLocalApps = await getAllApps();
                 for (const spell of remoteSpells) {

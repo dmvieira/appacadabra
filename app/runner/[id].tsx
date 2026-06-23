@@ -36,7 +36,6 @@ import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, ExpandedStorageItem } from '../../lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, saveAiMediaToFile, AI_MEDIA_MIME, buildBlobMarker } from '../../lib/bridges/messageHandlers';
-import { waitForExistingJob } from '../../lib/firebase';
 import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -44,7 +43,7 @@ import { GeneratedApp, AppVersion } from '../../lib/database/types';
 import { useSpeechToText } from '../../lib/useSpeech';
 import { t, getWebViewTranslations } from '../../lib/i18n';
 import QRScannerOverlay from '../../components/QRScannerOverlay';
-import { useManaStore } from '../../lib/manaStore';
+import { hasOpenRouterKey } from '../../lib/api/keyStorage';
 import { reloadStorageForApp, getStorageFromCache } from '../../lib/storageCache';
 import { cleanupWatchersForApp as cleanupSheetsWatchers, cleanupEditModeForApp as cleanupSheetsEditMode } from '../../lib/capabilities/sheets';
 import { cleanupWatchersForApp as cleanupDocsWatchers, cleanupEditModeForApp as cleanupDocsEditMode } from '../../lib/capabilities/docs';
@@ -185,32 +184,6 @@ async function deliverCachedAiResult(
     webView.injectJavaScript(script);
 }
 
-/**
- * Re-attaches a Firestore listener for a job that was still processing when the webview reloaded.
- * Uses listeningJobIds to prevent duplicate listeners on repeated pull-to-refresh.
- */
-function reattachJobListener(
-    entry: db.WebviewAiCacheEntry,
-    webViewRef: React.RefObject<WebView | null>,
-    appId: number,
-    listeningJobIds: React.MutableRefObject<Set<string>>
-): void {
-    if (listeningJobIds.current.has(entry.jobId!)) return;
-    listeningJobIds.current.add(entry.jobId!);
-
-    waitForExistingJob(entry.jobId!).then(async (genResult) => {
-        listeningJobIds.current.delete(entry.jobId!);
-        await db.updateWebviewAiCacheResult(entry.id, genResult.text, null, null, true);
-        if (webViewRef.current) {
-            await deliverCachedAiResult({ ...entry, result: genResult.text, success: 1 }, webViewRef.current);
-        }
-    }).catch(async (err) => {
-        console.warn('[Runner] reattachJobListener: job failed or timed out', entry.jobId, err);
-        listeningJobIds.current.delete(entry.jobId!);
-        await db.markWebviewAiCacheDelivered(entry.id);
-    });
-}
-
 export default function RunnerScreen() {
     const { id, edit, share, payload } = useLocalSearchParams<{ id: string; edit?: string; share?: string; payload?: string }>();
     const isFocused = useIsFocused();
@@ -246,13 +219,6 @@ export default function RunnerScreen() {
         // But since we pass the RefObject, the store holds the RefObject which always has .current
         useBridgeUIStore.getState().setWebViewRef(webViewRef as any);
     }, []); // Run once, the ref object is stable
-
-    // Cancel pending mana confirmation when runner loses focus
-    useEffect(() => {
-        if (!isFocused) {
-            useBridgeUIStore.getState().resolveManaConfirmation(false);
-        }
-    }, [isFocused]);
 
     // Track elapsed seconds during AI loading
     useEffect(() => {
@@ -333,8 +299,6 @@ export default function RunnerScreen() {
     const [storageLoaded, setStorageLoaded] = useState(false);
     // Use ref to ensure storage is available synchronously for script creation
     const savedStorageRef = useRef<ExpandedStorageItem[]>([]);
-    // Tracks jobIds already being re-listened to — prevents duplicate listeners on repeated pull-to-refresh
-    const listeningJobIds = useRef<Set<string>>(new Set());
 
     const htmlContent = useMemo(() => {
         if (!app) return '';
@@ -888,11 +852,9 @@ export default function RunnerScreen() {
                     if (hasResult) {
                         // Result already cached — deliver directly to webview
                         await deliverCachedAiResult(entry, webViewRef.current);
-                    } else if (entry.jobId) {
-                        // Job still processing — re-attach Firestore listener
-                        reattachJobListener(entry, webViewRef, app.id, listeningJobIds);
                     } else {
-                        // No jobId and no result — job died before doc was created; clean up
+                        // BYOK runs AI synchronously inline — there is no Firestore job to
+                        // reattach to. Any cache entry without a delivered result is stale.
                         await db.markWebviewAiCacheDelivered(entry.id);
                     }
                 }
@@ -1052,7 +1014,7 @@ export default function RunnerScreen() {
                             if (!confirmed) {
                                 if (callbackName && webViewRef.current) {
                                     webViewRef.current.injectJavaScript(
-                                        `if(window[${JSON.stringify(callbackName)}]){window[${JSON.stringify(callbackName)}](false,${JSON.stringify(t('manaConfirmCancelled'))});} true;`
+                                        `if(window[${JSON.stringify(callbackName)}]){window[${JSON.stringify(callbackName)}](false,${JSON.stringify(t('largePayloadCancelled'))});} true;`
                                     );
                                 }
                                 return;
@@ -1245,9 +1207,10 @@ export default function RunnerScreen() {
     const handleApplyEdit = async () => {
         if (!app || !editPrompt.trim()) return;
 
-        const { balance, openShop } = useManaStore.getState();
-        if (balance <= 0) {
-            openShop();
+        // BYOK key gate before edit. Without an OpenRouter key, redirect to Settings.
+        const hasKey = await hasOpenRouterKey();
+        if (!hasKey) {
+            router.push('/settings/openrouter');
             return;
         }
 

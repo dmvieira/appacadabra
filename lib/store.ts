@@ -6,21 +6,19 @@ import * as db from './database/db';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Paths, File } from 'expo-file-system/next';
 import * as ai from './api/ai';
+import * as openrouter from './api/openrouter';
+import { MODELS } from './api/pricing';
 import * as backup from './backup';
 import { onboardingTemplates } from './onboardingTemplates';
 import * as projectConverter from './projectConverter';
-import * as firebase from './firebase'; // Import firebase helper
-import { Job } from './firebase';
+import * as firebase from './firebase';
 import SharingShortcuts from './bridges/SharingShortcuts';
 import { t } from './i18n';
-import { useManaStore } from './manaStore';
 import { getStorageFromCache } from './storageCache';
 import { cancelSpellNotifications } from './bridges/messageHandlers';
 import { markBackupDirty } from './backupSync';
 
 const DISMISSED_URI_TTL_MS = 15000;
-
-let _jobListenerInitialized = false;
 
 interface AppState {
     apps: GeneratedApp[];
@@ -46,8 +44,7 @@ interface AppState {
         shareId?: string; // Unique ID for each share session
     } | null;
 
-    // Async Job Management
-    activeJobs: Job[];
+    // In-flight create/edit tracking (synchronous BYOK — placeholder UX only).
     creatingApps: { jobId: string; description: string; timestamp: number }[];
 
     // Signal for RunnerScreen to navigate back after edit completes
@@ -62,8 +59,14 @@ interface AppState {
     dismissContent: (uri: string) => void;
 
     // Failed prompt recovery — preserve user's text when a job fails
-    lastFailedPrompt: { type: Job['action']; text: string; appId?: number } | null;
+    lastFailedPrompt: { type: 'create' | 'edit'; text: string; appId?: number } | null;
     clearLastFailedPrompt: () => void;
+
+    // Bumped after the user saves/clears the OpenRouter key.
+    // Components that depend on key presence subscribe to this to re-read
+    // hasOpenRouterKey() without polling.
+    aiKeyVersion: number;
+    bumpAiKeyVersion: () => void;
 
     initializeListeners: () => void;
 
@@ -82,7 +85,7 @@ interface AppState {
     updateAppIcon: (id: number, iconPath: string) => Promise<void>;
     updateAppCode: (id: number, code: string, instruction?: string) => Promise<void>;
     clearAppStorage: (id: number) => Promise<void>;
-    incrementAppManaCost: (id: number, amount: number) => Promise<void>;
+    incrementAppSpendUsd: (id: number, amount: number) => Promise<void>;
     exportBackup: () => Promise<void>;
     importBackup: (uri?: string, triggerSetup?: boolean) => Promise<void>;
     importOnboardingSpell: (chipIndex: number) => Promise<number | null>;
@@ -94,8 +97,6 @@ interface AppState {
     setPendingImportUrl: (url: string | null) => void;
     setSharedContent: (content: AppState['sharedContent']) => void;
     clearSharedContent: () => void;
-    _processCompletedJob: (job: Job) => Promise<void>;
-    _processFailedJob: (job: Job) => void;
     generateAndSaveAppIcon: (appId: number, prompt: string) => Promise<{ iconPath: string; creditsUsed: number }>;
     reorderApp: (appId: number, direction: 'up' | 'down') => Promise<void>;
     wipeAllData: () => Promise<void>;
@@ -119,6 +120,10 @@ function inferJsonSchema(value: any): object {
     return { type: typeof value };
 }
 
+function makeLocalJobId(prefix: string): string {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
     apps: [],
     isLoading: true,
@@ -131,15 +136,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     runningInstances: [],
     activeAppId: null,
     sharedContent: null,
-    activeJobs: [],
     creatingApps: [],
     updatingAppIds: [],
     lastCompletedEditAppId: null,
     lastCreatedAppId: null,
     dismissedUris: {},
     lastFailedPrompt: null,
+    aiKeyVersion: 0,
 
     clearLastFailedPrompt: () => set({ lastFailedPrompt: null }),
+    bumpAiKeyVersion: () => set(state => ({ aiKeyVersion: state.aiKeyVersion + 1 })),
 
     dismissContent: (uri: string) => {
         const now = Date.now();
@@ -155,381 +161,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
     },
 
-    initializeListeners: () => {
-        if (_jobListenerInitialized) {
-            console.warn('[Store] initializeListeners called twice — skipping');
-            return;
-        }
-        _jobListenerInitialized = true;
-        console.log('[Store] Initializing job listeners...');
-
-        // Listen to active jobs
-        const unsubscribeJobs = firebase.listenToActiveJobs((jobs) => {
-            const currentJobs = get().activeJobs;
-
-            // Check for newly completed jobs to process results
-            jobs.forEach(job => {
-                const previousJob = currentJobs.find(j => j.id === job.id);
-                const wasCompleted = previousJob?.status === 'completed';
-                const wasFailed = previousJob?.status === 'failed';
-
-                // Check job age to prevent re-importing old history on login
-                // Only process recent jobs (e.g. created < 10 mins ago) if they appear completed
-                // This handles the case where user logs in and fetch returns old 'completed' jobs
-                let jobTime = 0;
-                if (job.createdAt && typeof job.createdAt.toMillis === 'function') {
-                    jobTime = job.createdAt.toMillis();
-                } else if (typeof job.createdAt === 'number') {
-                    jobTime = job.createdAt;
-                } else if (job.createdAt && job.createdAt.seconds) {
-                    jobTime = job.createdAt.seconds * 1000;
-                }
-
-                // null createdAt = pending serverTimestamp, treat as fresh.
-                const isOld = jobTime > 0
-                    ? (Date.now() - jobTime) > 20 * 60 * 1000
-                    : false;
-
-                if (job.status === 'completed' && !wasCompleted) {
-                    // Always release UI locks — even when the content processing is skipped as old.
-                    if (job.action === 'edit' && job.payload?.appId) {
-                        set(state => ({ updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId) }));
-                    } else if (job.action === 'create') {
-                        set(state => ({ creatingApps: state.creatingApps.filter(a => a.jobId !== job.id) }));
-                    }
-                    if (!isOld) {
-                        get()._processCompletedJob(job);
-                    } else {
-                        console.log('[Store] Ignoring old completed job from history:', job.id);
-                    }
-                } else if (job.status === 'failed' && !wasFailed) {
-                    const isContentJob = job.action === 'create' || job.action === 'edit';
-                    if (!isOld || isContentJob) {
-                        get()._processFailedJob(job);
-                    } else {
-                        // Release lock for other old failed jobs (webview_ai etc.)
-                        if (job.action === 'edit' && job.payload?.appId) {
-                            set(state => ({ updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId) }));
-                        } else if (job.action === 'create') {
-                            set(state => ({ creatingApps: state.creatingApps.filter(a => a.jobId !== job.id) }));
-                        }
-                    }
-                } else if (job.status === 'processing' && isOld) {
-                    // Stuck job: only handle create/edit — webview_ai is managed by the bridge
-                    if (job.action !== 'create' && job.action !== 'edit') return;
-                    const wasAlreadyHandled = previousJob?.status === 'failed';
-                    if (!wasAlreadyHandled) {
-                        console.warn('[Store] Stuck job detected (processing > 10min):', job.id);
-                        get()._processFailedJob({
-                            ...job,
-                            status: 'failed',
-                            error: 'timeout',
-                        });
-                    }
-                } else if ((job.status === 'processing' || job.status === 'queued') && !isOld) {
-                    // Restore in-flight placeholder/lock lost on app restart
-                    if (job.action === 'create') {
-                        const alreadyTracked = get().creatingApps.some(a => a.jobId === job.id);
-                        if (!alreadyTracked) {
-                            const description = job.payload?.prompt
-                                ? firebase.decompressContent(job.payload.prompt)
-                                : '';
-                            set(state => ({
-                                creatingApps: [...state.creatingApps, {
-                                    jobId: job.id,
-                                    description,
-                                    timestamp: jobTime || Date.now()
-                                }]
-                            }));
-                            const elapsed = Date.now() - (jobTime || Date.now());
-                            setTimeout(() => {
-                                set(state => ({
-                                    creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
-                                }));
-                            }, Math.max(10000, 600000 - elapsed));
-                        }
-                    } else if (job.action === 'edit' && job.payload?.appId) {
-                        const appId = job.payload.appId;
-                        if (!get().updatingAppIds.includes(appId)) {
-                            set(state => ({
-                                updatingAppIds: [...state.updatingAppIds, appId]
-                            }));
-                            const elapsed = Date.now() - (jobTime || Date.now());
-                            setTimeout(() => {
-                                set(state => ({
-                                    updatingAppIds: state.updatingAppIds.filter(id => id !== appId)
-                                }));
-                            }, Math.max(10000, 600000 - elapsed));
-                        }
-                    }
-                }
-            });
-
-            console.log(`[Store] Active activeJobs updated: ${jobs.length}`, jobs.map(j => ({ id: j.id, status: j.status })));
-            set({ activeJobs: jobs });
-        });
-
-        // Listen to auth state to clear/reload if needed? 
-        // For now, firebase listener handles auth internally.
-    },
-
-    // Internal helper to process job results
-    _processCompletedJob: async (job: Job) => {
-        console.log('[Store] Processing completed job:', job.id, 'Action:', job.action);
-
-        // webview_ai jobs are managed by the bridge — skip store processing
-        if (job.action.startsWith('webview_ai')) {
-            console.log('[Store] Ignoring webview AI completed job (handled by bridge):', job.id);
-            return;
-        }
-
-        // Cleanup placeholders/locks moved to end of action-specific blocks
-
-        const releaseJobLock = () => {
-            if (job.action === 'edit' && job.payload?.appId) {
-                set(state => ({ updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId) }));
-            } else if (job.action === 'create') {
-                set(state => ({ creatingApps: state.creatingApps.filter(a => a.jobId !== job.id) }));
-            }
-        };
-
-        if (!job.result) {
-            console.warn('[Store] Job completed but has no result:', job.id);
-            releaseJobLock();
-            return;
-        }
-
-        // Idempotency check: Don't re-process if already in processed_jobs history
-        // This prevents notifications on app restart AND zombie apps (deleted apps reappearing)
-        const alreadyProcessed = await db.hasJobBeenProcessed(job.id);
-        if (alreadyProcessed) {
-            console.log('[Store] Skipping already processed job (history):', job.id);
-            releaseJobLock();
-            return;
-        }
-
-        try {
-            const decompressedText = firebase.decompressContent(job.result.text);
-            const usage = job.result.usage;
-
-            if (job.action === 'create') {
-                // Extract title
-                let appName = 'New App';
-                const titleMatch = decompressedText.match(/<title[^>]*>([^<]+)<\/title>/i);
-                if (titleMatch && titleMatch[1]) {
-                    appName = titleMatch[1].trim();
-                }
-
-                const now = Date.now();
-                const newApp: NewGeneratedApp = {
-                    name: appName,
-                    code: decompressedText,
-                    currentVersion: 1,
-                    iconPath: null,
-                    lastUpdated: now,
-                    createdAt: now,
-                    consoleLogs: '',
-                    totalManaCost: 0,
-                    jobId: job.id,
-                    requiresBiometric: false,
-                    shortDescription: job.payload?.prompt ? firebase.decompressContent(job.payload.prompt) : '', // Set initial description from prompt
-                    sortOrder: 0,
-                };
-
-                // Insert into DB (idempotent check inside db.insertApp)
-                const id = await db.insertApp(newApp);
-
-                // Log creation mana cost (both totalManaCost + mana_events for recentManaCost)
-                const creationCredits = job.result.creditsUsed || 0;
-                if (creationCredits > 0) {
-                    await db.incrementManaCost(id, creationCredits, {
-                        eventType: 'create',
-                        promptTokens: usage?.promptTokens,
-                        responseTokens: usage?.responseTokens,
-                        thoughtsTokens: usage?.thoughtsTokens,
-                        cachedTokens: usage?.cachedTokens,
-                        totalTokens: usage?.totalTokens,
-                        versionNumber: 1,
-                    });
-                }
-
-                // Create a dedicated notification channel for this spell (Android)
-                await Notifications.setNotificationChannelAsync(`spell-${id}`, {
-                    name: appName,
-                    importance: Notifications.AndroidImportance.HIGH,
-                    vibrationPattern: [0, 250, 250, 250],
-                    lightColor: '#FF9500',
-                });
-
-                // Publish shortcut
-                const app = await db.getAppById(id);
-                if (app) {
-                    SharingShortcuts.publishShortcut(id.toString(), app.name, app.iconPath);
-                    // Insert version
-                    await db.insertVersion({
-                        appId: id,
-                        version: 1,
-                        code: decompressedText,
-                        instruction: job.payload?.prompt ? firebase.decompressContent(job.payload.prompt) : t('initialGeneration'),
-                        selectedContext: null,
-                        createdAt: Date.now(),
-                        jobId: job.id
-                    });
-
-                    // Reload apps to update UI
-                    await get().loadApps();
-                    set({ statusMessage: t('appReadyNotify', { name: appName }), statusActionAppId: id, lastCreatedAppId: id });
-
-                    // Cleanup placeholder at the very end
-                    set(state => ({
-                        creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
-                    }));
-
-                    // Mark as processed in history to prevent zombies
-                    await db.markJobAsProcessed(job.id, job.action);
-                    markBackupDirty();
-                }
-            } else if (job.action === 'edit') {
-                const appId = job.payload?.appId;
-
-                if (appId) {
-                    const app = await db.getAppById(appId);
-                    if (app) {
-                        const newVersion = app.currentVersion + 1;
-                        const editCredits = job.result.creditsUsed || 0;
-
-                        await db.updateAppContent(appId, decompressedText, newVersion, app.totalManaCost + editCredits, job.id);
-
-                        // Log edit mana cost (both totalManaCost + mana_events for recentManaCost)
-                        if (editCredits > 0) {
-                            await db.incrementManaCost(appId, editCredits, {
-                                eventType: 'edit',
-                                promptTokens: usage?.promptTokens,
-                                responseTokens: usage?.responseTokens,
-                                thoughtsTokens: usage?.thoughtsTokens,
-                                cachedTokens: usage?.cachedTokens,
-                                totalTokens: usage?.totalTokens,
-                                versionNumber: newVersion,
-                            });
-                        }
-
-                        await db.insertVersion({
-                            appId: appId,
-                            version: newVersion,
-                            code: decompressedText,
-                            instruction: job.payload?.instruction ? firebase.decompressContent(job.payload.instruction) : t('aiEdit'),
-                            selectedContext: null,
-                            createdAt: Date.now(),
-                            jobId: job.id
-                        });
-
-                        set({ statusMessage: t('appUpdatedNotify', { name: app.name }), statusActionAppId: appId });
-
-                        // Reload to reflect changes
-                        await get().loadApps();
-
-                        // Mark as processed in history to prevent zombies
-                        await db.markJobAsProcessed(job.id, job.action);
-                        markBackupDirty();
-
-                        // Signal RunnerScreen to exit edit mode via router
-                        set({ lastCompletedEditAppId: appId });
-                        // router.back() is called immediately on edit submit so the RunnerScreen
-                        // may already be unmounted — clear the signal after a short delay as fallback.
-                        setTimeout(() => {
-                            if (get().lastCompletedEditAppId === appId) get().clearLastCompletedEdit();
-                        }, 5000);
-
-                        // Notify Listeners (RunnerApp)
-                        DeviceEventEmitter.emit('APP_UPDATED', { appId });
-
-                        // Unlock card at the very end
-                        set(state => ({
-                            updatingAppIds: state.updatingAppIds.filter(id => id !== appId)
-                        }));
-                    }
-
-                    // Always release the edit lock, even if app was not found in DB
-                    set(state => ({
-                        updatingAppIds: state.updatingAppIds.filter(id => id !== appId)
-                    }));
-                }
-            }
-        } catch (e) {
-            console.error('[Store] Error processing completed job:', e);
-            set({ error: t('errorProcessingJob') });
-            // Always release locks on error — never leave a spell stuck forever
-            if (job.action === 'create') {
-                set(state => ({
-                    creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
-                }));
-            } else if (job.action === 'edit' && job.payload?.appId) {
-                set(state => ({
-                    updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId)
-                }));
-            }
-        }
-    },
-
-    // Internal helper to process job failures (especially mana-related)
-    _processFailedJob: (job: Job) => {
-        // webview_ai jobs are managed by the bridge, not the listing UI
-        if (job.action.startsWith('webview_ai')) {
-            console.log('[Store] Ignoring webview AI job failure (handled by bridge):', job.id);
-            return;
-        }
-
-        console.log('[Store] Processing failed job:', job.id, 'Error:', job.error);
-
-        // Cleanup placeholders/locks
-        if (job.action === 'create') {
-            set(state => ({
-                creatingApps: state.creatingApps.filter(a => a.jobId !== job.id)
-            }));
-        } else if (job.action === 'edit' && job.payload?.appId) {
-            set(state => ({
-                updatingAppIds: state.updatingAppIds.filter(id => id !== job.payload.appId)
-            }));
-        }
-
-        // Preserve the user's original prompt text for recovery
-        const rawPrompt = job.payload?.instruction || job.payload?.prompt || '';
-        const promptText = rawPrompt ? firebase.decompressContent(rawPrompt) : '';
-        if (promptText) {
-            set({
-                lastFailedPrompt: {
-                    type: job.action,
-                    text: promptText,
-                    appId: job.payload?.appId,
-                }
-            });
-        }
-
-        // Check if error is mana-related
-        const isManaError = job.error?.toLowerCase().includes('insufficient credits') ||
-            job.error?.toLowerCase().includes('insufficient mana');
-
-        if (isManaError) {
-            // Show special mana depletion notification
-            set({ statusMessage: t('manaDepletedMessage') });
-
-            // Schedule push notification
-            Notifications.scheduleNotificationAsync({
-                content: {
-                    title: t('manaDepletedTitle'),
-                    body: t('manaDepletedMessage'),
-                },
-                trigger: null,
-            });
-
-            // Auto-open the mana shop
-            useManaStore.getState().openShop();
-        } else {
-            // Generic job failure
-            const errorMsg = job.action === 'create' ? t('spellFailedCreate') : t('spellFailedEdit');
-            set({ error: errorMsg });
-        }
-    },
+    // No-op kept as a public stub during the Phase-4 cutover so existing
+    // root-layout callers (`useAppStore.getState().initializeListeners()`)
+    // don't need to be touched.
+    initializeListeners: () => {},
 
     loadApps: async () => {
         try {
@@ -608,41 +243,87 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     createApp: async (description: string) => {
+        const jobId = makeLocalJobId('create');
+        set(state => ({
+            error: null,
+            creatingApps: [...state.creatingApps, { jobId, description, timestamp: Date.now() }],
+            statusMessage: t('jobStarted'),
+        }));
+
         try {
-            // FIRE & FORGET
-            set({ error: null });
-            const jobId = firebase.generateJobId();
+            const result = await ai.generateApp(description);
 
-            // Add placeholder IMMEDIATELY before submission to beat the listener
-            set(state => ({
-                creatingApps: [...state.creatingApps, { jobId, description, timestamp: Date.now() }],
-                statusMessage: t('jobStarted')
-            }));
+            const appName = (result.appName && result.appName.trim()) || description.slice(0, 40);
+            const now = Date.now();
+            const newApp: NewGeneratedApp = {
+                name: appName,
+                code: result.text,
+                currentVersion: 1,
+                iconPath: null,
+                lastUpdated: now,
+                createdAt: now,
+                consoleLogs: '',
+                totalSpendUsd: 0,
+                jobId,
+                requiresBiometric: false,
+                shortDescription: description,
+                sortOrder: 0,
+            };
 
-            // Safety timeout (10m)
-            setTimeout(() => {
-                set(state => ({
-                    creatingApps: state.creatingApps.filter(a => a.jobId !== jobId)
-                }));
-            }, 600000);
+            const id = await db.insertApp(newApp);
 
-            await firebase.submitJob('create', {
-                prompt: firebase.compressContent(description)
-            }, jobId);
+            await Notifications.setNotificationChannelAsync(`spell-${id}`, {
+                name: appName,
+                importance: Notifications.AndroidImportance.HIGH,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#FF9500',
+            });
+
+            const app = await db.getAppById(id);
+            if (app) {
+                SharingShortcuts.publishShortcut(id.toString(), app.name, app.iconPath);
+                await db.insertVersion({
+                    appId: id,
+                    version: 1,
+                    code: result.text,
+                    instruction: description || t('initialGeneration'),
+                    selectedContext: null,
+                    createdAt: Date.now(),
+                    jobId,
+                });
+
+                await get().loadApps();
+                set({
+                    statusMessage: t('appReadyNotify', { name: appName }),
+                    statusActionAppId: id,
+                    lastCreatedAppId: id,
+                });
+                markBackupDirty();
+            }
 
             return true;
         } catch (error) {
-            console.error('Failed to submit create job:', error);
-            set({ error: t('spellFailedCreate') });
+            console.error('Failed to create spell:', error);
+            set({
+                error: t('spellFailedCreate'),
+                lastFailedPrompt: { type: 'create', text: description },
+            });
             return false;
+        } finally {
+            set(state => ({
+                creatingApps: state.creatingApps.filter(a => a.jobId !== jobId),
+            }));
         }
     },
 
     updateAppWithAI: async (app: GeneratedApp, instructions: string, selectedContext?: string) => {
-        try {
-            set({ error: null });
+        set(state => ({
+            error: null,
+            updatingAppIds: [...state.updatingAppIds, app.id],
+            statusMessage: t('editJobStarted'),
+        }));
 
-            // Get previous versions for context
+        try {
             const versions = await db.getVersionsForApp(app.id);
             const previousEdits = versions
                 .filter(v => v.instruction)
@@ -659,35 +340,53 @@ export const useAppStore = create<AppState>((set, get) => ({
                 }
             });
 
-            const jobId = firebase.generateJobId();
+            // storageStructure currently has no consumer client-side — the new BYOK
+            // editAppWithContext threads previousEdits and selectedContext only.
+            void storageStructure;
 
-            // Lock the app IMMEDIATELY before submission
-            set(state => ({
-                updatingAppIds: [...state.updatingAppIds, app.id],
-                statusMessage: t('editJobStarted')
-            }));
+            const result = await ai.editAppWithContext(
+                app.code,
+                instructions,
+                selectedContext ?? '',
+                previousEdits,
+            );
 
-            // Safety timeout (10m)
+            const newVersion = app.currentVersion + 1;
+            const jobId = makeLocalJobId('edit');
+            const newTotalSpendUsd = (app.totalSpendUsd ?? 0) + (result.costUsd ?? 0);
+            await db.updateAppContent(app.id, result.text, newVersion, newTotalSpendUsd, jobId);
+            await db.insertVersion({
+                appId: app.id,
+                version: newVersion,
+                code: result.text,
+                instruction: instructions || t('aiEdit'),
+                selectedContext: selectedContext ?? null,
+                createdAt: Date.now(),
+                jobId,
+            });
+
+            set({ statusMessage: t('appUpdatedNotify', { name: app.name }), statusActionAppId: app.id });
+            await get().loadApps();
+            markBackupDirty();
+
+            set({ lastCompletedEditAppId: app.id });
             setTimeout(() => {
-                set(state => ({
-                    updatingAppIds: state.updatingAppIds.filter(id => id !== app.id)
-                }));
-            }, 600000);
+                if (get().lastCompletedEditAppId === app.id) get().clearLastCompletedEdit();
+            }, 5000);
 
-            await firebase.submitJob('edit', {
-                appId: app.id, // IMPORTANT: Pass appId so we know what to update
-                currentCode: firebase.compressContent(app.code),
-                instruction: firebase.compressContent(instructions),
-                previousEdits, // Already objects, sanitizePayload will handle? Yes.
-                selectedContext: selectedContext ? firebase.compressContent(selectedContext) : undefined,
-                storageStructure: storageStructure.length > 0 ? storageStructure : undefined,
-            }, jobId);
-
+            DeviceEventEmitter.emit('APP_UPDATED', { appId: app.id });
             return true;
         } catch (error) {
-            console.error('Failed to submit edit job:', error);
-            set({ error: t('spellFailedEdit') });
+            console.error('Failed to edit spell:', error);
+            set({
+                error: t('spellFailedEdit'),
+                lastFailedPrompt: { type: 'edit', text: instructions, appId: app.id },
+            });
             return false;
+        } finally {
+            set(state => ({
+                updatingAppIds: state.updatingAppIds.filter(id => id !== app.id),
+            }));
         }
     },
 
@@ -843,25 +542,17 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
-    incrementAppManaCost: async (id: number, amount: number) => {
-        try {
-            await db.incrementManaCost(id, amount);
-            set(state => ({
-                apps: state.apps.map(a =>
-                    a.id === id ? { ...a, totalManaCost: (a.totalManaCost || 0) + amount } : a
-                ),
-            }));
-        } catch (error) {
-            console.warn('Failed to increment app mana cost:', error);
-        }
+    incrementAppSpendUsd: async (id: number, amount: number) => {
+        await db.incrementSpendUsd(id, amount);
     },
 
     generateAndSaveAppIcon: async (appId: number, prompt: string): Promise<{ iconPath: string; creditsUsed: number }> => {
-        const result = await firebase.generateSpellLogoGen(prompt);
-        const base64Image = result.text;
-        const creditsUsed = result.creditsUsed || 0;
-
-        if (!base64Image) {
+        const { images } = await openrouter.generateImage({
+            model: MODELS.IMAGE,
+            prompt,
+        });
+        const first = images[0] ?? '';
+        if (!first) {
             return { iconPath: '', creditsUsed: 0 };
         }
 
@@ -872,33 +563,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         const iconPath = `${iconDir}ai_icon_${appId}_${Date.now()}.png`;
 
-        if (base64Image.startsWith('http')) {
-            await FileSystem.downloadAsync(base64Image, iconPath);
+        if (first.startsWith('http')) {
+            await FileSystem.downloadAsync(first, iconPath);
         } else {
-            await FileSystem.writeAsStringAsync(iconPath, base64Image, {
+            const base64 = first.startsWith('data:')
+                ? (first.split(',')[1] ?? '')
+                : first;
+            await FileSystem.writeAsStringAsync(iconPath, base64, {
                 encoding: FileSystem.EncodingType.Base64,
             });
         }
 
         await get().updateAppIcon(appId, iconPath);
-
-        if (creditsUsed > 0) {
-            await get().incrementAppManaCost(appId, creditsUsed);
-        }
-
-        return { iconPath, creditsUsed };
+        return { iconPath, creditsUsed: 0 };
     },
 
     updateAppCode: async (id: number, code: string, instruction?: string) => {
         try {
-            // Check Mana for manual edit? 
-            // "Edit App" cost usually implies AI Edit. Manual edit should be free?
-            // User prompt: "consumo nas chamadas de IA".
-            // So manual updateAppCode (from editor typing) should be FREE unless it uses AI features.
-            // This function is called by the Editor save.
-            // Wait, `updateAppWithAI` is the AI one. `updateAppCode` is manual save.
-            // So NO CHARGE here.
-
             const app = get().apps.find(a => a.id === id);
             if (!app) return;
 
@@ -1001,7 +682,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 lastUpdated: Date.now(),
                 createdAt: Date.now(),
                 consoleLogs: '',
-                totalManaCost: 0, // Free!
+                totalSpendUsd: 0,
                 requiresBiometric: false,
                 shortDescription: template.shortDescription,
                 sortOrder: 0,
@@ -1050,7 +731,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 lastUpdated: Date.now(),
                 createdAt: Date.now(),
                 consoleLogs: '',
-                totalManaCost: 0,
+                totalSpendUsd: 0,
                 requiresBiometric: false,
                 sortOrder: 0,
             };
@@ -1080,34 +761,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to import project:', error);
             const errorMsg = error instanceof Error ? error.message : t('unknownError');
-
-            // Check if error is mana-related
-            const isManaError = errorMsg.toLowerCase().includes('insufficient credits') ||
-                errorMsg.toLowerCase().includes('insufficient mana');
-
-            if (isManaError) {
-                set({
-                    statusMessage: t('manaDepletedMessage'),
-                    isImporting: false
-                });
-
-                // Schedule push notification
-                Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: t('manaDepletedTitle'),
-                        body: t('manaDepletedMessage'),
-                    },
-                    trigger: null,
-                });
-
-                // Auto-open the mana shop
-                useManaStore.getState().openShop();
-            } else {
-                set({
-                    error: `${t('importError')} ${errorMsg}`,
-                    isImporting: false
-                });
-            }
+            set({
+                error: `${t('importError')} ${errorMsg}`,
+                isImporting: false
+            });
             return null;
         }
     },
@@ -1120,7 +777,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const current = get().pendingImportUrl;
         if (url === current) return; // Dedupe
         // Also check if we just processed this URL to prevent loops if OS re-sends
-        // But we don't have 'lastImportedUrl' in store. 
+        // But we don't have 'lastImportedUrl' in store.
         // Let's just dedupe the pending state.
         set({ pendingImportUrl: url });
     },

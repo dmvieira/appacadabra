@@ -28,7 +28,7 @@ describe('saveAiResultToCache', () => {
                 callbackName: 'onResult',
                 action: 'AI_GENERATE',
                 result: 'hello world',
-                creditsUsed: 5,
+                costUsd: 5,
                 success: 1,
             }));
         });

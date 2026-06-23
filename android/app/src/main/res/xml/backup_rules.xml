@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Excludes from cloud auto-backup (Android 6-11). The encrypted SharedPreferences
+  file used by expo-secure-store must never leave the device — it stores the
+  user's OpenRouter API key.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="SecureStore.xml"/>
+    <exclude domain="sharedpref" path="expo-secure-store.xml"/>
+</full-backup-content>

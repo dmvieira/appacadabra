@@ -1,499 +1,228 @@
-import React, { useState, useEffect, useRef } from 'react';
+/**
+ * BYOK onboarding — 2 screens.
+ *
+ * Screen 1: discovery grid of the top 6 spells from the public store. Tapping
+ * one learns it (live `syncLearnedSpells({ forceSpellId })`). Skeleton while
+ * Firestore loads; gracefully degrades to a "Skip for now" with no cards if
+ * the read fails.
+ *
+ * Screen 2: pitch for OpenRouter BYOK with three benefits and a CTA into
+ * `/settings/openrouter`. A ghost "Do this later" closes the onboarding.
+ *
+ * Caller contract preserved: `onComplete(null)` fires when the user closes
+ * the flow. The chip-based template import path is gone — the caller's
+ * `handleOnboardingComplete` already treats `null` as a no-op.
+ */
+
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
     TouchableOpacity,
     StyleSheet,
     Modal,
-    Dimensions,
-    Animated,
-    Easing,
-    Platform,
+    ActivityIndicator,
+    ScrollView,
+    Image,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Application from 'expo-application';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
-import { logObScreenView, logObChipSelected, logObCompleted, logObSkipped } from '../lib/analytics';
-import { useManaStore } from '../lib/manaStore';
+import { logObScreenView, logObCompleted, logObSkipped } from '../lib/analytics';
 import * as firebase from '../lib/firebase';
+import { useStoreSyncStore } from '../lib/storeSync';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TOTAL_SCREENS = 3;
+const TOTAL_SCREENS = 2;
 
 interface OnboardingProps {
     visible: boolean;
     onComplete: (selectedChip: number | null) => void;
 }
 
-// ── Typing dots animation ──
-function TypingDots() {
-    const dot1 = useRef(new Animated.Value(0)).current;
-    const dot2 = useRef(new Animated.Value(0)).current;
-    const dot3 = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        const createBounce = (dot: Animated.Value, delay: number) =>
-            Animated.loop(
-                Animated.sequence([
-                    Animated.delay(delay),
-                    Animated.timing(dot, { toValue: -6, duration: 200, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-                    Animated.timing(dot, { toValue: 0, duration: 200, easing: Easing.in(Easing.ease), useNativeDriver: true }),
-                    Animated.delay(600),
-                ])
-            );
-        createBounce(dot1, 0).start();
-        createBounce(dot2, 150).start();
-        createBounce(dot3, 300).start();
-    }, []);
-
-    return (
-        <View style={s.typingDotsRow}>
-            {[dot1, dot2, dot3].map((dot, i) => (
-                <Animated.View key={i} style={[s.typingDot, { transform: [{ translateY: dot }] }]} />
-            ))}
-        </View>
-    );
-}
-
-// ── Floating emoji with bounce ──
-function FloatingEmoji({ emoji, color }: { emoji: string; color: string }) {
-    const y = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(y, { toValue: -10, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-                Animated.timing(y, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            ])
-        ).start();
-    }, []);
-
-    return (
-        <View style={s.illustrationArea}>
-            <Animated.Text style={[s.floatingEmoji, { transform: [{ translateY: y }], textShadowColor: color, textShadowRadius: 30 }]}>
-                {emoji}
-            </Animated.Text>
-        </View>
-    );
-}
-
-// ── Pulsing chip card ──
-function ChipCard({ emoji, label, selected, noneSelected, onPress }: {
-    emoji: string; label: string; selected: boolean; noneSelected: boolean; onPress: () => void;
-}) {
-    const scale = useRef(new Animated.Value(1)).current;
-    const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
-
-    useEffect(() => {
-        if (noneSelected) {
-            pulseLoop.current = Animated.loop(
-                Animated.sequence([
-                    Animated.timing(scale, { toValue: 1.05, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-                    Animated.timing(scale, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-                ])
-            );
-            pulseLoop.current.start();
-        } else {
-            pulseLoop.current?.stop();
-            Animated.timing(scale, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-        }
-        return () => { pulseLoop.current?.stop(); };
-    }, [noneSelected]);
-
-    return (
-        <Animated.View style={{ width: '47%', transform: [{ scale }] }}>
-            <TouchableOpacity
-                style={[s.chipCard, selected && s.chipCardSelected]}
-                onPress={onPress}
-                activeOpacity={0.75}
-                accessibilityRole="button"
-            >
-                <Text style={s.chipCardEmoji}>{emoji}</Text>
-                <Text style={[s.chipCardLabel, selected && s.chipCardLabelSelected]}>{label}</Text>
-                {selected && (
-                    <View style={s.chipCardCheck}>
-                        <Text style={s.chipCardCheckMark}>✓</Text>
-                    </View>
-                )}
-            </TouchableOpacity>
-        </Animated.View>
-    );
-}
-
-// ── Featured power card ──
-function FeatCard({ icon, title, desc, delay }: { icon: string; title: string; desc: string; delay: number }) {
-    const opacity = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(16)).current;
-
-    useEffect(() => {
-        Animated.parallel([
-            Animated.timing(opacity, { toValue: 1, duration: 450, delay, useNativeDriver: true }),
-            Animated.timing(translateY, { toValue: 0, duration: 450, delay, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        ]).start();
-    }, []);
-
-    return (
-        <Animated.View style={[s.featCard, { opacity, transform: [{ translateY }] }]}>
-            <View style={s.featIcon}>
-                <Text style={s.featIconText}>{icon}</Text>
-            </View>
-            <View style={s.featInfo}>
-                <Text style={s.featTitle}>{title}</Text>
-                <Text style={s.featDesc}>{desc}</Text>
-            </View>
-        </Animated.View>
-    );
-}
-
 export function Onboarding({ visible, onComplete }: OnboardingProps) {
-    const [currentScreen, setCurrentScreen] = useState(0);
-    const [showPreview, setShowPreview] = useState(false);
-    const [selectedChip, setSelectedChip] = useState<number | null>(null);
-    const [isSigningIn, setIsSigningIn] = useState(false);
-    const [signInError, setSignInError] = useState<string | null>(null);
-    const [bonusReceived, setBonusReceived] = useState<number | null>(null);
-    const [welcomeBack, setWelcomeBack] = useState(false);
-    const { isAnonymous, refreshUser } = useManaStore();
+    const router = useRouter();
     const insets = useSafeAreaInsets();
-    const slideAnim = useRef(new Animated.Value(0)).current;
-    const previewAnim = useRef(new Animated.Value(0)).current;
+    const [screen, setScreen] = useState(0);
+    const [spells, setSpells] = useState<firebase.TopStoreSpell[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [learningIds, setLearningIds] = useState<Set<string>>(new Set());
+    const [learnedIds, setLearnedIds] = useState<Set<string>>(new Set());
 
-    // Reset when closing
     useEffect(() => {
         if (!visible) {
-            setCurrentScreen(0);
-            setShowPreview(false);
-            setSelectedChip(null);
-            setBonusReceived(null);
-            setWelcomeBack(false);
-            slideAnim.setValue(0);
+            setScreen(0);
+            setLearningIds(new Set());
+            setLearnedIds(new Set());
         }
     }, [visible]);
 
-    // Track screen views
     useEffect(() => {
-        if (visible) logObScreenView(currentScreen);
-    }, [currentScreen, visible]);
+        if (!visible) return;
+        let cancelled = false;
+        setLoading(true);
+        firebase.listTopStoreSpells(6)
+            .then(items => { if (!cancelled) setSpells(items); })
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+    }, [visible]);
 
-    // Show mini app preview after delay on screen 1
     useEffect(() => {
-        if (visible && currentScreen === 0 && !showPreview) {
-            const timer = setTimeout(() => {
-                setShowPreview(true);
-                Animated.spring(previewAnim, { toValue: 1, friction: 6, useNativeDriver: true }).start();
-            }, 2500);
-            return () => clearTimeout(timer);
-        }
-    }, [visible, currentScreen]);
+        if (visible) logObScreenView(screen);
+    }, [screen, visible]);
 
-    const goToScreen = (n: number) => {
-        const direction = n > currentScreen ? 1 : -1;
-        slideAnim.setValue(direction * 40);
-        setCurrentScreen(n);
-        Animated.timing(slideAnim, { toValue: 0, duration: 300, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
-    };
-
-    const chipKeys = ['shopping', 'diary', 'workout', 'expenses'];
-
-    const handleNext = () => {
-        // Don't advance from try-it screen (now screen 2) without a chip selection
-        if (currentScreen === 2 && selectedChip === null) return;
-
-        if (currentScreen < TOTAL_SCREENS - 1) {
-            goToScreen(currentScreen + 1);
-        } else {
-            logObCompleted(selectedChip !== null ? chipKeys[selectedChip] : '');
-            onComplete(selectedChip);
-        }
-    };
-
-    const handleChipPress = (index: number) => {
-        logObChipSelected(chipKeys[index]);
-        setSelectedChip(index);
-    };
-
-    const handleAlreadyHaveAccount = async () => {
-        setIsSigningIn(true);
-        setSignInError(null);
+    const handleLearn = async (spellId: string) => {
+        if (learningIds.has(spellId) || learnedIds.has(spellId)) return;
+        const next = new Set(learningIds);
+        next.add(spellId);
+        setLearningIds(next);
         try {
-            await firebase.ensureAuthenticated();
-            await firebase.linkWithGoogle();
-            await refreshUser();
-            const id = Platform.OS === 'android'
-                ? Application.getAndroidId()
-                : await Application.getIosIdForVendorAsync();
-            if (id) {
-                const result = await firebase.claimInstallBonus(id).catch(() => null);
-                if (result?.granted && result.bonusAmount != null) {
-                    setBonusReceived(result.bonusAmount);
-                    await new Promise(r => setTimeout(r, 1600));
-                } else if (result?.granted === false) {
-                    setWelcomeBack(true);
-                    await new Promise(r => setTimeout(r, 1600));
-                }
-            }
-            onComplete(null);
-        } catch (e: any) {
-            let msg = e.message || t('linkError');
-            if (msg === 'INTERNAL_ERROR' || msg.includes('DEVELOPER_ERROR') || msg.includes('internal')) {
-                msg = t('linkError');
-            }
-            setSignInError(msg);
+            await useStoreSyncStore.getState().syncLearnedSpells({
+                triggeredByDeepLink: false,
+                forceSpellId: spellId,
+            });
+            setLearnedIds(prev => {
+                const updated = new Set(prev);
+                updated.add(spellId);
+                return updated;
+            });
+        } catch (_) {
+            // Surface no error: the spell card stays tappable so the user can retry.
         } finally {
-            setIsSigningIn(false);
+            setLearningIds(prev => {
+                const updated = new Set(prev);
+                updated.delete(spellId);
+                return updated;
+            });
         }
     };
 
-    const progressWidth = `${((currentScreen + 1) / TOTAL_SCREENS) * 100}%`;
-    const isLastScreen = currentScreen === TOTAL_SCREENS - 1;
+    const goNext = () => {
+        if (screen < TOTAL_SCREENS - 1) setScreen(screen + 1);
+        else {
+            logObCompleted('byok');
+            onComplete(null);
+        }
+    };
 
-    const chips = [
-        { emoji: '🛒', labelKey: 'obChipShopping' },
-        { emoji: '📓', labelKey: 'obChipDiary' },
-        { emoji: '💪', labelKey: 'obChipWorkout' },
-        { emoji: '💰', labelKey: 'obChipExpenses' },
-    ];
+    const skip = () => {
+        logObSkipped(screen);
+        onComplete(null);
+    };
 
-    const chipTexts = [
-        'obChipShoppingFull',
-        'obChipDiaryFull',
-        'obChipWorkoutFull',
-        'obChipExpensesFull',
-    ];
+    const goToSettings = async () => {
+        logObCompleted('byok_setup');
+        onComplete(null);
+        router.push('/settings/openrouter');
+    };
 
-    const moreTags = [
-        { emoji: '🔔', key: 'obTagNotifications' },
-        { emoji: '❤️', key: 'obTagHealth' },
-        { emoji: '📍', key: 'obTagSensors' },
-    ];
+    if (!visible) return null;
+
+    const progressWidth = `${((screen + 1) / TOTAL_SCREENS) * 100}%`;
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+        <Modal visible transparent animationType="fade" statusBarTranslucent>
             <View style={[s.overlay, { paddingTop: Math.max(insets.top, 20) }]}>
-                {/* Progress bar */}
                 <View style={s.progressBar}>
                     <View style={[s.progressFill, { width: progressWidth as any }]} />
                 </View>
 
-                <Animated.View style={[s.screenContainer, { transform: [{ translateX: slideAnim }] }]}>
-                    {/* Skip / Already have account — only on last screen */}
-                    {currentScreen === 2 && (
-                        isAnonymous ? (
-                            <View style={s.topActions}>
-                                <TouchableOpacity
-                                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginTop: 12, alignSelf: 'flex-end' }}
-                                    onPress={handleAlreadyHaveAccount}
-                                    disabled={isSigningIn}
-                                    accessibilityLabel={t('obGetFreeSpells')}
-                                    accessibilityRole="button"
-                                >
-                                    <Text style={{ color: colors.onPrimary, fontSize: 13, fontWeight: '700' }}>
-                                        {isSigningIn ? '...' : `⚡ ${t('obGetFreeSpells')}`}
-                                    </Text>
-                                </TouchableOpacity>
-                                {signInError && (
-                                    <Text style={s.signInErrorText}>{signInError}</Text>
-                                )}
+                {screen === 0 && (
+                    <View style={s.screen}>
+                        <Text style={s.headline}>{t('obDiscoverTitle')}</Text>
+                        <Text style={s.sub}>{t('obDiscoverSub')}</Text>
+
+                        {loading ? (
+                            <View style={s.loadingArea}>
+                                <ActivityIndicator color={colors.primary} />
+                            </View>
+                        ) : spells.length === 0 ? (
+                            <View style={s.loadingArea}>
+                                <Text style={s.fallbackText}>{t('obDiscoverEmpty')}</Text>
                             </View>
                         ) : (
-                            <TouchableOpacity
-                                style={s.skipButton}
-                                onPress={() => { logObSkipped(currentScreen); onComplete(null); }}
-                                accessibilityLabel={t('onboardingSkip')}
-                                accessibilityRole="button"
-                            >
-                                <Text style={s.skipText}>{t('onboardingSkip')}</Text>
-                            </TouchableOpacity>
-                        )
-                    )}
-
-                    {/* ── SCREEN 1: Concept ── */}
-                    {currentScreen === 0 && (
-                        <View style={s.screenContent}>
-                            <FloatingEmoji emoji="🪄" color="#7c3aed" />
-
-                            <Text style={s.heading}>
-                                {t('obConceptTitle1')}{'\n'}
-                                <Text style={s.headingAccent}>{t('obConceptTitle2')}</Text>{'\n'}
-                                {t('obConceptTitle3')}
-                            </Text>
-                            <Text style={s.subtext}>{t('obConceptSubtext')}</Text>
-
-                            {/* Chat demo */}
-                            <View style={s.chatDemo}>
-                                <View style={s.chatBubbleUser}>
-                                    <Text style={s.chatBubbleText}>{t('obConceptPrompt')}</Text>
-                                </View>
-
-                                <View style={{ marginTop: 10 }}>
-                                    {!showPreview ? (
-                                        <TypingDots />
-                                    ) : (
-                                        <Animated.View style={[s.miniAppPreview, {
-                                            opacity: previewAnim,
-                                            transform: [{ translateY: previewAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
-                                        }]}>
-                                            <View style={s.miniAppIcon}>
-                                                <Text style={{ fontSize: 20 }}>🚀</Text>
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={s.miniAppName}>Space Shopping List</Text>
-                                                <Text style={s.miniAppTag}>{t('obConceptCreated')}</Text>
-                                            </View>
-                                        </Animated.View>
-                                    )}
-                                </View>
-                            </View>
-
-                            {/* Dots */}
-                            <View style={s.dotsRow}>
-                                {[0, 1, 2].map(i => (
-                                    <View key={i} style={[s.dot, i === 0 && s.dotActive]} />
-                                ))}
-                            </View>
-                        </View>
-                    )}
-
-                    {/* ── SCREEN 2: Superpowers ── */}
-                    {currentScreen === 1 && (
-                        <View style={s.screenContent}>
-                            <View style={s.heroArea}>
-                                <View style={{ flex: 1, justifyContent: 'center', gap: 24 }}>
-                                    <View>
-                                        <Text style={[s.heading, { fontSize: 28 }]}>
-                                            {t('obPowersTitle1')} <Text style={s.headingAccent}>{t('obPowersTitle2')}</Text>
-                                        </Text>
-                                        <Text style={s.subtext}>{t('obPowersSubtext')}</Text>
-                                    </View>
-
-                                    {/* Featured cards */}
-                                    <View style={s.featuredCards}>
-                                        <FeatCard
-                                            icon="🔗"
-                                            title={t('obFeatIntegratedTitle')}
-                                            desc={t('obFeatIntegratedDesc')}
-                                            delay={0}
-                                        />
-                                        <FeatCard
-                                            icon="📅"
-                                            title={t('obFeatCalendarTitle')}
-                                            desc={t('obFeatCalendarDesc')}
-                                            delay={150}
-                                        />
-                                    </View>
-
-                                    {/* More tags */}
-                                    <View style={{ marginTop: 8 }}>
-                                        <Text style={s.moreLabel}>{t('obMoreLabel')}</Text>
-                                        <View style={s.moreRow}>
-                                            {moreTags.map((tag, i) => (
-                                                <View key={i} style={s.moreTag}>
-                                                    <Text style={s.moreTagText}>{tag.emoji} {t(tag.key)}</Text>
+                            <ScrollView contentContainerStyle={s.grid}>
+                                {spells.map(spell => {
+                                    const isLearning = learningIds.has(spell.spellId);
+                                    const isLearned = learnedIds.has(spell.spellId);
+                                    return (
+                                        <TouchableOpacity
+                                            key={spell.spellId}
+                                            style={[s.card, isLearned && s.cardLearned]}
+                                            onPress={() => handleLearn(spell.spellId)}
+                                            activeOpacity={0.85}
+                                            disabled={isLearning || isLearned}
+                                            accessibilityRole="button"
+                                        >
+                                            {spell.iconUrl ? (
+                                                <Image source={{ uri: spell.iconUrl }} style={s.cardIcon} />
+                                            ) : (
+                                                <View style={[s.cardIcon, s.cardIconFallback]}>
+                                                    <Text style={s.cardIconFallbackText}>✦</Text>
                                                 </View>
-                                            ))}
-                                        </View>
-                                    </View>
-                                </View>
-                            </View>
+                                            )}
+                                            <Text style={s.cardName} numberOfLines={2}>{spell.name}</Text>
+                                            <Text style={s.cardCta}>
+                                                {isLearned
+                                                    ? t('obDiscoverLearned')
+                                                    : isLearning
+                                                        ? t('obDiscoverLearning')
+                                                        : t('obDiscoverLearn')}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                        )}
+                    </View>
+                )}
 
-                            {/* Dots */}
-                            <View style={[s.dotsRow, { marginTop: 14 }]}>
-                                {[0, 1, 2].map(i => (
-                                    <View key={i} style={[s.dot, i === 1 && s.dotActive]} />
-                                ))}
-                            </View>
-                        </View>
-                    )}
+                {screen === 1 && (
+                    <View style={s.screen}>
+                        <Text style={s.bigEmoji}>🔑</Text>
+                        <Text style={s.headline}>{t('obKeyTitle')}</Text>
+                        <Text style={s.sub}>{t('obKeySub')}</Text>
 
-                    {/* ── SCREEN 3: Try it ── */}
-                    {currentScreen === 2 && (
-                        <View style={s.screenContent}>
-                            <Text style={[s.heading, { marginTop: 8, marginBottom: 6 }]}>
-                                {t('obTryTitle1')} <Text style={s.headingAccent}>{t('obTryTitle2')}</Text>{'\n'}
-                                {t('obTryTitle3')}
-                            </Text>
-                            <Text style={[s.subtext, { marginBottom: 14 }]}>{t('obTrySubtext')}</Text>
-
-                            {/* Chips — 2×2 grid */}
-                            <View style={s.chipsGrid}>
-                                {chips.map((chip, i) => (
-                                    <ChipCard
-                                        key={i}
-                                        emoji={chip.emoji}
-                                        label={t(chip.labelKey)}
-                                        selected={selectedChip === i}
-                                        noneSelected={selectedChip === null}
-                                        onPress={() => handleChipPress(i)}
-                                    />
-                                ))}
-                            </View>
-
-                            {/* Input area */}
-                            <View style={[s.tryInputArea, selectedChip !== null && s.tryInputFocused]}>
-                                <Text style={s.tryInputLabel}>{t('obTryPlaceholder')}</Text>
-                                <Text style={s.tryTypedText}>
-                                    {selectedChip !== null ? t(chipTexts[selectedChip]) : ' '}
-                                </Text>
-                            </View>
-
-                            {/* Dots */}
-                            <View style={[s.dotsRow, { paddingVertical: 14, marginTop: 'auto' }]}>
-                                {[0, 1, 2].map(i => (
-                                    <View key={i} style={[s.dot, i === 2 && s.dotActive]} />
-                                ))}
-                            </View>
-                        </View>
-                    )}
-                </Animated.View>
-
-                {(bonusReceived !== null || welcomeBack) && (
-                    <View style={s.bonusContainer}>
-                        <View style={s.bonusOverlay}>
-                            <Text style={s.bonusOverlayEmoji}>{bonusReceived !== null ? '🎉' : '👋'}</Text>
-                            <Text style={s.bonusOverlayTitle}>
-                                {bonusReceived !== null
-                                    ? t('bonusGranted', { amount: bonusReceived })
-                                    : t('welcomeBackBonus')}
-                            </Text>
+                        <View style={s.benefits}>
+                            <Benefit icon="✨" text={t('obKeyBenefit1')} />
+                            <Benefit icon="💸" text={t('obKeyBenefit2')} />
+                            <Benefit icon="🔐" text={t('obKeyBenefit3')} />
                         </View>
                     </View>
                 )}
 
-                {/* Footer CTA */}
-                <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
-                    <TouchableOpacity
-                        style={[s.ctaButton, currentScreen === 2 && selectedChip === null && { opacity: 0.5 }]}
-                        onPress={handleNext}
-                        accessibilityLabel={isLastScreen ? t('obCreateCTA') : t('onboardingNext')}
-                        accessibilityRole="button"
-                    >
-                        <Text style={s.ctaText}>
-                            {currentScreen < 2
-                                ? t('obNextLabel')
-                                : t('obCreateCTA')
-                            }
-                        </Text>
-                    </TouchableOpacity>
-                    {currentScreen === 2 && (
-                        <Text style={s.footerHint}>{t('obCreateHint')}</Text>
-                    )}
-                    {currentScreen === 0 && isAnonymous && (
-                        <TouchableOpacity
-                            onPress={handleAlreadyHaveAccount}
-                            disabled={isSigningIn}
-                            accessibilityLabel={t('obAlreadyHaveAccount')}
-                            accessibilityRole="button"
-                            style={s.alreadyHaveAccountFooter}
-                        >
-                            <Text style={s.alreadyHaveAccountFooterText}>
-                                {isSigningIn ? '...' : t('obAlreadyHaveAccount')}
-                            </Text>
-                        </TouchableOpacity>
+                <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
+                    {screen === TOTAL_SCREENS - 1 ? (
+                        <>
+                            <TouchableOpacity style={s.primaryBtn} onPress={goToSettings}>
+                                <Text style={s.primaryText}>{t('obKeySetupCta')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={s.ghostBtn} onPress={skip}>
+                                <Text style={s.ghostText}>{t('obKeyLaterCta')}</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <>
+                            <TouchableOpacity style={s.primaryBtn} onPress={goNext}>
+                                <Text style={s.primaryText}>{t('obContinue')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={s.ghostBtn} onPress={skip}>
+                                <Text style={s.ghostText}>{t('obSkip')}</Text>
+                            </TouchableOpacity>
+                        </>
                     )}
                 </View>
             </View>
         </Modal>
+    );
+}
+
+function Benefit({ icon, text }: { icon: string; text: string }) {
+    return (
+        <View style={s.benefitRow}>
+            <Text style={s.benefitIcon}>{icon}</Text>
+            <Text style={s.benefitText}>{text}</Text>
+        </View>
     );
 }
 
@@ -510,347 +239,122 @@ const s = StyleSheet.create({
         height: '100%',
         backgroundColor: colors.primary,
     },
-    screenContainer: {
+    screen: {
         flex: 1,
-        paddingHorizontal: 28,
-        paddingTop: 16,
+        paddingHorizontal: 24,
+        paddingTop: 24,
     },
-    skipButton: {
-        alignSelf: 'flex-end',
-        paddingTop: 12,
-        paddingBottom: 4,
+    bigEmoji: {
+        fontSize: 64,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
     },
-    skipText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 15,
-    },
-    topActions: {
-        alignSelf: 'flex-end',
-        alignItems: 'flex-end',
-    },
-
-    alreadyHaveAccountFooter: {
-        marginTop: 14,
-        alignSelf: 'center',
-    },
-    alreadyHaveAccountFooterText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 15,
-    },
-
-    signInErrorText: {
-        color: colors.error,
-        fontSize: 12,
-        marginTop: 2,
-        textAlign: 'right',
-    },
-    bonusContainer: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.55)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        zIndex: 10,
-    },
-    bonusOverlay: {
-        width: '100%',
-        backgroundColor: colors.surfaceVariant,
-        borderRadius: 16,
-        paddingVertical: 28,
-        paddingHorizontal: 16,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.primary + '60',
-        elevation: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-    },
-    bonusOverlayEmoji: {
-        fontSize: 40,
-        marginBottom: 8,
-    },
-    bonusOverlayTitle: {
-        color: colors.primary,
-        fontSize: 20,
+    headline: {
+        fontSize: 26,
         fontWeight: '800',
+        color: colors.onSurface,
+        marginBottom: spacing.sm,
+    },
+    sub: {
+        fontSize: 15,
+        color: colors.onSurfaceVariant,
+        lineHeight: 22,
+        marginBottom: spacing.lg,
+    },
+    loadingArea: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    fallbackText: {
+        color: colors.onSurfaceVariant,
+        fontSize: 14,
         textAlign: 'center',
     },
-    screenContent: {
-        flex: 1,
-    },
-
-    // ── Illustration ──
-    illustrationArea: {
-        height: 160,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    floatingEmoji: {
-        fontSize: 80,
-    },
-
-    // ── Typography ──
-    heading: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: colors.onSurface,
-        lineHeight: 36,
-        marginBottom: 8,
-    },
-    headingAccent: {
-        color: '#a855f7',
-    },
-    subtext: {
-        fontSize: 16,
-        color: colors.onSurfaceVariant,
-        lineHeight: 24,
-        marginBottom: 20,
-    },
-
-    // ── Chat demo (Screen 1) ──
-    chatDemo: {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: '#2a2a3e',
-        borderRadius: 20,
-        padding: 16,
-    },
-    chatBubbleUser: {
-        backgroundColor: colors.surfaceVariant,
-        borderRadius: 16,
-        borderBottomEndRadius: 4,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        alignSelf: 'flex-end',
-    },
-    chatBubbleText: {
-        fontSize: 15,
-        color: colors.onSurface,
-    },
-    typingDotsRow: {
-        flexDirection: 'row',
-        gap: 4,
-        alignItems: 'center',
-        backgroundColor: colors.surfaceVariant,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        alignSelf: 'flex-start',
-    },
-    typingDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#a855f7',
-    },
-    miniAppPreview: {
-        backgroundColor: colors.surfaceVariant,
-        borderRadius: 12,
-        padding: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        borderWidth: 1,
-        borderColor: 'rgba(124,58,237,0.3)',
-    },
-    miniAppIcon: {
-        width: 40,
-        height: 40,
-        backgroundColor: colors.primary,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    miniAppName: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: colors.onSurface,
-    },
-    miniAppTag: {
-        fontSize: 13,
-        color: '#10b981',
-    },
-
-    // ── Dots ──
-    dotsRow: {
-        flexDirection: 'row',
-        gap: 8,
-        justifyContent: 'center',
-        paddingVertical: 20,
-    },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: colors.surfaceVariant,
-    },
-    dotActive: {
-        width: 28,
-        borderRadius: 4,
-        backgroundColor: colors.primary,
-    },
-
-    // ── Try it (Screen 3) ──
-    tryInputArea: {
-        backgroundColor: colors.surface,
-        borderWidth: 1.5,
-        borderColor: colors.primaryContainer,
-        borderRadius: 20,
-        padding: 16,
-    },
-    tryInputFocused: {
-        borderColor: colors.primary,
-    },
-    tryInputLabel: {
-        fontSize: 15,
-        color: colors.onSurfaceVariant,
-        marginBottom: 8,
-    },
-    tryTypedText: {
-        fontSize: 16,
-        color: colors.onSurface,
-        minHeight: 24,
-    },
-    chipsGrid: {
+    grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 12,
-        marginBottom: 14,
+        paddingBottom: 24,
     },
-    chipCard: {
-        width: '100%',
-        backgroundColor: '#111827',
-        borderWidth: 2,
-        borderColor: '#2a2a3e',
-        borderRadius: 20,
-        paddingVertical: 18,
+    card: {
+        width: '48%',
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: 'rgba(124,58,237,0.18)',
+        borderRadius: borderRadius.md,
+        padding: 14,
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        position: 'relative',
+        gap: 8,
     },
-    chipCardSelected: {
+    cardLearned: {
         borderColor: colors.primary,
         backgroundColor: colors.primaryContainer,
     },
-    chipCardEmoji: {
-        fontSize: 36,
+    cardIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
     },
-    chipCardLabel: {
-        fontSize: 14,
+    cardIconFallback: {
+        backgroundColor: colors.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cardIconFallbackText: {
+        fontSize: 24,
+        color: colors.primary,
+    },
+    cardName: {
+        fontSize: 13,
         fontWeight: '700',
-        color: colors.onSurfaceVariant,
+        color: colors.onSurface,
         textAlign: 'center',
     },
-    chipCardLabelSelected: {
-        color: '#a855f7',
-    },
-    chipCardCheck: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: colors.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    chipCardCheckMark: {
-        color: '#fff',
+    cardCta: {
         fontSize: 11,
-        fontWeight: '800',
-    },
-
-    // ── Powers grid (Screen 3) ──
-    heroArea: {
-        flex: 1,
-    },
-    featuredCards: {
-        gap: 12,
-    },
-    featCard: {
-        backgroundColor: '#111827',
-        borderWidth: 1,
-        borderColor: 'rgba(124,58,237,0.25)',
-        borderRadius: 20,
-        padding: 20,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 18,
-    },
-    featIcon: {
-        width: 64,
-        height: 64,
-        backgroundColor: '#1a1a2e',
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    featIconText: {
-        fontSize: 32,
-    },
-    featInfo: {
-        flex: 1,
-    },
-    featTitle: {
-        color: '#F9FAFB',
-        fontSize: 16,
-        fontWeight: '800',
-        marginBottom: 4,
-    },
-    featDesc: {
-        color: '#9CA3AF',
-        fontSize: 14,
         fontWeight: '600',
+        color: colors.primary,
+    },
+    benefits: {
+        gap: 16,
+        marginTop: spacing.md,
+    },
+    benefitRow: {
+        flexDirection: 'row',
+        gap: 14,
+        alignItems: 'center',
+    },
+    benefitIcon: {
+        fontSize: 28,
+    },
+    benefitText: {
+        flex: 1,
+        fontSize: 14,
+        color: colors.onSurface,
         lineHeight: 20,
     },
-    moreLabel: {
-        color: '#4B5563',
-        fontSize: 13,
-        fontWeight: '700',
-        marginBottom: 8,
-    },
-    moreRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
+    footer: {
+        paddingHorizontal: 24,
         gap: 8,
     },
-    moreTag: {
-        backgroundColor: '#1F2937',
-        borderRadius: 99,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-    },
-    moreTagText: {
-        color: '#6B7280',
-        fontSize: 13,
-        fontWeight: '700',
-    },
-
-    // ── Footer ──
-    footer: {
-        paddingHorizontal: 28,
-        paddingTop: 20,
-        gap: 12,
-    },
-    ctaButton: {
+    primaryBtn: {
         backgroundColor: colors.primary,
         borderRadius: 100,
-        paddingVertical: 16,
-        paddingHorizontal: 24,
+        paddingVertical: 14,
         alignItems: 'center',
     },
-    ctaText: {
+    primaryText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
     },
-    footerHint: {
-        textAlign: 'center',
-        fontSize: 13,
+    ghostBtn: {
+        paddingVertical: 10,
+        alignItems: 'center',
+    },
+    ghostText: {
         color: colors.onSurfaceVariant,
+        fontSize: 14,
     },
 });

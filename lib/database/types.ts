@@ -9,8 +9,7 @@ export interface GeneratedApp {
     lastUpdated: number;
     createdAt: number; // Timestamp when the spell was first created
     consoleLogs: string;
-    totalManaCost: number; // All-time mana used by this app
-    recentManaCost?: number; // Mana used since createdAt (max 30 days window) – computed by getAllApps query
+    totalSpendUsd: number; // All-time USD spent on AI calls for this spell
     jobId?: string; // Link to the async job that created this app
     requiresBiometric: boolean; // If true, requires biometric auth to open
     shortDescription?: string; // Short description of the app (editable)

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { t } from '../lib/i18n';
-import { useManaStore } from '../lib/manaStore';
 
 interface SignOutModalProps {
     visible: boolean;
@@ -11,7 +10,6 @@ interface SignOutModalProps {
 }
 
 const SignOutModal: React.FC<SignOutModalProps> = ({ visible, onClose, onSelectKeep, onSelectClear }) => {
-    const { balance } = useManaStore();
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -74,12 +72,6 @@ const SignOutModal: React.FC<SignOutModalProps> = ({ visible, onClose, onSelectK
                                     <Text style={styles.optionDescription}>{t('clearAllDesc')}</Text>
                                 </View>
                             </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.footerNote}>
-                            <Text style={styles.footerNoteText}>
-                                {t('manaCloudNote', { amount: balance.toFixed(2) })}
-                            </Text>
                         </View>
 
                         <TouchableOpacity style={styles.cancelButton} onPress={onClose} disabled={isLoading}>

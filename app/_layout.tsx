@@ -7,10 +7,9 @@ import * as ShareIntent from 'share-intent';
 import { colors } from '../lib/theme';
 import { t } from '../lib/i18n';
 import ShareReceiver from '../components/ShareReceiver';
-import { ManaShop } from '../components/ManaShop';
-import { ManaConfirmModal } from '../components/ManaConfirmModal';
+import { CostEstimateModal } from '../components/CostEstimateModal';
+import { KeyMissingModal } from '../components/KeyMissingModal';
 import { LargePayloadConfirmModal } from '../components/LargePayloadConfirmModal';
-import { useManaStore } from '../lib/manaStore';
 import { Toast } from '../components/Toast';
 import { useAppStore } from '../lib/store';
 import { useStoreSyncStore } from '../lib/storeSync';
@@ -21,7 +20,6 @@ import { restoreScheduledAlarms } from '../lib/bridges/messageHandlers';
 
 import * as SplashScreen from 'expo-splash-screen';
 import { Toast as ToastComponent } from '../components/Toast';
-import MobileAds from 'react-native-google-mobile-ads';
 
 // Suppress LogBox banners globally in dev builds — the banner intercepts touch events
 // and blocks E2E test flows. Warnings remain accessible via Metro / console output.
@@ -150,18 +148,6 @@ export default function RootLayout() {
         restoreScheduledAlarms().catch(err => {
             console.warn('Failed to restore scheduled alarms:', err);
         });
-
-        // Initialize Mobile Ads SDK (required for PAID event delivery)
-        MobileAds().initialize().catch((e: any) => {
-            console.warn('MobileAds init failed:', e?.message || e);
-        });
-
-        // Initialize Mana Store (Firebase Sync)
-        try {
-            useManaStore.getState().init();
-        } catch (e) {
-            console.error('RootLayout: ManaStore init failed:', e);
-        }
 
         // Initialize App Store (Job Listeners)
         try {
@@ -335,8 +321,8 @@ export default function RootLayout() {
                 />
             </Stack>
             <ShareReceiver />
-            <ManaShop />
-            <ManaConfirmModal />
+            <CostEstimateModal />
+            <KeyMissingModal />
             <LargePayloadConfirmModal />
             <ToastComponent />
         </View>

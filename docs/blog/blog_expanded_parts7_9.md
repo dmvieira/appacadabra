@@ -87,7 +87,7 @@ The lesson: **AI saves you from architectural complexity. It does not save you f
 
 The product was running. Analytics were flowing. Metrics were legible. Appacadabra existed as a complete, observable system, and it existed entirely on a development device that no user could access. Getting from that state to "available on the Play Store" turned out to be one of the most unexpectedly complex transitions in the entire project.
 
-This was the moment where every prior department had to converge into a single shippable artifact. The compliance scaffolding from the Legal Department in Part 6 had to translate into the Play Store's Data Safety form and policy declarations. The observability built by the Analytics Department in Part 7 had to feed a go/no-go decision gate at each rollout step. The financial model from Part 5 had to map cleanly to Google Play Billing SKUs that a Play Store reviewer could validate. Release was not a new layer. It was the place where every other layer got tested.
+This was the moment where every prior department had to converge into a single shippable artifact. The compliance scaffolding from the Legal Department in Part 7 had to translate into the Play Store's Data Safety form and policy declarations. The observability built by the Analytics Department in Part 8 had to feed a go/no-go decision gate at each rollout step. The financial model from Part 6 had to map cleanly to Google Play Billing SKUs that a Play Store reviewer could validate. Release was not a new layer. It was the place where every other layer got tested.
 
 William Gibson wrote that "the street finds its own uses for things." In technology, this tends to mean that the processes built around a platform develop their own complexity, entirely independent of the underlying technology's complexity.
 
@@ -215,9 +215,9 @@ flowchart TD
 
 The **International Agent** became the company's geopolitical intelligence function.
 
-Its **MCPs** included:
-- A **Market Entry MCP** (`/market-entry`): given a target country, produce a structured assessment of regulatory requirements, distribution infrastructure, cultural adaptation needs, competitive landscape, and a prioritized action plan for market entry
-- A **Glocalization Check MCP** (`/glocalization-check`): evaluate any new product feature or UI copy against the cultural contexts of our active markets and flag adaptations required for each, covering UX patterns, tone of voice, regulatory implications, and localization gaps
+Its **Skills** included:
+- A **Market Entry Skill** (`/market-entry`): given a target country, produce a structured assessment of regulatory requirements, distribution infrastructure, cultural adaptation needs, competitive landscape, and a prioritized action plan for market entry
+- A **Glocalization Check Skill** (`/glocalization-check`): evaluate any new product feature or UI copy against the cultural contexts of our active markets and flag adaptations required for each, covering UX patterns, tone of voice, regulatory implications, and localization gaps
 
 The International Agent meant that expansion decisions (which market to enter next, which adaptations to prioritize, which channels to activate) could be informed by structured intelligence rather than instinct.
 

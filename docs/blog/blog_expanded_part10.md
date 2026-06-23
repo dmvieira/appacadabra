@@ -11,7 +11,7 @@ Engineering had produced a working app. A polyglot stack stitched together by a 
 
 Dijkstra wrote that sentence in an era when software was tested by hand, by the people who had written it, hoping they would find their own mistakes. Six decades later, the fundamental insight remains correct: QA is not a guarantee. It is a systematic reduction of uncertainty. The goal is never zero bugs. The goal is a level of confidence sufficient to serve users without catastrophic failure.
 
-Building QA for Appacadabra introduced a unique challenge: I was using AI to validate a product that was itself powered by AI. There was a certain recursive absurdity to it. And the deeper I went into the problem, the more I understood why QA is the department that no technical founder should underestimate, and the one most likely to be skipped entirely.
+Building QA for Appacadabra introduced a unique challenge: I was using AI to validate a product that was itself powered by AI. There was a certain recursive absurdity to it. And the deeper I went into the problem, the more I understood why QA is the department that no technical founder should underestimate, and the one most likely to be skipped entirely. The Validation Gap question from Part 1 — *what is the largest decision I cannot evaluate myself?* — had its sharpest edge here: I could read the code that Engineering produced, but I could not read every interaction path a real user would take. The tests were the only instrument that could.
 
 ### The QA Problem Is Harder Than It Looks
 
@@ -27,15 +27,11 @@ The hard problem in mobile QA is **End-to-End (E2E) testing**: validating that a
 
 The industry solution has evolved toward **declarative, behavior-based testing**: testing what the app *does* rather than what it *looks like*.
 
-### The Google Conductor + Maestro Stack
+### Choosing Maestro
 
-The combination I landed on: **Google Conductor** as the context-driven development backbone, and **Maestro** for the test execution layer.
+For the test execution layer, the tool I landed on was **Maestro**.
 
-**Google Conductor** is a context-driven development framework, and it deserves a more specific explanation than it usually gets in the testing conversation, because its role in this project went well beyond QA. Conductor's core function is maintaining rich, persistent context about the codebase across all development operations: it understands the project's structure, its dependencies, its established patterns, and its agent configuration. This is what allowed every AI agent in the system — starting with the Engineering Agent and extending to every department that would come after — to operate *with knowledge of the full codebase* rather than as isolated, context-free tools.
-
-For QA specifically, Conductor provided the structural framework that made the entire testing suite maintainable as the codebase evolved: organized test suites aligned to our feature structure, CI/CD integration that triggered the right test groups on the right code changes, and a context layer that could identify which existing tests were affected by a given code modification and run only those, rather than the full suite on every push.
-
-**Maestro** is the breakthrough tool in this stack. Developed by Mobile.dev, Maestro takes a fundamentally different approach to mobile UI testing: instead of requiring test authors to interact with the UI programmatically (the approach used by tools like Espresso, XCTest, and Appium), Maestro allows tests to be written in **readable YAML that describes intent, not implementation**.
+Maestro is the breakthrough tool in this stack. Developed by Mobile.dev, Maestro takes a fundamentally different approach to mobile UI testing: instead of requiring test authors to interact with the UI programmatically (the approach used by tools like Espresso, XCTest, and Appium), Maestro allows tests to be written in **readable YAML that describes intent, not implementation**.
 
 A Maestro test flow for the Appacadabra onboarding might look like:
 
@@ -59,7 +55,7 @@ This is not pseudocode. This is the actual test. It is readable by a non-enginee
 
 This is the point where the QA department architecture clicked into place.
 
-I gave Claude and Gemini the Appacadabra accessibility label map (essentially a semantic description of every interactive element in every screen) and instructed them to write Maestro test flows for each critical user journey:
+I gave Claude the Appacadabra accessibility label map (essentially a semantic description of every interactive element in every screen) and instructed it to write Maestro test flows for each critical user journey:
 
 - New user onboarding (account creation, email verification, first AI generation)
 - Returning user authentication and session restoration
@@ -67,7 +63,7 @@ I gave Claude and Gemini the Appacadabra accessibility label map (essentially a 
 - AI generation request and output rendering
 - Settings management and data deletion request
 
-The AI QA engineers produced these flows rapidly and with high quality. Because Maestro's YAML is declarative and semantically grounded in accessibility labels rather than view hierarchy internals, the generated tests were remarkably stable. They didn't break when I changed button colors. They broke only when the accessibility label changed, which is exactly when the test *should* break.
+The AI QA engineer produced these flows rapidly and with high quality. Because Maestro's YAML is declarative and semantically grounded in accessibility labels rather than view hierarchy internals, the generated tests were remarkably stable. They didn't break when I changed button colors. They broke only when the accessibility label changed, which is exactly when the test *should* break.
 
 The non-determinism problem for AI-generated content was solved with a pragmatic pattern: rather than asserting specific content, assert the *presence of the output container* and its *state category* (generated, error, loading). The AI generation is tested for completion, not for content. Content accuracy is handled through a separate prompt evaluation layer.
 
@@ -101,6 +97,8 @@ This full stack did not exist at the start of the project. It was assembled incr
 
 ### The Deterministic Workflow Layer
 
+Most agent harnesses today invert this. They put the workflow *inside* the agent — the LLM plans, codes, tests, and self-corrects in one continuous reasoning chain, and the framework around it exists mostly to feed the loop with tools, memory, and retries. They are impressive, and they work for some teams. For a solo founder shipping to real users, I made the opposite choice: **the agent goes inside the workflow, not the workflow inside the agent.** The pipeline is deterministic; Claude Code lives as a *step* inside it. The reasoning happens inside the agent; the order in which reasoning gets called happens outside it. That inversion is the central design decision of this part of the system, and it is the reason I can trust the pipeline to run the same way every time even as the agents underneath it keep changing.
+
 A testing pyramid tells you *what* should be tested. It does not tell you *when* those tests get run, or by whom, or in what order relative to the work that produced them. Early in the project, that order lived in my head: implement, then remember to write tests, then remember to run them, then remember to run Maestro, then remember to validate the i18n strings. The cost was not in any single forgotten step. It was in the cognitive overhead of being the routing layer every time. A solo founder who has to remember the development pipeline is a single point of failure for the development pipeline.
 
 The solution was [**agent-runner**](https://github.com/Codagent-AI/agent-runner), a Go-based workflow orchestrator that treats AI agents as steps in a deterministic pipeline. The workflow YAML is the *process*. The agents are the *reasoning*. The two are deliberately separated, which means the process keeps running correctly even when the agents themselves are revised. If I tighten the Engineering Agent next month, the feature workflow does not need to know.
@@ -115,6 +113,10 @@ flowchart LR
         F3 --> F4["npm test\n(deterministic)"]
         F4 --> F5["Maestro E2E\n(deterministic)"]
     end
+```
+
+```mermaid
+flowchart LR
     subgraph BUG["bugfix workflow"]
         B1["Engineering Agent\nfix"] --> B2["QA Agent\nregression test"]
         B2 --> B3["npm test\n(deterministic)"]
@@ -164,11 +166,11 @@ steps:
 
 Three steps, two of them agent-driven, one of them a deterministic shell command. The founder types `agent-runner bugfix bug_summary="..."` and the pipeline runs itself.
 
-A footnote on the engineering of this: agent-runner's upstream did not compile on Windows. The `internal/pty` package used Unix-only syscalls (`SIGWINCH`, `Setsid`, `Setctty`) without build tags, and the project depended on `creack/pty` which has no Windows backend. Getting the pipeline running on my Windows development machine meant forking the project, splitting the PTY layer into platform-specific files, stubbing interactive mode behind a clear error on Windows (autonomous mode and shell commands work natively — and that is what these workflows use), and introducing a tiny `shellcmd` helper to route `sh -c` to `cmd.exe /C` on Windows. The Linux and macOS builds were unaffected. The patch is the first PR back to Codagent-AI/agent-runner: a Windows port that the project did not have before, contributed by a downstream user who needed it. The harness improving itself is part of what makes this model of working sustainable.
+For me, this deterministic baseline was enough. The point of the pipeline is not to be elaborate; it is to be *the same every time* — so the cognitive load of remembering the process stops being a single point of failure. Every team will find their own level of sophistication; more agents, finer-grained roles, parallel branches, automatic rollbacks are all available. None of it was necessary here.
 
 ### The QA Agent and Its Skills
 
-The **QA Agent** was the final agent configured, and it had access to the outputs of every other agent in the system.
+The **QA Agent** was the final agent configured, and it had access to the outputs of every other agent in the system — every other agent built since the Engineering Department in Part 4, which produced the polyglot codebase and the 17-locale i18n pipeline that this department now needed to keep honest.
 
 Its **MCPs** included:
 - A **Test Coverage Check MCP** (`/test-coverage-check`): given the current codebase, identify user flows not covered by existing Maestro flows and generate scaffolding for the missing tests, prioritized by user-facing impact

@@ -574,7 +574,3 @@ export async function tryRestoreOnLogin(): Promise<'restored' | 'no_backup' | 'l
 
     return 'no_backup';
 }
-
-// ─── Legacy alias (backward compat) ────────────────────────────────
-/** @deprecated Use `markBackupDirty()` instead */
-export const autoBackupAfterChange = markBackupDirty;
