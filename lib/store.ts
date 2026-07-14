@@ -1086,6 +1086,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             // Filter out jobs the native executor still owns — those get to
             // finish on their own and re-emit BGGen* events when they do.
+            // For jobs the native side has forgotten but the DB still shows
+            // as processing (i.e. the FGS was killed), try to resume via the
+            // native module before falling back to marking them failed. On
+            // Android this restarts the FGS in `resume` mode; the state
+            // machine picks up from the last persisted stage.
             const stale: PendingJob[] = [];
             for (const j of staleCandidates) {
                 try {
@@ -1094,6 +1099,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                 } catch {
                     // Treat status errors as "not running" — the row is stale.
                 }
+                const resumed = await bgGen.resume(j.jobId).catch(() => false);
+                if (resumed) continue;
                 stale.push(j);
             }
             if (stale.length === 0) return;

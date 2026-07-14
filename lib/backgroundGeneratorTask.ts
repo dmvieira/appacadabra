@@ -14,7 +14,7 @@
  * emits a `BGGenProgress` event so the main JS context — when it's alive —
  * can update the spell card UI immediately.
  */
-import { DeviceEventEmitter } from 'react-native';
+import { DeviceEventEmitter, NativeModules } from 'react-native';
 import Constants from 'expo-constants';
 import * as db from './database/db';
 import {
@@ -25,8 +25,11 @@ import {
     driveInProcess,
     type CreateJobState,
     type EditJobState,
+    type CreateStage,
+    type EditStage,
 } from './api/generatorStages';
 import { logAppCreated, logAppEdited } from './analytics';
+import type { PendingJob } from './database/types';
 
 interface TaskData {
     taskKey: string;
@@ -50,6 +53,10 @@ interface EditParams {
     appVersion?: string;
 }
 
+interface ResumeParams {
+    jobId: string;
+}
+
 function getAppVersion(hint?: string): string {
     return hint ?? Constants.expoConfig?.version ?? '2.0.15';
 }
@@ -57,13 +64,15 @@ function getAppVersion(hint?: string): string {
 export async function runBackgroundGeneratorTask(data: TaskData): Promise<void> {
     let jobId = 'unknown';
     try {
-        const params = JSON.parse(data.paramsJson) as CreateParams | EditParams;
+        const params = JSON.parse(data.paramsJson) as CreateParams | EditParams | ResumeParams;
         jobId = params.jobId;
 
         if (data.taskKey === 'create') {
             await runCreate(params as CreateParams);
         } else if (data.taskKey === 'edit') {
             await runEdit(params as EditParams);
+        } else if (data.taskKey === 'resume') {
+            await runResume((params as ResumeParams).jobId);
         } else {
             throw new Error(`Unknown BackgroundGenerator taskKey: ${data.taskKey}`);
         }
@@ -75,6 +84,11 @@ export async function runBackgroundGeneratorTask(data: TaskData): Promise<void> 
                 : 'unknown';
         await persistFailure(jobId, code, message);
         DeviceEventEmitter.emit('BGGenFailed', { jobId, code, message });
+    } finally {
+        // Clear the watchdog whether we succeeded, failed, or the resume was
+        // a no-op. Keeping the watchdog armed after a terminal outcome would
+        // fire an unnecessary FGS restart 20 min later.
+        clearWatchdog(jobId);
     }
 }
 
@@ -128,6 +142,122 @@ async function runEdit(p: EditParams): Promise<void> {
         usage: usageToWire(result.usage),
         costUsd: result.costUsd,
     });
+}
+
+/**
+ * Resume a job whose `pending_jobs` row is still `processing` — the FGS was
+ * killed (OEM aggressive battery mgmt, OOM, or the WorkManager watchdog
+ * fired). Rebuilds initial state from the row's immutable inputs, then
+ * overlays the persisted stage/plan/html/usage cursor so the state machine
+ * picks up from the last completed stage instead of the planner.
+ */
+async function runResume(jobId: string): Promise<void> {
+    const row = await db.getPendingJob(jobId);
+    if (!row) return;
+    if (row.status !== 'processing') return; // already terminal — nothing to do
+    if (row.currentStage === 'complete') return; // completion just hasn't been reconciled yet
+
+    if (row.type === 'create') {
+        const state = rebuildCreateState(row);
+        await persistState(jobId, state);
+        emitProgress(jobId, state);
+        const result = await driveInProcess(state, nextCreateStage, {
+            onState: async (s) => {
+                await persistState(jobId, s);
+                emitProgress(jobId, s);
+            },
+        });
+        await persistCompletion(jobId, result.html, result.usage, result.costUsd);
+        logAppCreated(0);
+        DeviceEventEmitter.emit('BGGenCompleted', {
+            jobId,
+            html: result.html,
+            usage: usageToWire(result.usage),
+            costUsd: result.costUsd,
+            appName: result.appName,
+        });
+        return;
+    }
+
+    if (row.type === 'edit') {
+        if (row.appId == null) throw new Error(`resume: edit job ${jobId} missing appId`);
+        const app = await db.getAppById(row.appId);
+        if (!app) throw new Error(`resume: edit job ${jobId} references missing app ${row.appId}`);
+        const previousEdits = await db.getVersionsForApp(row.appId).then(vs =>
+            vs.map(v => ({ version: v.version, instruction: v.instruction ?? '' })),
+        );
+        const state = rebuildEditState(row, app.code, previousEdits);
+        await persistState(jobId, state);
+        emitProgress(jobId, state);
+        const result = await driveInProcess(state, nextEditStage, {
+            onState: async (s) => {
+                await persistState(jobId, s);
+                emitProgress(jobId, s);
+            },
+        });
+        await persistCompletion(jobId, result.html, result.usage, result.costUsd);
+        logAppEdited(0);
+        DeviceEventEmitter.emit('BGGenCompleted', {
+            jobId,
+            html: result.html,
+            usage: usageToWire(result.usage),
+            costUsd: result.costUsd,
+        });
+        return;
+    }
+
+    throw new Error(`resume: unsupported pending_job type ${row.type}`);
+}
+
+function rebuildCreateState(row: PendingJob): CreateJobState {
+    const base = initCreateState({ prompt: row.promptText, appVersion: getAppVersion() });
+    return overlayPersistedCursor(base, row) as CreateJobState;
+}
+
+function rebuildEditState(
+    row: PendingJob,
+    currentCode: string,
+    previousEdits: { version: number; instruction: string }[],
+): EditJobState {
+    const base = initEditState({
+        currentCode,
+        instruction: row.promptText,
+        appVersion: getAppVersion(),
+        previousEdits,
+        selectedContext: row.selectedContext ?? undefined,
+    });
+    return overlayPersistedCursor(base, row) as EditJobState;
+}
+
+/**
+ * Restore stage cursor / partial results onto a fresh initial state. The
+ * initial state carries the immutable inputs (prompt, normalized code,
+ * system-instructions inputs) that we can't reconstruct from the DB.
+ */
+function overlayPersistedCursor<S extends CreateJobState | EditJobState>(
+    base: S,
+    row: PendingJob,
+): S {
+    if (row.currentStage && row.currentStage !== 'complete') {
+        base.stage = row.currentStage as CreateStage & EditStage;
+    }
+    if (typeof row.stageAttempt === 'number') base.fixAttempt = row.stageAttempt;
+    if (typeof row.outerAttempt === 'number') base.outerAttempt = row.outerAttempt;
+    if (row.planJson) {
+        try { base.plan = JSON.parse(row.planJson); } catch { /* ignore parse errors */ }
+    }
+    if (row.currentHtml) base.html = row.currentHtml;
+    if (row.usageJson) {
+        try { base.usage = JSON.parse(row.usageJson); } catch { /* ignore */ }
+    }
+    return base;
+}
+
+function clearWatchdog(jobId: string): void {
+    const native = (NativeModules as Record<string, unknown>).BackgroundGenerator as
+        | { clearWatchdog?: (jobId: string) => Promise<void> }
+        | undefined;
+    native?.clearWatchdog?.(jobId).catch(() => {});
 }
 
 function emitProgress(jobId: string, state: CreateJobState | EditJobState): void {

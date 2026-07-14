@@ -198,6 +198,13 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // WorkManager: watchdog for the spell-generation FGS. Enqueued when a
+    // job starts; if the FGS was killed (aggressive OEM battery mgmt, OOM,
+    // rare stock-Android edge cases) the worker restarts the service in
+    // resume mode so the state-machine picks up from the last persisted
+    // stage. See BackgroundGeneratorWorker.kt.
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }
 
 apply plugin: 'com.google.gms.google-services'

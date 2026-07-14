@@ -85,6 +85,18 @@ interface NativeBackgroundGenerator {
      * the module there does not expose this method — hence the optional.
      */
     endJob?(jobId: string): Promise<void>;
+    /**
+     * Android only. Starts the FGS in resume mode for a job that is still
+     * `processing` in the DB but no longer running in native. The JS-side
+     * task reads pending_jobs and re-drives the state machine.
+     */
+    resume?(jobId: string): Promise<void>;
+    /**
+     * Android only. Cancels the WorkManager watchdog for a job. Called from
+     * the JS task at terminal states so a completed happy-path job doesn't
+     * fire the resume watchdog 20 min later.
+     */
+    clearWatchdog?(jobId: string): Promise<void>;
 }
 
 function getNativeModule(): NativeBackgroundGenerator | null {
@@ -148,6 +160,37 @@ export async function startEdit(params: StartEditParams): Promise<void> {
         }
     }
     void runEditInProcess(params);
+}
+
+/**
+ * Ask the native side to resume a job whose `pending_jobs` row is still
+ * `processing` but which the native module no longer reports as running
+ * (i.e. the FGS was killed). Android only; on iOS resume is not supported
+ * yet — callers should treat that as a genuine failure.
+ */
+export async function resume(jobId: string): Promise<boolean> {
+    const native = getNativeModule();
+    if (Platform.OS !== 'android' || !native?.resume) return false;
+    try {
+        await native.resume(jobId);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Cancel the WorkManager watchdog for a completed/failed job so it does not
+ * fire the resume path uselessly. Android only; no-op elsewhere.
+ */
+export async function clearWatchdog(jobId: string): Promise<void> {
+    const native = getNativeModule();
+    if (!native?.clearWatchdog) return;
+    try {
+        await native.clearWatchdog(jobId);
+    } catch {
+        // Best-effort — WorkManager will still no-op if the job is complete.
+    }
 }
 
 export async function cancel(jobId: string): Promise<void> {

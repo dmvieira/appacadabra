@@ -54,11 +54,49 @@ class BackgroundGeneratorModule(private val reactContext: ReactApplicationContex
     }
 
     @ReactMethod
+    fun resume(jobId: String, promise: Promise) {
+        // Called from JS reconcile at boot when a `processing` pending_jobs
+        // row exists but the native side no longer reports the job as
+        // running. Starts the FGS with `taskKey='resume'` — the JS-side
+        // task reads pending_jobs and re-drives the state machine from the
+        // last completed stage.
+        try {
+            activeJobIds.add(jobId)
+            val intent = Intent(reactContext, BackgroundGeneratorService::class.java).apply {
+                putExtra(BackgroundGeneratorService.EXTRA_TASK_KEY, "resume")
+                putExtra(
+                    BackgroundGeneratorService.EXTRA_PARAMS_JSON,
+                    org.json.JSONObject().put("jobId", jobId).toString(),
+                )
+            }
+            reactContext.startForegroundService(intent)
+            // Re-arm the watchdog so a killed resume also gets retried.
+            BackgroundGeneratorWorker.enqueue(reactContext, jobId, null)
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.reject("BG_GEN_RESUME", e.message, e)
+        }
+    }
+
+    @ReactMethod
     fun cancel(jobId: String, promise: Promise) {
         activeJobIds.remove(jobId)
+        BackgroundGeneratorWorker.cancel(reactContext, jobId)
         // The JS task checks a cancellation flag between stages once the
         // state machine executor lands. For now the service stops on its own
         // when the task completes.
+        promise.resolve(null)
+    }
+
+    /**
+     * Called from the JS-side task on terminal outcomes (complete/failed) so
+     * the WorkManager watchdog doesn't fire uselessly 20 min later. Exposed
+     * as a `@ReactMethod` so the HeadlessJS task can invoke it directly.
+     */
+    @ReactMethod
+    fun clearWatchdog(jobId: String, promise: Promise) {
+        activeJobIds.remove(jobId)
+        BackgroundGeneratorWorker.cancel(reactContext, jobId)
         promise.resolve(null)
     }
 
@@ -84,5 +122,10 @@ class BackgroundGeneratorModule(private val reactContext: ReactApplicationContex
             }
         }
         reactContext.startForegroundService(intent)
+        // Watchdog insurance: if the FGS is killed before it finishes, the
+        // worker fires after 20 min and resumes from the last persisted
+        // stage. Cancelled from the JS task via `clearWatchdog` on
+        // completion/failure so happy-path jobs never hit it.
+        BackgroundGeneratorWorker.enqueue(reactContext, jobId, titleHint)
     }
 }
