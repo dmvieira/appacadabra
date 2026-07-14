@@ -69,6 +69,49 @@ public class AppDelegate: ExpoAppDelegate {
     }
     completionHandler(true)
   }
+
+  // URLSession background completion — invoked by iOS when the system
+  // relaunches the app to hand off events from a background URLSession
+  // (see BackgroundGenerator.swift). We stash the OS-provided completion
+  // handler on `BackgroundURLSessionRegistry`; the URLSession delegate
+  // pulls it and calls it once all pending events have been processed,
+  // signalling the OS that it's safe to suspend us again.
+  //
+  // No-op today because the Swift executor currently uses
+  // `beginBackgroundTask` instead of a background URLSession. Wiring the
+  // hook now means the future kill-survival path doesn't need to touch
+  // `AppDelegate` — swap in URLSession.background inside the module and
+  // it just works.
+  public override func application(
+    _ application: UIApplication,
+    handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+  ) {
+    BackgroundURLSessionRegistry.shared.register(identifier: identifier, handler: completionHandler)
+  }
+}
+
+/// Holds URLSession-background completion handlers keyed by session
+/// identifier. The URLSession delegate (added by the future kill-survival
+/// pipeline) pulls the handler out via `consume(identifier:)` and invokes
+/// it from `urlSessionDidFinishEvents(forBackgroundURLSession:)`.
+final class BackgroundURLSessionRegistry {
+    static let shared = BackgroundURLSessionRegistry()
+
+    private var handlers: [String: () -> Void] = [:]
+    private let lock = NSLock()
+
+    private init() {}
+
+    func register(identifier: String, handler: @escaping () -> Void) {
+        lock.lock(); defer { lock.unlock() }
+        handlers[identifier] = handler
+    }
+
+    func consume(identifier: String) -> (() -> Void)? {
+        lock.lock(); defer { lock.unlock() }
+        return handlers.removeValue(forKey: identifier)
+    }
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {

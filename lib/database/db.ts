@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { GeneratedApp, AppVersion, AppStorage, NewGeneratedApp, NewAppVersion } from './types';
+import { GeneratedApp, AppVersion, AppStorage, NewGeneratedApp, NewAppVersion, PendingJob } from './types';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -38,6 +38,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       source TEXT NOT NULL DEFAULT 'local',
       storeSpellId TEXT,
       storeSpellSlug TEXT,
+      storeAuthorUid TEXT,
       forkOfStoreSpellId TEXT,
       storeVisibility TEXT
     );
@@ -122,7 +123,53 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       action TEXT,
       timestamp INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS pending_jobs (
+      jobId TEXT PRIMARY KEY NOT NULL,
+      type TEXT NOT NULL,
+      appId INTEGER,
+      promptText TEXT NOT NULL,
+      selectedContext TEXT,
+      status TEXT NOT NULL,
+      startedAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      lastErrorCode TEXT,
+      lastErrorMessage TEXT,
+      currentStage TEXT,
+      stageAttempt INTEGER,
+      outerAttempt INTEGER,
+      planJson TEXT,
+      currentHtml TEXT,
+      usageJson TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_pending_jobs_status ON pending_jobs(status);
+    CREATE INDEX IF NOT EXISTS idx_pending_jobs_type_appId ON pending_jobs(type, appId);
   `);
+
+    // Defensive column add for users upgrading from a schema without storeAuthorUid.
+    // SQLite ALTER TABLE throws "duplicate column name" if the column already exists; swallow it.
+    try {
+        await database.execAsync(`ALTER TABLE generated_apps ADD COLUMN storeAuthorUid TEXT;`);
+    } catch {
+        // Column already exists — ignore.
+    }
+
+    // Defensive column adds for the background-generation state machine on
+    // users upgrading from a schema before the BackgroundGenerator module.
+    for (const col of [
+        'currentStage TEXT',
+        'stageAttempt INTEGER',
+        'outerAttempt INTEGER',
+        'planJson TEXT',
+        'currentHtml TEXT',
+        'usageJson TEXT',
+    ]) {
+        try {
+            await database.execAsync(`ALTER TABLE pending_jobs ADD COLUMN ${col};`);
+        } catch {
+            // Column already exists — ignore.
+        }
+    }
 
     // Clean up tombstones older than 90 days
     try {
@@ -196,13 +243,14 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         app.source ?? 'local',
         app.storeSpellId ?? null,
         app.storeSpellSlug ?? null,
+        app.storeAuthorUid ?? null,
         app.forkOfStoreSpellId ?? null,
         app.storeVisibility ?? null,
     ];
 
     const result = await database.runAsync(
-        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalSpendUsd, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, forkOfStoreSpellId, storeVisibility)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalSpendUsd, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, storeAuthorUid, forkOfStoreSpellId, storeVisibility)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         bindings as any[]
     );
     return result.lastInsertRowId;
@@ -264,12 +312,13 @@ export async function updateAppStoreLink(
     appId: number,
     storeSpellId: string | null,
     storeSpellSlug: string | null,
-    storeVisibility: 'public' | 'unlisted' | null = null
+    storeVisibility: 'public' | 'unlisted' | null = null,
+    storeAuthorUid: string | null = null
 ): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        'UPDATE generated_apps SET storeSpellId = ?, storeSpellSlug = ?, storeVisibility = ? WHERE id = ?',
-        [storeSpellId, storeSpellSlug, storeVisibility, appId]
+        'UPDATE generated_apps SET storeSpellId = ?, storeSpellSlug = ?, storeVisibility = ?, storeAuthorUid = ? WHERE id = ?',
+        [storeSpellId, storeSpellSlug, storeVisibility, storeAuthorUid, appId]
     );
 }
 
@@ -712,4 +761,92 @@ export async function getAllFutureAlarms(): Promise<(AlarmRow & { appId: number 
         'SELECT appId, alarmId, title, body, timeMs FROM app_alarms WHERE timeMs > ?',
         [Date.now()]
     );
+}
+
+// ============= Pending Jobs (drafts + in-flight create/edit) =============
+
+export async function upsertPendingJob(job: PendingJob): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        `INSERT OR REPLACE INTO pending_jobs
+         (jobId, type, appId, promptText, selectedContext, status, startedAt, updatedAt, lastErrorCode, lastErrorMessage,
+          currentStage, stageAttempt, outerAttempt, planJson, currentHtml, usageJson)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+            job.jobId,
+            job.type,
+            job.appId,
+            job.promptText,
+            job.selectedContext,
+            job.status,
+            job.startedAt,
+            job.updatedAt,
+            job.lastErrorCode,
+            job.lastErrorMessage,
+            job.currentStage ?? null,
+            job.stageAttempt ?? null,
+            job.outerAttempt ?? null,
+            job.planJson ?? null,
+            job.currentHtml ?? null,
+            job.usageJson ?? null,
+        ]
+    );
+}
+
+export async function getPendingJob(jobId: string): Promise<PendingJob | null> {
+    const database = await getDatabase();
+    return database.getFirstAsync<PendingJob>(
+        'SELECT * FROM pending_jobs WHERE jobId = ?',
+        [jobId]
+    );
+}
+
+export async function getPendingDraft(
+    type: 'create' | 'edit',
+    appId?: number | null
+): Promise<PendingJob | null> {
+    const database = await getDatabase();
+    // 'create' draft has appId = NULL; 'edit' draft is keyed by appId.
+    if (type === 'create') {
+        return database.getFirstAsync<PendingJob>(
+            `SELECT * FROM pending_jobs
+             WHERE status = 'draft' AND type = 'draft' AND appId IS NULL
+             ORDER BY updatedAt DESC LIMIT 1`
+        );
+    }
+    return database.getFirstAsync<PendingJob>(
+        `SELECT * FROM pending_jobs
+         WHERE status = 'draft' AND type = 'draft' AND appId = ?
+         ORDER BY updatedAt DESC LIMIT 1`,
+        [appId ?? null]
+    );
+}
+
+export async function listProcessingJobs(): Promise<PendingJob[]> {
+    const database = await getDatabase();
+    return database.getAllAsync<PendingJob>(
+        "SELECT * FROM pending_jobs WHERE status = 'processing' ORDER BY startedAt ASC"
+    );
+}
+
+export async function deletePendingJob(jobId: string): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync('DELETE FROM pending_jobs WHERE jobId = ?', [jobId]);
+}
+
+export async function deleteDraftFor(
+    type: 'create' | 'edit',
+    appId?: number | null
+): Promise<void> {
+    const database = await getDatabase();
+    if (type === 'create') {
+        await database.runAsync(
+            "DELETE FROM pending_jobs WHERE status = 'draft' AND type = 'draft' AND appId IS NULL"
+        );
+    } else {
+        await database.runAsync(
+            "DELETE FROM pending_jobs WHERE status = 'draft' AND type = 'draft' AND appId = ?",
+            [appId ?? null]
+        );
+    }
 }

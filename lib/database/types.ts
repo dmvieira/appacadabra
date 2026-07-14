@@ -16,6 +16,7 @@ export interface GeneratedApp {
     sortOrder: number; // Custom sort order (lower = higher in list)
     storeSpellId?: string | null; // ID of the published spell in Firestore store_spells (if published)
     storeSpellSlug?: string | null; // Slug for the public Store URL
+    storeAuthorUid?: string | null; // Firebase UID of the publisher; null = unknown owner (legacy rows pre-fix)
     storeVisibility?: 'public' | 'unlisted' | null; // Visibility mode used when publishing
     source?: 'local' | 'store'; // Whether this spell was created locally or learned from the Store
     forkOfStoreSpellId?: string | null; // store_spells ID this spell was learned from (for variant publishing)
@@ -43,3 +44,28 @@ export interface AppStorage {
 export type NewGeneratedApp = Omit<GeneratedApp, 'id'>;
 export type NewAppVersion = Omit<AppVersion, 'id'>;
 export type NewAppStorage = Omit<AppStorage, 'id'>;
+
+// Drafts and in-flight AI generation jobs (create/edit). Persisted so a draft
+// survives an app kill and an interrupted generation can be reconciled at boot.
+// The `currentStage`/`stageAttempt`/`outerAttempt`/`planJson`/`currentHtml`/
+// `usageJson` fields carry state-machine state for the background executor so
+// a killed process can resume from the last completed stage instead of retrying
+// from scratch.
+export interface PendingJob {
+    jobId: string;
+    type: 'create' | 'edit' | 'draft';
+    appId: number | null;
+    promptText: string;
+    selectedContext: string | null;
+    status: 'draft' | 'processing' | 'failed';
+    startedAt: number;
+    updatedAt: number;
+    lastErrorCode: string | null;
+    lastErrorMessage: string | null;
+    currentStage?: 'planner' | 'coder' | 'patch' | 'validate' | 'fix' | 'complete' | null;
+    stageAttempt?: number | null;
+    outerAttempt?: number | null;
+    planJson?: string | null;
+    currentHtml?: string | null;
+    usageJson?: string | null;
+}

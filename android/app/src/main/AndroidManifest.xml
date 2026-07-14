@@ -6,6 +6,8 @@
   <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
   <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
   <!-- CAPABILITY_PERMISSIONS:start -->
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -108,6 +110,7 @@
         android:exported="false"
         android:grantUriPermissions="true"/>
     <receiver android:name=".AlarmReceiver" android:exported="false"/>
+    <service android:name=".BackgroundGeneratorService" android:foregroundServiceType="dataSync" android:exported="false"/>
   <!-- CAPABILITY:health:start -->
     <activity-alias android:name="ViewPermissionUsageActivity" android:exported="true" android:targetActivity=".MainActivity" android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
       <intent-filter>

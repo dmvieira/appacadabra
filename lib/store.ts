@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import * as Notifications from 'expo-notifications';
 import { DeviceEventEmitter } from 'react-native';
-import { GeneratedApp, NewGeneratedApp } from './database/types';
+import { GeneratedApp, NewGeneratedApp, PendingJob } from './database/types';
 import * as db from './database/db';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Paths, File } from 'expo-file-system/next';
-import * as ai from './api/ai';
+import * as bgGen from './backgroundGenerator';
+import type { BgGenCompletedEvent, BgGenFailedEvent } from './backgroundGenerator';
 import * as openrouter from './api/openrouter';
+import type { OpenRouterErrorCode } from './api/openrouter';
 import { MODELS } from './api/pricing';
 import * as backup from './backup';
 import { onboardingTemplates } from './onboardingTemplates';
@@ -62,6 +64,20 @@ interface AppState {
     lastFailedPrompt: { type: 'create' | 'edit'; text: string; appId?: number } | null;
     clearLastFailedPrompt: () => void;
 
+    // Actionable error from a create/edit AI call (key missing, rate limit,
+    // upstream 5xx, generation aborted by app kill, etc). Drives
+    // GenerationErrorModal. Separate from `error` (generic 5s toast) so it
+    // survives until the user dismisses/retries.
+    generationError: {
+        jobId: string;
+        type: 'create' | 'edit';
+        code: OpenRouterErrorCode | 'unknown' | 'aborted';
+        message: string;
+        promptText: string;
+        appId: number | null;
+    } | null;
+    clearGenerationError: () => void;
+
     // Bumped after the user saves/clears the OpenRouter key.
     // Components that depend on key presence subscribe to this to re-read
     // hasOpenRouterKey() without polling.
@@ -100,6 +116,10 @@ interface AppState {
     generateAndSaveAppIcon: (appId: number, prompt: string) => Promise<{ iconPath: string; creditsUsed: number }>;
     reorderApp: (appId: number, direction: 'up' | 'down') => Promise<void>;
     wipeAllData: () => Promise<void>;
+
+    // Reconcile pending_jobs rows left behind by a previous app kill.
+    // Called once at boot from app/_layout.tsx after loadApps().
+    reconcilePendingJobs: () => Promise<void>;
 }
 
 function inferJsonSchema(value: any): object {
@@ -124,6 +144,23 @@ function makeLocalJobId(prefix: string): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// BgGenFailedEvent surfaces `code` as a plain string (it may come from
+// either the in-process fallback or the native side later). We only trust it
+// for the `generationError` union when it matches an OpenRouterErrorCode.
+const KNOWN_OPENROUTER_ERROR_CODES: ReadonlySet<string> = new Set<OpenRouterErrorCode>([
+    'byok.error.noKey',
+    'byok.error.invalidKey',
+    'byok.error.outOfCredit',
+    'byok.error.rateLimited',
+    'byok.error.upstream',
+    'byok.error.network',
+    'byok.error.aborted',
+    'byok.error.parse',
+] as const);
+function isKnownErrorCode(code: string): boolean {
+    return KNOWN_OPENROUTER_ERROR_CODES.has(code);
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
     apps: [],
     isLoading: true,
@@ -142,9 +179,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     lastCreatedAppId: null,
     dismissedUris: {},
     lastFailedPrompt: null,
+    generationError: null,
     aiKeyVersion: 0,
 
     clearLastFailedPrompt: () => set({ lastFailedPrompt: null }),
+    clearGenerationError: () => set({ generationError: null }),
     bumpAiKeyVersion: () => set(state => ({ aiKeyVersion: state.aiKeyVersion + 1 })),
 
     dismissContent: (uri: string) => {
@@ -244,150 +283,338 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     createApp: async (description: string) => {
         const jobId = makeLocalJobId('create');
+        const startedAt = Date.now();
+
+        // Persist the in-flight job *before* spawning the async work so we can
+        // reconcile (and recover the prompt) if the app is killed mid-call.
+        try {
+            await db.upsertPendingJob({
+                jobId,
+                type: 'create',
+                appId: null,
+                promptText: description,
+                selectedContext: null,
+                status: 'processing',
+                startedAt,
+                updatedAt: startedAt,
+                lastErrorCode: null,
+                lastErrorMessage: null,
+            });
+            // The draft for create lives under appId=NULL; once we promote it
+            // to a processing job, the draft row is no longer needed.
+            await db.deleteDraftFor('create');
+        } catch (e) {
+            console.warn('[Store] Failed to persist pending create job:', e);
+        }
+
         set(state => ({
             error: null,
-            creatingApps: [...state.creatingApps, { jobId, description, timestamp: Date.now() }],
+            generationError: null,
+            creatingApps: [...state.creatingApps, { jobId, description, timestamp: startedAt }],
             statusMessage: t('jobStarted'),
         }));
 
-        try {
-            const result = await ai.generateApp(description);
-
-            const appName = (result.appName && result.appName.trim()) || description.slice(0, 40);
-            const now = Date.now();
-            const newApp: NewGeneratedApp = {
-                name: appName,
-                code: result.text,
-                currentVersion: 1,
-                iconPath: null,
-                lastUpdated: now,
-                createdAt: now,
-                consoleLogs: '',
-                totalSpendUsd: 0,
-                jobId,
-                requiresBiometric: false,
-                shortDescription: description,
-                sortOrder: 0,
-            };
-
-            const id = await db.insertApp(newApp);
-
-            await Notifications.setNotificationChannelAsync(`spell-${id}`, {
-                name: appName,
-                importance: Notifications.AndroidImportance.HIGH,
-                vibrationPattern: [0, 250, 250, 250],
-                lightColor: '#FF9500',
-            });
-
-            const app = await db.getAppById(id);
-            if (app) {
-                SharingShortcuts.publishShortcut(id.toString(), app.name, app.iconPath);
-                await db.insertVersion({
-                    appId: id,
-                    version: 1,
-                    code: result.text,
-                    instruction: description || t('initialGeneration'),
-                    selectedContext: null,
-                    createdAt: Date.now(),
+        const completedSub = bgGen.onCompleted(async (e: BgGenCompletedEvent) => {
+            if (e.jobId !== jobId) return;
+            completedSub.remove();
+            failedSub.remove();
+            try {
+                const appName = (e.appName && e.appName.trim()) || description.slice(0, 40);
+                const now = Date.now();
+                const newApp: NewGeneratedApp = {
+                    name: appName,
+                    code: e.html,
+                    currentVersion: 1,
+                    iconPath: null,
+                    lastUpdated: now,
+                    createdAt: now,
+                    consoleLogs: '',
+                    totalSpendUsd: e.costUsd ?? 0,
                     jobId,
+                    requiresBiometric: false,
+                    shortDescription: description,
+                    sortOrder: 0,
+                };
+
+                const id = await db.insertApp(newApp);
+
+                await Notifications.setNotificationChannelAsync(`spell-${id}`, {
+                    name: appName,
+                    importance: Notifications.AndroidImportance.HIGH,
+                    vibrationPattern: [0, 250, 250, 250],
+                    lightColor: '#FF9500',
                 });
 
-                await get().loadApps();
-                set({
-                    statusMessage: t('appReadyNotify', { name: appName }),
-                    statusActionAppId: id,
-                    lastCreatedAppId: id,
-                });
-                markBackupDirty();
+                const app = await db.getAppById(id);
+                if (app) {
+                    SharingShortcuts.publishShortcut(id.toString(), app.name, app.iconPath);
+                    await db.insertVersion({
+                        appId: id,
+                        version: 1,
+                        code: e.html,
+                        instruction: description || t('initialGeneration'),
+                        selectedContext: null,
+                        createdAt: Date.now(),
+                        jobId,
+                    });
+
+                    await get().loadApps();
+                    set({
+                        statusMessage: t('appReadyNotify', { name: appName }),
+                        statusActionAppId: id,
+                        lastCreatedAppId: id,
+                    });
+                    markBackupDirty();
+                }
+                await db.deletePendingJob(jobId).catch(() => {});
+            } catch (error) {
+                console.error('Failed to persist created spell:', error);
+                set({ error: t('errorSavingApp') });
+            } finally {
+                set(state => ({
+                    creatingApps: state.creatingApps.filter(a => a.jobId !== jobId),
+                }));
             }
+        });
 
-            return true;
-        } catch (error) {
-            console.error('Failed to create spell:', error);
+        const failedSub = bgGen.onFailed(async (e: BgGenFailedEvent) => {
+            if (e.jobId !== jobId) return;
+            completedSub.remove();
+            failedSub.remove();
+            const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
+                ? (e.code as OpenRouterErrorCode)
+                : 'unknown';
+            await db.upsertPendingJob({
+                jobId,
+                type: 'create',
+                appId: null,
+                promptText: description,
+                selectedContext: null,
+                status: 'failed',
+                startedAt,
+                updatedAt: Date.now(),
+                lastErrorCode: code,
+                lastErrorMessage: e.message,
+            }).catch(() => {});
             set({
-                error: t('spellFailedCreate'),
+                generationError: {
+                    jobId,
+                    type: 'create',
+                    code,
+                    message: e.message,
+                    promptText: description,
+                    appId: null,
+                },
                 lastFailedPrompt: { type: 'create', text: description },
             });
-            return false;
-        } finally {
             set(state => ({
                 creatingApps: state.creatingApps.filter(a => a.jobId !== jobId),
             }));
+        });
+
+        try {
+            await bgGen.startCreate({
+                jobId,
+                prompt: description,
+                notificationTitle: t('generatingApp'),
+            });
+        } catch (error) {
+            completedSub.remove();
+            failedSub.remove();
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('Failed to schedule background create:', error);
+            await db.upsertPendingJob({
+                jobId,
+                type: 'create',
+                appId: null,
+                promptText: description,
+                selectedContext: null,
+                status: 'failed',
+                startedAt,
+                updatedAt: Date.now(),
+                lastErrorCode: 'unknown',
+                lastErrorMessage: message,
+            }).catch(() => {});
+            set(state => ({
+                creatingApps: state.creatingApps.filter(a => a.jobId !== jobId),
+                generationError: {
+                    jobId,
+                    type: 'create',
+                    code: 'unknown',
+                    message,
+                    promptText: description,
+                    appId: null,
+                },
+            }));
         }
+
+        return true;
     },
 
     updateAppWithAI: async (app: GeneratedApp, instructions: string, selectedContext?: string) => {
+        const jobId = makeLocalJobId('edit');
+        const startedAt = Date.now();
+
+        try {
+            await db.upsertPendingJob({
+                jobId,
+                type: 'edit',
+                appId: app.id,
+                promptText: instructions,
+                selectedContext: selectedContext ?? null,
+                status: 'processing',
+                startedAt,
+                updatedAt: startedAt,
+                lastErrorCode: null,
+                lastErrorMessage: null,
+            });
+            await db.deleteDraftFor('edit', app.id);
+        } catch (e) {
+            console.warn('[Store] Failed to persist pending edit job:', e);
+        }
+
         set(state => ({
             error: null,
+            generationError: null,
             updatingAppIds: [...state.updatingAppIds, app.id],
             statusMessage: t('editJobStarted'),
         }));
 
-        try {
-            const versions = await db.getVersionsForApp(app.id);
-            const previousEdits = versions
-                .filter(v => v.instruction)
-                .slice(0, 10)
-                .map(v => ({ version: v.version, instruction: v.instruction }));
+        const versions = await db.getVersionsForApp(app.id);
+        const previousEdits = versions
+            .filter(v => v.instruction)
+            .slice(0, 10)
+            .map(v => ({ version: v.version, instruction: v.instruction as string }));
 
-            const storageItems = getStorageFromCache(app.id);
-            const storageStructure = storageItems.map(item => {
-                try {
-                    const parsed = JSON.parse(item.value);
-                    return { key: item.key, schema: inferJsonSchema(parsed) };
-                } catch {
-                    return { key: item.key, schema: { type: 'string' } };
-                }
-            });
+        // storageStructure currently has no consumer client-side — the new BYOK
+        // editAppWithContext threads previousEdits and selectedContext only. We
+        // still compute it so future planners can consume it without another
+        // schema change.
+        const storageItems = getStorageFromCache(app.id);
+        void storageItems.map(item => {
+            try {
+                const parsed = JSON.parse(item.value);
+                return { key: item.key, schema: inferJsonSchema(parsed) };
+            } catch {
+                return { key: item.key, schema: { type: 'string' } };
+            }
+        });
 
-            // storageStructure currently has no consumer client-side — the new BYOK
-            // editAppWithContext threads previousEdits and selectedContext only.
-            void storageStructure;
+        const completedSub = bgGen.onCompleted(async (e: BgGenCompletedEvent) => {
+            if (e.jobId !== jobId) return;
+            completedSub.remove();
+            failedSub.remove();
+            try {
+                const newVersion = app.currentVersion + 1;
+                const newTotalSpendUsd = (app.totalSpendUsd ?? 0) + (e.costUsd ?? 0);
+                await db.updateAppContent(app.id, e.html, newVersion, newTotalSpendUsd, jobId);
+                await db.insertVersion({
+                    appId: app.id,
+                    version: newVersion,
+                    code: e.html,
+                    instruction: instructions || t('aiEdit'),
+                    selectedContext: selectedContext ?? null,
+                    createdAt: Date.now(),
+                    jobId,
+                });
 
-            const result = await ai.editAppWithContext(
-                app.code,
-                instructions,
-                selectedContext ?? '',
-                previousEdits,
-            );
+                set({ statusMessage: t('appUpdatedNotify', { name: app.name }), statusActionAppId: app.id });
+                await get().loadApps();
+                markBackupDirty();
 
-            const newVersion = app.currentVersion + 1;
-            const jobId = makeLocalJobId('edit');
-            const newTotalSpendUsd = (app.totalSpendUsd ?? 0) + (result.costUsd ?? 0);
-            await db.updateAppContent(app.id, result.text, newVersion, newTotalSpendUsd, jobId);
-            await db.insertVersion({
-                appId: app.id,
-                version: newVersion,
-                code: result.text,
-                instruction: instructions || t('aiEdit'),
-                selectedContext: selectedContext ?? null,
-                createdAt: Date.now(),
+                set({ lastCompletedEditAppId: app.id });
+                setTimeout(() => {
+                    if (get().lastCompletedEditAppId === app.id) get().clearLastCompletedEdit();
+                }, 5000);
+
+                DeviceEventEmitter.emit('APP_UPDATED', { appId: app.id });
+                await db.deletePendingJob(jobId).catch(() => {});
+            } catch (error) {
+                console.error('Failed to persist edited spell:', error);
+                set({ error: t('errorSavingApp') });
+            } finally {
+                set(state => ({
+                    updatingAppIds: state.updatingAppIds.filter(id => id !== app.id),
+                }));
+            }
+        });
+
+        const failedSub = bgGen.onFailed(async (e: BgGenFailedEvent) => {
+            if (e.jobId !== jobId) return;
+            completedSub.remove();
+            failedSub.remove();
+            const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
+                ? (e.code as OpenRouterErrorCode)
+                : 'unknown';
+            await db.upsertPendingJob({
                 jobId,
-            });
-
-            set({ statusMessage: t('appUpdatedNotify', { name: app.name }), statusActionAppId: app.id });
-            await get().loadApps();
-            markBackupDirty();
-
-            set({ lastCompletedEditAppId: app.id });
-            setTimeout(() => {
-                if (get().lastCompletedEditAppId === app.id) get().clearLastCompletedEdit();
-            }, 5000);
-
-            DeviceEventEmitter.emit('APP_UPDATED', { appId: app.id });
-            return true;
-        } catch (error) {
-            console.error('Failed to edit spell:', error);
+                type: 'edit',
+                appId: app.id,
+                promptText: instructions,
+                selectedContext: selectedContext ?? null,
+                status: 'failed',
+                startedAt,
+                updatedAt: Date.now(),
+                lastErrorCode: code,
+                lastErrorMessage: e.message,
+            }).catch(() => {});
             set({
-                error: t('spellFailedEdit'),
+                generationError: {
+                    jobId,
+                    type: 'edit',
+                    code,
+                    message: e.message,
+                    promptText: instructions,
+                    appId: app.id,
+                },
                 lastFailedPrompt: { type: 'edit', text: instructions, appId: app.id },
             });
-            return false;
-        } finally {
             set(state => ({
                 updatingAppIds: state.updatingAppIds.filter(id => id !== app.id),
             }));
+        });
+
+        try {
+            await bgGen.startEdit({
+                jobId,
+                appId: app.id,
+                currentCode: app.code,
+                instruction: instructions,
+                selectedContext,
+                previousEdits,
+                notificationTitle: t('updatingApp'),
+            });
+        } catch (error) {
+            completedSub.remove();
+            failedSub.remove();
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('Failed to schedule background edit:', error);
+            await db.upsertPendingJob({
+                jobId,
+                type: 'edit',
+                appId: app.id,
+                promptText: instructions,
+                selectedContext: selectedContext ?? null,
+                status: 'failed',
+                startedAt,
+                updatedAt: Date.now(),
+                lastErrorCode: 'unknown',
+                lastErrorMessage: message,
+            }).catch(() => {});
+            set(state => ({
+                updatingAppIds: state.updatingAppIds.filter(id => id !== app.id),
+                generationError: {
+                    jobId,
+                    type: 'edit',
+                    code: 'unknown',
+                    message,
+                    promptText: instructions,
+                    appId: app.id,
+                },
+            }));
         }
+
+        return true;
     },
 
     deleteApp: async (id: number) => {
@@ -837,6 +1064,76 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error('Failed to wipe all data:', error);
             set({ error: t('errorDeletingApp'), isLoading: false });
+        }
+    },
+
+    reconcilePendingJobs: async () => {
+        // Any pending_jobs row still marked 'processing' at boot means the
+        // previous process was killed mid-generation *or* the native
+        // foreground service is still working on it. Ask the native module
+        // first before clobbering a job that's genuinely still running.
+        // The 15-minute floor is generous: the internal pipeline timeout is
+        // 8 min, and we don't want to clobber a job that's genuinely still
+        // running in a concurrent tab/screen.
+        try {
+            const processing = await db.listProcessingJobs();
+            if (processing.length === 0) return;
+
+            const STALE_MS = 15 * 60 * 1000;
+            const now = Date.now();
+            const staleCandidates = processing.filter((j: PendingJob) => now - j.startedAt > STALE_MS);
+            if (staleCandidates.length === 0) return;
+
+            // Filter out jobs the native executor still owns — those get to
+            // finish on their own and re-emit BGGen* events when they do.
+            const stale: PendingJob[] = [];
+            for (const j of staleCandidates) {
+                try {
+                    const s = await bgGen.status(j.jobId);
+                    if (s.state === 'running') continue;
+                } catch {
+                    // Treat status errors as "not running" — the row is stale.
+                }
+                stale.push(j);
+            }
+            if (stale.length === 0) return;
+
+            // Surface the most recent stale job to the user; older ones just
+            // get marked failed silently (their prompt stays in pending_jobs
+            // for later inspection if we ever build a history UI).
+            const newest = stale.reduce((a: PendingJob, b: PendingJob) =>
+                a.startedAt >= b.startedAt ? a : b,
+            );
+
+            for (const j of stale) {
+                await db.upsertPendingJob({
+                    ...j,
+                    status: 'failed',
+                    updatedAt: now,
+                    lastErrorCode: 'byok.error.aborted',
+                    lastErrorMessage: 'App was closed during generation',
+                }).catch(() => {});
+            }
+
+            if (newest.type === 'create' || newest.type === 'edit') {
+                set({
+                    generationError: {
+                        jobId: newest.jobId,
+                        type: newest.type,
+                        code: 'aborted',
+                        message: 'App was closed during generation',
+                        promptText: newest.promptText,
+                        appId: newest.appId,
+                    },
+                    lastFailedPrompt: {
+                        type: newest.type,
+                        text: newest.promptText,
+                        appId: newest.appId ?? undefined,
+                    },
+                });
+            }
+        } catch (e) {
+            console.warn('[Store] reconcilePendingJobs failed:', e);
         }
     },
 }));
