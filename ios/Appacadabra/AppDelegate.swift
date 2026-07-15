@@ -1,6 +1,21 @@
 import Expo
 import React
 import ReactAppDependencyProvider
+import BackgroundTasks
+
+/// Task identifier matches `BGTaskSchedulerPermittedIdentifiers` in Info.plist
+/// and the string used by `BackgroundGenerator.scheduleBackgroundProcessing`.
+/// Any drift between these three sites causes iOS to crash the app at launch
+/// (registration must exactly match the entitlement).
+private let BG_GENERATE_TASK_ID = "ai.appacadabra.app.bg-generate"
+
+/// Notification kicked from the BGProcessingTask handler; observed by
+/// `BackgroundGenerator` which re-emits it to JS as a DeviceEventEmitter
+/// event. Kept as a NotificationCenter hop so AppDelegate has no reference
+/// to the RN bridge.
+extension Notification.Name {
+    static let bgReconcileRequest = Notification.Name("BGReconcileRequest")
+}
 
 @UIApplicationMain
 public class AppDelegate: ExpoAppDelegate {
@@ -13,6 +28,19 @@ public class AppDelegate: ExpoAppDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // BGTaskScheduler MUST be registered before app finishes launching or
+    // iOS crashes the process. Register even when the app is launched from
+    // a tap (not from a BG event) — the handler simply won't fire until
+    // the OS decides to.
+    if #available(iOS 13.0, *) {
+      BGTaskScheduler.shared.register(
+        forTaskWithIdentifier: BG_GENERATE_TASK_ID,
+        using: nil
+      ) { task in
+        AppDelegate.handleBackgroundProcessing(task)
+      }
+    }
+
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -30,6 +58,55 @@ public class AppDelegate: ExpoAppDelegate {
 #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Opportunistic wake-up from iOS when BGProcessingTask fires. We do NOT
+  /// drive the pipeline from here — instead we ping the JS layer to run
+  /// `reconcilePendingJobs`, which discovers stale 'processing' rows and
+  /// calls `bgGen.resume` on each. Resume opens a fresh
+  /// `beginBackgroundTask` window (owned by BackgroundGenerator), so the
+  /// spell-generation HTTP work continues under that token even after this
+  /// BGProcessingTask completes.
+  @available(iOS 13.0, *)
+  private static func handleBackgroundProcessing(_ task: BGTask) {
+    // Chain the next request. iOS treats submitted requests as hints — no
+    // guarantee it fires, but keeping one queued keeps the door open.
+    AppDelegate.scheduleNextBackgroundProcessing()
+
+    task.expirationHandler = {
+      task.setTaskCompleted(success: false)
+    }
+
+    NotificationCenter.default.post(name: .bgReconcileRequest, object: nil)
+
+    // Give the JS side ~60s to receive the notification, start its own
+    // `beginBackgroundTask` window via resume(), and get the first HTTP
+    // round-trip going. The pipeline then continues under the JS-side
+    // token independent of this BGProcessingTask's completion.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+      task.setTaskCompleted(success: true)
+    }
+  }
+
+  /// Called from `didFinishLaunchingWithOptions` (best-effort keep-alive)
+  /// and from `BackgroundGenerator.scheduleBackgroundProcessing` (when a
+  /// spell generation starts). Idempotent — submitting the same identifier
+  /// twice replaces the pending request rather than queueing a second one.
+  @available(iOS 13.0, *)
+  static func scheduleNextBackgroundProcessing() {
+    let request = BGProcessingTaskRequest(identifier: BG_GENERATE_TASK_ID)
+    request.requiresNetworkConnectivity = true
+    request.requiresExternalPower = false
+    // 15s is the minimum the OS enforces; anything sooner is silently
+    // rounded up.
+    request.earliestBeginDate = Date(timeIntervalSinceNow: 15)
+    do {
+      try BGTaskScheduler.shared.submit(request)
+    } catch {
+      // Common failures: identifier not in Info.plist, task already
+      // scheduled, or app in a state that forbids submission. Non-fatal —
+      // foreground-resume covers the deterministic path.
+    }
   }
 
   // Linking API

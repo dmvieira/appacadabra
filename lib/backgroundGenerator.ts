@@ -13,11 +13,21 @@
  *
  * Phase 2 v1 (iOS): native module wraps the pipeline in
  * `beginBackgroundTask` so the JS-side execution keeps running through the
- * OS-granted ~30 s background window instead of the ~5 s default. Full
- * swipe-kill survival via `URLSession.background` is a follow-up.
+ * OS-granted ~30 s background window instead of the ~5 s default. The JS
+ * side runs the *same* persisted state machine as Android (via
+ * `runCreateJob`/`runEditJob` from backgroundGeneratorTask.ts), so a job
+ * interrupted by the OS window expiring can be resumed from the last
+ * completed stage on foreground return — see `resume()` below and
+ * `reconcilePendingJobs` in store.ts.
  */
 import { DeviceEventEmitter, NativeModules, Platform, type EmitterSubscription } from 'react-native';
-import * as ai from './api/ai';
+import {
+    runCreateJob,
+    runEditJob,
+    runResumeJob,
+    runJobWithReporting,
+} from './backgroundGeneratorTask';
+import * as db from './database/db';
 
 export type BgJobStage = 'planner' | 'coder' | 'patch' | 'validate' | 'fix' | 'complete';
 
@@ -97,6 +107,14 @@ interface NativeBackgroundGenerator {
      * fire the resume watchdog 20 min later.
      */
     clearWatchdog?(jobId: string): Promise<void>;
+    /**
+     * iOS only. Submits a BGProcessingTaskRequest to iOS for opportunistic
+     * background wake-up while the app is suspended. Handler (in
+     * AppDelegate) emits `BGReconcileRequest`, which JS uses to trigger
+     * `reconcilePendingJobs`. iOS decides when (or whether) to fire it —
+     * treated as bonus, not the deterministic path.
+     */
+    scheduleBackgroundProcessing?(): Promise<void>;
 }
 
 function getNativeModule(): NativeBackgroundGenerator | null {
@@ -162,20 +180,98 @@ export async function startEdit(params: StartEditParams): Promise<void> {
     void runEditInProcess(params);
 }
 
+// ----- Active-job registry -----
+// Jobs currently being driven by the JS pipeline in *this* process. Used by
+// reconcilePendingJobs to distinguish "actively running here" (leave alone)
+// from "orphaned pending_jobs row" (candidate for resume). Only meaningful on
+// iOS / fallback paths — Android's native FGS owns lifecycle via
+// bgGen.status(). Public so store.ts can consult it during reconciliation.
+const activeInProcessJobs = new Set<string>();
+
+export function isJobActiveInProcess(jobId: string): boolean {
+    return activeInProcessJobs.has(jobId);
+}
+
+export function activeInProcessJobCount(): number {
+    return activeInProcessJobs.size;
+}
+
 /**
- * Ask the native side to resume a job whose `pending_jobs` row is still
- * `processing` but which the native module no longer reports as running
- * (i.e. the FGS was killed). Android only; on iOS resume is not supported
- * yet — callers should treat that as a genuine failure.
+ * Ask the platform to resume a job whose `pending_jobs` row is still
+ * `processing` but which is no longer running in the current process.
+ *
+ * Android: delegates to the native module, which restarts the FGS in
+ * `resume` taskKey. The state machine picks up from the persisted stage.
+ *
+ * iOS: no separate native "resume" mode — instead we call the same native
+ * `beginBackgroundTask` window opener and drive `runResumeJob` in this
+ * JS context. The row's persisted stage/plan/html mean we skip already-
+ * completed HTTP round-trips instead of restarting from the planner.
+ *
+ * Returns true on both a scheduled Android resume and a locally-driven
+ * iOS resume; false when no path is available (e.g. neither native nor
+ * a pending row).
  */
 export async function resume(jobId: string): Promise<boolean> {
     const native = getNativeModule();
-    if (Platform.OS !== 'android' || !native?.resume) return false;
-    try {
-        await native.resume(jobId);
+
+    // Android — hand off to the FGS in resume mode.
+    if (Platform.OS === 'android' && native?.resume) {
+        try {
+            await native.resume(jobId);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    // iOS / fallback — drive the persisted state machine in-process.
+    if (activeInProcessJobs.has(jobId)) {
+        // Someone in this process is already resuming it; do not fork a
+        // second driver against the same row.
         return true;
+    }
+    const row = await db.getPendingJob(jobId).catch(() => null);
+    if (!row || row.status !== 'processing') return false;
+
+    // Extend the OS background window if the native side is available.
+    // The current type contract requires the full create/edit params dict,
+    // but iOS only reads `jobId` — we bypass the compiler here rather than
+    // widening the public startCreate signature just for this path.
+    if (nativeExtendsBackground()) {
+        try {
+            const startFn = row.type === 'edit' ? native!.startEdit : native!.startCreate;
+            await startFn.call(native, { jobId } as unknown as StartCreateParams & StartEditParams);
+        } catch {
+            // Non-fatal — resume still runs in the foreground JS context.
+        }
+    }
+
+    activeInProcessJobs.add(jobId);
+    void (async () => {
+        try {
+            await runJobWithReporting(jobId, () => runResumeJob(jobId));
+        } finally {
+            activeInProcessJobs.delete(jobId);
+            await endNativeJob(jobId);
+        }
+    })();
+    return true;
+}
+
+/**
+ * Ask iOS to schedule a BGProcessingTaskRequest so the OS may wake the app
+ * in background and let JS run `reconcilePendingJobs`. Best-effort; safe
+ * to call multiple times (iOS de-dupes by identifier). No-op on Android
+ * (the FGS keeps the process alive without OS scheduling help).
+ */
+export async function scheduleBackgroundProcessing(): Promise<void> {
+    const native = getNativeModule();
+    if (!native?.scheduleBackgroundProcessing) return;
+    try {
+        await native.scheduleBackgroundProcessing();
     } catch {
-        return false;
+        // Non-fatal — foreground-resume is the deterministic path.
     }
 }
 
@@ -236,62 +332,45 @@ export function onFailed(listener: (e: BgGenFailedEvent) => void): EmitterSubscr
 }
 
 // ----- In-process fallback -----
-// Mirrors the shape the native side will produce so store.ts can subscribe to
-// one channel regardless of platform / native availability.
+// Runs the same persisted state machine as the Android headless task so a
+// job interrupted by the OS window closing on iOS can be resumed from the
+// last completed stage on foreground return, instead of restarting from
+// the planner. Events are emitted by the shared runner and the failure
+// wrapper (runJobWithReporting) so the store's subscription hears the same
+// channels regardless of platform.
 
 async function runCreateInProcess(params: StartCreateParams): Promise<void> {
+    activeInProcessJobs.add(params.jobId);
     try {
-        DeviceEventEmitter.emit(EVENT_PROGRESS, {
-            jobId: params.jobId,
-            stage: 'planner',
-            attempt: 0,
-        } satisfies BgGenProgressEvent);
-        const result = await ai.generateApp(params.prompt);
-        DeviceEventEmitter.emit(EVENT_COMPLETED, {
-            jobId: params.jobId,
-            html: result.text,
-            usage: result.usage,
-            costUsd: result.costUsd,
-            appName: result.appName,
-        } satisfies BgGenCompletedEvent);
-    } catch (error) {
-        DeviceEventEmitter.emit(EVENT_FAILED, {
-            jobId: params.jobId,
-            code: error instanceof Error && 'code' in error ? String((error as Error & { code: unknown }).code) : 'unknown',
-            message: error instanceof Error ? error.message : String(error),
-        } satisfies BgGenFailedEvent);
+        await runJobWithReporting(params.jobId, () =>
+            runCreateJob({
+                jobId: params.jobId,
+                prompt: params.prompt,
+                appVersion: params.appVersion,
+            }),
+        );
     } finally {
+        activeInProcessJobs.delete(params.jobId);
         await endNativeJob(params.jobId);
     }
 }
 
 async function runEditInProcess(params: StartEditParams): Promise<void> {
+    activeInProcessJobs.add(params.jobId);
     try {
-        DeviceEventEmitter.emit(EVENT_PROGRESS, {
-            jobId: params.jobId,
-            stage: 'planner',
-            attempt: 0,
-        } satisfies BgGenProgressEvent);
-        const result = await ai.editAppWithContext(
-            params.currentCode,
-            params.instruction,
-            params.selectedContext ?? '',
-            params.previousEdits,
+        await runJobWithReporting(params.jobId, () =>
+            runEditJob({
+                jobId: params.jobId,
+                appId: params.appId,
+                currentCode: params.currentCode,
+                instruction: params.instruction,
+                selectedContext: params.selectedContext,
+                previousEdits: params.previousEdits,
+                appVersion: params.appVersion,
+            }),
         );
-        DeviceEventEmitter.emit(EVENT_COMPLETED, {
-            jobId: params.jobId,
-            html: result.text,
-            usage: result.usage,
-            costUsd: result.costUsd,
-            appName: result.appName,
-        } satisfies BgGenCompletedEvent);
-    } catch (error) {
-        DeviceEventEmitter.emit(EVENT_FAILED, {
-            jobId: params.jobId,
-            code: error instanceof Error && 'code' in error ? String((error as Error & { code: unknown }).code) : 'unknown',
-            message: error instanceof Error ? error.message : String(error),
-        } satisfies BgGenFailedEvent);
     } finally {
+        activeInProcessJobs.delete(params.jobId);
         await endNativeJob(params.jobId);
     }
 }

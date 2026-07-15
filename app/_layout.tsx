@@ -2,7 +2,8 @@ import { Stack, useRouter, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { logScreenView } from '../lib/analytics';
-import { Alert, AppState, LogBox, Linking, Platform, View } from 'react-native';
+import { Alert, AppState, DeviceEventEmitter, LogBox, Linking, Platform, View } from 'react-native';
+import * as bgGen from '../lib/backgroundGenerator';
 import * as ShareIntent from 'share-intent';
 import { colors } from '../lib/theme';
 import { t } from '../lib/i18n';
@@ -165,9 +166,10 @@ export default function RootLayout() {
             console.error('RootLayout: UserStore init failed:', e);
         }
 
-        // Reconcile pending_jobs: any 'processing' row older than 15min was
-        // killed mid-generation by an OS kill; mark it failed and surface a
-        // retry modal on next open.
+        // Reconcile pending_jobs on cold start: any 'processing' row past
+        // the platform staleness floor (30s iOS / 15min Android) that this
+        // process is not actively driving gets resumed from the last
+        // persisted stage or marked failed.
         useAppStore.getState().reconcilePendingJobs().catch(err => {
             console.warn('RootLayout: reconcilePendingJobs failed:', err);
         });
@@ -225,8 +227,40 @@ export default function RootLayout() {
             useStoreSyncStore.getState().syncPublishedSpellsStatus().catch(() => {});
         };
         setTimeout(maybeSyncStoreState, 2000);
+        // Foreground reconciliation for the background-generation pipeline.
+        // Throttled to avoid double-firing on rapid inactive→active flips
+        // (control-center pull-down, share sheet dismiss).
+        let lastReconcileAt = 0;
+        const maybeReconcilePendingJobs = () => {
+            const now = Date.now();
+            if (now - lastReconcileAt < 5_000) return;
+            lastReconcileAt = now;
+            useAppStore.getState().reconcilePendingJobs().catch(err => {
+                console.warn('AppState: reconcilePendingJobs failed:', err);
+            });
+        };
         const appStateSub = AppState.addEventListener('change', (next) => {
-            if (next === 'active') maybeSyncStoreState();
+            if (next === 'active') {
+                maybeSyncStoreState();
+                maybeReconcilePendingJobs();
+            }
+            // iOS: when going to background with an in-flight generation,
+            // ask iOS to opportunistically wake us via BGProcessingTask.
+            // Non-Android because the FGS keeps the process alive without
+            // OS scheduling help. Safe even with no active jobs — the
+            // handler no-ops if reconcile finds nothing to do.
+            if (Platform.OS === 'ios' && (next === 'background' || next === 'inactive')) {
+                if (bgGen.activeInProcessJobCount() > 0) {
+                    bgGen.scheduleBackgroundProcessing().catch(() => {});
+                }
+            }
+        });
+
+        // BGProcessingTask fired by iOS — AppDelegate hops through
+        // NotificationCenter → BackgroundGenerator.sendEvent → here.
+        // Kick reconciliation the same way we would on foreground return.
+        const bgReconcileSub = DeviceEventEmitter.addListener('BGReconcileRequest', () => {
+            maybeReconcilePendingJobs();
         });
 
         // Deep link: appacadabra://store?spellId=xxx
@@ -278,6 +312,7 @@ export default function RootLayout() {
         return () => {
             notifSubscription.remove();
             appStateSub.remove();
+            bgReconcileSub.remove();
             linkingSub.remove();
             try { unsubscribeAuth(); } catch {}
         };

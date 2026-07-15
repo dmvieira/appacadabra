@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as Notifications from 'expo-notifications';
-import { DeviceEventEmitter } from 'react-native';
+import { DeviceEventEmitter, Platform } from 'react-native';
 import { GeneratedApp, NewGeneratedApp, PendingJob } from './database/types';
 import * as db from './database/db';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -1068,29 +1068,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     reconcilePendingJobs: async () => {
-        // Any pending_jobs row still marked 'processing' at boot means the
-        // previous process was killed mid-generation *or* the native
-        // foreground service is still working on it. Ask the native module
-        // first before clobbering a job that's genuinely still running.
-        // The 15-minute floor is generous: the internal pipeline timeout is
-        // 8 min, and we don't want to clobber a job that's genuinely still
-        // running in a concurrent tab/screen.
+        // Any pending_jobs row still marked 'processing' means either the
+        // previous process was killed mid-generation, the native foreground
+        // service is still working on it (Android), or the OS background
+        // window has closed and the JS driver was suspended mid-flight (iOS).
+        //
+        // Age heuristic differs by platform:
+        //   Android: 15-min floor — the internal pipeline timeout is 8 min
+        //     and the FGS can genuinely run that long.
+        //   iOS:     30-sec floor — beginBackgroundTask gives ~30s max; if
+        //     a row has been 'processing' longer than that AND is not being
+        //     driven by this process, the JS driver was interrupted and we
+        //     should try to resume from the last persisted stage.
         try {
             const processing = await db.listProcessingJobs();
             if (processing.length === 0) return;
 
-            const STALE_MS = 15 * 60 * 1000;
+            const STALE_MS = Platform.OS === 'ios' ? 30 * 1000 : 15 * 60 * 1000;
             const now = Date.now();
-            const staleCandidates = processing.filter((j: PendingJob) => now - j.startedAt > STALE_MS);
+            const staleCandidates = processing.filter((j: PendingJob) => {
+                // Never touch a row this process is actively driving.
+                if (bgGen.isJobActiveInProcess(j.jobId)) return false;
+                // Age gate: rows younger than the platform floor are still
+                // plausibly in-flight (Android FGS) or just-started (iOS).
+                return now - Math.max(j.startedAt, j.updatedAt) > STALE_MS;
+            });
             if (staleCandidates.length === 0) return;
 
             // Filter out jobs the native executor still owns — those get to
             // finish on their own and re-emit BGGen* events when they do.
             // For jobs the native side has forgotten but the DB still shows
-            // as processing (i.e. the FGS was killed), try to resume via the
-            // native module before falling back to marking them failed. On
-            // Android this restarts the FGS in `resume` mode; the state
-            // machine picks up from the last persisted stage.
+            // as processing, try to resume via the native module before
+            // falling back to marking them failed. On Android this restarts
+            // the FGS in `resume` mode; on iOS it re-opens a background
+            // window and drives the persisted state machine in-process.
             const stale: PendingJob[] = [];
             for (const j of staleCandidates) {
                 try {

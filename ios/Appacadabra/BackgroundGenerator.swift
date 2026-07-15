@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import React
+import BackgroundTasks
 
 /// iOS bridge for the background spell-generation pipeline.
 ///
@@ -31,6 +32,19 @@ class BackgroundGenerator: RCTEventEmitter {
 
     override init() {
         super.init()
+        // Bridge from AppDelegate's BGProcessingTask handler (fired by iOS
+        // opportunistically when the app is backgrounded) into the JS layer
+        // so `reconcilePendingJobs` can find stale rows and resume them.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(onReconcileRequest),
+            name: Notification.Name("BGReconcileRequest"),
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     override static func requiresMainQueueSetup() -> Bool {
@@ -39,11 +53,22 @@ class BackgroundGenerator: RCTEventEmitter {
 
     override func supportedEvents() -> [String]! {
         // Kept in sync with EVENT_* constants in lib/backgroundGenerator.ts.
-        // We don't emit these from Swift today (JS emits them itself via
+        // We don't emit BGGen* from Swift today (JS emits them itself via
         // DeviceEventEmitter in the in-process fallback), but declaring
         // them here lets a future Swift-driven pipeline post the same
         // channel without a JS-side change.
-        return ["BGGenProgress", "BGGenCompleted", "BGGenFailed"]
+        //
+        // BGReconcileRequest is emitted from `onReconcileRequest` below when
+        // AppDelegate's BGProcessingTask handler fires. JS subscribes in
+        // app/_layout.tsx.
+        return ["BGGenProgress", "BGGenCompleted", "BGGenFailed", "BGReconcileRequest"]
+    }
+
+    @objc private func onReconcileRequest() {
+        // RCTEventEmitter.sendEvent silently drops the event when there are
+        // no active listeners — safe to call whether or not the RN bridge
+        // is fully spun up yet.
+        sendEvent(withName: "BGReconcileRequest", body: [:])
     }
 
     // MARK: - Bridge methods
@@ -119,6 +144,23 @@ class BackgroundGenerator: RCTEventEmitter {
         } else {
             resolve(["state": "not-found"])
         }
+    }
+
+    /// Ask iOS to schedule a `BGProcessingTaskRequest` for opportunistic
+    /// wake-up while backgrounded. Called from JS whenever a spell
+    /// generation is running and the app transitions to background. iOS
+    /// decides when (or whether) to fire the handler; the deterministic
+    /// path is foreground-resume via `reconcilePendingJobs`. Idempotent —
+    /// re-submitting the same identifier replaces the pending request.
+    @objc(scheduleBackgroundProcessing:rejecter:)
+    func scheduleBackgroundProcessing(
+        _ resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        if #available(iOS 13.0, *) {
+            AppDelegate.scheduleNextBackgroundProcessing()
+        }
+        resolve(nil)
     }
 
     // MARK: - Background task lifecycle

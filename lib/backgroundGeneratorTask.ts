@@ -13,6 +13,10 @@
  * instead of restarting from the planner stage. Every transition also
  * emits a `BGGenProgress` event so the main JS context — when it's alive —
  * can update the spell card UI immediately.
+ *
+ * The three underlying `runCreateJob` / `runEditJob` / `runResumeJob`
+ * functions are also exported so iOS (which has no HeadlessJsTask) can
+ * reuse the same persisted, resumable pipeline from the main JS context.
  */
 import { DeviceEventEmitter, NativeModules } from 'react-native';
 import Constants from 'expo-constants';
@@ -62,20 +66,33 @@ function getAppVersion(hint?: string): string {
 }
 
 export async function runBackgroundGeneratorTask(data: TaskData): Promise<void> {
-    let jobId = 'unknown';
-    try {
-        const params = JSON.parse(data.paramsJson) as CreateParams | EditParams | ResumeParams;
-        jobId = params.jobId;
-
+    const params = JSON.parse(data.paramsJson) as CreateParams | EditParams | ResumeParams;
+    await runJobWithReporting(params.jobId, async () => {
         if (data.taskKey === 'create') {
-            await runCreate(params as CreateParams);
+            await runCreateJob(params as CreateParams);
         } else if (data.taskKey === 'edit') {
-            await runEdit(params as EditParams);
+            await runEditJob(params as EditParams);
         } else if (data.taskKey === 'resume') {
-            await runResume((params as ResumeParams).jobId);
+            await runResumeJob((params as ResumeParams).jobId);
         } else {
             throw new Error(`Unknown BackgroundGenerator taskKey: ${data.taskKey}`);
         }
+    });
+}
+
+/**
+ * Wraps a pipeline invocation with the standard failure-reporting +
+ * watchdog-clear contract. Callers (Android headless task, iOS in-process
+ * runner) hand it a jobId and the actual work function; on throw it
+ * persists a failed row + emits BGGenFailed so the store's subscription
+ * fires the same error UI regardless of platform.
+ */
+export async function runJobWithReporting(
+    jobId: string,
+    work: () => Promise<void>,
+): Promise<void> {
+    try {
+        await work();
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const code =
@@ -85,14 +102,14 @@ export async function runBackgroundGeneratorTask(data: TaskData): Promise<void> 
         await persistFailure(jobId, code, message);
         DeviceEventEmitter.emit('BGGenFailed', { jobId, code, message });
     } finally {
-        // Clear the watchdog whether we succeeded, failed, or the resume was
-        // a no-op. Keeping the watchdog armed after a terminal outcome would
-        // fire an unnecessary FGS restart 20 min later.
+        // Android: clears the WorkManager watchdog so a completed job does
+        // not fire the resume path 20 min later. No-op on iOS (native side
+        // does not expose clearWatchdog), which matches intent.
         clearWatchdog(jobId);
     }
 }
 
-async function runCreate(p: CreateParams): Promise<void> {
+export async function runCreateJob(p: CreateParams): Promise<void> {
     const state = initCreateState({ prompt: p.prompt, appVersion: getAppVersion(p.appVersion) });
     await persistState(p.jobId, state);
     emitProgress(p.jobId, state);
@@ -115,7 +132,7 @@ async function runCreate(p: CreateParams): Promise<void> {
     });
 }
 
-async function runEdit(p: EditParams): Promise<void> {
+export async function runEditJob(p: EditParams): Promise<void> {
     const state = initEditState({
         currentCode: p.currentCode,
         instruction: p.instruction,
@@ -151,7 +168,7 @@ async function runEdit(p: EditParams): Promise<void> {
  * overlays the persisted stage/plan/html/usage cursor so the state machine
  * picks up from the last completed stage instead of the planner.
  */
-async function runResume(jobId: string): Promise<void> {
+export async function runResumeJob(jobId: string): Promise<void> {
     const row = await db.getPendingJob(jobId);
     if (!row) return;
     if (row.status !== 'processing') return; // already terminal — nothing to do

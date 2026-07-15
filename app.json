@@ -57,7 +57,11 @@
         ],
         "UIBackgroundModes": [
           "fetch",
-          "remote-notification"
+          "remote-notification",
+          "processing"
+        ],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "ai.appacadabra.app.bg-generate"
         ],
         "CFBundleURLTypes": [
           {
