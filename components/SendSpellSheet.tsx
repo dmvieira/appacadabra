@@ -23,7 +23,7 @@ import type { GeneratedApp } from '../lib/database/types';
 import { useStoreSyncStore } from '../lib/storeSync';
 import type { PublishOutcome } from '../lib/storeSync';
 import { useUserStore } from '../lib/userStore';
-import { linkWithGoogle } from '../lib/firebase';
+import { linkWithGoogle, getCurrentUserId } from '../lib/firebase';
 
 interface Props {
     app: GeneratedApp | null;
@@ -156,6 +156,15 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
         : '';
     const successUrl = outcome?.storeUrl ?? '';
 
+    // Only the publisher can unpublish. Server enforces authoritatively; this gates the UI.
+    // Legacy fallback covers rows created before storeAuthorUid existed: source !== 'store'
+    // means the spell was authored locally on this device, so the current account is the owner.
+    const currentUserId = getCurrentUserId();
+    const isOwnerByUid =
+        !!app.storeAuthorUid && !!currentUserId && app.storeAuthorUid === currentUserId;
+    const isOwnerLegacy = !app.storeAuthorUid && app.source !== 'store';
+    const canUnpublish = !isAnonymous && (isOwnerByUid || isOwnerLegacy);
+
     const Header = ({ dimmed = false }: { dimmed?: boolean }) => (
         <View style={[styles.header, dimmed && { opacity: 0.35 }]}>
             <View style={[styles.avatar, { backgroundColor: app.iconPath ? 'transparent' : avatarBg }]}>
@@ -211,11 +220,13 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
                             <TouchableOpacity style={styles.btnGhost} onPress={handleClose}>
                                 <Text style={styles.btnGhostText}>{t('close')}</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.btnDangerText} onPress={handleUnpublish}>
-                                <Text style={styles.btnDangerLabel}>
-                                    {isUnlisted ? t('removePrivateLink') : t('unpublishSpell')}
-                                </Text>
-                            </TouchableOpacity>
+                            {canUnpublish && (
+                                <TouchableOpacity style={styles.btnDangerText} onPress={handleUnpublish}>
+                                    <Text style={styles.btnDangerLabel}>
+                                        {isUnlisted ? t('removePrivateLink') : t('unpublishSpell')}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </SafeAreaView>
                     </Pressable>
                 </Pressable>
@@ -380,7 +391,15 @@ export function SendSpellSheet({ app, visible, onClose }: Props) {
                                     <Text style={styles.warningText}>{t('publishAnonymousWarning')}</Text>
                                     <TouchableOpacity
                                         style={styles.btnSecondarySmall}
-                                        onPress={async () => { try { await linkWithGoogle(); } catch {} }}
+                                        onPress={async () => {
+                                            try {
+                                                await linkWithGoogle();
+                                            } catch (e: any) {
+                                                const msg = String(e?.message ?? e ?? '');
+                                                if (msg.includes('cancelled') || msg.includes('Cancelled')) return;
+                                                Alert.alert(t('signInFailed'), msg);
+                                            }
+                                        }}
                                     >
                                         <Text style={styles.btnSecondaryText}>{t('signInWithGoogle')}</Text>
                                     </TouchableOpacity>

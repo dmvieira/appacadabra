@@ -1,5 +1,9 @@
 /**
- * BYOK onboarding — 2 screens.
+ * BYOK onboarding — 3 screens.
+ *
+ * Screen 0: welcome + Sign in with Google (skips the rest of onboarding) or
+ * Continue without signing in. After successful sign-in, the BackupSyncModal
+ * auto-pops on the home screen via the `app/index.tsx:230` useEffect.
  *
  * Screen 1: discovery grid of the top 6 spells from the public store. Tapping
  * one learns it (live `syncLearnedSpells({ forceSpellId })`). Skeleton while
@@ -24,6 +28,7 @@ import {
     ActivityIndicator,
     ScrollView,
     Image,
+    Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,9 +36,9 @@ import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import { logObScreenView, logObCompleted, logObSkipped } from '../lib/analytics';
 import * as firebase from '../lib/firebase';
-import { useStoreSyncStore } from '../lib/storeSync';
+import { learnStoreSpell } from '../lib/storeLearn';
 
-const TOTAL_SCREENS = 2;
+const TOTAL_SCREENS = 3;
 
 interface OnboardingProps {
     visible: boolean;
@@ -48,12 +53,14 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
     const [loading, setLoading] = useState(true);
     const [learningIds, setLearningIds] = useState<Set<string>>(new Set());
     const [learnedIds, setLearnedIds] = useState<Set<string>>(new Set());
+    const [signingIn, setSigningIn] = useState(false);
 
     useEffect(() => {
         if (!visible) {
             setScreen(0);
             setLearningIds(new Set());
             setLearnedIds(new Set());
+            setSigningIn(false);
         }
     }, [visible]);
 
@@ -71,16 +78,22 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
         if (visible) logObScreenView(screen);
     }, [screen, visible]);
 
+    // If the discover load returns empty (no public spells, offline, query
+    // misconfig), silently skip screen 1 instead of confronting a first-time
+    // user with an error state.
+    useEffect(() => {
+        if (visible && screen === 1 && !loading && spells.length === 0) {
+            setScreen(2);
+        }
+    }, [visible, screen, loading, spells.length]);
+
     const handleLearn = async (spellId: string) => {
         if (learningIds.has(spellId) || learnedIds.has(spellId)) return;
         const next = new Set(learningIds);
         next.add(spellId);
         setLearningIds(next);
         try {
-            await useStoreSyncStore.getState().syncLearnedSpells({
-                triggeredByDeepLink: false,
-                forceSpellId: spellId,
-            });
+            await learnStoreSpell(spellId);
             setLearnedIds(prev => {
                 const updated = new Set(prev);
                 updated.add(spellId);
@@ -94,6 +107,25 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                 updated.delete(spellId);
                 return updated;
             });
+        }
+    };
+
+    const handleSignIn = async () => {
+        if (signingIn) return;
+        setSigningIn(true);
+        try {
+            await firebase.linkWithGoogle();
+            logObCompleted('signed_in');
+            onComplete(null);
+        } catch (error: any) {
+            const msg = String(error?.message ?? error ?? '');
+            if (msg.includes('cancelled') || msg.includes('Cancelled')) {
+                // User dismissed the picker — stay on welcome screen silently.
+                return;
+            }
+            Alert.alert(t('signInFailed'), msg);
+        } finally {
+            setSigningIn(false);
         }
     };
 
@@ -129,16 +161,24 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
 
                 {screen === 0 && (
                     <View style={s.screen}>
+                        <View style={s.welcomeHero}>
+                            <Image source={require('../assets/icon.png')} style={s.welcomeLogo} />
+                        </View>
+                        <Text style={s.headline}>{t('obWelcomeTitle')}</Text>
+                        <Text style={s.sub}>{t('obWelcomeSub')}</Text>
+                    </View>
+                )}
+
+                {screen === 1 && (
+                    <View style={s.screen}>
                         <Text style={s.headline}>{t('obDiscoverTitle')}</Text>
                         <Text style={s.sub}>{t('obDiscoverSub')}</Text>
 
-                        {loading ? (
+                        {loading || spells.length === 0 ? (
+                            // Empty case auto-skips to screen 2 via the effect above —
+                            // the spinner shows briefly during the transition.
                             <View style={s.loadingArea}>
                                 <ActivityIndicator color={colors.primary} />
-                            </View>
-                        ) : spells.length === 0 ? (
-                            <View style={s.loadingArea}>
-                                <Text style={s.fallbackText}>{t('obDiscoverEmpty')}</Text>
                             </View>
                         ) : (
                             <ScrollView contentContainerStyle={s.grid}>
@@ -162,6 +202,9 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                                                 </View>
                                             )}
                                             <Text style={s.cardName} numberOfLines={2}>{spell.name}</Text>
+                                            {spell.description ? (
+                                                <Text style={s.cardDesc} numberOfLines={3}>{spell.description}</Text>
+                                            ) : null}
                                             <Text style={s.cardCta}>
                                                 {isLearned
                                                     ? t('obDiscoverLearned')
@@ -177,7 +220,7 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                     </View>
                 )}
 
-                {screen === 1 && (
+                {screen === 2 && (
                     <View style={s.screen}>
                         <Text style={s.bigEmoji}>🔑</Text>
                         <Text style={s.headline}>{t('obKeyTitle')}</Text>
@@ -192,7 +235,30 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
                 )}
 
                 <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
-                    {screen === TOTAL_SCREENS - 1 ? (
+                    {screen === 0 ? (
+                        firebase.isGoogleUser() ? (
+                            <TouchableOpacity style={s.primaryBtn} onPress={goNext}>
+                                <Text style={s.primaryText}>{t('obContinue')}</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <>
+                                <TouchableOpacity
+                                    style={[s.primaryBtn, signingIn && s.primaryBtnDisabled]}
+                                    onPress={handleSignIn}
+                                    disabled={signingIn}
+                                >
+                                    {signingIn ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={s.primaryText}>{t('signInGoogle')}</Text>
+                                    )}
+                                </TouchableOpacity>
+                                <TouchableOpacity style={s.ghostBtn} onPress={goNext} disabled={signingIn}>
+                                    <Text style={s.ghostText}>{t('obWelcomeContinue')}</Text>
+                                </TouchableOpacity>
+                            </>
+                        )
+                    ) : screen === TOTAL_SCREENS - 1 ? (
                         <>
                             <TouchableOpacity style={s.primaryBtn} onPress={goToSettings}>
                                 <Text style={s.primaryText}>{t('obKeySetupCta')}</Text>
@@ -249,6 +315,15 @@ const s = StyleSheet.create({
         textAlign: 'center',
         marginBottom: spacing.sm,
     },
+    welcomeHero: {
+        alignItems: 'center',
+        marginTop: spacing.xl,
+        marginBottom: spacing.lg,
+    },
+    welcomeLogo: {
+        width: 120,
+        height: 120,
+    },
     headline: {
         fontSize: 26,
         fontWeight: '800',
@@ -265,11 +340,6 @@ const s = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    fallbackText: {
-        color: colors.onSurfaceVariant,
-        fontSize: 14,
-        textAlign: 'center',
     },
     grid: {
         flexDirection: 'row',
@@ -311,6 +381,12 @@ const s = StyleSheet.create({
         color: colors.onSurface,
         textAlign: 'center',
     },
+    cardDesc: {
+        fontSize: 11,
+        color: colors.onSurfaceVariant,
+        textAlign: 'center',
+        lineHeight: 15,
+    },
     cardCta: {
         fontSize: 11,
         fontWeight: '600',
@@ -343,6 +419,9 @@ const s = StyleSheet.create({
         borderRadius: 100,
         paddingVertical: 14,
         alignItems: 'center',
+    },
+    primaryBtnDisabled: {
+        opacity: 0.6,
     },
     primaryText: {
         color: '#fff',

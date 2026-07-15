@@ -298,6 +298,7 @@ interface SyncedSpellItem {
     name: string;
     description: string;
     iconPath: string | null;
+    authorUid: string;
     authorName: string;
     publishedVersion: number;
     signedHtmlUrl: string;
@@ -352,6 +353,7 @@ export const syncLearnedSpells = onCall<{ lastSyncedAt?: number; forceSpellId?: 
                     name: spell.name ?? "Spell",
                     description: spell.description ?? "",
                     iconPath: spell.iconPath ?? null,
+                    authorUid: typeof spell.authorUid === "string" ? spell.authorUid : "",
                     authorName: spell.authorName ?? "Anonymous",
                     publishedVersion: typeof spell.publishedVersion === "number" ? spell.publishedVersion : 1,
                     signedHtmlUrl,

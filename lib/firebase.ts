@@ -10,6 +10,7 @@ import firebaseAnalytics, { setAnalyticsCollectionEnabled } from '@react-native-
 import pako from 'pako';
 
 import * as Notifications from 'expo-notifications';
+import * as Localization from 'expo-localization';
 import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 
@@ -52,6 +53,20 @@ export function decompressContent(input: string): string {
         }
     }
     return input;
+}
+
+const STORAGE_BUCKET = 'appacadabra-bee0f.firebasestorage.app';
+
+/**
+ * Resolves a Storage path (e.g. `store_icons/{spellId}/icon.png`) into a
+ * public HTTPS URL. publishSpell uploads icons via `bucket.file().makePublic()`,
+ * so we construct the canonical GCS URL directly instead of pulling in
+ * `@react-native-firebase/storage` (extra native dep + rebuild).
+ */
+export function publicStorageUrl(path: string | null | undefined): string | null {
+    if (!path) return null;
+    const encoded = path.split('/').map(encodeURIComponent).join('/');
+    return `https://storage.googleapis.com/${STORAGE_BUCKET}/${encoded}`;
 }
 
 function getFunctionsInstance() {
@@ -209,6 +224,7 @@ export interface SyncedSpellItem {
     name: string;
     description: string;
     iconPath: string | null;
+    authorUid: string;
     authorName: string;
     publishedVersion: number;
     signedHtmlUrl: string;
@@ -246,20 +262,32 @@ export interface TopStoreSpell {
 export async function listTopStoreSpells(maxResults = 6): Promise<TopStoreSpell[]> {
     try {
         const firestore = firebaseFirestore();
+        // Filter by visibility=public to match the existing composite index
+        // (status, visibility, learnCount DESC) in firestore.indexes.json and
+        // the website's browse query (website/store/js/browse.js). Without this
+        // filter the query fails with FAILED_PRECONDITION and returns [].
         const q = query(
             collection(firestore, 'store_spells'),
             where('status', '==', 'active'),
+            where('visibility', '==', 'public'),
             orderBy('learnCount', 'desc'),
             limit(maxResults),
         );
         const snap = await getDocs(q);
+        // Pick locale-matched name/description from the spell's translations
+        // map, falling back to EN then to the top-level fields. Same pattern
+        // used by storeSync.ts:262-266 and website/store/js/utils.js.
+        const userLang = Localization.getLocales()[0]?.languageCode ?? 'en';
         return snap.docs.map((d: any) => {
             const data = d.data() as any;
+            const meta = data?.translations?.[userLang]
+                ?? data?.translations?.['en']
+                ?? { name: data?.name, description: data?.description };
             return {
                 spellId: d.id,
-                name: data?.name ?? data?.title ?? 'Spell',
-                description: data?.description,
-                iconUrl: data?.iconUrl ?? data?.icon,
+                name: meta?.name ?? data?.name ?? data?.title ?? 'Spell',
+                description: meta?.description ?? data?.description,
+                iconUrl: publicStorageUrl(data?.iconPath) ?? undefined,
                 learnCount: typeof data?.learnCount === 'number' ? data.learnCount : 0,
             };
         });
@@ -352,20 +380,40 @@ export async function linkWithGoogle() {
         if (!idToken) throw new Error('No ID token from Google Sign-In');
 
         const googleCredential = GoogleAuthProvider.credential(idToken);
-        const user = firebaseAuth().currentUser;
+        let user = firebaseAuth().currentUser;
+        if (!user) {
+            // BYOK cold-start has no implicit anonymous bootstrap (server-side
+            // generation used to do it). Mirror the v2.0.15 caller pattern here
+            // so every sign-in entry point works without a pre-existing user.
+            await ensureAuthenticated();
+            user = firebaseAuth().currentUser;
+        }
 
-        if (user) {
-            try {
-                return await linkWithCredential(user, googleCredential);
-            } catch (linkError: any) {
-                if (linkError.code === 'auth/credential-already-in-use') {
-                    // Account already exists — sign in directly with the same credential
-                    return await signInWithCredential(firebaseAuth(), googleCredential);
-                }
-                throw linkError;
+        // Fast-path: the current Firebase user is already linked with Google.
+        // linkWithCredential would throw auth/provider-already-linked here
+        // (sometimes surfaced as auth/unknown by the native module), but the
+        // user's intent — "be signed in with Google" — is already satisfied.
+        if (isGoogleUser()) {
+            return { user: user! } as any;
+        }
+
+        try {
+            return await linkWithCredential(user!, googleCredential);
+        } catch (linkError: any) {
+            if (linkError.code === 'auth/credential-already-in-use') {
+                // Account already exists — sign in directly with the same credential
+                return await signInWithCredential(firebaseAuth(), googleCredential);
             }
-        } else {
-            throw new Error('No current user to link');
+            // Provider is already linked to this user (race or surfaced as auth/unknown).
+            // The intent is satisfied — treat as success rather than bubbling an error.
+            const linkMsg = String(linkError?.message ?? '');
+            if (
+                linkError.code === 'auth/provider-already-linked' ||
+                /already been linked to the given provider/i.test(linkMsg)
+            ) {
+                return { user: firebaseAuth().currentUser! } as any;
+            }
+            throw linkError;
         }
     } catch (error: any) {
         console.error('Link Google Error', error);

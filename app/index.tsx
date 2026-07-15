@@ -51,6 +51,8 @@ import * as firebase from '../lib/firebase';
 import { ScheduledNotifications } from '../components/ScheduledNotifications';
 import { useUserStore } from '../lib/userStore';
 import { useStoreSyncStore } from '../lib/storeSync';
+import { useStoreSearchStore, StoreSearchItem } from '../lib/storeSearch';
+import { StoreSpellCard } from '../components/StoreSpellCard';
 import SpellSetup from '../components/SpellSetup';
 import { logIconGenerated, logSpellCreateOpened, logSpellCreateSubmitted } from '../lib/analytics';
 import { useBackupStore } from '../lib/backupStore';
@@ -445,16 +447,17 @@ export default function HomeScreen() {
     // Error handling is managed globally by Toast in _layout.tsx
     // (Old alert effect removed to prevent conflict)
 
-    // Compute showSearch early so we can use it in the hook above the early return
-    const searchThreshold = width >= 768 ? 8 : 4;
-    const showSearch = apps.length > searchThreshold;
-
-    // Clear search query when search bar disappears
+    // Store search — debounced fetch of a public spell window when the user
+    // types ≥2 chars; cache is session-wide, so subsequent searches are instant.
+    const storeSearchItems = useStoreSearchStore(s => s.items);
+    const storeSearchLoading = useStoreSearchStore(s => s.loading);
+    const ensureStoreLoaded = useStoreSearchStore(s => s.ensureLoaded);
     useEffect(() => {
-        if (!showSearch && searchQuery) {
-            setSearchQuery('');
-        }
-    }, [showSearch]);
+        const q = searchQuery.trim();
+        if (q.length < 2) return;
+        const timer = setTimeout(() => { ensureStoreLoaded(); }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, ensureStoreLoaded]);
 
     const handleCreateApp = async (description: string) => {
         clearLastFailedPrompt();
@@ -939,6 +942,23 @@ export default function HomeScreen() {
         )
         : allApps;
 
+    // Store matches — only when the query is meaningful. Excludes spells the
+    // user already has locally (matched by storeSpellId) so we never show
+    // "Learn" for something already installed.
+    const storeQuery = searchQuery.trim();
+    const localStoreSpellIds = new Set<string>(
+        apps.map(a => a.storeSpellId).filter((id): id is string => !!id)
+    );
+    const storeMatches: StoreSearchItem[] = storeQuery.length >= 2
+        ? storeSearchItems.filter(item => {
+            if (localStoreSpellIds.has(item.spellId)) return false;
+            const q = storeQuery.toLowerCase();
+            return item.name.toLowerCase().includes(q)
+                || item.description.toLowerCase().includes(q);
+        })
+        : [];
+    const showStoreSection = storeQuery.length >= 2;
+
     const fabBottom = spacing.lg + (Platform.OS === 'android' ? 24 : 0) + insets.bottom;
     const listBottomPadding = fabBottom + 92;
 
@@ -966,11 +986,9 @@ export default function HomeScreen() {
 
             {/* Header with menu */}
             <View style={styles.header}>
-                <View style={{ flex: 1 }}>
-                    <Text style={styles.headerTitle}>
-                        <Text style={styles.headerTitleStar}>✦ </Text>
-                        {t('appName')}
-                    </Text>
+                <View style={[{ flex: 1 }, styles.headerTitleRow]}>
+                    <Image source={require('../assets/icon.png')} style={styles.headerLogo} />
+                    <Text style={styles.headerTitle}>{t('appName')}</Text>
                 </View>
                 <AiProviderButton />
                 <TouchableOpacity onPress={() => { setActiveCardId(null); setShowMenu(true); }} style={[styles.menuBtn, { marginStart: spacing.sm }]} accessibilityLabel={t('options')} accessibilityRole="button">
@@ -978,26 +996,24 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Search bar */}
-            {showSearch && (
-                <View style={styles.searchBar}>
-                    <Text style={styles.searchIcon}>🔍</Text>
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder={t('searchSpells')}
-                        placeholderTextColor="#8b8aad"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        returnKeyType="search"
-                        clearButtonMode="while-editing"
-                    />
-                    {!!searchQuery && Platform.OS !== 'ios' && (
-                        <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Text style={styles.searchClear}>✕</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-            )}
+            {/* Search bar — always visible; drives both local filter and Store search */}
+            <View style={styles.searchBar}>
+                <Text style={styles.searchIcon}>🔍</Text>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder={t('searchSpells')}
+                    placeholderTextColor="#8b8aad"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    returnKeyType="search"
+                    clearButtonMode="while-editing"
+                />
+                {!!searchQuery && Platform.OS !== 'ios' && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={styles.searchClear}>✕</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
 
             <View style={{ marginTop: spacing.xs }}>
                 {/* Status Banner (Post-logout) */}
@@ -1126,80 +1142,132 @@ export default function HomeScreen() {
                 )}
             </View>
 
-            {filteredApps.length === 0 && !isGenerating ? (
-                <View style={{ flex: 1, paddingBottom: listBottomPadding }}>
-                    <EmptyState />
-                </View>
-            ) : (
-                <FlatList
-                    data={filteredApps}
-                    keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={[styles.list, { paddingBottom: listBottomPadding }]}
-                    onScroll={onScroll}
-                    scrollEventThrottle={16}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            colors={[colors.primary]}
-                            tintColor={colors.primary}
-                            enabled={isAtTop || refreshing}
-                        />
-                    }
-                    ListHeaderComponent={
-                        <Text style={styles.listLabel}>{t('yourApps').toUpperCase()}</Text>
-                    }
-                    renderItem={({ item, index }) => {
-                        // Check if this item is a placeholder (from our manual mapping above)
-                        const isPlaceholder = (item as any).isPlaceholder;
-                        // Check if this real app is currently updating
-                        const isLocked = updatingAppIds.includes(item.id);
+            {(() => {
+                type ListRow =
+                    | { type: 'app'; app: GeneratedApp }
+                    | { type: 'store-header' }
+                    | { type: 'store-item'; item: StoreSearchItem }
+                    | { type: 'store-empty' }
+                    | { type: 'store-loading' };
 
-                        const realApps = filteredApps.filter(a => !(a as any).isPlaceholder);
-                        const ctxIdx = realApps.findIndex(a => a.id === item.id);
-                        const lastRealIdx = realApps.length - 1;
+                const rows: ListRow[] = filteredApps.map(app => ({ type: 'app' as const, app }));
+                if (showStoreSection) {
+                    rows.push({ type: 'store-header' });
+                    if (storeMatches.length > 0) {
+                        for (const item of storeMatches) rows.push({ type: 'store-item', item });
+                    } else if (storeSearchLoading) {
+                        rows.push({ type: 'store-loading' });
+                    } else {
+                        rows.push({ type: 'store-empty' });
+                    }
+                }
 
-                        return (
-                            <AppCard
-                                app={item}
-                                onRun={() => { setActiveCardId(null); handleRunApp(item); }}
-                                onEdit={() => { setActiveCardId(null); handleEditApp(item); }}
-                                onDelete={() => { setActiveCardId(null); setDeleteTarget(item); }}
-                                onRename={() => {
-                                    setActiveCardId(null);
-                                    setSetupTarget(item);
-                                    setSetupName(item.name);
-                                    setSetupDescription(item.shortDescription || '');
-                                    setSetupMode('edit');
-                                }}
-                                onShortcut={() => { setActiveCardId(null); handleCreateShortcut(item); }}
-                                onToggleBiometric={() => { setActiveCardId(null); handleToggleBiometric(item); }}
-                                onSendSpell={() => { setActiveCardId(null); setSendSpellTargetId(item.id); }}
-                                onViewSchedules={() => { setActiveCardId(null); setScheduleTarget(item); }}
-                                isPlaceholder={isPlaceholder}
-                                isLocked={isLocked}
-                                notificationCount={notifCounts[item.id] || 0}
-                                coachStep={!isPlaceholder && !isLocked && filteredApps.indexOf(item) === 0 ? coachStep : 0}
-                                onCoachDismiss={handleCoachDismiss}
-                                isActive={activeCardId === item.id}
-                                canMoveUp={!isPlaceholder && ctxIdx > 0}
-                                canMoveDown={!isPlaceholder && ctxIdx < lastRealIdx}
-                                onMoveUp={() => { reorderApp(item.id, 'up'); markBackupDirty(); }}
-                                onMoveDown={() => { reorderApp(item.id, 'down'); markBackupDirty(); }}
-                                onDismissActive={() => setActiveCardId(null)}
-                                onLongPress={!isPlaceholder && !isLocked && !searchQuery ? () => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                    setActiveCardId(item.id);
-                                } : undefined}
-                                onClearData={() => {
-                                    setActiveCardId(null);
-                                    router.push({ pathname: '/spell/[id]', params: { id: String(item.id) } });
-                                }}
+                // EmptyState only when there's nothing to show (no local, no store section).
+                if (rows.length === 0 && !isGenerating) {
+                    return (
+                        <View style={{ flex: 1, paddingBottom: listBottomPadding }}>
+                            <EmptyState />
+                        </View>
+                    );
+                }
+
+                const realApps = filteredApps.filter(a => !(a as any).isPlaceholder);
+                const lastRealIdx = realApps.length - 1;
+
+                return (
+                    <FlatList
+                        data={rows}
+                        keyExtractor={(row, idx) => {
+                            if (row.type === 'app') return `app-${row.app.id}`;
+                            if (row.type === 'store-item') return `store-${row.item.spellId}`;
+                            return `meta-${row.type}-${idx}`;
+                        }}
+                        contentContainerStyle={[styles.list, { paddingBottom: listBottomPadding }]}
+                        onScroll={onScroll}
+                        scrollEventThrottle={16}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                colors={[colors.primary]}
+                                tintColor={colors.primary}
+                                enabled={isAtTop || refreshing}
                             />
-                        );
-                    }}
-                />
-            )}
+                        }
+                        ListHeaderComponent={
+                            filteredApps.length > 0
+                                ? <Text style={styles.listLabel}>{t('yourApps').toUpperCase()}</Text>
+                                : null
+                        }
+                        renderItem={({ item: row }) => {
+                            if (row.type === 'store-header') {
+                                return <Text style={[styles.listLabel, { marginTop: spacing.md }]}>{t('storeSection').toUpperCase()}</Text>;
+                            }
+                            if (row.type === 'store-loading') {
+                                return (
+                                    <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}>
+                                        <ActivityIndicator color={colors.primary} />
+                                    </View>
+                                );
+                            }
+                            if (row.type === 'store-empty') {
+                                return (
+                                    <Text style={{ color: '#8b8aad', fontSize: 13, paddingVertical: spacing.md, textAlign: 'center' }}>
+                                        {t('noStoreResults')}
+                                    </Text>
+                                );
+                            }
+                            if (row.type === 'store-item') {
+                                return <StoreSpellCard spell={row.item} />;
+                            }
+
+                            const item = row.app;
+                            const isPlaceholder = (item as any).isPlaceholder;
+                            const isLocked = updatingAppIds.includes(item.id);
+                            const ctxIdx = realApps.findIndex(a => a.id === item.id);
+
+                            return (
+                                <AppCard
+                                    app={item}
+                                    onRun={() => { setActiveCardId(null); handleRunApp(item); }}
+                                    onEdit={() => { setActiveCardId(null); handleEditApp(item); }}
+                                    onDelete={() => { setActiveCardId(null); setDeleteTarget(item); }}
+                                    onRename={() => {
+                                        setActiveCardId(null);
+                                        setSetupTarget(item);
+                                        setSetupName(item.name);
+                                        setSetupDescription(item.shortDescription || '');
+                                        setSetupMode('edit');
+                                    }}
+                                    onShortcut={() => { setActiveCardId(null); handleCreateShortcut(item); }}
+                                    onToggleBiometric={() => { setActiveCardId(null); handleToggleBiometric(item); }}
+                                    onSendSpell={() => { setActiveCardId(null); setSendSpellTargetId(item.id); }}
+                                    onViewSchedules={() => { setActiveCardId(null); setScheduleTarget(item); }}
+                                    isPlaceholder={isPlaceholder}
+                                    isLocked={isLocked}
+                                    notificationCount={notifCounts[item.id] || 0}
+                                    coachStep={!isPlaceholder && !isLocked && filteredApps.indexOf(item) === 0 ? coachStep : 0}
+                                    onCoachDismiss={handleCoachDismiss}
+                                    isActive={activeCardId === item.id}
+                                    canMoveUp={!isPlaceholder && ctxIdx > 0}
+                                    canMoveDown={!isPlaceholder && ctxIdx < lastRealIdx}
+                                    onMoveUp={() => { reorderApp(item.id, 'up'); markBackupDirty(); }}
+                                    onMoveDown={() => { reorderApp(item.id, 'down'); markBackupDirty(); }}
+                                    onDismissActive={() => setActiveCardId(null)}
+                                    onLongPress={!isPlaceholder && !isLocked && !searchQuery ? () => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                        setActiveCardId(item.id);
+                                    } : undefined}
+                                    onClearData={() => {
+                                        setActiveCardId(null);
+                                        router.push({ pathname: '/spell/[id]', params: { id: String(item.id) } });
+                                    }}
+                                />
+                            );
+                        }}
+                    />
+                );
+            })()}
 
             {/* FAB */}
             <View style={[styles.fabWrap, { bottom: fabBottom }]} pointerEvents="box-none">
@@ -1362,6 +1430,7 @@ export default function HomeScreen() {
                 onDismiss={() => { if (!isGenerating) { setShowCreateDialog(false); setCreateDialogInitialText(undefined); clearLastFailedPrompt(); } }}
                 onSend={handleCreateApp}
                 initialText={createDialogInitialText}
+                draftKey={{ type: 'create' }}
             />
 
             <BugReportDialog
@@ -1685,13 +1754,19 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: colors.surfaceVariant,
     },
+    headerTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    headerLogo: {
+        width: 28,
+        height: 28,
+        marginRight: spacing.xs,
+    },
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         color: '#a855f7',
-    },
-    headerTitleStar: {
-        color: '#f59e0b',
     },
     searchBar: {
         flexDirection: 'row',

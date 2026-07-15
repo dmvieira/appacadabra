@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import * as Localization from 'expo-localization';
+import * as FileSystem from 'expo-file-system/legacy';
 import firebaseFirestore, { collection, query, where, getDocs } from '@react-native-firebase/firestore';
 import * as firebase from './firebase';
+import { publicStorageUrl } from './firebase';
 import {
     getAppById,
     updateAppStoreLink,
@@ -151,8 +153,15 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                 existingSpellId: app.storeSpellId ?? undefined,
             });
 
-            // Persist the link so the AppCard menu can show "View in Store" / "Unpublish"
-            await updateAppStoreLink(opts.appId, result.spellId, result.slug, opts.visibility ?? 'public');
+            // Persist the link so the AppCard menu can show "View in Store" / "Unpublish".
+            // The author UID is the current authenticated user — server requires Google auth to publish.
+            await updateAppStoreLink(
+                opts.appId,
+                result.spellId,
+                result.slug,
+                opts.visibility ?? 'public',
+                firebase.getCurrentUserId(),
+            );
             try { useAppStore.getState().loadApps(); } catch {}
 
             set({ isPublishing: false });
@@ -256,6 +265,32 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                     ?? spell.translations?.['en']
                     ?? { name: spell.name, description: spell.description };
 
+                // Download icon to local FS — same pattern as generateAndSaveAppIcon
+                // (lib/store.ts:561-591). Defensive: a failed download must not abort
+                // the whole import, mirroring the HTML-fetch error handling above.
+                let localIconPath: string | null = null;
+                if (spell.iconPath) {
+                    try {
+                        const iconUrl = publicStorageUrl(spell.iconPath);
+                        if (iconUrl) {
+                            const iconDir = `${FileSystem.documentDirectory}icons/`;
+                            const dirInfo = await FileSystem.getInfoAsync(iconDir);
+                            if (!dirInfo.exists) {
+                                await FileSystem.makeDirectoryAsync(iconDir, { intermediates: true });
+                            }
+                            const target = `${iconDir}store_icon_${spell.spellId}.png`;
+                            const dl = await FileSystem.downloadAsync(iconUrl, target);
+                            if (dl.status >= 200 && dl.status < 300) {
+                                localIconPath = target;
+                            } else {
+                                console.warn(`[StoreSync] icon download ${spell.spellId} status ${dl.status}`);
+                            }
+                        }
+                    } catch (e: any) {
+                        console.warn(`[StoreSync] icon download error for ${spell.spellId}:`, e?.message);
+                    }
+                }
+
                 // Insert into SQLite — isolated so one bad row doesn't stop the rest
                 try {
                     const appId = await insertApp({
@@ -266,8 +301,9 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                         source: 'store',
                         storeSpellId: spell.spellId,
                         storeSpellSlug: spell.slug,
+                        storeAuthorUid: spell.authorUid || null,
                         forkOfStoreSpellId: spell.forkOfSpellId ?? null,
-                        iconPath: null,
+                        iconPath: localIconPath,
                         lastUpdated: now,
                         createdAt: now,
                         consoleLogs: '',
@@ -365,7 +401,8 @@ export const useStoreSyncStore = create<StoreSyncState>((set, get) => ({
                 for (const spell of remoteSpells) {
                     const match = allLocalApps.find(a => !a.storeSpellId && a.name === spell.name);
                     if (match) {
-                        await updateAppStoreLink(match.id, spell.spellId, spell.slug, spell.visibility);
+                        // getMyPublishedSpells filters to the current user's spells, so the current UID is the author.
+                        await updateAppStoreLink(match.id, spell.spellId, spell.slug, spell.visibility, firebase.getCurrentUserId());
                         restored++;
                     }
                 }

@@ -57,6 +57,7 @@ export interface BackupApp {
     }>;
     storeSpellId?: string;
     storeSpellSlug?: string;
+    storeAuthorUid?: string;
     storeVisibility?: 'public' | 'unlisted';
     source?: 'local' | 'store';
     forkOfStoreSpellId?: string;
@@ -215,6 +216,7 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             // Single-spell .spell exports omit them so a recipient can't impersonate the publisher.
             storeSpellId: includeStorage ? (app.storeSpellId ?? undefined) : undefined,
             storeSpellSlug: includeStorage ? (app.storeSpellSlug ?? undefined) : undefined,
+            storeAuthorUid: includeStorage ? (app.storeAuthorUid ?? undefined) : undefined,
             storeVisibility: includeStorage ? (app.storeVisibility ?? undefined) : undefined,
             source: includeStorage ? (app.source ?? undefined) : undefined,
             forkOfStoreSpellId: includeStorage ? (app.forkOfStoreSpellId ?? undefined) : undefined,
@@ -493,6 +495,7 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                             app.storeSpellId,
                             app.storeSpellSlug ?? null,
                             app.storeVisibility ?? null,
+                            app.storeAuthorUid ?? null,
                         );
                     }
                     // Restore source/forkOfStoreSpellId if backup has them and local row is stale
@@ -619,6 +622,7 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                 sortOrder: app.sortOrder || 0,
                 storeSpellId: app.storeSpellId ?? undefined,
                 storeSpellSlug: app.storeSpellSlug ?? undefined,
+                storeAuthorUid: app.storeAuthorUid ?? undefined,
                 storeVisibility: app.storeVisibility ?? undefined,
                 source: app.source ?? 'local',
                 forkOfStoreSpellId: app.forkOfStoreSpellId ?? undefined,

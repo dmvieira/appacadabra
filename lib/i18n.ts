@@ -550,6 +550,11 @@ export const translations = {
         replayOnboarding: 'Replay Tutorial',
 
         // ── BYOK (Phase 3) ──
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Welcome to Appacadabra',
+        obWelcomeSub: 'Magical mini-apps you create with AI. Sign in to sync your spells across devices, or continue without an account.',
+        obWelcomeContinue: 'Continue without signing in',
+
         // Onboarding — Screen 1 (Discover)
         obDiscoverTitle: 'Discover what spells can do',
         obDiscoverSub: 'These are the most-loved spells in the community. Tap one to learn it.',
@@ -557,6 +562,8 @@ export const translations = {
         obDiscoverLearn: 'Learn',
         obDiscoverLearning: 'Adding…',
         obDiscoverLearned: 'Added ✓',
+        storeSection: 'Public Store',
+        noStoreResults: 'No public spells match that search.',
 
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Create spells with your own AI key',
@@ -589,6 +596,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Add your OpenRouter key to edit spells with AI.',
         noKeyConfiguredSetup: 'Set up key',
         noKeyConfiguredCancel: 'Not now',
+
+        // GenerationErrorModal — spell create/edit failures mapped to OpenRouter error codes
+        genErrorNoKeyTitle: 'OpenRouter key required',
+        genErrorNoKeyBody: "You haven't connected an OpenRouter key yet. Spell generation runs on your own key — set one up to continue.",
+        genErrorNoKeyCta: 'Set up key',
+        genErrorInvalidKeyTitle: 'Key was rejected',
+        genErrorInvalidKeyBody: 'OpenRouter refused your key. It may have been revoked or copied incorrectly. Update it to continue.',
+        genErrorInvalidKeyCta: 'Update key',
+        genErrorOutOfCreditTitle: 'Out of OpenRouter credit',
+        genErrorOutOfCreditBody: 'Your OpenRouter balance is empty. Top up to keep casting spells.',
+        genErrorOutOfCreditCta: 'Add credit',
+        genErrorRateLimitedTitle: 'Slow down a moment',
+        genErrorRateLimitedBody: 'OpenRouter is throttling requests. Wait a minute and try again.',
+        genErrorGenericTitle: 'Spell failed to cast',
+        genErrorGenericBody: 'Something went wrong calling OpenRouter. Your prompt was saved — try again.',
+        genErrorAbortedTitle: 'Spell was interrupted',
+        genErrorAbortedBody: "The app closed mid-cast and the spell didn't finish. Your prompt is preserved — try again when ready.",
+        genErrorRetry: 'Try again',
+        genErrorDismiss: 'Dismiss',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'AI Provider',
@@ -1230,6 +1256,21 @@ export const translations = {
         reportBugAttach: 'Anexar feitiço (opcional)',
         reportBugIncludeStorage: 'Incluir dados do feitiço',
         reportBugNoEmail: 'Nenhum app de email encontrado. Envie seu relato para:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Bem-vindo ao Appacadabra',
+        obWelcomeSub: 'Mini-apps mágicos que você cria com IA. Entre para sincronizar seus feitiços entre dispositivos, ou continue sem uma conta.',
+        obWelcomeContinue: 'Continuar sem entrar',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Descubra o que os feitiços podem fazer',
+        obDiscoverSub: 'Estes são os feitiços mais amados da comunidade. Toque em um para aprendê-lo.',
+        obDiscoverEmpty: 'Não foi possível carregar os feitiços agora. Você pode explorá-los depois na tela inicial.',
+        obDiscoverLearn: 'Aprender',
+        obDiscoverLearning: 'Adicionando…',
+        obDiscoverLearned: 'Adicionado ✓',
+        storeSection: 'Da Store pública',
+        noStoreResults: 'Nada na Store pública para essa busca.',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Crie feitiços com sua própria chave de IA',
         obKeySub: 'Appacadabra é gratuito. Você traz uma chave do OpenRouter e paga os provedores direto — sem acréscimos.',
@@ -1238,6 +1279,8 @@ export const translations = {
         obKeyBenefit3: 'Sua chave fica neste dispositivo. Nunca passa pelos nossos servidores.',
         obKeySetupCta: 'Configurar minha chave',
         obKeyLaterCta: 'Fazer isso depois',
+        obContinue: 'Continuar',
+        obSkip: 'Pular por enquanto',
 
         // CostEstimateModal
         costEstimateTitle: 'Confirmar {operation}',
@@ -1259,6 +1302,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Adicione sua chave do OpenRouter para editar feitiços com IA.',
         noKeyConfiguredSetup: 'Configurar chave',
         noKeyConfiguredCancel: 'Agora não',
+
+        // GenerationErrorModal — falhas de criação/edição de feitiço mapeadas para códigos de erro do OpenRouter
+        genErrorNoKeyTitle: 'Chave do OpenRouter necessária',
+        genErrorNoKeyBody: 'Você ainda não conectou uma chave do OpenRouter. A geração de feitiços usa sua própria chave — configure uma para continuar.',
+        genErrorNoKeyCta: 'Configurar chave',
+        genErrorInvalidKeyTitle: 'A chave foi recusada',
+        genErrorInvalidKeyBody: 'O OpenRouter recusou sua chave. Ela pode ter sido revogada ou copiada errado. Atualize para continuar.',
+        genErrorInvalidKeyCta: 'Atualizar chave',
+        genErrorOutOfCreditTitle: 'Sem crédito no OpenRouter',
+        genErrorOutOfCreditBody: 'Seu saldo no OpenRouter acabou. Recarregue para continuar a conjurar feitiços.',
+        genErrorOutOfCreditCta: 'Adicionar crédito',
+        genErrorRateLimitedTitle: 'Calma um instante',
+        genErrorRateLimitedBody: 'O OpenRouter está limitando requisições. Aguarde um minuto e tente novamente.',
+        genErrorGenericTitle: 'O feitiço falhou',
+        genErrorGenericBody: 'Algo deu errado ao chamar o OpenRouter. Sua descrição foi salva — tente novamente.',
+        genErrorAbortedTitle: 'O feitiço foi interrompido',
+        genErrorAbortedBody: 'O app foi fechado durante a conjuração e o feitiço não terminou. Sua descrição foi preservada — tente novamente quando quiser.',
+        genErrorRetry: 'Tentar novamente',
+        genErrorDismiss: 'Dispensar',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'Provedor de IA',
@@ -1829,6 +1891,21 @@ export const translations = {
         reportBugAttach: 'Adjuntar hechizo (opcional)',
         reportBugIncludeStorage: 'Incluir datos del hechizo',
         reportBugNoEmail: 'No se encontró app de email. Envía tu reporte a:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Bienvenido a Appacadabra',
+        obWelcomeSub: 'Mini-apps mágicas que creas con IA. Inicia sesión para sincronizar tus hechizos entre dispositivos, o continúa sin una cuenta.',
+        obWelcomeContinue: 'Continuar sin iniciar sesión',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Descubre lo que pueden hacer los hechizos',
+        obDiscoverSub: 'Estos son los hechizos más queridos por la comunidad. Toca uno para aprenderlo.',
+        obDiscoverEmpty: 'No se pudieron cargar los hechizos ahora. Puedes explorarlos más tarde desde la pantalla de inicio.',
+        obDiscoverLearn: 'Aprender',
+        obDiscoverLearning: 'Añadiendo…',
+        storeSection: 'Tienda pública',
+        noStoreResults: 'Ningún hechizo público coincide con esa búsqueda.',
+        obDiscoverLearned: 'Añadido ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Crea hechizos con tu propia clave de IA',
         obKeySub: 'Appacadabra es gratis. Tú aportas una clave de OpenRouter y pagas a los proveedores directamente, sin recargo.',
@@ -1837,6 +1914,8 @@ export const translations = {
         obKeyBenefit3: 'Tu clave se queda en este dispositivo. Nunca pasa por nuestros servidores.',
         obKeySetupCta: 'Configurar mi clave',
         obKeyLaterCta: 'Hacer esto después',
+        obContinue: 'Continuar',
+        obSkip: 'Omitir por ahora',
 
         // CostEstimateModal
         costEstimateTitle: 'Confirmar {operation}',
@@ -1858,6 +1937,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Añade tu clave de OpenRouter para editar hechizos con IA.',
         noKeyConfiguredSetup: 'Configurar clave',
         noKeyConfiguredCancel: 'Ahora no',
+
+        // GenerationErrorModal — fallos al crear/editar hechizos según códigos de error de OpenRouter
+        genErrorNoKeyTitle: 'Se requiere clave de OpenRouter',
+        genErrorNoKeyBody: 'Aún no has conectado una clave de OpenRouter. La generación de hechizos usa tu propia clave; configura una para continuar.',
+        genErrorNoKeyCta: 'Configurar clave',
+        genErrorInvalidKeyTitle: 'La clave fue rechazada',
+        genErrorInvalidKeyBody: 'OpenRouter rechazó tu clave. Puede haberse revocado o copiado mal. Actualízala para continuar.',
+        genErrorInvalidKeyCta: 'Actualizar clave',
+        genErrorOutOfCreditTitle: 'Sin crédito en OpenRouter',
+        genErrorOutOfCreditBody: 'Tu saldo de OpenRouter está vacío. Recarga para seguir lanzando hechizos.',
+        genErrorOutOfCreditCta: 'Añadir crédito',
+        genErrorRateLimitedTitle: 'Espera un momento',
+        genErrorRateLimitedBody: 'OpenRouter está limitando las peticiones. Espera un minuto e inténtalo de nuevo.',
+        genErrorGenericTitle: 'El hechizo no se lanzó',
+        genErrorGenericBody: 'Algo salió mal al llamar a OpenRouter. Tu instrucción se guardó: inténtalo de nuevo.',
+        genErrorAbortedTitle: 'El hechizo se interrumpió',
+        genErrorAbortedBody: 'La app se cerró durante el lanzamiento y el hechizo no terminó. Tu instrucción se conservó: inténtalo de nuevo cuando quieras.',
+        genErrorRetry: 'Intentar de nuevo',
+        genErrorDismiss: 'Descartar',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'Proveedor de IA',
@@ -2427,6 +2525,21 @@ export const translations = {
         reportBugAttach: 'Joindre un sortilège (optionnel)',
         reportBugIncludeStorage: 'Inclure les données du sort',
         reportBugNoEmail: 'Aucune app e-mail trouvée. Envoyez votre rapport à :',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Bienvenue dans Appacadabra',
+        obWelcomeSub: 'Des mini-apps magiques que vous créez avec l\'IA. Connectez-vous pour synchroniser vos sorts entre vos appareils, ou continuez sans compte.',
+        obWelcomeContinue: 'Continuer sans se connecter',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Découvrez ce que les sorts peuvent faire',
+        obDiscoverSub: 'Voici les sorts les plus appréciés de la communauté. Touchez-en un pour l\'apprendre.',
+        obDiscoverEmpty: 'Impossible de charger les sorts pour le moment. Vous pourrez les parcourir plus tard depuis l\'écran d\'accueil.',
+        obDiscoverLearn: 'Apprendre',
+        obDiscoverLearning: 'Ajout…',
+        storeSection: 'Boutique publique',
+        noStoreResults: 'Aucun sort public ne correspond à cette recherche.',
+        obDiscoverLearned: 'Ajouté ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Créez des sorts avec votre propre clé IA',
         obKeySub: 'Appacadabra est gratuit. Vous apportez une clé OpenRouter et payez directement les fournisseurs, sans majoration.',
@@ -2435,6 +2548,8 @@ export const translations = {
         obKeyBenefit3: 'Votre clé reste sur cet appareil. Elle ne touche jamais nos serveurs.',
         obKeySetupCta: 'Configurer ma clé',
         obKeyLaterCta: 'Le faire plus tard',
+        obContinue: 'Continuer',
+        obSkip: 'Passer pour l\'instant',
 
         // CostEstimateModal
         costEstimateTitle: 'Confirmer {operation}',
@@ -2456,6 +2571,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Ajoutez votre clé OpenRouter pour modifier des sorts avec l\'IA.',
         noKeyConfiguredSetup: 'Configurer la clé',
         noKeyConfiguredCancel: 'Pas maintenant',
+
+        // GenerationErrorModal — échecs de création/édition de sorts mappés aux codes d'erreur OpenRouter
+        genErrorNoKeyTitle: 'Clé OpenRouter requise',
+        genErrorNoKeyBody: "Vous n'avez pas encore connecté de clé OpenRouter. La génération de sorts utilise votre propre clé — configurez-en une pour continuer.",
+        genErrorNoKeyCta: 'Configurer la clé',
+        genErrorInvalidKeyTitle: 'Clé refusée',
+        genErrorInvalidKeyBody: 'OpenRouter a refusé votre clé. Elle a peut-être été révoquée ou mal copiée. Mettez-la à jour pour continuer.',
+        genErrorInvalidKeyCta: 'Mettre à jour la clé',
+        genErrorOutOfCreditTitle: 'Crédit OpenRouter épuisé',
+        genErrorOutOfCreditBody: 'Votre solde OpenRouter est vide. Rechargez pour continuer à lancer des sorts.',
+        genErrorOutOfCreditCta: 'Ajouter du crédit',
+        genErrorRateLimitedTitle: 'Un instant',
+        genErrorRateLimitedBody: 'OpenRouter limite les requêtes. Patientez une minute et réessayez.',
+        genErrorGenericTitle: "Le sort n'a pas été lancé",
+        genErrorGenericBody: "Quelque chose s'est mal passé lors de l'appel à OpenRouter. Votre demande a été enregistrée — réessayez.",
+        genErrorAbortedTitle: 'Le sort a été interrompu',
+        genErrorAbortedBody: "L'application s'est fermée pendant le lancement et le sort n'a pas abouti. Votre demande est conservée — réessayez quand vous voulez.",
+        genErrorRetry: 'Réessayer',
+        genErrorDismiss: 'Ignorer',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'Fournisseur IA',
@@ -2957,6 +3091,21 @@ export const translations = {
         reportBugAttach: 'Zauber anhängen (optional)',
         reportBugIncludeStorage: 'Zauberdaten einschließen',
         reportBugNoEmail: 'Keine E-Mail-App gefunden. Senden Sie Ihren Bericht an:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Willkommen bei Appacadabra',
+        obWelcomeSub: 'Magische Mini-Apps, die du mit KI erstellst. Melde dich an, um deine Zauber zwischen Geräten zu synchronisieren, oder fahre ohne Konto fort.',
+        obWelcomeContinue: 'Ohne Anmeldung fortfahren',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Entdecke, was Zauber alles können',
+        obDiscoverSub: 'Das sind die beliebtesten Zauber der Community. Tippe auf einen, um ihn zu lernen.',
+        obDiscoverEmpty: 'Zauber konnten gerade nicht geladen werden. Du kannst sie später auf dem Startbildschirm durchstöbern.',
+        obDiscoverLearn: 'Lernen',
+        obDiscoverLearning: 'Wird hinzugefügt…',
+        storeSection: 'Öffentlicher Store',
+        noStoreResults: 'Keine öffentlichen Zauber passen zu dieser Suche.',
+        obDiscoverLearned: 'Hinzugefügt ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Erschaffe Zauber mit deinem eigenen KI-Schlüssel',
         obKeySub: 'Appacadabra ist kostenlos. Du bringst einen OpenRouter-Schlüssel mit und zahlst die Anbieter direkt — ohne Aufschlag.',
@@ -2965,6 +3114,8 @@ export const translations = {
         obKeyBenefit3: 'Dein Schlüssel bleibt auf diesem Gerät. Er erreicht nie unsere Server.',
         obKeySetupCta: 'Meinen Schlüssel einrichten',
         obKeyLaterCta: 'Später erledigen',
+        obContinue: 'Weiter',
+        obSkip: 'Vorerst überspringen',
 
         // CostEstimateModal
         costEstimateTitle: '{operation} bestätigen',
@@ -2986,6 +3137,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Füge deinen OpenRouter-Schlüssel hinzu, um Zauber mit KI zu bearbeiten.',
         noKeyConfiguredSetup: 'Schlüssel einrichten',
         noKeyConfiguredCancel: 'Nicht jetzt',
+
+        // GenerationErrorModal — Fehler beim Erstellen/Bearbeiten von Zaubern, abgebildet auf OpenRouter-Fehlercodes
+        genErrorNoKeyTitle: 'OpenRouter-Schlüssel erforderlich',
+        genErrorNoKeyBody: 'Du hast noch keinen OpenRouter-Schlüssel verbunden. Das Erzeugen von Zaubern läuft über deinen eigenen Schlüssel — richte einen ein, um fortzufahren.',
+        genErrorNoKeyCta: 'Schlüssel einrichten',
+        genErrorInvalidKeyTitle: 'Schlüssel wurde abgelehnt',
+        genErrorInvalidKeyBody: 'OpenRouter hat deinen Schlüssel abgelehnt. Er wurde möglicherweise widerrufen oder falsch kopiert. Aktualisiere ihn, um fortzufahren.',
+        genErrorInvalidKeyCta: 'Schlüssel aktualisieren',
+        genErrorOutOfCreditTitle: 'OpenRouter-Guthaben aufgebraucht',
+        genErrorOutOfCreditBody: 'Dein OpenRouter-Guthaben ist leer. Lade es auf, um weiter Zauber zu wirken.',
+        genErrorOutOfCreditCta: 'Guthaben aufladen',
+        genErrorRateLimitedTitle: 'Einen Moment',
+        genErrorRateLimitedBody: 'OpenRouter drosselt deine Anfragen. Warte eine Minute und versuche es erneut.',
+        genErrorGenericTitle: 'Zauber konnte nicht gewirkt werden',
+        genErrorGenericBody: 'Beim Aufruf von OpenRouter ist etwas schiefgelaufen. Deine Eingabe wurde gespeichert — versuche es erneut.',
+        genErrorAbortedTitle: 'Zauber wurde unterbrochen',
+        genErrorAbortedBody: 'Die App wurde mitten im Wirken geschlossen und der Zauber wurde nicht abgeschlossen. Deine Eingabe ist gespeichert — versuche es erneut, wenn du bereit bist.',
+        genErrorRetry: 'Erneut versuchen',
+        genErrorDismiss: 'Schließen',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'KI-Anbieter',
@@ -3487,6 +3657,21 @@ export const translations = {
         reportBugAttach: 'Allega incantesimo (opzionale)',
         reportBugIncludeStorage: "Includi dati dell'incantesimo",
         reportBugNoEmail: 'Nessuna app email trovata. Invia la tua segnalazione a:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Benvenuto in Appacadabra',
+        obWelcomeSub: 'Mini-app magiche che crei con l\'IA. Accedi per sincronizzare i tuoi incantesimi tra i dispositivi, o continua senza un account.',
+        obWelcomeContinue: 'Continua senza accedere',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Scopri cosa possono fare gli incantesimi',
+        obDiscoverSub: 'Questi sono gli incantesimi più amati dalla community. Tocca per impararne uno.',
+        obDiscoverEmpty: 'Impossibile caricare gli incantesimi ora. Potrai sfogliarli più tardi dalla schermata principale.',
+        obDiscoverLearn: 'Impara',
+        obDiscoverLearning: 'Aggiunta…',
+        storeSection: 'Store pubblico',
+        noStoreResults: 'Nessun incantesimo pubblico corrisponde a questa ricerca.',
+        obDiscoverLearned: 'Aggiunto ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Crea incantesimi con la tua chiave IA',
         obKeySub: 'Appacadabra è gratuito. Tu porti una chiave OpenRouter e paghi i provider direttamente, senza ricarichi.',
@@ -3495,6 +3680,8 @@ export const translations = {
         obKeyBenefit3: 'La tua chiave resta su questo dispositivo. Non passa mai dai nostri server.',
         obKeySetupCta: 'Configura la mia chiave',
         obKeyLaterCta: 'Fallo più tardi',
+        obContinue: 'Continua',
+        obSkip: 'Salta per ora',
 
         // CostEstimateModal
         costEstimateTitle: 'Conferma {operation}',
@@ -3516,6 +3703,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Aggiungi la tua chiave OpenRouter per modificare gli incantesimi con l\'IA.',
         noKeyConfiguredSetup: 'Configura chiave',
         noKeyConfiguredCancel: 'Non ora',
+
+        // GenerationErrorModal — errori di creazione/modifica di incantesimi mappati ai codici di errore di OpenRouter
+        genErrorNoKeyTitle: 'Chiave OpenRouter necessaria',
+        genErrorNoKeyBody: 'Non hai ancora collegato una chiave OpenRouter. La generazione degli incantesimi usa la tua chiave — configurane una per continuare.',
+        genErrorNoKeyCta: 'Configura chiave',
+        genErrorInvalidKeyTitle: 'Chiave rifiutata',
+        genErrorInvalidKeyBody: 'OpenRouter ha rifiutato la tua chiave. Potrebbe essere stata revocata o copiata male. Aggiornala per continuare.',
+        genErrorInvalidKeyCta: 'Aggiorna chiave',
+        genErrorOutOfCreditTitle: 'Credito OpenRouter esaurito',
+        genErrorOutOfCreditBody: 'Il tuo saldo OpenRouter è vuoto. Ricarica per continuare a lanciare incantesimi.',
+        genErrorOutOfCreditCta: 'Aggiungi credito',
+        genErrorRateLimitedTitle: 'Un momento',
+        genErrorRateLimitedBody: 'OpenRouter sta limitando le richieste. Aspetta un minuto e riprova.',
+        genErrorGenericTitle: "L'incantesimo è fallito",
+        genErrorGenericBody: 'Qualcosa è andato storto nella chiamata a OpenRouter. La tua richiesta è stata salvata — riprova.',
+        genErrorAbortedTitle: "L'incantesimo è stato interrotto",
+        genErrorAbortedBody: "L'app si è chiusa durante il lancio e l'incantesimo non è terminato. La tua richiesta è conservata — riprova quando vuoi.",
+        genErrorRetry: 'Riprova',
+        genErrorDismiss: 'Chiudi',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'Provider IA',
@@ -3997,6 +4203,21 @@ export const translations = {
         reportBugAttach: 'スペルを添付 (任意)',
         reportBugIncludeStorage: 'スペルデータを含める',
         reportBugNoEmail: 'メールアプリが見つかりません。レポートを送信してください:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Appacadabraへようこそ',
+        obWelcomeSub: 'AIで作る魔法のミニアプリ。サインインして呪文をデバイス間で同期するか、アカウントなしで続行できます。',
+        obWelcomeContinue: 'サインインせずに続行',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: '呪文でできることを発見',
+        obDiscoverSub: 'コミュニティで人気の呪文です。タップして習得しましょう。',
+        obDiscoverEmpty: '呪文を読み込めませんでした。後でホーム画面から閲覧できます。',
+        obDiscoverLearn: '習得',
+        obDiscoverLearning: '追加中…',
+        storeSection: '公開ストア',
+        noStoreResults: 'その検索に一致する公開呪文はありません。',
+        obDiscoverLearned: '追加済み ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: '自分のAIキーで呪文を作成',
         obKeySub: 'Appacadabraは無料です。OpenRouterキーをご用意いただき、上乗せなしでプロバイダーに直接お支払いください。',
@@ -4005,6 +4226,8 @@ export const translations = {
         obKeyBenefit3: 'キーはこの端末に保存されます。当社のサーバーには送信されません。',
         obKeySetupCta: 'キーを設定する',
         obKeyLaterCta: '後で設定する',
+        obContinue: '続行',
+        obSkip: '今はスキップ',
 
         // CostEstimateModal
         costEstimateTitle: '{operation}を確認',
@@ -4026,6 +4249,25 @@ export const translations = {
         noKeyConfiguredEdit: 'OpenRouterキーを追加してAIで呪文を編集しましょう。',
         noKeyConfiguredSetup: 'キーを設定',
         noKeyConfiguredCancel: '後で',
+
+        // GenerationErrorModal — 呪文の生成/編集失敗、OpenRouterのエラーコードに対応
+        genErrorNoKeyTitle: 'OpenRouterキーが必要です',
+        genErrorNoKeyBody: 'OpenRouterキーがまだ接続されていません。呪文の生成はご自身のキーで行います。続けるには設定してください。',
+        genErrorNoKeyCta: 'キーを設定',
+        genErrorInvalidKeyTitle: 'キーが拒否されました',
+        genErrorInvalidKeyBody: 'OpenRouterがキーを拒否しました。無効化されたか、コピーが正しくない可能性があります。更新して続行してください。',
+        genErrorInvalidKeyCta: 'キーを更新',
+        genErrorOutOfCreditTitle: 'OpenRouterの残高がありません',
+        genErrorOutOfCreditBody: 'OpenRouterの残高が空です。チャージして呪文を唱え続けましょう。',
+        genErrorOutOfCreditCta: 'クレジットを追加',
+        genErrorRateLimitedTitle: '少しお待ちください',
+        genErrorRateLimitedBody: 'OpenRouterがリクエストを制限しています。1分ほど待ってから再試行してください。',
+        genErrorGenericTitle: '呪文の詠唱に失敗しました',
+        genErrorGenericBody: 'OpenRouterの呼び出しで問題が発生しました。入力した内容は保存されています。もう一度お試しください。',
+        genErrorAbortedTitle: '呪文が中断されました',
+        genErrorAbortedBody: '詠唱の途中でアプリが閉じられ、呪文が完了しませんでした。入力した内容は保存されています。準備ができたら再試行してください。',
+        genErrorRetry: '再試行',
+        genErrorDismiss: '閉じる',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'AIプロバイダー',
@@ -4514,6 +4756,21 @@ export const translations = {
         reportBugAttach: '附加法术（可选）',
         reportBugIncludeStorage: '包含法术数据',
         reportBugNoEmail: '未找到邮件应用。请将报告发送至:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: '欢迎使用 Appacadabra',
+        obWelcomeSub: '由您用 AI 创建的魔法小应用。登录以在设备之间同步您的咒语，或不登录继续使用。',
+        obWelcomeContinue: '不登录继续',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: '看看咒语能做什么',
+        obDiscoverSub: '这些是社区最受欢迎的咒语。点击即可学习。',
+        obDiscoverEmpty: '现在无法加载咒语。稍后您可以在主屏幕浏览。',
+        obDiscoverLearn: '学习',
+        obDiscoverLearning: '添加中…',
+        storeSection: '公开商店',
+        noStoreResults: '没有匹配该搜索的公开咒语。',
+        obDiscoverLearned: '已添加 ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: '使用您自己的 AI 密钥施放咒语',
         obKeySub: 'Appacadabra 免费使用。您提供 OpenRouter 密钥，直接向服务商付费——不加价。',
@@ -4522,6 +4779,8 @@ export const translations = {
         obKeyBenefit3: '您的密钥保存在本设备上，从不经过我们的服务器。',
         obKeySetupCta: '设置我的密钥',
         obKeyLaterCta: '稍后再做',
+        obContinue: '继续',
+        obSkip: '暂时跳过',
 
         // CostEstimateModal
         costEstimateTitle: '确认{operation}',
@@ -4543,6 +4802,25 @@ export const translations = {
         noKeyConfiguredEdit: '添加您的 OpenRouter 密钥即可使用 AI 编辑咒语。',
         noKeyConfiguredSetup: '设置密钥',
         noKeyConfiguredCancel: '暂不',
+
+        // GenerationErrorModal — 咒语创建/编辑失败，按 OpenRouter 错误代码分类
+        genErrorNoKeyTitle: '需要 OpenRouter 密钥',
+        genErrorNoKeyBody: '您还没有连接 OpenRouter 密钥。咒语生成使用您自己的密钥——请配置一个以继续。',
+        genErrorNoKeyCta: '设置密钥',
+        genErrorInvalidKeyTitle: '密钥被拒绝',
+        genErrorInvalidKeyBody: 'OpenRouter 拒绝了您的密钥。可能已被吊销或复制有误。请更新后继续。',
+        genErrorInvalidKeyCta: '更新密钥',
+        genErrorOutOfCreditTitle: 'OpenRouter 余额不足',
+        genErrorOutOfCreditBody: '您的 OpenRouter 余额已用完。请充值以继续施放咒语。',
+        genErrorOutOfCreditCta: '充值',
+        genErrorRateLimitedTitle: '请稍等片刻',
+        genErrorRateLimitedBody: 'OpenRouter 正在限流。请等待一分钟后再试。',
+        genErrorGenericTitle: '咒语施放失败',
+        genErrorGenericBody: '调用 OpenRouter 时出错。您输入的内容已保存——请重试。',
+        genErrorAbortedTitle: '咒语被中断',
+        genErrorAbortedBody: '应用在施放过程中被关闭，咒语未完成。您输入的内容已保留——准备好后请重试。',
+        genErrorRetry: '重试',
+        genErrorDismiss: '关闭',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'AI 服务商',
@@ -5031,6 +5309,21 @@ export const translations = {
         reportBugAttach: '스펠 첨부 (선택)',
         reportBugIncludeStorage: '스펠 데이터 포함',
         reportBugNoEmail: '이메일 앱을 찾을 수 없습니다. 보고서를 보내주세요:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Appacadabra에 오신 것을 환영합니다',
+        obWelcomeSub: 'AI로 만드는 마법 같은 미니 앱. 로그인하여 주문을 기기 간에 동기화하거나, 계정 없이 계속 사용할 수 있어요.',
+        obWelcomeContinue: '로그인 없이 계속',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: '주문으로 무엇을 할 수 있는지 살펴보세요',
+        obDiscoverSub: '커뮤니티에서 가장 사랑받는 주문입니다. 탭하여 배워보세요.',
+        obDiscoverEmpty: '지금은 주문을 불러올 수 없습니다. 나중에 홈 화면에서 둘러볼 수 있어요.',
+        obDiscoverLearn: '배우기',
+        obDiscoverLearning: '추가 중…',
+        storeSection: '공개 스토어',
+        noStoreResults: '해당 검색과 일치하는 공개 주문이 없습니다.',
+        obDiscoverLearned: '추가됨 ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: '내 AI 키로 주문을 만들어 보세요',
         obKeySub: 'Appacadabra는 무료입니다. OpenRouter 키를 가져오시면 추가 요금 없이 제공자에게 직접 결제됩니다.',
@@ -5039,6 +5332,8 @@ export const translations = {
         obKeyBenefit3: '키는 이 기기에만 저장되며 당사 서버를 거치지 않습니다.',
         obKeySetupCta: '내 키 설정하기',
         obKeyLaterCta: '나중에 하기',
+        obContinue: '계속',
+        obSkip: '지금은 건너뛰기',
 
         // CostEstimateModal
         costEstimateTitle: '{operation} 확인',
@@ -5060,6 +5355,25 @@ export const translations = {
         noKeyConfiguredEdit: 'AI로 주문을 편집하려면 OpenRouter 키를 추가하세요.',
         noKeyConfiguredSetup: '키 설정',
         noKeyConfiguredCancel: '나중에',
+
+        // GenerationErrorModal — 주문 생성/편집 실패, OpenRouter 오류 코드별
+        genErrorNoKeyTitle: 'OpenRouter 키가 필요합니다',
+        genErrorNoKeyBody: '아직 OpenRouter 키를 연결하지 않았습니다. 주문 생성은 본인의 키로 실행됩니다. 계속하려면 설정하세요.',
+        genErrorNoKeyCta: '키 설정',
+        genErrorInvalidKeyTitle: '키가 거부되었습니다',
+        genErrorInvalidKeyBody: 'OpenRouter가 키를 거부했습니다. 폐기되었거나 잘못 복사된 것일 수 있습니다. 업데이트 후 계속하세요.',
+        genErrorInvalidKeyCta: '키 업데이트',
+        genErrorOutOfCreditTitle: 'OpenRouter 잔액 부족',
+        genErrorOutOfCreditBody: 'OpenRouter 잔액이 비었습니다. 충전하고 계속 주문을 외워보세요.',
+        genErrorOutOfCreditCta: '크레딧 추가',
+        genErrorRateLimitedTitle: '잠시만 기다려 주세요',
+        genErrorRateLimitedBody: 'OpenRouter가 요청을 제한하고 있습니다. 1분 뒤에 다시 시도하세요.',
+        genErrorGenericTitle: '주문을 외우지 못했습니다',
+        genErrorGenericBody: 'OpenRouter 호출 중 문제가 발생했습니다. 입력한 내용은 저장되었습니다. 다시 시도하세요.',
+        genErrorAbortedTitle: '주문이 중단되었습니다',
+        genErrorAbortedBody: '외우는 도중 앱이 종료되어 주문이 완료되지 않았습니다. 입력한 내용은 보관되어 있습니다. 준비되면 다시 시도하세요.',
+        genErrorRetry: '다시 시도',
+        genErrorDismiss: '닫기',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'AI 제공자',
@@ -5548,6 +5862,21 @@ export const translations = {
         reportBugAttach: 'إرفاق تعويذة (اختياري)',
         reportBugIncludeStorage: 'تضمين بيانات التعويذة',
         reportBugNoEmail: 'لم يتم العثور على تطبيق بريد. أرسل تقريرك إلى:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'مرحبًا بك في Appacadabra',
+        obWelcomeSub: 'تطبيقات مصغّرة سحرية تنشئها بالذكاء الاصطناعي. سجّل الدخول لمزامنة تعويذاتك بين الأجهزة، أو تابع بدون حساب.',
+        obWelcomeContinue: 'المتابعة بدون تسجيل الدخول',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'اكتشف ما يمكن للتعويذات فعله',
+        obDiscoverSub: 'هذه التعويذات الأكثر شعبية في المجتمع. اضغط على واحدة لتتعلمها.',
+        obDiscoverEmpty: 'تعذّر تحميل التعويذات الآن. يمكنك تصفّحها لاحقًا من الشاشة الرئيسية.',
+        obDiscoverLearn: 'تعلّم',
+        obDiscoverLearning: 'جارٍ الإضافة…',
+        storeSection: 'المتجر العام',
+        noStoreResults: 'لا توجد تعويذات عامة تطابق هذا البحث.',
+        obDiscoverLearned: 'تمت الإضافة ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'أنشئ التعويذات بمفتاح الذكاء الاصطناعي الخاص بك',
         obKeySub: 'Appacadabra مجاني. تُحضر مفتاح OpenRouter وتدفع للمزوّدين مباشرةً — بدون أي زيادة.',
@@ -5556,6 +5885,8 @@ export const translations = {
         obKeyBenefit3: 'يبقى مفتاحك على هذا الجهاز ولا يصل إلى خوادمنا أبدًا.',
         obKeySetupCta: 'إعداد مفتاحي',
         obKeyLaterCta: 'القيام بذلك لاحقًا',
+        obContinue: 'متابعة',
+        obSkip: 'تخطٍّ الآن',
 
         // CostEstimateModal
         costEstimateTitle: 'تأكيد {operation}',
@@ -5577,6 +5908,25 @@ export const translations = {
         noKeyConfiguredEdit: 'أضف مفتاح OpenRouter الخاص بك لتعديل التعويذات بالذكاء الاصطناعي.',
         noKeyConfiguredSetup: 'إعداد المفتاح',
         noKeyConfiguredCancel: 'ليس الآن',
+
+        // GenerationErrorModal — أخطاء إنشاء/تعديل التعويذة المرتبطة برموز أخطاء OpenRouter
+        genErrorNoKeyTitle: 'مفتاح OpenRouter مطلوب',
+        genErrorNoKeyBody: 'لم تربط بعد مفتاح OpenRouter. يعتمد إنشاء التعويذات على مفتاحك الخاص — أعدّ مفتاحًا للمتابعة.',
+        genErrorNoKeyCta: 'إعداد المفتاح',
+        genErrorInvalidKeyTitle: 'تم رفض المفتاح',
+        genErrorInvalidKeyBody: 'رفض OpenRouter مفتاحك. قد يكون قد أُلغي أو نُسخ بشكل خاطئ. قم بتحديثه للمتابعة.',
+        genErrorInvalidKeyCta: 'تحديث المفتاح',
+        genErrorOutOfCreditTitle: 'نفد رصيد OpenRouter',
+        genErrorOutOfCreditBody: 'رصيدك في OpenRouter فارغ. قم بشحنه لمواصلة إطلاق التعويذات.',
+        genErrorOutOfCreditCta: 'إضافة رصيد',
+        genErrorRateLimitedTitle: 'تمهّل لحظة',
+        genErrorRateLimitedBody: 'يحدّ OpenRouter من الطلبات حاليًا. انتظر دقيقة وحاول مرة أخرى.',
+        genErrorGenericTitle: 'فشلت التعويذة',
+        genErrorGenericBody: 'حدث خطأ أثناء الاتصال بـ OpenRouter. تم حفظ طلبك — حاول مرة أخرى.',
+        genErrorAbortedTitle: 'تمت مقاطعة التعويذة',
+        genErrorAbortedBody: 'أُغلق التطبيق أثناء التنفيذ ولم تكتمل التعويذة. تم الاحتفاظ بطلبك — حاول مرة أخرى عندما تكون جاهزًا.',
+        genErrorRetry: 'إعادة المحاولة',
+        genErrorDismiss: 'إغلاق',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'مزوّد الذكاء الاصطناعي',
@@ -6065,6 +6415,21 @@ export const translations = {
         reportBugAttach: 'स्पेल संलग्न करें (वैकल्पिक)',
         reportBugIncludeStorage: 'स्पेल डेटा शामिल करें',
         reportBugNoEmail: 'कोई ईमेल ऐप नहीं मिला। अपनी रिपोर्ट यहाँ भेजें:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Appacadabra में आपका स्वागत है',
+        obWelcomeSub: 'जादुई मिनी-ऐप्स जिन्हें आप AI से बनाते हैं। डिवाइसों के बीच अपने जादू सिंक करने के लिए साइन इन करें, या बिना खाते के जारी रखें।',
+        obWelcomeContinue: 'बिना साइन इन किए जारी रखें',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'जानें कि जादू क्या कर सकते हैं',
+        obDiscoverSub: 'ये समुदाय के सबसे पसंदीदा जादू हैं। इन्हें सीखने के लिए टैप करें।',
+        obDiscoverEmpty: 'अभी जादू लोड नहीं हो सके। आप उन्हें बाद में होम स्क्रीन से ब्राउज़ कर सकते हैं।',
+        obDiscoverLearn: 'सीखें',
+        obDiscoverLearning: 'जोड़ा जा रहा है…',
+        storeSection: 'सार्वजनिक स्टोर',
+        noStoreResults: 'उस खोज से मेल खाने वाला कोई सार्वजनिक जादू नहीं।',
+        obDiscoverLearned: 'जोड़ा गया ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'अपनी AI कुंजी से जादू बनाएँ',
         obKeySub: 'Appacadabra मुफ़्त है। आप OpenRouter कुंजी लाते हैं और सेवा प्रदाताओं को सीधे भुगतान करते हैं — कोई अतिरिक्त शुल्क नहीं।',
@@ -6073,6 +6438,8 @@ export const translations = {
         obKeyBenefit3: 'आपकी कुंजी इसी डिवाइस पर रहती है। यह हमारे सर्वर तक कभी नहीं पहुँचती।',
         obKeySetupCta: 'मेरी कुंजी सेट करें',
         obKeyLaterCta: 'यह बाद में करें',
+        obContinue: 'जारी रखें',
+        obSkip: 'अभी छोड़ें',
 
         // CostEstimateModal
         costEstimateTitle: '{operation} की पुष्टि करें',
@@ -6094,6 +6461,25 @@ export const translations = {
         noKeyConfiguredEdit: 'AI से जादू संपादित करने के लिए अपनी OpenRouter कुंजी जोड़ें।',
         noKeyConfiguredSetup: 'कुंजी सेट करें',
         noKeyConfiguredCancel: 'अभी नहीं',
+
+        // GenerationErrorModal — जादू बनाने/संपादित करने में विफलताएँ, OpenRouter त्रुटि कोड के अनुसार
+        genErrorNoKeyTitle: 'OpenRouter कुंजी आवश्यक',
+        genErrorNoKeyBody: 'आपने अभी तक OpenRouter कुंजी कनेक्ट नहीं की है। जादू बनाना आपकी अपनी कुंजी पर चलता है — जारी रखने के लिए एक सेट करें।',
+        genErrorNoKeyCta: 'कुंजी सेट करें',
+        genErrorInvalidKeyTitle: 'कुंजी अस्वीकार कर दी गई',
+        genErrorInvalidKeyBody: 'OpenRouter ने आपकी कुंजी अस्वीकार कर दी। हो सकता है कि वह रद्द हो गई हो या गलत कॉपी हुई हो। जारी रखने के लिए इसे अपडेट करें।',
+        genErrorInvalidKeyCta: 'कुंजी अपडेट करें',
+        genErrorOutOfCreditTitle: 'OpenRouter में क्रेडिट समाप्त',
+        genErrorOutOfCreditBody: 'आपका OpenRouter बैलेंस खाली है। जादू चलाते रहने के लिए टॉप-अप करें।',
+        genErrorOutOfCreditCta: 'क्रेडिट जोड़ें',
+        genErrorRateLimitedTitle: 'ज़रा रुकिए',
+        genErrorRateLimitedBody: 'OpenRouter अनुरोधों को सीमित कर रहा है। एक मिनट रुकें और फिर से प्रयास करें।',
+        genErrorGenericTitle: 'जादू चलाने में विफल',
+        genErrorGenericBody: 'OpenRouter को कॉल करते समय कुछ गलत हो गया। आपका विवरण सहेज लिया गया है — फिर से प्रयास करें।',
+        genErrorAbortedTitle: 'जादू बीच में रुक गया',
+        genErrorAbortedBody: 'जादू चलाते समय ऐप बंद हो गया और जादू पूरा नहीं हुआ। आपका विवरण सुरक्षित है — तैयार होने पर फिर से प्रयास करें।',
+        genErrorRetry: 'फिर से प्रयास करें',
+        genErrorDismiss: 'खारिज करें',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'AI प्रदाता',
@@ -6582,6 +6968,21 @@ export const translations = {
         reportBugAttach: 'Прикрепить заклинание (необязательно)',
         reportBugIncludeStorage: 'Включить данные заклинания',
         reportBugNoEmail: 'Почтовое приложение не найдено. Отправьте отчёт на:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Добро пожаловать в Appacadabra',
+        obWelcomeSub: 'Волшебные мини-приложения, которые вы создаёте с помощью ИИ. Войдите, чтобы синхронизировать ваши заклинания между устройствами, или продолжите без аккаунта.',
+        obWelcomeContinue: 'Продолжить без входа',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Узнайте, на что способны заклинания',
+        obDiscoverSub: 'Это самые любимые заклинания сообщества. Нажмите на любое, чтобы выучить его.',
+        obDiscoverEmpty: 'Сейчас не удалось загрузить заклинания. Вы сможете посмотреть их позже на главном экране.',
+        obDiscoverLearn: 'Выучить',
+        obDiscoverLearning: 'Добавление…',
+        storeSection: 'Публичный магазин',
+        noStoreResults: 'Нет публичных заклинаний по этому запросу.',
+        obDiscoverLearned: 'Добавлено ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Создавайте заклинания со своим ключом ИИ',
         obKeySub: 'Appacadabra бесплатен. Вы приносите ключ OpenRouter и платите провайдерам напрямую — без наценок.',
@@ -6590,6 +6991,8 @@ export const translations = {
         obKeyBenefit3: 'Ваш ключ остаётся на этом устройстве и никогда не попадает на наши серверы.',
         obKeySetupCta: 'Настроить мой ключ',
         obKeyLaterCta: 'Сделать это позже',
+        obContinue: 'Продолжить',
+        obSkip: 'Пропустить',
 
         // CostEstimateModal
         costEstimateTitle: 'Подтвердить {operation}',
@@ -6611,6 +7014,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Добавьте ключ OpenRouter, чтобы редактировать заклинания с помощью ИИ.',
         noKeyConfiguredSetup: 'Настроить ключ',
         noKeyConfiguredCancel: 'Не сейчас',
+
+        // GenerationErrorModal — ошибки создания/редактирования заклинаний по кодам ошибок OpenRouter
+        genErrorNoKeyTitle: 'Нужен ключ OpenRouter',
+        genErrorNoKeyBody: 'Вы ещё не подключили ключ OpenRouter. Генерация заклинаний работает на вашем ключе — настройте его, чтобы продолжить.',
+        genErrorNoKeyCta: 'Настроить ключ',
+        genErrorInvalidKeyTitle: 'Ключ отклонён',
+        genErrorInvalidKeyBody: 'OpenRouter отклонил ваш ключ. Возможно, он отозван или скопирован с ошибкой. Обновите его, чтобы продолжить.',
+        genErrorInvalidKeyCta: 'Обновить ключ',
+        genErrorOutOfCreditTitle: 'На OpenRouter нет средств',
+        genErrorOutOfCreditBody: 'Баланс OpenRouter пуст. Пополните его, чтобы и дальше колдовать заклинания.',
+        genErrorOutOfCreditCta: 'Пополнить баланс',
+        genErrorRateLimitedTitle: 'Подождите минутку',
+        genErrorRateLimitedBody: 'OpenRouter ограничивает запросы. Подождите минуту и попробуйте снова.',
+        genErrorGenericTitle: 'Заклинание не сработало',
+        genErrorGenericBody: 'При обращении к OpenRouter что-то пошло не так. Ваш запрос сохранён — попробуйте ещё раз.',
+        genErrorAbortedTitle: 'Заклинание было прервано',
+        genErrorAbortedBody: 'Приложение закрылось во время колдовства, и заклинание не завершилось. Ваш запрос сохранён — попробуйте снова, когда будете готовы.',
+        genErrorRetry: 'Попробовать снова',
+        genErrorDismiss: 'Закрыть',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'Провайдер ИИ',
@@ -7097,6 +7519,21 @@ export const translations = {
         reportBugAttach: 'Büyü ekle (isteğe bağlı)',
         reportBugIncludeStorage: 'Spell verilerini ekle',
         reportBugNoEmail: 'E-posta uygulaması bulunamadı. Raporunuzu gönderin:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Appacadabra\'ya hoş geldin',
+        obWelcomeSub: 'Yapay zekâ ile oluşturduğun büyülü mini uygulamalar. Büyülerini cihazlar arasında senkronize etmek için oturum aç ya da hesapsız devam et.',
+        obWelcomeContinue: 'Oturum açmadan devam et',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Büyülerin neler yapabildiğini keşfet',
+        obDiscoverSub: 'Bunlar topluluğun en sevdiği büyüler. Birini öğrenmek için dokun.',
+        obDiscoverEmpty: 'Büyüler şu anda yüklenemedi. Daha sonra ana ekrandan göz atabilirsin.',
+        obDiscoverLearn: 'Öğren',
+        obDiscoverLearning: 'Ekleniyor…',
+        storeSection: 'Herkese açık mağaza',
+        noStoreResults: 'Bu aramayla eşleşen herkese açık büyü yok.',
+        obDiscoverLearned: 'Eklendi ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Kendi yapay zeka anahtarınla büyüler oluştur',
         obKeySub: 'Appacadabra ücretsizdir. OpenRouter anahtarını sen getiriyorsun ve sağlayıcılara doğrudan ödeme yapıyorsun — ek ücret yok.',
@@ -7105,6 +7542,8 @@ export const translations = {
         obKeyBenefit3: 'Anahtarın bu cihazda kalır. Sunucularımıza asla ulaşmaz.',
         obKeySetupCta: 'Anahtarımı ayarla',
         obKeyLaterCta: 'Bunu sonra yap',
+        obContinue: 'Devam et',
+        obSkip: 'Şimdilik atla',
 
         // CostEstimateModal
         costEstimateTitle: '{operation} işlemini onayla',
@@ -7126,6 +7565,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Büyüleri yapay zekayla düzenlemek için OpenRouter anahtarını ekle.',
         noKeyConfiguredSetup: 'Anahtarı ayarla',
         noKeyConfiguredCancel: 'Şimdi değil',
+
+        // GenerationErrorModal — büyü oluşturma/düzenleme hataları, OpenRouter hata kodlarına göre
+        genErrorNoKeyTitle: 'OpenRouter anahtarı gerekli',
+        genErrorNoKeyBody: 'Henüz bir OpenRouter anahtarı bağlamadın. Büyü oluşturma kendi anahtarınla çalışır — devam etmek için bir tane ayarla.',
+        genErrorNoKeyCta: 'Anahtarı ayarla',
+        genErrorInvalidKeyTitle: 'Anahtar reddedildi',
+        genErrorInvalidKeyBody: 'OpenRouter anahtarını reddetti. İptal edilmiş veya yanlış kopyalanmış olabilir. Devam etmek için güncelle.',
+        genErrorInvalidKeyCta: 'Anahtarı güncelle',
+        genErrorOutOfCreditTitle: 'OpenRouter kredisi tükendi',
+        genErrorOutOfCreditBody: 'OpenRouter bakiyen boş. Büyü yapmaya devam etmek için yükleme yap.',
+        genErrorOutOfCreditCta: 'Kredi ekle',
+        genErrorRateLimitedTitle: 'Biraz yavaşla',
+        genErrorRateLimitedBody: 'OpenRouter istekleri sınırlandırıyor. Bir dakika bekle ve tekrar dene.',
+        genErrorGenericTitle: 'Büyü yapılamadı',
+        genErrorGenericBody: 'OpenRouter çağrılırken bir şeyler ters gitti. İsteğin kaydedildi — tekrar dene.',
+        genErrorAbortedTitle: 'Büyü yarıda kaldı',
+        genErrorAbortedBody: 'Büyü yapılırken uygulama kapandı ve büyü tamamlanmadı. İsteğin korundu — hazır olduğunda tekrar dene.',
+        genErrorRetry: 'Tekrar dene',
+        genErrorDismiss: 'Kapat',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'Yapay zeka sağlayıcısı',
@@ -7613,6 +8071,21 @@ export const translations = {
         reportBugAttach: 'Spreuk bijvoegen (optioneel)',
         reportBugIncludeStorage: 'Speldata opnemen',
         reportBugNoEmail: 'Geen e-mailapp gevonden. Stuur je rapport naar:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Welkom bij Appacadabra',
+        obWelcomeSub: 'Magische mini-apps die je maakt met AI. Log in om je spreuken tussen apparaten te synchroniseren, of ga verder zonder account.',
+        obWelcomeContinue: 'Doorgaan zonder inloggen',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Ontdek wat spreuken kunnen doen',
+        obDiscoverSub: 'Dit zijn de populairste spreuken van de community. Tik er op een om hem te leren.',
+        obDiscoverEmpty: 'Spreuken kunnen nu niet worden geladen. Je kunt ze later bekijken vanaf het startscherm.',
+        obDiscoverLearn: 'Leren',
+        obDiscoverLearning: 'Toevoegen…',
+        storeSection: 'Openbare store',
+        noStoreResults: 'Geen openbare spreuken komen overeen met die zoekopdracht.',
+        obDiscoverLearned: 'Toegevoegd ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Maak spreuken met je eigen AI-sleutel',
         obKeySub: 'Appacadabra is gratis. Jij brengt een OpenRouter-sleutel mee en betaalt providers rechtstreeks — zonder opslag.',
@@ -7621,6 +8094,8 @@ export const translations = {
         obKeyBenefit3: 'Je sleutel blijft op dit apparaat. Hij bereikt onze servers nooit.',
         obKeySetupCta: 'Mijn sleutel instellen',
         obKeyLaterCta: 'Doe dit later',
+        obContinue: 'Doorgaan',
+        obSkip: 'Nu overslaan',
 
         // CostEstimateModal
         costEstimateTitle: '{operation} bevestigen',
@@ -7642,6 +8117,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Voeg je OpenRouter-sleutel toe om spreuken met AI te bewerken.',
         noKeyConfiguredSetup: 'Sleutel instellen',
         noKeyConfiguredCancel: 'Niet nu',
+
+        // GenerationErrorModal — fouten bij spreuk maken/bewerken, gekoppeld aan OpenRouter-foutcodes
+        genErrorNoKeyTitle: 'OpenRouter-sleutel vereist',
+        genErrorNoKeyBody: 'Je hebt nog geen OpenRouter-sleutel verbonden. Spreukgeneratie draait op je eigen sleutel — stel er een in om door te gaan.',
+        genErrorNoKeyCta: 'Sleutel instellen',
+        genErrorInvalidKeyTitle: 'Sleutel geweigerd',
+        genErrorInvalidKeyBody: 'OpenRouter heeft je sleutel geweigerd. Hij is mogelijk ingetrokken of verkeerd gekopieerd. Werk hem bij om door te gaan.',
+        genErrorInvalidKeyCta: 'Sleutel bijwerken',
+        genErrorOutOfCreditTitle: 'Geen OpenRouter-tegoed meer',
+        genErrorOutOfCreditBody: 'Je OpenRouter-saldo is leeg. Vul aan om spreuken te blijven uitspreken.',
+        genErrorOutOfCreditCta: 'Tegoed toevoegen',
+        genErrorRateLimitedTitle: 'Even rustig',
+        genErrorRateLimitedBody: 'OpenRouter beperkt je verzoeken. Wacht een minuutje en probeer opnieuw.',
+        genErrorGenericTitle: 'Spreuk mislukt',
+        genErrorGenericBody: 'Er ging iets mis bij het aanroepen van OpenRouter. Je invoer is opgeslagen — probeer opnieuw.',
+        genErrorAbortedTitle: 'Spreuk werd onderbroken',
+        genErrorAbortedBody: 'De app sloot tijdens het uitspreken en de spreuk is niet voltooid. Je invoer is bewaard — probeer opnieuw wanneer je klaar bent.',
+        genErrorRetry: 'Opnieuw proberen',
+        genErrorDismiss: 'Sluiten',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'AI-provider',
@@ -8131,6 +8625,21 @@ export const translations = {
         reportBugAttach: 'Dołącz zaklęcie (opcjonalnie)',
         reportBugIncludeStorage: 'Uwzględnij dane zaklęcia',
         reportBugNoEmail: 'Nie znaleziono aplikacji e-mail. Wyślij raport na:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Witaj w Appacadabra',
+        obWelcomeSub: 'Magiczne mini-aplikacje, które tworzysz z AI. Zaloguj się, aby synchronizować swoje zaklęcia między urządzeniami, lub kontynuuj bez konta.',
+        obWelcomeContinue: 'Kontynuuj bez logowania',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Odkryj, co potrafią zaklęcia',
+        obDiscoverSub: 'To najbardziej lubiane zaklęcia w społeczności. Dotknij jednego, aby się go nauczyć.',
+        obDiscoverEmpty: 'Nie udało się teraz wczytać zaklęć. Możesz je później przejrzeć z ekranu głównego.',
+        obDiscoverLearn: 'Naucz się',
+        obDiscoverLearning: 'Dodawanie…',
+        storeSection: 'Publiczny sklep',
+        noStoreResults: 'Brak publicznych zaklęć pasujących do wyszukiwania.',
+        obDiscoverLearned: 'Dodano ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Twórz zaklęcia z własnym kluczem AI',
         obKeySub: 'Appacadabra jest darmowe. Ty wnosisz klucz OpenRouter i płacisz dostawcom bezpośrednio — bez narzutu.',
@@ -8139,6 +8648,8 @@ export const translations = {
         obKeyBenefit3: 'Twój klucz pozostaje na tym urządzeniu. Nigdy nie trafia na nasze serwery.',
         obKeySetupCta: 'Skonfiguruj mój klucz',
         obKeyLaterCta: 'Zrób to później',
+        obContinue: 'Kontynuuj',
+        obSkip: 'Pomiń na razie',
 
         // CostEstimateModal
         costEstimateTitle: 'Potwierdź {operation}',
@@ -8160,6 +8671,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Dodaj swój klucz OpenRouter, aby edytować zaklęcia z AI.',
         noKeyConfiguredSetup: 'Skonfiguruj klucz',
         noKeyConfiguredCancel: 'Nie teraz',
+
+        // GenerationErrorModal — błędy tworzenia/edycji zaklęć powiązane z kodami błędów OpenRouter
+        genErrorNoKeyTitle: 'Wymagany klucz OpenRouter',
+        genErrorNoKeyBody: 'Nie podłączyłeś jeszcze klucza OpenRouter. Generowanie zaklęć działa na twoim własnym kluczu — skonfiguruj go, aby kontynuować.',
+        genErrorNoKeyCta: 'Skonfiguruj klucz',
+        genErrorInvalidKeyTitle: 'Klucz odrzucony',
+        genErrorInvalidKeyBody: 'OpenRouter odrzucił twój klucz. Mógł zostać unieważniony lub źle skopiowany. Zaktualizuj go, aby kontynuować.',
+        genErrorInvalidKeyCta: 'Zaktualizuj klucz',
+        genErrorOutOfCreditTitle: 'Brak środków w OpenRouter',
+        genErrorOutOfCreditBody: 'Twoje saldo OpenRouter jest puste. Doładuj, aby dalej rzucać zaklęcia.',
+        genErrorOutOfCreditCta: 'Dodaj środki',
+        genErrorRateLimitedTitle: 'Chwila przerwy',
+        genErrorRateLimitedBody: 'OpenRouter ogranicza liczbę żądań. Odczekaj minutę i spróbuj ponownie.',
+        genErrorGenericTitle: 'Nie udało się rzucić zaklęcia',
+        genErrorGenericBody: 'Coś poszło nie tak podczas wywołania OpenRouter. Twoja prośba została zapisana — spróbuj ponownie.',
+        genErrorAbortedTitle: 'Zaklęcie zostało przerwane',
+        genErrorAbortedBody: 'Aplikacja zamknęła się w trakcie rzucania i zaklęcie nie zostało ukończone. Twoja prośba została zachowana — spróbuj ponownie, gdy będziesz gotów.',
+        genErrorRetry: 'Spróbuj ponownie',
+        genErrorDismiss: 'Zamknij',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'Dostawca AI',
@@ -8649,6 +9179,21 @@ export const translations = {
         reportBugAttach: 'Đính kèm phép thuật (tuỳ chọn)',
         reportBugIncludeStorage: 'Bao gồm dữ liệu spell',
         reportBugNoEmail: 'Không tìm thấy ứng dụng email. Gửi báo cáo của bạn tới:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'Chào mừng đến với Appacadabra',
+        obWelcomeSub: 'Các mini-app ma thuật mà bạn tạo bằng AI. Đăng nhập để đồng bộ phép thuật của bạn giữa các thiết bị, hoặc tiếp tục mà không cần tài khoản.',
+        obWelcomeContinue: 'Tiếp tục mà không đăng nhập',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'Khám phá những gì phép thuật có thể làm',
+        obDiscoverSub: 'Đây là những phép thuật được cộng đồng yêu thích nhất. Nhấn để học một phép.',
+        obDiscoverEmpty: 'Không thể tải phép thuật ngay lúc này. Bạn có thể xem chúng sau trên màn hình chính.',
+        obDiscoverLearn: 'Học',
+        obDiscoverLearning: 'Đang thêm…',
+        storeSection: 'Cửa hàng công khai',
+        noStoreResults: 'Không có phép thuật công khai nào phù hợp với tìm kiếm đó.',
+        obDiscoverLearned: 'Đã thêm ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'Tạo phép thuật với khóa AI của riêng bạn',
         obKeySub: 'Appacadabra miễn phí. Bạn mang khóa OpenRouter và thanh toán trực tiếp cho nhà cung cấp — không phụ phí.',
@@ -8657,6 +9202,8 @@ export const translations = {
         obKeyBenefit3: 'Khóa của bạn ở lại trên thiết bị này. Không bao giờ chạm đến máy chủ của chúng tôi.',
         obKeySetupCta: 'Cài đặt khóa của tôi',
         obKeyLaterCta: 'Để sau',
+        obContinue: 'Tiếp tục',
+        obSkip: 'Bỏ qua bây giờ',
 
         // CostEstimateModal
         costEstimateTitle: 'Xác nhận {operation}',
@@ -8678,6 +9225,25 @@ export const translations = {
         noKeyConfiguredEdit: 'Thêm khóa OpenRouter để chỉnh sửa phép thuật bằng AI.',
         noKeyConfiguredSetup: 'Cài đặt khóa',
         noKeyConfiguredCancel: 'Để sau',
+
+        // GenerationErrorModal — lỗi tạo/chỉnh sửa phép thuật theo mã lỗi OpenRouter
+        genErrorNoKeyTitle: 'Cần khóa OpenRouter',
+        genErrorNoKeyBody: 'Bạn chưa kết nối khóa OpenRouter. Việc tạo phép thuật chạy trên khóa của riêng bạn — hãy cài đặt một khóa để tiếp tục.',
+        genErrorNoKeyCta: 'Cài đặt khóa',
+        genErrorInvalidKeyTitle: 'Khóa bị từ chối',
+        genErrorInvalidKeyBody: 'OpenRouter đã từ chối khóa của bạn. Có thể nó đã bị thu hồi hoặc sao chép sai. Cập nhật để tiếp tục.',
+        genErrorInvalidKeyCta: 'Cập nhật khóa',
+        genErrorOutOfCreditTitle: 'Hết tín dụng OpenRouter',
+        genErrorOutOfCreditBody: 'Số dư OpenRouter của bạn đã hết. Nạp thêm để tiếp tục thi triển phép thuật.',
+        genErrorOutOfCreditCta: 'Thêm tín dụng',
+        genErrorRateLimitedTitle: 'Chậm lại một chút',
+        genErrorRateLimitedBody: 'OpenRouter đang giới hạn yêu cầu. Chờ một phút rồi thử lại.',
+        genErrorGenericTitle: 'Thi triển phép thuật thất bại',
+        genErrorGenericBody: 'Đã có lỗi khi gọi OpenRouter. Yêu cầu của bạn đã được lưu — hãy thử lại.',
+        genErrorAbortedTitle: 'Phép thuật bị gián đoạn',
+        genErrorAbortedBody: 'Ứng dụng đóng giữa chừng và phép thuật chưa hoàn tất. Yêu cầu của bạn đã được giữ lại — thử lại khi sẵn sàng.',
+        genErrorRetry: 'Thử lại',
+        genErrorDismiss: 'Đóng',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'Nhà cung cấp AI',
@@ -9167,6 +9733,21 @@ export const translations = {
         reportBugAttach: 'แนบคาถา (ไม่บังคับ)',
         reportBugIncludeStorage: 'รวมข้อมูลสเปล',
         reportBugNoEmail: 'ไม่พบแอปอีเมล ส่งรายงานของคุณไปที่:',
+        // Onboarding — Screen 0 (Welcome)
+        obWelcomeTitle: 'ยินดีต้อนรับสู่ Appacadabra',
+        obWelcomeSub: 'มินิแอปแห่งเวทมนตร์ที่คุณสร้างด้วย AI ลงชื่อเข้าใช้เพื่อซิงค์คาถาของคุณระหว่างอุปกรณ์ หรือดำเนินการต่อโดยไม่มีบัญชี',
+        obWelcomeContinue: 'ดำเนินการต่อโดยไม่ลงชื่อเข้าใช้',
+
+        // Onboarding — Screen 1 (Discover)
+        obDiscoverTitle: 'มาดูกันว่าคาถาทำอะไรได้บ้าง',
+        obDiscoverSub: 'นี่คือคาถาที่ชุมชนชื่นชอบที่สุด แตะคาถาเพื่อเรียนรู้',
+        obDiscoverEmpty: 'ไม่สามารถโหลดคาถาได้ในตอนนี้ คุณสามารถดูได้ภายหลังจากหน้าจอหลัก',
+        obDiscoverLearn: 'เรียนรู้',
+        obDiscoverLearning: 'กำลังเพิ่ม…',
+        storeSection: 'ร้านค้าสาธารณะ',
+        noStoreResults: 'ไม่มีคาถาสาธารณะที่ตรงกับการค้นหา',
+        obDiscoverLearned: 'เพิ่มแล้ว ✓',
+
         // Onboarding — Screen 2 (BYOK pitch)
         obKeyTitle: 'สร้างคาถาด้วยคีย์ AI ของคุณเอง',
         obKeySub: 'Appacadabra ใช้ฟรี คุณนำคีย์ OpenRouter มาเอง และจ่ายผู้ให้บริการโดยตรง โดยไม่มีค่าใช้จ่ายเพิ่ม',
@@ -9175,6 +9756,8 @@ export const translations = {
         obKeyBenefit3: 'คีย์ของคุณอยู่บนอุปกรณ์นี้เท่านั้น ไม่เคยส่งไปยังเซิร์ฟเวอร์ของเรา',
         obKeySetupCta: 'ตั้งค่าคีย์ของฉัน',
         obKeyLaterCta: 'ทำภายหลัง',
+        obContinue: 'ดำเนินการต่อ',
+        obSkip: 'ข้ามไปก่อน',
 
         // CostEstimateModal
         costEstimateTitle: 'ยืนยัน {operation}',
@@ -9196,6 +9779,25 @@ export const translations = {
         noKeyConfiguredEdit: 'เพิ่มคีย์ OpenRouter ของคุณเพื่อแก้ไขคาถาด้วย AI',
         noKeyConfiguredSetup: 'ตั้งค่าคีย์',
         noKeyConfiguredCancel: 'ยังก่อน',
+
+        // GenerationErrorModal — ความล้มเหลวในการสร้าง/แก้ไขคาถาตามรหัสข้อผิดพลาดของ OpenRouter
+        genErrorNoKeyTitle: 'ต้องมีคีย์ OpenRouter',
+        genErrorNoKeyBody: 'คุณยังไม่ได้เชื่อมต่อคีย์ OpenRouter การสร้างคาถาทำงานบนคีย์ของคุณเอง — ตั้งค่าคีย์เพื่อดำเนินการต่อ',
+        genErrorNoKeyCta: 'ตั้งค่าคีย์',
+        genErrorInvalidKeyTitle: 'คีย์ถูกปฏิเสธ',
+        genErrorInvalidKeyBody: 'OpenRouter ปฏิเสธคีย์ของคุณ อาจถูกยกเลิกหรือคัดลอกผิด อัปเดตคีย์เพื่อดำเนินการต่อ',
+        genErrorInvalidKeyCta: 'อัปเดตคีย์',
+        genErrorOutOfCreditTitle: 'เครดิต OpenRouter หมด',
+        genErrorOutOfCreditBody: 'ยอดเงิน OpenRouter ของคุณหมดแล้ว เติมเงินเพื่อร่ายคาถาต่อ',
+        genErrorOutOfCreditCta: 'เติมเครดิต',
+        genErrorRateLimitedTitle: 'รอสักครู่',
+        genErrorRateLimitedBody: 'OpenRouter กำลังจำกัดคำขอ รอสักครู่แล้วลองอีกครั้ง',
+        genErrorGenericTitle: 'ร่ายคาถาไม่สำเร็จ',
+        genErrorGenericBody: 'เกิดข้อผิดพลาดขณะเรียก OpenRouter คำขอของคุณถูกบันทึกไว้แล้ว — ลองอีกครั้ง',
+        genErrorAbortedTitle: 'คาถาถูกขัดจังหวะ',
+        genErrorAbortedBody: 'แอปปิดลงระหว่างร่ายคาถาและคาถายังไม่เสร็จ คำขอของคุณถูกเก็บไว้แล้ว — ลองอีกครั้งเมื่อพร้อม',
+        genErrorRetry: 'ลองอีกครั้ง',
+        genErrorDismiss: 'ปิด',
 
         // Settings → OpenRouter screen
         openrouterScreenTitle: 'ผู้ให้บริการ AI',
