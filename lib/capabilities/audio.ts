@@ -208,21 +208,6 @@ window.onAudioResult = function(success, base64) {
                     const { audioBase64 } = ttsResult;
                     const costUsd = ttsResult.costUsd || 0;
 
-                    let permanentPath: string | undefined;
-                    if (ctx.appId && ctx.callbackName) {
-                        try {
-                            const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
-                            const dir = `${docDir}appacadabra_media/${ctx.appId}`;
-                            await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
-                            permanentPath = `${dir}/${ctx.callbackName}.wav`;
-                            await FileSystem.writeAsStringAsync(`file://${permanentPath}`, audioBase64.replace(/[\r\n]/g, ''), {
-                                encoding: FileSystem.EncodingType.Base64,
-                            });
-                        } catch (saveErr) {
-                            console.warn('[AUDIO_SPEAK_AI] Failed to save permanent file:', saveErr);
-                        }
-                    }
-
                     const fileUri = FileSystem.cacheDirectory + `tts_${Date.now()}.wav`;
                     await FileSystem.writeAsStringAsync(fileUri, audioBase64.replace(/[\r\n]/g, ''), {
                         encoding: FileSystem.EncodingType.Base64,
@@ -246,15 +231,8 @@ window.onAudioResult = function(success, base64) {
 
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
 
-                    let result: string;
-                    if (permanentPath && ctx.callbackName) {
-                        result = buildBlobMarker('audio/wav', ctx.callbackName, permanentPath);
-                        console.log(`[Bridge] AUDIO_SPEAK_AI returning blob marker: ${result}`);
-                    } else {
-                        result = audioBase64;
-                    }
-
-                    return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
+                    // Runner owns disk persistence, cache registration and chunked WebView delivery.
+                    return { success: true, result: audioBase64, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
                     const errorMsg = e instanceof Error ? e.message : 'Error';
                     console.warn('[AUDIO_SPEAK_AI] AI TTS failed, falling back to Speech.speak:', errorMsg);

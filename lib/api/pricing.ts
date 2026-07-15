@@ -14,7 +14,7 @@ export const OR_BASE_URL = 'https://openrouter.ai/api/v1';
 export const MODELS = {
     SPELL_S: 'deepseek/deepseek-v4-flash',
     SUGGEST: 'deepseek/deepseek-v4-flash',
-    WEBVIEW: 'google/gemini-3.1-flash-lite',
+    WEBVIEW: 'google/gemini-3-flash-preview',
     IMAGE: 'google/gemini-3.1-flash-image-preview',
     IMAGE_EDIT: 'google/gemini-2.5-flash-image',
     TTS: 'google/gemini-3.1-flash-tts-preview',
@@ -61,7 +61,7 @@ const USD_PRICING: Record<
     }
 > = {
     'deepseek/deepseek-v4-flash': { inputPerMToken: 0.14, outputPerMToken: 0.28, audioInputPerMToken: 0.0, searchPerQuery: 0.014 },
-    'google/gemini-3.1-flash-lite': { inputPerMToken: 0.10, outputPerMToken: 0.40, audioInputPerMToken: 0.30, searchPerQuery: 0.014 },
+    'google/gemini-3-flash-preview': { inputPerMToken: 0.50, outputPerMToken: 3.00, searchPerQuery: 0.014 },
     'google/gemini-3.1-flash-image-preview': { inputPerMToken: 0.10, outputPerMToken: 0.40 },
     'google/gemini-2.5-flash-image': { inputPerMToken: 0.30, outputPerMToken: 2.50 },
     'google/gemini-3.1-flash-tts-preview': { inputPerMToken: 0.50, outputPerMToken: 10.00 },

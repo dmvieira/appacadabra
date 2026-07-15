@@ -26,39 +26,6 @@ function getAppVersion(): string {
     return Constants.expoConfig?.version ?? '2.0.15';
 }
 
-// Helper for timeout and retry
-async function withTimeoutAndRetry<T>(
-    operation: () => Promise<T>,
-    timeoutMs: number = 240000, // 4 minutes default
-    retries: number = 1
-): Promise<T> {
-    const runOp = async (): Promise<T> => {
-        let lastError: any;
-
-        for (let attempt = 0; attempt <= retries; attempt++) {
-            try {
-                // Create a promise that rejects after timeout
-                const timeoutPromise = new Promise<never>((_, reject) => {
-                    setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs);
-                });
-
-                // Race the operation against the timeout
-                return await Promise.race([operation(), timeoutPromise]);
-            } catch (e) {
-                lastError = e;
-                console.warn(`[AI] Attempt ${attempt + 1} failed:`, e);
-                if (attempt < retries) {
-                    // Exponential backoff
-                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
-                }
-            }
-        }
-        throw lastError;
-    };
-
-    return runOp();
-}
-
 // ============= AI FUNCTIONS (BYOK direct via OpenRouter) =============
 
 export interface ByokGenerationResult {
@@ -91,9 +58,7 @@ export async function generateApp(description: string): Promise<ByokGenerationRe
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    const result = await withTimeoutAndRetry(() =>
-        byokGenerateSpellCreate({ prompt: description, appVersion: getAppVersion() })
-    );
+    const result = await byokGenerateSpellCreate({ prompt: description, appVersion: getAppVersion() });
     const wrapped = toGenerationResult(result);
     logAppCreated(0);
     return wrapped;
@@ -105,13 +70,11 @@ export async function editApp(currentCode: string, instructions: string): Promis
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    const result = await withTimeoutAndRetry(() =>
-        byokGenerateSpellEdit({
-            currentCode,
-            instruction: instructions,
-            appVersion: getAppVersion(),
-        })
-    );
+    const result = await byokGenerateSpellEdit({
+        currentCode,
+        instruction: instructions,
+        appVersion: getAppVersion(),
+    });
     const wrapped = toGenerationResult(result);
     logAppEdited(0);
     return wrapped;
@@ -132,28 +95,24 @@ export async function editAppWithContext(
         .filter(e => e.instruction !== null)
         .map(e => ({ version: e.version, instruction: e.instruction as string }));
 
-    const result = await withTimeoutAndRetry(() =>
-        byokGenerateSpellEdit({
-            currentCode,
-            instruction: instructions,
-            appVersion: getAppVersion(),
-            previousEdits: validEdits,
-            selectedContext,
-        })
-    );
+    const result = await byokGenerateSpellEdit({
+        currentCode,
+        instruction: instructions,
+        appVersion: getAppVersion(),
+        previousEdits: validEdits,
+        selectedContext,
+    });
     const wrapped = toGenerationResult(result);
     logAppEdited(0);
     return wrapped;
 }
 
 export async function convertNodeProject(sourceCode: string, frameworkHint: string): Promise<ByokGenerationResult> {
-    const result = await withTimeoutAndRetry(() =>
-        byokGenerateConvert({
-            sourceCode,
-            frameworkHint,
-            appVersion: getAppVersion(),
-        })
-    );
+    const result = await byokGenerateConvert({
+        sourceCode,
+        frameworkHint,
+        appVersion: getAppVersion(),
+    });
     return toGenerationResult(result);
 }
 

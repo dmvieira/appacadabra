@@ -135,7 +135,7 @@ function mapHttpError(status: number, bodyText: string): OpenRouterError {
     return new OpenRouterError('byok.error.upstream', `HTTP ${status}: ${snippet}`, status);
 }
 
-async function rawFetch(
+async function rawFetchOnce(
     path: string,
     body: object,
     opts: { signal?: AbortSignal; timeoutMs?: number; accept?: string },
@@ -161,10 +161,14 @@ async function rawFetch(
     } catch (err) {
         clearTimeout(timeout);
         if (controller.signal.aborted) {
+            // User-cancelled aborts aren't retryable; timeouts (signaled via the
+            // controller too) usually mean the upstream is wedged — also not
+            // worth retrying since we already waited the full timeoutMs.
             throw new OpenRouterError('byok.error.aborted', 'Request aborted');
         }
         const msg = err instanceof Error ? err.message : 'network error';
-        throw new OpenRouterError('byok.error.network', msg);
+        // Network failures are transient by nature — let withRetry try again.
+        throw new OpenRouterError('byok.error.network', msg, undefined, true);
     }
     clearTimeout(timeout);
 
@@ -174,6 +178,12 @@ async function rawFetch(
     }
     return response;
 }
+
+// Retries for transient failures (429/5xx/network) are applied at the
+// generators layer via `withRetry()` in `lib/api/generationUtils.ts`, which
+// inspects `OpenRouterError.retryable`. Keeping the retry logic out of the
+// HTTP layer avoids double-wrapping and lets callers opt out when needed.
+const rawFetch = rawFetchOnce;
 
 // ============= CHAT (non-streaming) =============
 
@@ -327,22 +337,35 @@ export async function generateImage(req: ImageGenerationRequest): Promise<ImageG
         },
         { signal: req.signal, timeoutMs: req.timeoutMs },
     );
+    type ImagePart = { type?: string; image_url?: { url?: string }; data?: string };
     const json = (await response.json()) as {
         choices: Array<{
             message: {
-                content: string | Array<{ type: string; image_url?: { url: string }; data?: string }>;
+                content?: string | ImagePart[];
+                images?: ImagePart[];
             };
         }>;
         usage?: OpenRouterUsage;
     };
 
     const images: string[] = [];
-    const content = json.choices?.[0]?.message?.content;
-    if (Array.isArray(content)) {
-        for (const part of content) {
+    const message = json.choices?.[0]?.message;
+    // Gemini nano-banana returns images in `message.images[]` (top-level, alongside a string content).
+    if (Array.isArray(message?.images)) {
+        for (const part of message.images) {
+            if (part.image_url?.url) images.push(part.image_url.url);
+            else if (part.data) images.push(part.data);
+        }
+    }
+    // Legacy fallback: some models embed image parts in the content array.
+    if (Array.isArray(message?.content)) {
+        for (const part of message.content) {
             if (part.type === 'image_url' && part.image_url?.url) images.push(part.image_url.url);
             else if (part.data) images.push(part.data);
         }
+    }
+    if (images.length === 0) {
+        throw new OpenRouterError('byok.error.parse', 'No image in generation response');
     }
     return { images, usage: json.usage };
 }
@@ -364,30 +387,69 @@ export interface TtsResponse {
 }
 
 export async function tts(req: TtsRequest): Promise<TtsResponse> {
+    // Gemini TTS via OpenRouter uses the dedicated `/audio/speech` endpoint and
+    // returns raw PCM bytes (not JSON). We wrap the PCM in a WAV header so the
+    // WebView `<audio>` element can play it back directly.
     const response = await rawFetch(
-        '/chat/completions',
+        '/audio/speech',
         {
             model: req.model,
-            messages: [{ role: 'user', content: req.text }],
-            modalities: ['audio'],
-            audio: req.voice ? { voice: req.voice, format: 'wav' } : { format: 'wav' },
-            usage: { include: true },
+            input: req.text,
+            voice: req.voice ?? 'Aoede',
+            response_format: 'pcm',
         },
         { signal: req.signal, timeoutMs: req.timeoutMs },
     );
-    const json = (await response.json()) as {
-        choices: Array<{ message: { audio?: { data?: string; format?: string } } }>;
-        usage?: OpenRouterUsage;
-    };
-    const audio = json.choices?.[0]?.message?.audio;
-    if (!audio?.data) {
-        throw new OpenRouterError('byok.error.parse', 'No audio in TTS response');
+    const arrayBuffer = await response.arrayBuffer();
+    const pcm = new Uint8Array(arrayBuffer);
+    if (pcm.length === 0) {
+        throw new OpenRouterError('byok.error.parse', 'Empty TTS response');
     }
+    const wav = pcmToWav(pcm);
     return {
-        audioBase64: audio.data,
-        mimeType: audio.format === 'mp3' ? 'audio/mpeg' : 'audio/wav',
-        usage: json.usage,
+        audioBase64: bytesToBase64(wav),
+        mimeType: 'audio/wav',
+        // /audio/speech does not return `usage`; cost is estimated at the caller.
+        usage: undefined,
     };
+}
+
+// Gemini TTS PCM: 24kHz, mono, 16-bit signed little-endian.
+function pcmToWav(pcm: Uint8Array, sampleRate = 24000, channels = 1, bitDepth = 16): Uint8Array {
+    const dataSize = pcm.length;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    // "RIFF"
+    view.setUint8(0, 0x52); view.setUint8(1, 0x49); view.setUint8(2, 0x46); view.setUint8(3, 0x46);
+    view.setUint32(4, 36 + dataSize, true);
+    // "WAVE"
+    view.setUint8(8, 0x57); view.setUint8(9, 0x41); view.setUint8(10, 0x56); view.setUint8(11, 0x45);
+    // "fmt "
+    view.setUint8(12, 0x66); view.setUint8(13, 0x6d); view.setUint8(14, 0x74); view.setUint8(15, 0x20);
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * channels * (bitDepth / 8), true);
+    view.setUint16(32, channels * (bitDepth / 8), true);
+    view.setUint16(34, bitDepth, true);
+    // "data"
+    view.setUint8(36, 0x64); view.setUint8(37, 0x61); view.setUint8(38, 0x74); view.setUint8(39, 0x61);
+    view.setUint32(40, dataSize, true);
+    const bytes = new Uint8Array(buffer);
+    bytes.set(pcm, 44);
+    return bytes;
+}
+
+// Chunked to stay under String.fromCharCode.apply's stack-arg limit on Hermes.
+function bytesToBase64(bytes: Uint8Array): string {
+    const chunkSize = 0x8000;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const end = Math.min(i + chunkSize, bytes.length);
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, end)));
+    }
+    return btoa(binary);
 }
 
 // ============= VIDEO (submit + poll) =============
@@ -419,9 +481,10 @@ export async function submitVideo(req: VideoRequest): Promise<VideoSubmission> {
         duration_seconds: req.durationSeconds,
     };
     if (req.inputImageBase64) {
-        body.input_image = req.inputImageBase64.startsWith('data:')
+        const url = req.inputImageBase64.startsWith('data:')
             ? req.inputImageBase64
-            : `data:image/png;base64,${req.inputImageBase64}`;
+            : `data:${req.inputImageBase64.startsWith('iVBOR') ? 'image/png' : 'image/jpeg'};base64,${req.inputImageBase64}`;
+        body.input_references = [{ type: 'image_url', image_url: { url } }];
     }
     const response = await rawFetch('/videos', body, {
         signal: req.signal,
@@ -440,12 +503,38 @@ export async function pollVideo(pollingUrl: string, signal?: AbortSignal): Promi
     }
     const json = (await response.json()) as {
         status: string;
-        video_url?: string;
-        video_base64?: string;
+        data?: Array<{ url?: string }>;
         usage?: OpenRouterUsage;
     };
+    if (json.status === 'failed' || json.status === 'cancelled' || json.status === 'expired') {
+        throw new OpenRouterError('byok.error.upstream', `Video generation ${json.status}`);
+    }
     if (json.status !== 'completed' && json.status !== 'succeeded') return null;
-    return { videoUrl: json.video_url, videoBase64: json.video_base64, usage: json.usage };
+
+    // Prefer the signed URL exposed in `data[0].url` (no auth); fall back to the
+    // authenticated content endpoint derived from the polling URL.
+    const videoUrl = json.data?.[0]?.url;
+    let downloadResponse: Response;
+    if (videoUrl) {
+        downloadResponse = await fetch(videoUrl, { signal });
+    } else {
+        const idMatch = pollingUrl.match(/\/videos\/([^/?#]+)/);
+        if (!idMatch) {
+            throw new OpenRouterError('byok.error.parse', 'Cannot derive video ID from polling URL');
+        }
+        const contentUrl = `${OR_BASE_URL}/videos/${idMatch[1]}/content?index=0`;
+        downloadResponse = await fetch(contentUrl, { method: 'GET', headers, signal });
+    }
+    if (!downloadResponse.ok) {
+        const text = await downloadResponse.text().catch(() => '');
+        throw mapHttpError(downloadResponse.status, text);
+    }
+    const arrayBuffer = await downloadResponse.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    if (bytes.length === 0) {
+        throw new OpenRouterError('byok.error.parse', 'Empty video response');
+    }
+    return { videoBase64: bytesToBase64(bytes), usage: json.usage };
 }
 
 // ============= EMBEDDINGS =============

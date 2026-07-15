@@ -24,7 +24,7 @@ For each model in `USD_PRICING`, output:
 | Model | In/Out per MTok (codebase) | In/Out per MTok (current OpenRouter) | Delta | Action |
 |-------|-----------------------------|---------------------------------------|-------|--------|
 | deepseek/deepseek-v4-flash | $0.14 / $0.28 | $X.XX / $X.XX | +/-Y% | none / update |
-| google/gemini-3.1-flash-lite | $0.10 / $0.40 | $X.XX / $X.XX | +/-Y% | none / update |
+| google/gemini-3-flash-preview | $0.50 / $3.00 | $X.XX / $X.XX | +/-Y% | none / update |
 | google/gemini-3.1-flash-image-preview | $0.10 / $0.40 | ... | ... | ... |
 | google/gemini-2.5-flash-image | $0.30 / $2.50 | ... | ... | ... |
 | google/gemini-3.1-flash-tts-preview | $0.50 / $10.00 | ... | ... | ... |

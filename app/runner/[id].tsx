@@ -561,14 +561,56 @@ export default function RunnerScreen() {
     const [selectedElement, setSelectedElement] = useState<{ html: string; tagName: string; preview: string } | null>(null);
     const [isEditing, setIsEditing] = useState(false);
 
-    // Restore failed EDIT prompt — pre-fill and open edit sheet on mount
+    // Restore failed EDIT prompt — pre-fill and open edit sheet on mount.
+    // Failed-prompt wins over draft; if no failed prompt, fall back to
+    // pending_jobs draft so a typed-but-unsent prompt survives app kill.
     useEffect(() => {
         if (lastFailedPrompt?.type === 'edit' && lastFailedPrompt.appId === Number(id)) {
             setEditPrompt(lastFailedPrompt.text);
             clearLastFailedPrompt();
             setShowEditSheet(true);
+            return;
         }
+        const numericId = Number(id);
+        if (!Number.isFinite(numericId)) return;
+        db.getPendingDraft('edit', numericId)
+            .then(draft => {
+                if (draft && draft.promptText) {
+                    setEditPrompt(draft.promptText);
+                }
+            })
+            .catch(() => {});
     }, []); // only on mount
+
+    // Debounced draft auto-save while the user is typing.
+    const editDraftJobIdRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (!showEditSheet || isEditing) return;
+        const numericId = Number(id);
+        if (!Number.isFinite(numericId)) return;
+        if (!editPrompt.trim()) {
+            db.deleteDraftFor('edit', numericId).catch(() => {});
+            return;
+        }
+        const timer = setTimeout(() => {
+            const jobId = editDraftJobIdRef.current ?? `draft_edit_${numericId}`;
+            editDraftJobIdRef.current = jobId;
+            const now = Date.now();
+            db.upsertPendingJob({
+                jobId,
+                type: 'draft',
+                appId: numericId,
+                promptText: editPrompt,
+                selectedContext: null,
+                status: 'draft',
+                startedAt: now,
+                updatedAt: now,
+                lastErrorCode: null,
+                lastErrorMessage: null,
+            }).catch(() => {});
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [editPrompt, showEditSheet, isEditing, id]);
 
     // Speech to text for edit prompt
     const { isListening, transcript, startListening, stopListening } = useSpeechToText();
@@ -1087,13 +1129,19 @@ export default function RunnerScreen() {
                                             cacheResult = `file://${mediaLocalPath}`;
                                             registerPendingMediaBlob(result, callbackName, AI_MEDIA_MIME[type]);
                                         } catch (fileErr) {
-                                            console.warn('[Runner] Failed to save media file:', fileErr);
+                                            // Surface the failure: raw base64 delivery would silently break `<img src=…>` etc.
+                                            const errMsg = fileErr instanceof Error ? fileErr.message : String(fileErr);
+                                            console.error(`[Runner] Failed to save media file for ${type} appId=${app.id} cb=${callbackName}:`, errMsg);
+                                            success = false;
+                                            result = `Failed to save generated media: ${errMsg}`;
+                                            cacheResult = result;
                                         }
                                     }
                                 }
                                 if (cacheId != null) {
                                     const mime = mediaLocalPath ? (AI_MEDIA_MIME[type] ?? null) : null;
-                                    await db.updateWebviewAiCacheResult(cacheId, cacheResult, mediaLocalPath ?? null, mime, true);
+                                    await db.updateWebviewAiCacheResult(cacheId, cacheResult, mediaLocalPath ?? null, mime, success);
+                                    if (!success) await db.markWebviewAiCacheDelivered(cacheId);
                                 }
                             } else if (cacheId != null) {
                                 // Error: record the error text and mark delivered immediately — no recovery needed
@@ -1230,9 +1278,14 @@ export default function RunnerScreen() {
             }
 
             logEditorAiEditSubmitted(selectedElement !== null);
+            // Clear the draft before kicking off the real job so the
+            // reconciler doesn't resurrect a stale draft if the process dies
+            // between dispatch and the pending_jobs 'processing' row write.
+            await db.deleteDraftFor('edit', freshApp.id).catch(() => {});
+            editDraftJobIdRef.current = null;
             const success = await updateAppWithAI(freshApp, fullPrompt);
             if (success) {
-                // Async job started. 
+                // Async job started.
                 // We do NOT update 'app' immediately. It will update via store listener -> DB -> live reload?
                 // Wait, RunnerScreen doesn't live reload from DB unless we tell it to.
                 // We should close the sheet and show "Job Started" (handled by store).

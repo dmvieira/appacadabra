@@ -495,7 +495,7 @@ function RunnerContent({ appId }: Props) {
                         const dir = `${FileSystem.documentDirectory}appacadabra_media/${app?.id}`;
                         await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => { });
                         const fileUri = `${dir}/${callbackName}.${ext}`; // dir starts with file://
-                        
+
                         // Robust base64 cleaning
                         const cleanB64 = handlerResult.result.replace(/^data:.*?;base64,/i, '').replace(/\s/g, '');
                         await FileSystem.writeAsStringAsync(fileUri, cleanB64, { encoding: FileSystem.EncodingType.Base64 });
@@ -505,7 +505,10 @@ function RunnerContent({ appId }: Props) {
                             registerPendingMediaBlob(cleanB64, callbackName, mime);
                         }
                     } catch (fileErr) {
-                        console.warn('[RunnerApp] Failed to save media file:', fileErr);
+                        // Surface the failure: raw base64 delivery would silently break `<img src=…>` etc.
+                        const errMsg = fileErr instanceof Error ? fileErr.message : String(fileErr);
+                        console.error(`[RunnerApp] Failed to save media file for ${type} appId=${app?.id} cb=${callbackName}:`, errMsg);
+                        handlerResult = { ...handlerResult, success: false, result: `Failed to save generated media: ${errMsg}` };
                     }
                 }
                 if (app?.id && callbackName && AI_CACHE_TYPES.has(type)) {

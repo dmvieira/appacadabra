@@ -197,18 +197,13 @@ function validateAddEventListener(js: string): ValidationError[] {
 }
 
 function buildKnownCapabilityNames(): Set<string> {
-    // Build the set of valid namespace identifiers like "AppacadabraAi",
-    // "AppacadabraCalendar", etc., from the capability ids. The capabilities
-    // expose `window.Appacadabra<Pascal(id)>` to spell code.
-    const pascal = (s: string) =>
-        s
-            .split(/[-_]/)
-            .filter(Boolean)
-            .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-            .join('');
+    // `displayName` is the source of truth for the bridge namespace
+    // (`window.Appacadabra<displayName>`). Deriving it from `cap.id` misses
+    // acronym casing — `ai`/`ui` would resolve to `Ai`/`Ui` while the bridge
+    // registers `AI`/`UI`, producing false-positive validation errors.
     const names = new Set<string>();
     for (const cap of ALL_CAPABILITIES) {
-        names.add(`Appacadabra${pascal(cap.id)}`);
+        names.add(`Appacadabra${cap.displayName}`);
     }
     return names;
 }

@@ -83,9 +83,23 @@ describe('validateWithExecution', () => {
     });
 
     it('accepts known capability namespaces from the registry', () => {
-        const html = htmlWith(`AppacadabraAi.generate('hi', 'onResult');`);
+        const html = htmlWith(`AppacadabraCalendar.list('onResult');`);
         const result = validateWithExecution(html);
         expect(result.errors.some(e => /Unknown Appacadabra capability/.test(e.message))).toBe(false);
+    });
+
+    it('accepts acronym-cased namespaces registered by the bridge (AppacadabraAI, AppacadabraUI)', () => {
+        // Regression: `pascal(cap.id)` used to produce "AppacadabraAi"/"AppacadabraUi",
+        // but the bridge registers `window.AppacadabraAI`/`window.AppacadabraUI`
+        // (per `displayName`). Every AI/UI-using spell hit a false-positive
+        // validation error, forcing planner+coder retries.
+        const html = htmlWith(
+            `AppacadabraAI.generate('hi', 'onResult');`,
+            `AppacadabraUI.toast('done', 'success');`,
+        );
+        const result = validateWithExecution(html);
+        expect(result.errors.some(e => /Unknown Appacadabra capability "AppacadabraAI"/.test(e.message))).toBe(false);
+        expect(result.errors.some(e => /Unknown Appacadabra capability "AppacadabraUI"/.test(e.message))).toBe(false);
     });
 
     it('does not treat strings containing "function foo" as declarations', () => {

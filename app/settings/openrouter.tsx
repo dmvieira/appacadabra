@@ -30,7 +30,7 @@ import {
     Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as ScreenCapture from 'expo-screen-capture';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -65,7 +65,6 @@ type TestState =
     | { kind: 'network'; message: string };
 
 export default function OpenRouterSettings() {
-    const router = useRouter();
     const bumpAiKeyVersion = useAppStore(s => s.bumpAiKeyVersion);
     const [existingKey, setExistingKey] = useState<string | null>(null);
     const [keyDraft, setKeyDraft] = useState('');
@@ -158,15 +157,8 @@ export default function OpenRouterSettings() {
     const hasKey = existingKey !== null;
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Text style={styles.backText}>←</Text>
-                </TouchableOpacity>
-                <Text style={styles.title}>{t('openrouterScreenTitle')}</Text>
-                <View style={{ width: 40 }} />
-            </View>
-
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+            <Stack.Screen options={{ title: t('openrouterScreenTitle'), headerShown: true }} />
             <ScrollView contentContainerStyle={styles.scroll}>
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>{t('openrouterWhatTitle')}</Text>
@@ -278,30 +270,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.background,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.surfaceVariant,
-    },
-    backBtn: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    backText: {
-        color: colors.primary,
-        fontSize: 24,
-    },
-    title: {
-        color: colors.onBackground,
-        fontSize: 18,
-        fontWeight: '700',
     },
     scroll: {
         padding: spacing.md,

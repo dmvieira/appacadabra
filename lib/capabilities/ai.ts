@@ -1,8 +1,6 @@
 import * as ai from '../api/ai';
-import * as FileSystem from 'expo-file-system/legacy';
 import { useBridgeUIStore, ManaOperationType } from '../bridgeUIStore';
 import * as db from '../database/db';
-import { buildBlobMarker } from './mediaHelpers';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
 import { hasOpenRouterKey } from '../api/keyStorage';
 import { estimateUsd, formatUsd, MODELS, type EstimateType } from '../api/pricing';
@@ -557,21 +555,8 @@ export const aiCapability: CapabilityModule = {
                 console.log(`[Bridge] AI Video Gen request: ${data.prompt?.substring(0, 50)}...`);
                 try {
                     const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined);
-                    let permanentVideoPath: string | undefined;
-                    if (ctx.appId && ctx.callbackName) {
-                        try {
-                            const docDir = (FileSystem.documentDirectory ?? '').replace('file://', '');
-                            const dir = `${docDir}appacadabra_media/${ctx.appId}`;
-                            await FileSystem.makeDirectoryAsync(`file://${dir}`, { intermediates: true }).catch(() => { });
-                            permanentVideoPath = `${dir}/${ctx.callbackName}.mp4`;
-                            await FileSystem.writeAsStringAsync(`file://${permanentVideoPath}`, videoResult.videoBase64.replace(/[\r\n]/g, ''), {
-                                encoding: FileSystem.EncodingType.Base64,
-                            });
-                        } catch (saveErr) {
-                            console.warn('[AI_GENERATE_VIDEO] Failed to save permanent file:', saveErr);
-                        }
-                    }
-                    const result = permanentVideoPath ?? videoResult.videoBase64;
+                    // Runner owns disk persistence, cache registration and file:// WebView delivery.
+                    const result = videoResult.videoBase64;
                     const costUsd = videoResult.costUsd || 0;
 
                     if (ctx.appId) await db.incrementSpendUsd(ctx.appId, costUsd);

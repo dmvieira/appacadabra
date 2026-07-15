@@ -22,7 +22,7 @@ describe('pricing.MODELS', () => {
         expect(MODELS).toEqual({
             SPELL_S: 'deepseek/deepseek-v4-flash',
             SUGGEST: 'deepseek/deepseek-v4-flash',
-            WEBVIEW: 'google/gemini-3.1-flash-lite',
+            WEBVIEW: 'google/gemini-3-flash-preview',
             IMAGE: 'google/gemini-3.1-flash-image-preview',
             IMAGE_EDIT: 'google/gemini-2.5-flash-image',
             TTS: 'google/gemini-3.1-flash-tts-preview',

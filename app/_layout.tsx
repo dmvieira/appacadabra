@@ -9,10 +9,12 @@ import { t } from '../lib/i18n';
 import ShareReceiver from '../components/ShareReceiver';
 import { CostEstimateModal } from '../components/CostEstimateModal';
 import { KeyMissingModal } from '../components/KeyMissingModal';
+import { GenerationErrorModal } from '../components/GenerationErrorModal';
 import { LargePayloadConfirmModal } from '../components/LargePayloadConfirmModal';
 import { Toast } from '../components/Toast';
 import { useAppStore } from '../lib/store';
 import { useStoreSyncStore } from '../lib/storeSync';
+import { useUserStore } from '../lib/userStore';
 import { isGoogleUser, onAuthStateChanged } from '../lib/firebase';
 import * as Notifications from 'expo-notifications';
 import { preloadAllStorage } from '../lib/storageCache';
@@ -155,6 +157,20 @@ export default function RootLayout() {
         } catch (e) {
             console.error('RootLayout: AppStore listeners init failed:', e);
         }
+
+        // Subscribe useUserStore to Firebase auth so isAnonymous/userEmail stay in sync.
+        try {
+            useUserStore.getState().init();
+        } catch (e) {
+            console.error('RootLayout: UserStore init failed:', e);
+        }
+
+        // Reconcile pending_jobs: any 'processing' row older than 15min was
+        // killed mid-generation by an OS kill; mark it failed and surface a
+        // retry modal on next open.
+        useAppStore.getState().reconcilePendingJobs().catch(err => {
+            console.warn('RootLayout: reconcilePendingJobs failed:', err);
+        });
 
         // Check for notification permissions
         (async () => {
@@ -323,6 +339,7 @@ export default function RootLayout() {
             <ShareReceiver />
             <CostEstimateModal />
             <KeyMissingModal />
+            <GenerationErrorModal />
             <LargePayloadConfirmModal />
             <ToastComponent />
         </View>

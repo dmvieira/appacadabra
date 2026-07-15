@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -17,6 +17,7 @@ import { colors, spacing, borderRadius } from '../lib/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSpeechToText } from '../lib/useSpeech';
 import { t } from '../lib/i18n';
+import * as db from '../lib/database/db';
 
 interface ChatDialogProps {
     visible: boolean;
@@ -25,13 +26,21 @@ interface ChatDialogProps {
     onDismiss: () => void;
     onSend: (text: string) => Promise<boolean | void> | void;
     initialText?: string;
+    // When set, the dialog auto-saves the draft to SQLite (pending_jobs) so
+    // the user doesn't lose what they typed if the app is killed. The draft
+    // is restored on open when initialText is empty and is cleared on send.
+    draftKey?: { type: 'create' | 'edit'; appId?: number };
 }
 
-export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend, initialText }: ChatDialogProps) {
+const DRAFT_DEBOUNCE_MS = 500;
+
+export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend, initialText, draftKey }: ChatDialogProps) {
     const [text, setText] = useState('');
     const [textBeforeSpeech, setTextBeforeSpeech] = useState('');
     const [isSending, setIsSending] = useState(false);
     const { isListening, transcript, startListening, stopListening } = useSpeechToText();
+    const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const draftJobIdRef = useRef<string | null>(null);
 
     // Update text when speech recognition gives results (replace, not append)
     useEffect(() => {
@@ -41,19 +50,78 @@ export function ChatDialog({ visible, title, isGenerating, onDismiss, onSend, in
         }
     }, [transcript, isListening, textBeforeSpeech]);
 
-    // Reset text when dialog closes; pre-fill with initialText when opening
+    // Reset text when dialog closes; pre-fill with initialText when opening.
+    // If no initialText but a persisted draft exists, restore it.
     useEffect(() => {
         if (!visible) {
             setText('');
-        } else if (initialText) {
+            // Flush any pending debounced save so it doesn't fire after close.
+            if (draftTimerRef.current) {
+                clearTimeout(draftTimerRef.current);
+                draftTimerRef.current = null;
+            }
+            return;
+        }
+        if (initialText) {
             setText(initialText);
+            return;
+        }
+        if (draftKey) {
+            db.getPendingDraft(draftKey.type, draftKey.appId ?? null)
+                .then(draft => {
+                    if (draft) {
+                        draftJobIdRef.current = draft.jobId;
+                        setText(draft.promptText);
+                    }
+                })
+                .catch(e => console.warn('[ChatDialog] failed to restore draft:', e));
         }
     }, [visible]);
+
+    // Debounced draft persistence. Skips while sending/generating to avoid
+    // racing with the createApp/updateAppWithAI deleteDraftFor() call.
+    useEffect(() => {
+        if (!visible || !draftKey || isGenerating || isSending) return;
+        if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+        draftTimerRef.current = setTimeout(() => {
+            const trimmed = text.trim();
+            if (!trimmed) {
+                db.deleteDraftFor(draftKey.type, draftKey.appId ?? null).catch(() => {});
+                draftJobIdRef.current = null;
+                return;
+            }
+            const jobId = draftJobIdRef.current ?? `draft_${draftKey.type}_${draftKey.appId ?? 'new'}`;
+            draftJobIdRef.current = jobId;
+            const now = Date.now();
+            db.upsertPendingJob({
+                jobId,
+                type: 'draft',
+                appId: draftKey.appId ?? null,
+                promptText: text,
+                selectedContext: null,
+                status: 'draft',
+                startedAt: now,
+                updatedAt: now,
+                lastErrorCode: null,
+                lastErrorMessage: null,
+            }).catch(e => console.warn('[ChatDialog] failed to save draft:', e));
+        }, DRAFT_DEBOUNCE_MS);
+        return () => {
+            if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+        };
+    }, [text, visible, isGenerating, isSending, draftKey]);
 
     const handleSend = async () => {
         if (text.trim() && !isGenerating && !isSending) {
             setIsSending(true);
             try {
+                // Clear the draft *before* dispatching so an in-flight job
+                // promotion in the store (which also deletes the draft) is
+                // a no-op rather than a race.
+                if (draftKey) {
+                    await db.deleteDraftFor(draftKey.type, draftKey.appId ?? null).catch(() => {});
+                    draftJobIdRef.current = null;
+                }
                 const result = await onSend(text.trim());
                 // Clear text only if result is explicitly true or undefined (void),
                 // but if it returns false (error), keep text.
