@@ -32,7 +32,7 @@ I brought **Claude** in as my Marketing Department. The specific challenge it ne
 
 The distinction matters enormously. There is a register of AI-generated marketing content that has become immediately recognizable: a certain formulaic structure, an overuse of em-dashes, a tone that is simultaneously enthusiastic and hollow. It performs adequately in engagement metrics and drives exactly zero emotional connection with the reader.
 
-What makes Appacadabra's voice different is the magic metaphor: spells, mana, casting, conjuring. This is not just branding decoration. It is the product's actual UI language, established back in the Branding Department in Part 2 and carried into every other layer since (the Mana pricing primitive in Part 5 inherited it directly). The app calls operations "spells." The credit system is "mana." The act of creating an app is "casting." When marketing content uses this vocabulary consistently and naturally, it doesn't feel like a theme slapped on top of a tech product. It feels like the product has a genuine personality.
+What makes Appacadabra's voice different is the magic metaphor: spells, mana, casting, conjuring. This is not just branding decoration. It is the product's actual UI language, established back in the Branding Department in Part 2 and carried into every other layer since (the Mana pricing primitive in Part 6 inherited it directly). The app calls operations "spells." The credit system is "mana." The act of creating an app is "casting." When marketing content uses this vocabulary consistently and naturally, it doesn't feel like a theme slapped on top of a tech product. It feels like the product has a genuine personality.
 
 Getting Claude to maintain this voice required the same architectural approach that made every other department work: not a prompt, but a **configured agent** that knew the company's vocabulary, the audience's level of sophistication, and the distinct format requirements of each platform.
 
@@ -106,9 +106,11 @@ Its **MCPs** included:
 
 - A **Substack Publish MCP** (`/substack-publish`): given a blog markdown file from `docs/blog/`, transforms it into a Substack-ready format — converting Mermaid diagrams into narrative descriptions, adjusting heading levels, extracting the post title and subtitle, and writing the output to `docs/blog/substack/`. The last mile of the content pipeline: from internal documentation to public article, without manual reformatting.
 
-The Marketing Agent meant that the moment a new feature shipped, a new article was published, or a new milestone was reached, the content machine could activate immediately — not with generic copy, but with posts that sounded like they were written by someone who had spent four months building this company and was genuinely excited to talk about it.
+The Marketing Agent meant that the moment a new feature shipped, a new article was published, or a new milestone was reached, the content machine could activate immediately -- not with generic copy, but with posts that sounded like they were written by someone who had spent four months building this company and was genuinely excited to talk about it.
 
 Because they were.
+
+The founder's role in every publishing cycle was not passive. The brief came from the founder: which insight to surface, which product event to anchor on, which platform to lead with. The agent produced the draft. The founder read it -- checking voice first (does this sound like Appacadabra or like a press release?), then factual accuracy (is this actually what the feature does?), then tone (does the magic vocabulary land naturally or is it forced?). The founder decided to publish or revise. Every post that went live was a decision the founder made, not a text the agent emitted. The agent accelerated the cycle; the judgment at every step remained human.
 
 *Marketing had made the product visible. But visible in one market is not the same as visible in the right market. In Part 11, we take the distribution question global — and discover that the biggest differences between markets have almost nothing to do with language.*
 

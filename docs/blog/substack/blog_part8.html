@@ -1,0 +1,144 @@
+<!--
+  SUBSTACK PUBLISH METADATA
+  =========================
+  Title: The Appacadabra Chronicles, Part 8: Data Analytics & DevOps. Cloud Infrastructure Friction
+  Subtitle: How a solo founder built an intelligence function from Firebase data -- and where one specific integration still needs human eyes.
+  Source: docs/blog/blog_expanded_parts7_9.md (Part 8)
+  Generated: 2026-07-10
+-->
+<p>Seven departments. A company that existed on paper, in code,
+validated by automated tests, modeled financially, and grounded in legal
+documents. Appacadabra was real, but invisible to itself. No one was
+watching what was happening inside it. No one was measuring whether the
+decisions made in the first seven departments were actually working in
+practice. That was about to change.</p>
+<p>There is a concept in reliability engineering called
+<strong>observability</strong>: the degree to which you can infer the
+internal state of a system from its external outputs. In traditional
+software operations, observability is achieved through three pillars:
+logs, metrics, and traces. Building this infrastructure – the agents,
+dashboards, alerting pipelines, and on-call runbooks – is itself a
+significant engineering discipline.</p>
+<p>In the modern AI-first enterprise, observability has a fourth
+dimension: <strong>the AI layer that interprets the first
+three.</strong></p>
+<p>This is where Part 8 begins: not with code, but with data.
+Specifically, the question of how a solo founder, with no dedicated data
+analyst and no BI platform budget, could understand what was actually
+happening inside their product.</p>
+<h3 id="the-aiops-revolution-and-why-it-matters-for-startups">The AIOps
+Revolution (and Why It Matters for Startups)</h3>
+<p>“AIOps” (using artificial intelligence to augment or automate IT
+operations) has been a Gartner-tracked trend since 2017. In enterprise
+contexts, it typically means AI parsing log streams to detect anomalies,
+correlating incidents across distributed services, and auto-remediating
+known failure patterns. Tools like <strong>Datadog AI, Dynatrace Davis,
+and Google Cloud’s Operations Suite</strong> represent the mature end of
+this spectrum.</p>
+<p>For a solo founder, the relevant insight is simpler: <strong>AI can
+turn raw data into understanding in a way that used to require a
+dedicated analyst</strong>.</p>
+<p>Appacadabra’s entire backend runs on <strong>Firebase</strong>:
+Firestore for the primary database, Firebase Authentication for user
+identity, Cloud Functions for server-side logic, and Firebase Analytics
+for behavioral data. This is an excellent, scalable stack. It is also a
+stack that generates enormous amounts of data that, without analysis, is
+just noise.</p>
+<h3 id="google-cloud-mcp-as-my-data-analyst">Google Cloud MCP as My Data
+Analyst</h3>
+<p>I deployed <strong>Google Cloud MCP (Model Context Protocol)</strong>
+to give AI agents direct, contextual access to our Firebase data
+streams. The MCP layer is the key architectural piece here; it’s not a
+query interface where you write SQL and get rows back. It’s a semantic
+layer where you describe what you want to understand, and the AI decides
+what data to pull, how to aggregate it, and how to present the
+insight.</p>
+<p>What this produced:</p>
+<p><strong>Usage Pattern Analysis</strong>: I could ask “Which features
+are driving the most mana consumption, and which user cohorts are
+consuming mana fastest?” and receive not a table, but a narrative with
+the relevant segments already identified.</p>
+<p><strong>Retention Analysis</strong>: “What is the Day-7 retention
+rate for users who completed the onboarding flow vs. users who skipped
+it?” A classic product analytics question that, in a traditional setup,
+requires a data engineer to write the cohort query, a BI analyst to
+build the chart, and a product manager to interpret it. With the MCP
+layer, one question produced one answer.</p>
+<p><strong>Pitch Deck Material</strong>: This one surprised me. I asked
+the Analytics Agent to summarize our growth trajectory for an investor
+context. It produced a crisp, data-backed narrative – the kind of thing
+that typically takes a founder an afternoon to write – in minutes,
+cross-referencing our Firebase metrics against publicly available
+benchmarks for comparable apps.</p>
+<p>The Analytics Agent had become my intelligence function: always aware
+of what was happening in the product, always able to interpret it,
+always ready to translate data into decision. And critically, I was
+still the one asking the questions and judging the answers. The agent
+surfaced patterns; I decided which patterns mattered enough to change
+the product over.</p>
+<p><strong>[INSERT IMAGE: analytics_pipeline_part8.png]</strong></p>
+<h3 id="the-analytics-agent-and-its-skills">The Analytics Agent and Its
+Skills</h3>
+<p>The <strong>Analytics Agent’s Skills</strong> included:</p>
+<ul>
+<li>A <strong>Metrics Skill</strong> (<code>/metrics</code>): query
+usage patterns and spend logs to produce a structured product metrics
+report – active users, spell creation volume, failure rates, mana
+consumption breakdown, and revenue signals – for any requested
+period</li>
+<li>A <strong>Cohort Analysis Skill</strong>
+(<code>/cohort-analysis</code>): segment users by behavior (power users,
+paying users, churned, new) and analyze engagement depth, mana
+consumption, and conversion timing per cohort using retention data
+pulled via MCP</li>
+<li>An <strong>Anomaly Detection Skill</strong>
+(<code>/anomaly-detect</code>): compare the last 24h of Firebase and
+Cloud Function data against a 7-day rolling baseline, flag deviations
+exceeding 2 standard deviations, and assign severity levels with root
+cause hypotheses</li>
+<li>An <strong>Investor Summary Skill</strong>
+(<code>/investor-summary</code>): pull current metrics and produce a
+structured investor-facing narrative – growth trajectory, retention
+signals, unit economics, and market benchmarks – ready for a pitch
+context</li>
+</ul>
+<h3 id="where-the-constellation-frays-crashlytics-and-the-mcp-gap">Where
+the Constellation Frays: Crashlytics and the MCP Gap</h3>
+<p>Here is the honest part of this chapter, and I think it’s the most
+important one to get right.</p>
+<p>Most of the Analytics constellation worked. Firebase Analytics
+events, Cloud Function logs, Firestore queries – all of it flows through
+the MCP layer cleanly. When I asked the Analytics Agent about usage
+patterns, retention curves, or anomalies in spell creation volume, I got
+answers. The intelligence function this department was supposed to
+build? It built it.</p>
+<p>The gap was specific: <strong>Crashlytics</strong>. Not Crashlytics
+as a concept, and not crashes as events – users generate crashes, the
+Crashlytics dashboard receives them, and the app has full crash
+reporting in production. The gap is operational: when a crash report
+needs investigation, I still open the Firebase Console myself. The
+Analytics Agent cannot pull Crashlytics data fluidly via MCP the way it
+pulls Firebase Analytics or Firestore. The loop stays open at exactly
+the moment you most want it closed – when something broke and you need
+to understand why.</p>
+<p>The reason is structural. Configuring Crashlytics in an Android
+release build involves a combinatorial environment problem: dependency
+conflicts between libraries can produce silent failures that only
+surface in production, with no error signal for the agent to reason
+from. I found the conflict; the agent explained it. That division of
+labor – founder locates the problem, agent articulates the fix – is the
+right mental model for this kind of issue.</p>
+<p>In all of these cases, <strong>my developer intuition was not just
+helpful; it was the only thing that could locate the problem</strong>.
+The agent could explain what the error meant once I found it. It could
+not find the error.</p>
+<p>There are integrations where the constellation still needs the
+founder’s eyes. Crashlytics is one, and the pattern is worth naming:
+when a tool’s data doesn’t have a first-class MCP surface, the loop
+stays open. That isn’t a failure of the department – it’s a boundary
+condition. Know where your specific stack has those gaps before you plan
+your monitoring strategy.</p>
+<p><em>The product was running, observable, and understood. But observed
+in production by whom? Part 9 addresses the final mile of getting an app
+into users’ hands, and why it is an entirely separate discipline from
+building it.</em></p>

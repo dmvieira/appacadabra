@@ -1,0 +1,581 @@
+<!-- 
+  SUBSTACK PUBLISH METADATA
+  =========================
+  Title: The Appacadabra Chronicles, Conclusion: What the Constellation Proved
+  Subtitle: Eleven agents, twenty-eight skills, one founder -- what an AI-operated company can actually do, what it can't, and why the whole thing is now open source.
+  Source: docs/blog/blog_expanded_conclusion.md
+  Generated: 2026-07-13
+-->
+<h2 id="conclusion-what-the-constellation-proved">Conclusion: What the
+Constellation Proved</h2>
+<p>Four months of nights and weekends, while employed full-time. Eleven
+departments. One founder. One hundred decisions I couldn’t have made
+without AI. Dozens of decisions I couldn’t have fully validated with
+it.</p>
+<p>This is not a satisfying place to end. It doesn’t resolve cleanly
+into a productivity metric or a startup playbook. But it’s the honest
+account, and in a space where most AI content tends toward either
+uncritical enthusiasm or reflexive skepticism, honesty might be the most
+useful thing this series can offer.</p>
+<p>Before we get to what was proved and what wasn’t, let’s look at what
+was actually built.</p>
+<hr />
+<h3 id="the-agent-constellation">The Agent Constellation</h3>
+<p>Eleven agents. Each configured specifically for Appacadabra; not
+generic assistants, but agents that know this company’s stack, voice,
+constraints, and decisions. Together they cover every department a real
+company requires.</p>
+<p>One design decision worth noting explicitly: <strong>Engineering and
+Localization share a single agent</strong>, because they share a single
+blog article (Part 4). The 1 article = 1 agent rule was the organizing
+principle; it keeps the architecture legible and prevents the agent
+layer from fragmenting into more pieces than the company’s departments
+actually require.</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 34%" />
+<col style="width: 45%" />
+</colgroup>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Department</th>
+<th>What It Knows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Strategy Agent</strong></td>
+<td>Strategy</td>
+<td>The 4-month constraint model, the 4-question decision framework, the
+product positioning that survived 12 stress-test rounds</td>
+</tr>
+<tr>
+<td><strong>Branding Agent</strong></td>
+<td>Branding</td>
+<td>The full visual identity, <code>lib/theme.ts</code> palette, WCAG AA
+requirements, Vertex AI prompt patterns for on-brand assets</td>
+</tr>
+<tr>
+<td><strong>UX Agent</strong></td>
+<td>UX/Product</td>
+<td>Expo Router navigation structure, design system tokens,
+Zustand/SQLite/Firebase data requirements per screen</td>
+</tr>
+<tr>
+<td><strong>Engineering Agent</strong></td>
+<td>Engineering &amp; Localization</td>
+<td>Full polyglot stack (React Native, Kotlin, Firebase Functions,
+TypeScript), architecture invariants, mana guard pattern, 17-locale i18n
+system, back-translation protocol</td>
+</tr>
+<tr>
+<td><strong>Finance Agent</strong></td>
+<td>Finance</td>
+<td>Mana pricing constants, API cost structure, unit economics
+framework, margin thresholds per operation</td>
+</tr>
+<tr>
+<td><strong>Legal Agent</strong></td>
+<td>Legal</td>
+<td>Privacy architecture (local-first, Gemini API as only external data
+flow), GDPR/LGPD/COPPA compliance surface, policy documents</td>
+</tr>
+<tr>
+<td><strong>Analytics Agent</strong></td>
+<td>Data Analytics</td>
+<td>Firestore schema, Firebase MCP query patterns, subcollection
+constraints, interpretation framework for product metrics</td>
+</tr>
+<tr>
+<td><strong>Release Agent</strong></td>
+<td>Release Management</td>
+<td>Play Store policy landscape, staged rollout thresholds, 17-locale
+release notes, Firebase log-based go/no-go criteria</td>
+</tr>
+<tr>
+<td><strong>Marketing Agent</strong></td>
+<td>Marketing</td>
+<td>Appacadabra brand voice, X thread format vs LinkedIn narrative
+format, content calendar logic, platform adaptation rules</td>
+</tr>
+<tr>
+<td><strong>International Agent</strong></td>
+<td>International Strategy</td>
+<td>10 active markets in priority order, cultural adaptation dimensions,
+localization constraints per market</td>
+</tr>
+<tr>
+<td><strong>QA Agent</strong></td>
+<td>Quality Assurance</td>
+<td>Maestro YAML conventions, testing pyramid structure, security
+surface (WebView XSS, bridge validation, Firebase rules)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>[INSERT IMAGE: constellation_conclusion.png]</strong></p>
+<hr />
+<h3
+id="the-design-discipline-skills-agents-and-the-right-granularity">The
+Design Discipline: Skills, Agents, and the Right Granularity</h3>
+<p>The table above shows eleven agents and twenty-eight skills. That
+structure was not arbitrary; it was the product of several painful
+lessons about how to organize AI capabilities into something that
+actually works as a system.</p>
+<p>Three principles emerged:</p>
+<p><strong>1. Skills must live inside agents, never loose.</strong></p>
+<p>A skill without an agent is a tool lying on a workbench. It can do
+the job, but <em>you</em> have to remember it exists, decide when to use
+it, load the right context, and interpret the output. Loose skills don’t
+compose into workflows. They stay isolated steps that require you (the
+founder) to be the routing layer every time.</p>
+<p>When <code>/release-notes</code> was a standalone skill, I had to
+remember to run it, remember what context it needed, and manually
+sequence it with the version bump and the tag. When it moved into the
+Release Agent alongside <code>/release-checklist</code>, the agent could
+orchestrate the full end-to-end flow: check prerequisites, bump
+versions, generate notes, create the tag. The skill became part of a
+<em>process</em> instead of a <em>task</em>. That’s the difference
+between a tool and a department.</p>
+<p><strong>2. Agents without skills are complexity without
+capability.</strong></p>
+<p>The temptation in agent architecture is to create an agent for every
+domain you can name. “We should have a Customer Support Agent.” But if
+that agent has no encoded skills (no specific commands, no documented
+workflows, no MCPs) then all you’ve done is add a new entity to the
+routing table. Now you have to decide: does this request go to the
+Customer Support Agent or the Marketing Agent? Without skills to
+disambiguate, the founder becomes the dispatcher for an organizational
+chart that exists in name only.</p>
+<p>The rule I adopted: <strong>don’t create an agent until you have at
+least one skill to give it.</strong> The agent earns its existence by
+having something concrete it can do. This is why Appacadabra has eleven
+agents and not twenty; the departments that didn’t yet have formalized
+workflows (Customer Support, Sales, PR, Investor Relations) didn’t get
+agents. They’ll get agents when they get skills.</p>
+<p><strong>3. Too many skills per agent overload its
+decision-making.</strong></p>
+<p>This is the subtler failure mode. An agent with fifteen skills has to
+decide, for every incoming request, which of those fifteen tools to
+reach for. That decision is not free; it introduces ambiguity, increases
+the chance of the wrong skill being selected, and makes the agent’s
+behavior harder for the founder to predict.</p>
+<p>The Engineering Agent is the most loaded agent in the system, with
+seven skills. That’s already at the edge of what I’d consider
+manageable, and it works only because the skills are clearly
+differentiated by input type (code review vs. schema validation
+vs. locale string generation). If I had also put the Release skills or
+the QA skills inside Engineering, the agent would have become a dumping
+ground where every technical request landed, and the skill selection
+would degrade.</p>
+<p>The analogy from traditional management holds: a department with too
+many responsibilities becomes a bottleneck and a source of errors. The
+same applies to agents. <strong>The right granularity is the one where
+each agent has enough skills to run an end-to-end workflow in its
+domain, and few enough that skill selection is unambiguous.</strong></p>
+<p>These three principles (skills in agents, agents with skills, and
+skills in moderation) are the organizational design layer of harness
+engineering. Get them wrong and you have either a pile of disconnected
+tools or an unmaintainable graph of agents that no one (including the
+AI) can navigate. Get them right and you have something that behaves
+like a company: specialized departments with clear responsibilities,
+each capable of acting autonomously within its scope.</p>
+<hr />
+<h3 id="the-command-surface">The Command Surface</h3>
+<p>Twenty-eight executable commands: the institutional knowledge of the
+company encoded as actions that can be taken repeatedly, consistently,
+without rebuilding context from scratch each time.</p>
+<table>
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 23%" />
+<col style="width: 46%" />
+</colgroup>
+<thead>
+<tr>
+<th>Command</th>
+<th>Agent</th>
+<th>What It Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/design-brief</code></td>
+<td>Branding</td>
+<td>Produces a structured visual brief + Vertex AI generation prompt for
+any asset</td>
+</tr>
+<tr>
+<td><code>/screen-spec</code></td>
+<td>UX</td>
+<td>Generates a full screen specification + browser-testable HTML
+scaffold for any user story</td>
+</tr>
+<tr>
+<td><code>/code-review</code></td>
+<td>Engineering</td>
+<td>Reviews code against architecture invariants, mana guard pattern,
+and code quality rules</td>
+</tr>
+<tr>
+<td><code>/gen-tests</code></td>
+<td>Engineering</td>
+<td>Generates Jest unit test scaffolding, always including the
+mana-not-charged-on-failure path</td>
+</tr>
+<tr>
+<td><code>/validate-schema</code></td>
+<td>Engineering</td>
+<td>Validates Firestore document shapes and SQLite schema against
+TypeScript type definitions</td>
+</tr>
+<tr>
+<td><code>/dependency-audit</code></td>
+<td>Engineering</td>
+<td>Audits a new npm package for New Architecture compatibility, bundle
+size, and conflicts</td>
+</tr>
+<tr>
+<td><code>/stack-router</code></td>
+<td>Engineering</td>
+<td>Routes tasks to the right model: Claude (TypeScript), Gemini
+(Android), or OpenRouter (bulk translation)</td>
+</tr>
+<tr>
+<td><code>/add-locale-string</code></td>
+<td>Engineering</td>
+<td>Adds a new i18n key across all 17 locales via OpenRouter (cheap
+multilingual model), with back-translation verification for
+JA/AR/HI/KO</td>
+</tr>
+<tr>
+<td><code>/update-locale-string</code></td>
+<td>Engineering</td>
+<td>Updates an existing i18n key value across all 17 locales;
+re-translates via OpenRouter and overwrites in both
+<code>lib/i18n.ts</code> and
+<code>website/js/translations.js</code></td>
+</tr>
+<tr>
+<td><code>/mana-calibrate</code></td>
+<td>Finance</td>
+<td>Recalculates mana costs for all operations based on current API
+pricing, flags margins below 30%</td>
+</tr>
+<tr>
+<td><code>/compliance-check</code></td>
+<td>Legal</td>
+<td>Audits a new feature against GDPR, LGPD, COPPA, and Google Play
+policies</td>
+</tr>
+<tr>
+<td><code>/policy-diff</code></td>
+<td>Legal</td>
+<td>Analyzes a policy change for re-consent requirements and Data Safety
+form impact</td>
+</tr>
+<tr>
+<td><code>/metrics</code></td>
+<td>Analytics</td>
+<td>Queries Firestore to produce a structured product metrics report for
+any period</td>
+</tr>
+<tr>
+<td><code>/anomaly-detect</code></td>
+<td>Analytics</td>
+<td>Detects deviations in failure rates and mana consumption against a
+rolling baseline</td>
+</tr>
+<tr>
+<td><code>/cohort-analysis</code></td>
+<td>Analytics</td>
+<td>Segments users by behavior and analyzes engagement, consumption, and
+conversion per cohort</td>
+</tr>
+<tr>
+<td><code>/investor-summary</code></td>
+<td>Analytics</td>
+<td>Produces an investor-facing narrative from current Firestore
+metrics</td>
+</tr>
+<tr>
+<td><code>/release-notes</code></td>
+<td>Release</td>
+<td>Generates Play Store release notes across all 17 locales, under 500
+characters each</td>
+</tr>
+<tr>
+<td><code>/release-checklist</code></td>
+<td>Release</td>
+<td>Pre-submission checklist: version parity, permissions, store
+listing, staged rollout config</td>
+</tr>
+<tr>
+<td><code>/app-metadata</code></td>
+<td>Release</td>
+<td>Generates Play Store listing copy calibrated for the app’s keyword
+clusters</td>
+</tr>
+<tr>
+<td><code>/rollout-check</code></td>
+<td>Release</td>
+<td>Queries Firebase logs and job failure rates to produce a go/no-go
+rollout verdict</td>
+</tr>
+<tr>
+<td><code>/draft-post</code></td>
+<td>Marketing</td>
+<td>Drafts a complete post for X (thread) or LinkedIn (narrative) in
+Appacadabra’s voice</td>
+</tr>
+<tr>
+<td><code>/content-plan</code></td>
+<td>Marketing</td>
+<td>Builds a content calendar mapping product milestones to content
+formats and cadences</td>
+</tr>
+<tr>
+<td><code>/adapt-post</code></td>
+<td>Marketing</td>
+<td>Adapts existing content for a different platform while preserving
+voice and core insight</td>
+</tr>
+<tr>
+<td><code>/substack-publish</code></td>
+<td>Marketing</td>
+<td>Converts a blog markdown file into Substack-ready format:
+Mermaid-&gt;prose, heading adjustments, publishing metadata</td>
+</tr>
+<tr>
+<td><code>/market-entry</code></td>
+<td>International</td>
+<td>Market entry readiness assessment: regulatory, distribution,
+cultural, competitive</td>
+</tr>
+<tr>
+<td><code>/glocalization-check</code></td>
+<td>International</td>
+<td>Cultural compatibility audit across all 10 active markets for any
+new feature</td>
+</tr>
+<tr>
+<td><code>/test-coverage-check</code></td>
+<td>QA</td>
+<td>Identifies user flows without Maestro coverage and generates
+scaffolding for missing tests</td>
+</tr>
+<tr>
+<td><code>/gen-e2e-tests</code></td>
+<td>QA</td>
+<td>Generates a complete Maestro YAML flow for any user journey</td>
+</tr>
+<tr>
+<td><code>/security-scan</code></td>
+<td>QA</td>
+<td>Audits WebView security, Firebase rules, secret management, input
+validation, and permissions</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="the-connections-between-agents">The Connections Between
+Agents</h3>
+<p>The agents don’t operate in isolation. The architecture that makes
+this a company operating system (rather than eleven disconnected tools)
+is the network of dependencies and handoffs between them.</p>
+<p>The <strong>Engineering Agent</strong> is the hub. Its output feeds
+directly into the <strong>QA Agent</strong> (every new function
+generates tests) and the <strong>Finance Agent</strong> (every new AI
+operation requires mana calibration). It receives constraints from the
+<strong>Strategy Agent</strong> (what to build), the <strong>UX
+Agent</strong> (how screens should behave), and the <strong>Legal
+Agent</strong> (what data flows are permissible). It also owns
+localization: every new UI string passes through
+<code>/add-locale-string</code> before shipping, and any copy update to
+an existing string goes through <code>/update-locale-string</code>.</p>
+<p>The <strong>Release Agent</strong> sits downstream of everything. It
+consumes Engineering output (code), the Engineering Agent’s localization
+work (release notes in 17 languages), Analytics data (rollout health
+signals), and Finance output (mana pricing that must be accurate before
+shipping). A release decision is, implicitly, a validation that every
+upstream agent did its job.</p>
+<p>The <strong>Marketing Agent</strong> activates on product events.
+When Engineering ships a feature, Marketing drafts the thread. When
+Release publishes a new version, Marketing drafts the announcement. When
+Analytics surfaces a milestone, Marketing turns it into a story. The
+content calendar (<code>/content-plan</code>) is the scheduling layer
+that ties Marketing output to the product’s actual rhythm. And when an
+article is ready to go public, <code>/substack-publish</code> handles
+the last mile: converting internal markdown into a publishable format
+without manual reformatting.</p>
+<p>The <strong>Analytics Agent</strong> feeds back upstream. Its anomaly
+detection can trigger the QA Agent’s regression suite. Its cohort data
+informs the International Agent’s market prioritization. Its investor
+summaries distill the work of every other department into the signal
+that determines whether the company continues to exist.</p>
+<p>The <strong>International Agent</strong> receives strategic
+intelligence from Marketing (which markets are generating organic
+engagement) and feeds requirements back to Engineering (new locale
+strings, RTL layout considerations) and Release (market-specific App
+Store metadata).</p>
+<p>This is not a flat list of tools. It is a directed graph where
+decisions flow downstream and feedback flows upstream: the same topology
+as a functional company org chart.</p>
+<p><strong>[INSERT IMAGE:
+agent_dependency_graph_conclusion.png]</strong></p>
+<hr />
+<h3 id="the-mcp-layer">The MCP Layer</h3>
+<p>Two external MCPs connect the agent constellation to live
+systems:</p>
+<p><strong>Firebase MCP</strong>: used by Engineering, Finance,
+Analytics, and Release agents. Provides direct access to Firestore
+(<code>jobs</code>, <code>users</code> collections), Cloud Function logs
+(<code>processSpellJob</code>), and project configuration. The Analytics
+and Release agents could not operate without it; their core function is
+interpreting live production data, not static analysis.</p>
+<p><strong>OpenRouter MCP</strong>
+(<code>@mcpservers/openrouterai</code>): used by the Engineering agent
+for bulk translation jobs routed through <code>/stack-router</code>.
+Configured with <code>google/gemma-4-26b-a4b-it</code> as primary and
+<code>openai/gpt-oss-120b</code> as fallback. The cost justification is
+direct: running translation inferences through an open model costs
+nothing; running them through Claude does not.</p>
+<hr />
+<h3 id="what-this-experiment-proved">What This Experiment Proved</h3>
+<p><strong>AI can compress the time to build a company by an order of
+magnitude.</strong></p>
+<p>The departments that historically required specialized human teams
+(Branding, UX, Legal, Finance, Analytics, Release, Marketing,
+International Strategy) were each stood up by one founder in a fraction
+of the traditional time. Not at reduced quality across the board. At
+reduced quality in specific areas that have been identified and
+accepted, and at equivalent or superior quality in areas where AI’s
+strengths aligned with the domain.</p>
+<p>The <strong>agent + skill + MCP</strong> architecture (what the AI
+engineering community is beginning to call <strong>harness
+engineering</strong>) is the key insight that most AI productivity
+writing misses. It’s not about using AI to answer questions. It’s about
+building agents that understand <em>your company</em> (your stack, your
+voice, your constraints, your decisions) and can act within that context
+automatically. Each department wasn’t just staffed by AI. It was
+<em>encoded</em> into a living system that can continue operating the
+next time the same type of work is needed. The difference between a
+prompt and an MCP is the difference between a task and a process.</p>
+<h3 id="what-it-didnt-prove">What It Didn’t Prove</h3>
+<p><strong>AI does not eliminate the need for human judgment. It
+accelerates you into it.</strong></p>
+<p>Every department required acting as a senior leader in a discipline
+not formally studied: making strategic decisions, evaluating expert
+output, accepting calculated risk in areas that couldn’t be fully
+validated. AI gave better information, faster. It didn’t make the
+decisions.</p>
+<p>The validation gap is real. For departments where I had expertise
+(engineering, product architecture, technical decision-making) AI was a
+force multiplier. For departments where I lacked expertise (legal
+nuance, branding taste at the pixel level, cross-cultural consumer
+psychology) AI was a capable but imperfect partner, and the decisions
+were made with incomplete certainty. That is not a comfortable position.
+It is the only honest one available.</p>
+<p>The DevOps wall in Part 8 is the clearest evidence of this limit:
+Android environment debugging, with its combinatorial explosion of
+interacting variables, remains a domain where human intuition built from
+years of shipping is still irreplaceable. AI explained errors once they
+were found. It could not find them.</p>
+<h3 id="what-comes-next">What Comes Next</h3>
+<p>The infrastructure built over these four months is not a four-month
+project. It is the beginning of a company’s operating system.</p>
+<p>As Appacadabra grows (as new features are built, new markets entered,
+new AI models integrated, new compliance requirements emerge) the agents
+evolve with it. Each new task that passes through an agent, gets
+captured as a skill, and gets formalized as an MCP, makes the system
+slightly more capable and slightly more specifically
+<em>Appacadabra</em>.</p>
+<p>The departments not yet built (Customer Support, Sales, PR, Investor
+Relations) will be built the same way. Starting with the first manual
+interaction. Encoding it as a skill. Formalizing it as a protocol. Each
+one will arrive with the same foundation: an agent that already knows
+the company, because the company’s knowledge is already in the
+system.</p>
+<p>One trap worth naming explicitly before closing: <strong>the
+architecture is seductive</strong>. Building agents, encoding skills,
+designing harnesses: this work is satisfying in ways that talking to
+users, handling a support queue, or grinding through a growth plateau is
+not. It is entirely possible to spend weeks building the infrastructure
+to run a company and quietly neglect the company itself. Like every
+powerful tool in the history of technology, the harness works best when
+you remember what it’s harnessing <em>for</em>. The goal is to free your
+attention for the work that actually moves the business, not to let
+agent-building become a productive-feeling substitute for it. Build the
+HR agent when you have HR problems. Build the Sales agent when you have
+a sales motion worth automating. The sequence matters: business need
+first, harness second.</p>
+<h3 id="what-this-was-really-about">What This Was Really About</h3>
+<p>There is a reveal that belongs at the end of a series like this, and
+delaying it would be dishonest.</p>
+<p>The company is real. The eleven agents work. The product is on the
+Play Store. Every decision documented in these thirteen posts was made
+with intent and shipped. But the question the last four months were
+actually built to answer wasn’t “can I run a company.” It was: <em>can
+one founder, with a well-designed harness of AI agents, cover the
+surface area of an entire software company?</em> Every strategic call,
+every locale string, every release checklist was a probe against that
+question. The answer, tentatively, is yes – with every caveat already
+named in “What It Didn’t Prove.”</p>
+<p>One timeline detail belongs in the open. The thirteen posts describe
+the company as it was during the four months of construction – including
+the mana economy, the in-app-purchase flow, and the server-side
+generation pipeline that were the working commercial model at the time
+of writing. Only after the experiment had answered its methodological
+question did one downstream decision follow: <strong>make the reference
+implementation free</strong>. In July 2026 the current production build
+removed the mana ledger and server-side generators; Appacadabra now runs
+on OpenRouter with keys the user brings themselves
+(<code>lib/api/openrouter.ts</code>, <code>lib/api/keyStorage.ts</code>)
+– hardware-backed storage on device, direct-to-provider requests, no
+billing layer between the user and the model. If the point of the
+project was methodological rather than commercial, the extraction layer
+was noise. Removing it turned the codebase into what it always
+implicitly was: a working reference implementation of the
+agent-operated-company model.</p>
+<p>Which is why the whole thing is open source. Apache 2.0, on GitHub,
+no gates. Every agent definition under <code>.claude/agents/</code>,
+every skill under <code>.claude/commands/</code>, every capability
+module under <code>lib/capabilities/</code>, the harness itself – all
+forkable, all inspectable. And two states of the codebase are usable
+independently: the current <code>main</code>, which is the free BYOK
+reference described in this section, and the pre-migration commit
+history, which preserves the complete commercial architecture (mana
+ledger, IAP flow, server-side generation) documented across Parts 4, 6,
+and 8. Fork <code>main</code> if you want a reference for how such a
+company is <em>organized</em>. Fork the pre-BYOK state if you want a
+starting point for an actual business – the monetization stack is
+already implemented and shipped. Either way, the interesting artifact is
+the harness. The app is the artifact that proves the harness worked.</p>
+<p>One piece of the reference implementation is deliberately incomplete:
+<strong>iOS</strong>. The <code>ios/</code> folder in the repo builds a
+working iOS binary; the Expo prebuild is intact, the entitlements are
+configured, the <code>infoPlist</code> permissions are in place. What
+isn’t there is an Apple Developer account, or the intention to acquire
+one. If you have that account and want to build, sign, and publish the
+iOS version of Appacadabra under Apache 2.0, the door is open. It is not
+a partnership offer or an outsourcing request. It is one missing
+signature away from being a two-platform reference implementation, and I
+don’t happen to hold that signature.</p>
+<p>This is the new model of the software company. Not a team of humans
+with AI assistants. Not autonomous AI with a human supervisor. A human
+CEO operating a constellation of specialized AI agents, each one deeply
+configured to serve the company’s specific context, each one extending
+the founder’s capability into domains they couldn’t previously
+reach.</p>
+<p>It is more difficult than it sounds. It is more possible than most
+people believe.</p>
+<p>And it is just beginning.</p>
+<hr />
+<p><em>The Appacadabra Chronicles is a 13-part series (Preface + Parts
+1-11 + Conclusion) documenting the AI-driven construction of a full
+software company. The series covers Strategy, Branding, UX/Product,
+Engineering &amp; Localization, Quality Assurance, Finance, Legal, Data
+Analytics &amp; DevOps, Release Management, Marketing, and International
+Strategy. The full codebase – app, agents, skills, and harness – is open
+source under Apache 2.0 on GitHub.</em></p>
