@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tecla Fácil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ===== ROOT VARIABLES ===== */
+        :root {
+            --primary: #1B2838;
+            --primaryLight: #2C3E50;
+            --accent: #D4A843;
+            --accentLight: #F0D48A;
+            --bg: #F8F4EC;
+            --surface: #FFFFFF;
+            --text: #1A1A2E;
+            --textSecondary: #7F8C8D;
+            --success: #27AE60;
+            --error: #E74C3C;
+            --gradientHeader: linear-gradient(135deg, #1B2838 0%, #2C3E50 100%);
+            --radius: 16px;
+            --radiusSm: 12px;
+            --radiusXs: 8px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --shadowLg: 0 20px 60px rgba(0,0,0,0.3);
+            --transition: all 0.2s ease;
+            --maxWidth: 480px;
+            --keyWhiteWidth: 44px;
+            --keyWhiteHeight: 160px;
+            --keyBlackWidth: 28px;
+            --keyBlackHeight: 100px;
+        }
+
+        /* ===== RESET ===== */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            max-width: var(--maxWidth);
+            margin: 0 auto;
+            padding: 0 16px 100px;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+        h2 { font-size: 22px; font-weight: 700; }
+        h3 { font-size: 17px; font-weight: 600; }
+        p { font-size: 15px; line-height: 1.5; }
+
+        #appHeader {
+            margin: 0 -16px;
+            padding: 32px 24px 24px;
+            background: var(--gradientHeader);
+            color: #fff;
+            border-radius: 0 0 28px 28px;
+            box-shadow: 0 4px 24px rgba(27,40,56,0.35);
+            position: relative;
+            overflow: hidden;
+        }
+        #appHeader h1 { font-size: 30px; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+        #appHeader .subtitle { font-size: 14px; opacity: 0.85; font-weight: 400; line-height: 1.4; max-width: 280px; }
+
+        #filterContainer { display: flex; gap: 8px; margin: 20px 0 16px; flex-wrap: wrap; }
+        .filter-btn {
+            padding: 8px 20px; border-radius: 24px; border: 1.5px solid var(--primary);
+            background: transparent; color: var(--primary); font-family: inherit;
+            font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);
+            min-height: 40px; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        #practiceCounter {
+            background: linear-gradient(135deg, var(--primary), var(--primaryLight));
+            color: #fff; border-radius: var(--radius); padding: 16px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px; box-shadow: 0 4px 16px rgba(27,40,56,0.2);
+        }
+
+        #songGrid { display: flex; flex-direction: column; gap: 12px; }
+        .song-card {
+            background: var(--surface); border-radius: var(--radius); padding: 16px 18px;
+            box-shadow: var(--shadow); border-left: 4px solid var(--accent);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .song-card .card-title { font-size: 17px; font-weight: 600; color: var(--text); }
+        .song-card .card-artist { font-size: 14px; color: var(--textSecondary); margin-bottom: 10px; }
+        .diff-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .diff-badge.easy { background: #E8F5E9; color: #2E7D32; }
+        .diff-badge.medium { background: #FFF3E0; color: #E65100; }
+        .chord-chip {
+            display: inline-block; padding: 6px 14px; border-radius: 20px;
+            background: var(--accentLight); color: var(--primary); font-weight: 600;
+            font-size: 13px; cursor: pointer; border: none; font-family: inherit; min-height: 34px;
+        }
+        .btn-primary, .btn-secondary {
+            padding: 10px 18px; border-radius: var(--radiusSm); border: none;
+            font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+            min-height: 42px; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-primary { background: var(--accent); color: var(--primary); }
+        .btn-secondary { background: var(--primary); color: #fff; }
+        .btn-outline {
+            background: transparent; border: 1.5px solid var(--accent); color: var(--accent);
+            padding: 10px 18px; border-radius: var(--radiusSm); font-family: inherit;
+            font-size: 14px; font-weight: 600; cursor: pointer; min-height: 42px;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-danger {
+            background: var(--error); color: #fff; padding: 10px 18px; border-radius: var(--radiusSm);
+            border: none; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+            min-height: 42px; display: inline-flex; align-items: center; gap: 6px;
+        }
+
+        #emptyState { text-align: center; padding: 48px 24px; color: var(--textSecondary); display: none; }
+        #emptyState.visible { display: block; }
+        #emptyState .empty-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+
+        #addSongSection { margin-top: 24px; padding-top: 24px; border-top: 1px solid #E8E4DC; }
+        #addSongInput {
+            flex: 1; min-width: 200px; padding: 14px 16px; border-radius: var(--radiusSm);
+            border: 2px solid #E0DCD4; font-family: inherit; font-size: 15px; outline: none;
+            background: var(--surface);
+        }
+
+        #songDetailModal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(6px); z-index: 100; display: flex;
+            align-items: center; justify-content: center; padding: 16px;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        #songDetailModal.aberto { opacity: 1; visibility: visible; }
+        #modalContent {
+            background: var(--surface); border-radius: 24px; padding: 28px 24px;
+            max-width: 440px; width: 100%; max-height: 85vh; overflow-y: auto;
+            box-shadow: var(--shadowLg); position: relative;
+        }
+        #modalTitle { font-size: 22px; font-weight: 700; margin-bottom: 2px; padding-right: 32px; }
+        #modalArtist { font-size: 15px; color: var(--textSecondary); margin-bottom: 12px; }
+        #modalKey {
+            display: inline-block; padding: 4px 12px; background: #E3F2FD;
+            color: #1565C0; border-radius: 12px; font-size: 12px; font-weight: 600;
+        }
+        #modalChords { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        #modalTips {
+            background: #F0EDE6; border-radius: var(--radiusSm); padding: 14px 16px;
+            font-size: 14px; line-height: 1.6; color: var(--text); margin-bottom: 16px;
+        }
+        #modalCloseBtn {
+            position: absolute; top: 16px; right: 16px; width: 36px; height: 36px;
+            border-radius: 50%; border: none; background: #F0EDE6; color: var(--textSecondary);
+            font-size: 18px; cursor: pointer;
+        }
+
+        #modalLyrics { margin-bottom: 16px; margin-top: 4px; }
+        #modalLyrics .lyrics-display {
+            background: #FAF7F0; border-radius: var(--radiusSm); padding: 16px 18px;
+            font-family: 'Courier New', monospace; font-size: 15px; line-height: 2.0;
+            overflow-x: auto; white-space: pre-wrap;
+        }
+        #modalLyrics .lyrics-chord {
+            display: inline-block; color: #1565C0; font-weight: 700; font-size: 14px;
+            margin-right: 4px; background: #E3EFFA; padding: 0 4px; border-radius: 3px;
+        }
+
+        #chordVisualizer { padding: 16px 0 8px; border-top: 1px solid #E8E4DC; margin-top: 8px; }
+        #chordNameLabel { font-size: 18px; font-weight: 700; color: var(--primary); }
+        #playChordBtn {
+            padding: 8px 16px; border-radius: 20px; border: none;
+            background: var(--accent); color: var(--primary); font-family: inherit;
+            font-size: 13px; font-weight: 600; cursor: pointer; min-height: 38px;
+        }
+        #keyboardContainer {
+            position: relative; height: var(--keyWhiteHeight); width: fit-content;
+            margin: 0 auto; user-select: none;
+        }
+        .white-key {
+            display: inline-flex; width: var(--keyWhiteWidth); height: var(--keyWhiteHeight);
+            background: #fff; border: 1px solid #D5D0C8; border-radius: 0 0 6px 6px;
+            position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            align-items: flex-end; justify-content: center; padding-bottom: 8px;
+            font-size: 10px; color: var(--textSecondary); font-weight: 500;
+        }
+        .white-key.active { background: var(--accentLight) !important; border-color: var(--accent); }
+        .black-key {
+            position: absolute; width: var(--keyBlackWidth); height: var(--keyBlackHeight);
+            background: #2C2C2C; border-radius: 0 0 4px 4px; z-index: 10;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+        }
+        .black-key.active { background: var(--accent) !important; }
+
+        #footerNav { text-align: center; padding: 24px 16px 16px; font-size: 12px; color: var(--textSecondary); opacity: 0.7; margin-top: 32px; }
+
+        @media (max-width: 400px) {
+            body { padding-left: 12px; padding-right: 12px; }
+            #appHeader { padding: 24px 18px 20px; }
+            #appHeader h1 { font-size: 24px; }
+            .song-card { padding: 14px; }
+            #modalContent { padding: 20px 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header id="appHeader">
+        <h1><span>🎹</span> Tecla Fácil</h1>
+        <p class="subtitle">Aprenda a tocar teclado com músicas simples — do zero às primeiras canções</p>
+    </header>
+
+    <div id="filterContainer">
+        <button id="filterAll" class="filter-btn active" onclick="filterSongs('todas')">Todas</button>
+        <button id="filterEasy" class="filter-btn" onclick="filterSongs('facil')">⭐ Fácil</button>
+        <button id="filterMedium" class="filter-btn" onclick="filterSongs('medio')">⭐⭐ Médio</button>
+    </div>
+
+    <div id="practiceCounter">
+        <div class="counter-left">
+            <span class="counter-icon">🔥</span>
+            <div>
+                <div class="counter-text">Hoje: <strong id="sessionsToday">0</strong> sessões</div>
+                <div class="counter-streak">Streak: <strong id="streakCount">0</strong> dias</div>
+            </div>
+        </div>
+        <div class="counter-streak" style="text-align:right;">
+            <strong id="streakDisplay">🔥 0</strong>
+            dias consecutivos
+        </div>
+    </div>
+
+    <div id="songGrid"></div>
+
+    <div id="emptyState">
+        <div class="empty-icon">🎵</div>
+        <p>Nenhuma música encontrada.<br>Tente outro filtro ou adicione uma nova música abaixo!</p>
+    </div>
+
+    <div id="addSongSection">
+        <div class="section-label">🎵 Adicionar Música</div>
+        <div class="section-hint">A IA vai gerar os acordes para você automaticamente</div>
+        <div class="input-row">
+            <input id="addSongInput" type="text" placeholder="Ex: Evidências — Chitãozinho &amp; Xororó" maxlength="120">
+            <button id="addSongBtn" class="btn-primary" onclick="addUserSong()">🎵 Adicionar Música</button>
+        </div>
+    </div>
+
+    <div id="songDetailModal">
+        <div id="modalContent">
+            <button id="modalCloseBtn" onclick="closeSongDetail()">✕</button>
+            <h2 id="modalTitle">Título</h2>
+            <p id="modalArtist">Artista</p>
+            <div class="modal-meta">
+                <span id="modalDifficulty" class="diff-badge easy">⭐ Fácil</span>
+                <span id="modalKey">Tom: C</span>
+            </div>
+            <div id="modalChords"></div>
+            <div id="modalLyrics"></div>
+            <p id="modalTips">Dicas de execução</p>
+            <div id="chordVisualizer">
+                <div class="viz-header">
+                    <span id="chordNameLabel">Selecione um acorde</span>
+                    <button id="playChordBtn" onclick="playChord()">▶ Tocar Acorde</button>
+                </div>
+                <div id="keyboardContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="footerNav">Tecla Fácil v1.0 — Feito para quem está começando 💛</div>
+
+    <script>
+    var currentFilter = 'todas';
+    var selectedSongId = null;
+    var activeChord = null;
+    var CHORD_DB = {};
+    var songs = [];
+    var practiceLog = [];
+    var aiCache = {};
+    var audioCtx = null;
+    var deletingSongId = null;
+
+    var DEFAULT_SONGS = [
+        { id: 's1', title: 'Asa Branca', artist: 'Luiz Gonzaga', key: 'C', chords: ['C','G','F'], difficulty: 1, tips: 'Comece tocando C e G alternando.', lyrics: '[C]Asa branca [G]quando olhei | [C]A terra [G]ardendo [F]como [G]fogão', isUserAdded: false },
+        { id: 's2', title: 'Trem Bala', artist: 'Ana Vilela', key: 'C', chords: ['C','G','Am','F'], difficulty: 1, tips: 'Sequência C-G-Am-F o tempo todo.', lyrics: '[C]Não é sobre [G]chegar no [Am]topo do [F]mundo', isUserAdded: false },
+        { id: 's3', title: 'Velha Infância', artist: 'Tribalistas', key: 'G', chords: ['G','Em','C','D'], difficulty: 2, tips: 'A progressão G-Em-C-D é clássica.', lyrics: '[G]Todo dia [Em]ela faz [C]tudo [D]igual', isUserAdded: false },
+        { id: 's8', title: 'Let It Be', artist: 'The Beatles', key: 'C', chords: ['C','G','Am','F'], difficulty: 1, tips: 'Clássico mundial com apenas 4 acordes.', lyrics: '[C]When I [G]find myself in [Am]times of [F]trouble', isUserAdded: false },
+        { id: 's10', title: 'Parabéns pra Você', artist: 'Tradicional', key: 'G', chords: ['G','D','C'], difficulty: 1, tips: 'Apenas G, D e C.', lyrics: '[G]Parabéns pra [D]você [G]Nesta data [C]querida [G]Muitas [D]felicidades [G]', isUserAdded: false }
+    ];
+
+    function initChordDB() {
+        CHORD_DB = {
+            'C':  ['C4','E4','G4'], 'D':  ['D4','F#4','A4'], 'E':  ['E4','G#4','B4'],
+            'F':  ['F4','A4','C5'], 'G':  ['G4','B4','D5'], 'A':  ['A4','C#5','E5'],
+            'B':  ['B4','D#5','F#5'], 'Bb': ['A#4','D5','F5'],
+            'Cm': ['C4','D#4','G4'], 'Dm': ['D4','F4','A4'], 'Em': ['E4','G4','B4'],
+            'Fm': ['F4','G#4','C5'], 'Gm': ['G4','A#4','D5'], 'Am': ['A4','C5','E5'],
+            'Bm': ['B4','D5','F#5'], 'F#m': ['F#4','A4','C#5'],
+            'C7': ['C4','E4','G4','A#4'], 'D7': ['D4','F#4','A4','C5'],
+            'E7': ['E4','G#4','B4','D5'], 'F7': ['F4','A4','C5','D#5'],
+            'G7': ['G4','B4','D5','F5'], 'A7': ['A4','C#5','E5','G5'],
+            'Cmaj7': ['C4','E4','G4','B4'], 'C7M': ['C4','E4','G4','B4']
+        };
+    }
+
+    var NOTE_SEMITONE = {
+        'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,'F#':6,'Gb':6,
+        'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11
+    };
+
+    function noteToFrequency(noteName) {
+        var match = noteName.match(/^([A-G]#?b?)(\d+)$/);
+        if (!match) return 440;
+        var note = match[1];
+        var octave = parseInt(match[2], 10);
+        var semi = NOTE_SEMITONE[note];
+        if (semi === undefined) return 440;
+        var midi = (octave + 1) * 12 + semi;
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function getAudioContext() {
+        if (!audioCtx) {
+            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+            catch(e) { return null; }
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+    }
+
+    function playNote(frequency, duration, startTime) {
+        var ctx = getAudioContext();
+        if (!ctx) return;
+        var now = ctx.currentTime;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(frequency, now + startTime);
+        gain.gain.setValueAtTime(0, now + startTime);
+        gain.gain.linearRampToValueAtTime(0.6, now + startTime + 0.02);
+        gain.gain.setValueAtTime(0.6, now + startTime + duration - 0.1);
+        gain.gain.linearRampToValueAtTime(0, now + startTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + startTime);
+        osc.stop(now + startTime + duration + 0.05);
+    }
+
+    function playChord() {
+        if (!activeChord || !CHORD_DB[activeChord]) return;
+        var notes = CHORD_DB[activeChord];
+        var duration = 1.5;
+        var btn = document.getElementById('playChordBtn');
+        btn.classList.add('playing');
+        btn.textContent = '▶ Tocando...';
+        notes.forEach(function(n) {
+            var freq = noteToFrequency(n);
+            if (freq) playNote(freq, duration, 0);
+        });
+        setTimeout(function() {
+            btn.classList.remove('playing');
+            btn.textContent = '▶ Tocar Acorde';
+        }, duration * 1000 + 100);
+    }
+
+    function getDifficultyLabel(d) { return d === 1 ? '⭐ Fácil' : d === 2 ? '⭐⭐ Médio' : '⭐⭐⭐ Difícil'; }
+    function getDifficultyClass(d) { return d === 1 ? 'easy' : d === 2 ? 'medium' : 'hard'; }
+    function getTodayStr() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+    function generateId() { return 's_' + Date.now() + '_' + Math.random().toString(36).substr(2,6); }
+
+    function renderKeyboard() {
+        var container = document.getElementById('keyboardContainer');
+        container.innerHTML = '';
+        var whiteNotes = ['C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5','G5','A5','B5'];
+        var blackNotes = ['C#4','D#4',null,'F#4','G#4','A#4',null,'C#5','D#5',null,'F#5','G#5','A#5',null];
+        var kw = 44;
+        whiteNotes.forEach(function(n) {
+            var div = document.createElement('div');
+            div.className = 'white-key';
+            div.setAttribute('data-note', n);
+            div.textContent = n.replace(/(\d)/,' $1');
+            container.appendChild(div);
+        });
+        blackNotes.forEach(function(n, i) {
+            if (!n) return;
+            var offset = (i + 1) * kw - kw * 0.65;
+            var div = document.createElement('div');
+            div.className = 'black-key';
+            div.setAttribute('data-note', n);
+            div.style.left = offset + 'px';
+            div.style.top = '0';
+            container.appendChild(div);
+        });
+        container.style.width = (whiteNotes.length * kw) + 'px';
+    }
+
+    function showChordOnKeyboard(chordName) {
+        activeChord = chordName;
+        var label = document.getElementById('chordNameLabel');
+        label.textContent = chordName;
+        var allKeys = document.querySelectorAll('#keyboardContainer .white-key, #keyboardContainer .black-key');
+        allKeys.forEach(function(k) { k.classList.remove('active'); });
+        var notes = CHORD_DB[chordName];
+        if (!notes) return;
+        notes.forEach(function(n) {
+            var key = document.querySelector('#keyboardContainer [data-note="' + n + '"]');
+            if (key) key.classList.add('active');
+        });
+    }
+
+    function filterSongs(difficulty) {
+        currentFilter = difficulty;
+        document.querySelectorAll('.filter-btn').forEach(function(btn) { btn.classList.remove('active'); });
+        if (difficulty === 'todas') document.getElementById('filterAll').classList.add('active');
+        else if (difficulty === 'facil') document.getElementById('filterEasy').classList.add('active');
+        else if (difficulty === 'medio') document.getElementById('filterMedium').classList.add('active');
+        renderSongList();
+    }
+
+    function renderSongList() {
+        var grid = document.getElementById('songGrid');
+        var empty = document.getElementById('emptyState');
+        grid.innerHTML = '';
+        var filtered = songs.filter(function(s) {
+            if (currentFilter === 'facil') return s.difficulty === 1;
+            if (currentFilter === 'medio') return s.difficulty === 2;
+            return true;
+        });
+        if (filtered.length === 0) { empty.classList.add('visible'); return; }
+        empty.classList.remove('visible');
+        filtered.forEach(function(s) {
+            var card = document.createElement('div');
+            card.className = 'song-card';
+            var diffLabel = getDifficultyLabel(s.difficulty);
+            var diffClass = getDifficultyClass(s.difficulty);
+            var chordsHtml = '';
+            s.chords.forEach(function(ch) {
+                chordsHtml += '<button class="chord-chip" onclick="showChordOnKeyboard(\'' + ch + '\');openSongDetail(\'' + s.id + '\')">' + ch + '</button>';
+            });
+            card.innerHTML = '<div class="card-title">' + s.title + '</div><div class="card-artist">' + s.artist + '</div><span class="diff-badge ' + diffClass + '">' + diffLabel + '</span><div class="card-chords">' + chordsHtml + '</div><button class="btn-secondary" onclick="openSongDetail(\'' + s.id + '\')">🎼 Ver</button>';
+            grid.appendChild(card);
+        });
+    }
+
+    function openSongDetail(songId) {
+        var song = null;
+        for (var i = 0; i < songs.length; i++) {
+            if (songs[i].id === songId) { song = songs[i]; break; }
+        }
+        if (!song) return;
+        selectedSongId = songId;
+        document.getElementById('modalTitle').textContent = song.title;
+        document.getElementById('modalArtist').textContent = song.artist;
+        document.getElementById('modalKey').textContent = 'Tom: ' + song.key;
+        var chordsContainer = document.getElementById('modalChords');
+        chordsContainer.innerHTML = '';
+        song.chords.forEach(function(ch) {
+            var btn = document.createElement('button');
+            btn.className = 'chord-chip';
+            btn.textContent = ch;
+            btn.onclick = function() { showChordOnKeyboard(ch); };
+            chordsContainer.appendChild(btn);
+        });
+        document.getElementById('modalTips').textContent = song.tips;
+        if (song.chords.length > 0) showChordOnKeyboard(song.chords[0]);
+        document.getElementById('songDetailModal').classList.add('aberto');
+    }
+
+    function closeSongDetail() {
+        document.getElementById('songDetailModal').classList.remove('aberto');
+        selectedSongId = null;
+        activeChord = null;
+    }
+
+    function logPractice(songId) {
+        practiceLog.push({ songId: songId, timestamp: Date.now(), dateStr: getTodayStr() });
+        localStorage.setItem('tecla_facil_practice_log', JSON.stringify(practiceLog));
+    }
+
+    function addUserSong() {
+        var input = document.getElementById('addSongInput');
+        var query = input.value.trim();
+        if (!query) return;
+        var prompt = 'Você é um professor de teclado. Gere uma cifra para "' + query + '". Responda com JSON: { "title", "artist", "key", "chords", "difficulty", "tips", "lyrics" }';
+        AppacadabraAI.withSchema({
+            type: 'object',
+            properties: {
+                title: { type: 'string' }, artist: { type: 'string' }, key: { type: 'string' },
+                chords: { type: 'array', items: { type: 'string' } },
+                difficulty: { type: 'number' }, tips: { type: 'string' }, lyrics: { type: 'string' }
+            },
+            required: ['title','artist','key','chords','difficulty','tips','lyrics']
+        }).generate(prompt, 'handleAISongResult');
+    }
+
+    window.handleAISongResult = function(success, data) {
+        if (!success || !data || !data.chords) return;
+        songs.push({
+            id: generateId(), title: data.title, artist: data.artist, key: data.key,
+            chords: data.chords, difficulty: data.difficulty, tips: data.tips,
+            lyrics: data.lyrics, isUserAdded: true
+        });
+        localStorage.setItem('tecla_facil_songs', JSON.stringify(songs));
+        renderSongList();
+    };
+
+    function initApp() {
+        var storedSongs = localStorage.getItem('tecla_facil_songs');
+        if (storedSongs) { try { songs = JSON.parse(storedSongs); } catch(e) { songs = []; } }
+        if (songs.length === 0) songs = DEFAULT_SONGS.slice();
+        localStorage.setItem('tecla_facil_songs', JSON.stringify(songs));
+        var storedLog = localStorage.getItem('tecla_facil_practice_log');
+        if (storedLog) { try { practiceLog = JSON.parse(storedLog); } catch(e) {} }
+        initChordDB();
+        renderKeyboard();
+        renderSongList();
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>

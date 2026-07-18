@@ -13,6 +13,7 @@ import {
     chat,
     chatStream,
     checkAuth,
+    tts,
     OpenRouterError,
 } from '../api/openrouter';
 
@@ -167,6 +168,82 @@ describe('openrouter.chatStream', () => {
             if (evt.type === 'delta') combined += evt.text;
         }
         expect(combined).toBe('AB');
+    });
+});
+
+describe('openrouter.tts', () => {
+    beforeEach(() => {
+        mockedGetKey.mockResolvedValue('sk-or-v1-test-key');
+    });
+
+    function binaryResponse(bytes: Uint8Array): Response {
+        // Response's TS lib.d.ts doesn't include Uint8Array in BodyInit even
+        // though the runtime accepts it — pass the underlying ArrayBuffer.
+        return new Response(bytes.buffer as ArrayBuffer, {
+            status: 200,
+            headers: { 'Content-Type': 'audio/pcm;rate=24000;channels=1' },
+        }) as Response;
+    }
+
+    // Small helper: decode a base64 → bytes so tests can inspect the WAV header.
+    function b64ToBytes(b64: string): Uint8Array {
+        const bin = Buffer.from(b64, 'base64');
+        return new Uint8Array(bin);
+    }
+
+    it('POSTs to /audio/speech with response_format=pcm', async () => {
+        // Confirmed via live probe (2026-07-18): `/audio/speech` accepts ONLY
+        // `pcm` for Gemini TTS — asking for `wav` or `mp3` returns HTTP 400.
+        // A prior attempt to send `wav` triggered the Speech.speak fallback in
+        // AUDIO_SPEAK_AI because the endpoint rejected the request before any
+        // audio bytes came back.
+        (global as any).fetch = jest.fn().mockResolvedValue(binaryResponse(new Uint8Array(48000)));
+        await tts({ model: 'google/gemini-3.1-flash-tts-preview', text: 'hello' });
+        const args = ((global as any).fetch as jest.Mock).mock.calls[0];
+        expect(args[0]).toContain('/audio/speech');
+        const sent = JSON.parse(args[1].body);
+        expect(sent.response_format).toBe('pcm');
+        expect(sent.input).toBe('hello');
+        expect(sent.voice).toBe('Aoede');
+    });
+
+    it('wraps PCM bytes with a valid WAV header (RIFF/WAVE, 24kHz mono 16-bit)', async () => {
+        // OpenRouter returns raw PCM; we must prepend a 44-byte RIFF header
+        // before handing the base64 to the WebView `<audio>` element or to
+        // expo-av's Audio.Sound.createAsync. Constants (24kHz/mono/16-bit LE)
+        // come from the endpoint's own Content-Type header on live responses.
+        const pcm = new Uint8Array(1000); // 1000 zero-bytes as fake PCM payload
+        (global as any).fetch = jest.fn().mockResolvedValue(binaryResponse(pcm));
+
+        const out = await tts({ model: 'm', text: 'hi' });
+        expect(out.mimeType).toBe('audio/wav');
+
+        const wav = b64ToBytes(out.audioBase64);
+        expect(wav.length).toBe(44 + pcm.length);
+        // "RIFF"
+        expect(Array.from(wav.slice(0, 4))).toEqual([0x52, 0x49, 0x46, 0x46]);
+        // "WAVE"
+        expect(Array.from(wav.slice(8, 12))).toEqual([0x57, 0x41, 0x56, 0x45]);
+        // "fmt "
+        expect(Array.from(wav.slice(12, 16))).toEqual([0x66, 0x6d, 0x74, 0x20]);
+        // channels (offset 22, uint16 LE) = 1
+        const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+        expect(view.getUint16(22, true)).toBe(1);
+        // sample rate (offset 24, uint32 LE) = 24000
+        expect(view.getUint32(24, true)).toBe(24000);
+        // bit depth (offset 34, uint16 LE) = 16
+        expect(view.getUint16(34, true)).toBe(16);
+        // "data" chunk id
+        expect(Array.from(wav.slice(36, 40))).toEqual([0x64, 0x61, 0x74, 0x61]);
+        // data size (offset 40) matches pcm length
+        expect(view.getUint32(40, true)).toBe(pcm.length);
+    });
+
+    it('throws byok.error.parse when the response body is empty', async () => {
+        (global as any).fetch = jest.fn().mockResolvedValue(binaryResponse(new Uint8Array(0)));
+        await expect(tts({ model: 'm', text: 'hi' })).rejects.toMatchObject({
+            code: 'byok.error.parse',
+        });
     });
 });
 

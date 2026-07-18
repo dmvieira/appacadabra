@@ -208,6 +208,20 @@ window.onAudioResult = function(success, base64) {
                     const { audioBase64 } = ttsResult;
                     const costUsd = ttsResult.costUsd || 0;
 
+                    // Mirror AUDIO_PLAY (~line 316) — without this a prior
+                    // recordStart or another capability leaves the audio
+                    // session in a mode that silences MediaPlayer on Android.
+                    await Audio.setAudioModeAsync({
+                        allowsRecordingIOS: false,
+                        playsInSilentModeIOS: true,
+                        staysActiveInBackground: false,
+                    });
+
+                    if (currentAITTS) {
+                        try { await currentAITTS.stopAsync(); await currentAITTS.unloadAsync(); } catch (_) { }
+                        currentAITTS = null;
+                    }
+
                     const fileUri = FileSystem.cacheDirectory + `tts_${Date.now()}.wav`;
                     await FileSystem.writeAsStringAsync(fileUri, audioBase64.replace(/[\r\n]/g, ''), {
                         encoding: FileSystem.EncodingType.Base64,

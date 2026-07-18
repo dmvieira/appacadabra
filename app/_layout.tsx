@@ -135,6 +135,18 @@ export default function RootLayout() {
                 return;
             }
 
+            // Edit-failure notifications land on the runner in edit mode; the
+            // effect at app/runner/[id].tsx:567 detects lastFailedPrompt and
+            // reopens the ChatDialog pre-filled with the failed instruction,
+            // so the user can retry directly.
+            const kind = content?.data?.kind;
+            if (kind === 'edit-failure') {
+                try {
+                    router.push({ pathname: '/runner/[id]', params: { id: String(appId), edit: 'true' } });
+                } catch {}
+                return;
+            }
+
             if (Platform.OS === 'android') {
                 ShareIntent.startRunnerActivity(Number(appId)).catch(() => {});
             } else {

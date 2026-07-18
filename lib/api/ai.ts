@@ -7,7 +7,7 @@ import {
     generateWebviewAI as byokGenerateWebviewAI,
 } from './generators';
 import * as openrouter from './openrouter';
-import { MODELS } from './pricing';
+import { MODELS, calcImageUsd, calcVideoUsd, calculateCostUsd } from './pricing';
 import Constants from 'expo-constants';
 
 // ============= CONTENT MODERATION =============
@@ -179,10 +179,19 @@ export async function aiSimilarity(items: string[], signal?: AbortSignal): Promi
         matrix.push(row);
     }
 
+    const reportedCost = (usage as any)?.cost;
+    const costUsd =
+        typeof reportedCost === 'number' && reportedCost > 0
+            ? reportedCost
+            : calculateCostUsd(MODELS.EMBED, {
+                  promptTokens: items.reduce((sum, s) => sum + Math.ceil(s.length / 4), 0),
+                  responseTokens: 0,
+              });
+
     return {
         text: JSON.stringify(matrix),
         creditsUsed: 0,
-        costUsd: usage?.cost ?? 0,
+        costUsd,
     };
 }
 
@@ -220,11 +229,17 @@ export async function aiGenerateImage(prompt: string, imagesBase64?: string[], s
         : first;
 
     logAiGenerateImage(0);
+    const reportedCost = (usage as any)?.cost;
+    const costUsd =
+        typeof reportedCost === 'number' && reportedCost > 0
+            ? reportedCost
+            : calcImageUsd(cleanImages?.length ?? 0);
+
     return {
         imageBase64,
         usage,
         creditsUsed: 0,
-        costUsd: usage?.cost ?? 0,
+        costUsd,
     };
 }
 
@@ -239,11 +254,20 @@ export async function aiGenerateTTS(text: string, voiceName?: string, signal?: A
         signal,
     });
 
+    const reportedCost = (usage as any)?.cost;
+    const costUsd =
+        typeof reportedCost === 'number' && reportedCost > 0
+            ? reportedCost
+            : calculateCostUsd(MODELS.TTS, {
+                  promptTokens: Math.ceil((text?.length ?? 0) / 4) + 50,
+                  responseTokens: Math.ceil((text?.length ?? 0) * 2),
+              });
+
     return {
         audioBase64,
         usage,
         creditsUsed: 0,
-        costUsd: usage?.cost ?? 0,
+        costUsd,
     };
 }
 
@@ -280,11 +304,17 @@ export async function aiGenerateVideo(prompt: string, imagesBase64?: string[], s
             if (!videoBase64 && polled.videoUrl) {
                 videoBase64 = await urlToBase64(polled.videoUrl);
             }
+            const reportedCost = (polled.usage as any)?.cost;
+            const costUsd =
+                typeof reportedCost === 'number' && reportedCost > 0
+                    ? reportedCost
+                    : calcVideoUsd(8, !!firstImage);
+
             return {
                 videoBase64,
                 usage: polled.usage,
                 creditsUsed: 0,
-                costUsd: polled.usage?.cost ?? 0,
+                costUsd,
             };
         }
     }

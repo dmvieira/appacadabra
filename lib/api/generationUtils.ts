@@ -209,10 +209,15 @@ export interface GenerationUsage {
     thoughtsTokens: number;
     totalTokens: number;
     cachedTokens: number;
+    // Accumulated `usage.cost` reported by OpenRouter across all HTTP calls
+    // in the pipeline. Preferred over the local calculateCostUsd fallback
+    // because it already accounts for web-search fees, reasoning tokens, and
+    // provider-side discounts we don't otherwise see.
+    reportedCostUsd: number;
 }
 
 export function emptyUsage(): GenerationUsage {
-    return { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0 };
+    return { promptTokens: 0, responseTokens: 0, thoughtsTokens: 0, totalTokens: 0, cachedTokens: 0, reportedCostUsd: 0 };
 }
 
 /**
@@ -220,6 +225,7 @@ export function emptyUsage(): GenerationUsage {
  * accumulator. OpenRouter wraps Gemini's response_metadata with extra fields:
  *   completion_tokens_details.reasoning_tokens (thinking tokens, billable)
  *   prompt_tokens_details.cached_tokens (25% discount on input)
+ *   cost (provider-reported USD, includes web-search fees when present)
  */
 export function accUsage(acc: GenerationUsage, result: any): void {
     const u = result?.usage ?? {};
@@ -228,11 +234,13 @@ export function accUsage(acc: GenerationUsage, result: any): void {
     const thoughtsTokens = u.completion_tokens_details?.reasoning_tokens ?? 0;
     const totalTokens = u.total_tokens ?? (promptTokens + responseTokens);
     const cachedTokens = u.prompt_tokens_details?.cached_tokens ?? 0;
+    const reportedCost = typeof u.cost === 'number' && u.cost > 0 ? u.cost : 0;
     acc.promptTokens += promptTokens;
     acc.responseTokens += responseTokens;
     acc.thoughtsTokens += thoughtsTokens;
     acc.totalTokens += totalTokens;
     acc.cachedTokens += cachedTokens;
+    acc.reportedCostUsd += reportedCost;
 }
 
 // ============= CALLBACK PATTERN FIXER =============
@@ -358,12 +366,19 @@ export function applyPatches(sourceCode: string, patches: Patch[]): string {
  * network failures and 5xx-style upstream errors. The client also catches
  * the OpenRouter error shape via `(e as any).retryable` so callers don't
  * need to know about the error class.
+ *
+ * `attempt` is passed to the callback so callers can adjust request
+ * parameters on retries — most importantly, flipping `noCache: true` on
+ * `openrouter.chat()` so a bad cached response can't re-serve itself.
  */
-export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+export async function withRetry<T>(
+    fn: (attempt: number) => Promise<T>,
+    maxRetries = 2,
+): Promise<T> {
     let lastError: any;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            return await fn();
+            return await fn(attempt);
         } catch (e: any) {
             lastError = e;
             const msg: string = e?.message || '';

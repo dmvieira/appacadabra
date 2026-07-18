@@ -45,6 +45,7 @@ import SignOutModal from '../components/SignOutModal';
 import { GeneratedApp } from '../lib/database/types';
 import { createShortcut, updateDynamicShortcuts } from '../lib/shortcuts';
 import { t, getCurrentLanguage } from '../lib/i18n';
+import { formatUsd, estimateUsd } from '../lib/api/pricing';
 import * as db from '../lib/database/db';
 import { exportSingleApp, importSpellByNameFromData, readBackupFile, BackupData, createBackup } from '../lib/backup';
 import * as firebase from '../lib/firebase';
@@ -1507,7 +1508,7 @@ export default function HomeScreen() {
                                         {isGeneratingIcon ? (
                                             <ActivityIndicator size="small" color={colors.primary} />
                                         ) : (
-                                            <Text style={styles.setupIconBtnAIText}>✨  {t('generateWithAI')}  ⚡ {(0.5).toLocaleString(getCurrentLanguage(), { minimumFractionDigits: 1 })}</Text>
+                                            <Text style={styles.setupIconBtnAIText}>✨  {t('generateWithAI')}  {formatUsd(estimateUsd({ type: 'app_icon' }))}</Text>
                                         )}
                                     </TouchableOpacity>
                                 </View>

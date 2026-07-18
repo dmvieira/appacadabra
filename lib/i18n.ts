@@ -46,6 +46,8 @@ export const translations = {
         // Async Notifications
         jobStarted: 'Casting Spell... 🪄',
         editJobStarted: 'Enhancing Spell... 🪄',
+        spellFailedTitle: 'Spell generation failed',
+        spellEditFailedTitle: 'Spell edit failed',
         learnSpellSignInRequired: 'Sign in with Google to learn this spell.',
         learnSpellDownloading: 'Downloading spell…',
         learnSpellSuccess: 'Spell learned! Tap to open.',
@@ -633,9 +635,6 @@ export const translations = {
         openrouterTestNetwork: 'Could not reach OpenRouter. Check your connection and retry.',
         openrouterSaveBtn: 'Save key',
         openrouterRemoveBtn: 'Remove key',
-        openrouterUsageTitle: 'Usage this month',
-        openrouterUsageEmpty: 'No AI activity yet.',
-        openrouterUsageDisclaimer: 'Estimates only. Verify at openrouter.ai/activity',
         openrouterModelsTitle: 'Models in use',
         openrouterModelsBody: 'These are the models Appacadabra currently routes to with your OpenRouter key. We may update them in future versions to balance quality and cost.',
         editModeNoSave: 'Note: Data changes in Edit Mode are not saved.',
@@ -698,6 +697,8 @@ export const translations = {
         // Async Notifications (PT)
         jobStarted: 'Feitiço iniciado... 🪄',
         editJobStarted: 'Melhoria iniciada... 🪄',
+        spellFailedTitle: 'Falha ao gerar feitiço',
+        spellEditFailedTitle: 'Falha ao editar feitiço',
         learnSpellSignInRequired: 'Entre com o Google para aprender este feitiço.',
         learnSpellDownloading: 'Baixando feitiço…',
         learnSpellSuccess: 'Feitiço aprendido! Toque para abrir.',
@@ -1339,9 +1340,6 @@ export const translations = {
         openrouterTestNetwork: 'Não foi possível conectar ao OpenRouter. Verifique sua conexão e tente novamente.',
         openrouterSaveBtn: 'Salvar chave',
         openrouterRemoveBtn: 'Remover chave',
-        openrouterUsageTitle: 'Uso este mês',
-        openrouterUsageEmpty: 'Ainda não há atividade de IA.',
-        openrouterUsageDisclaimer: 'Apenas estimativas. Verifique em openrouter.ai/activity',
         openrouterModelsTitle: 'Modelos em uso',
         openrouterModelsBody: 'Estes são os modelos para os quais o Appacadabra está direcionando suas chamadas com sua chave OpenRouter. Podemos atualizá-los em versões futuras para equilibrar qualidade e custo.',
 
@@ -1367,6 +1365,8 @@ export const translations = {
         // Async Notifications (ES)
         jobStarted: 'Lanzando Hechizo... 🪄',
         editJobStarted: 'Mejorando Hechizo... 🪄',
+        spellFailedTitle: 'Fallo al generar hechizo',
+        spellEditFailedTitle: 'Fallo al editar hechizo',
         learnSpellSignInRequired: 'Inicia sesión con Google para aprender este hechizo.',
         learnSpellDownloading: 'Descargando hechizo…',
         learnSpellSuccess: '¡Hechizo aprendido! Toca para abrir.',
@@ -1974,9 +1974,6 @@ export const translations = {
         openrouterTestNetwork: 'No se pudo conectar con OpenRouter. Comprueba tu conexión y vuelve a intentarlo.',
         openrouterSaveBtn: 'Guardar clave',
         openrouterRemoveBtn: 'Eliminar clave',
-        openrouterUsageTitle: 'Uso este mes',
-        openrouterUsageEmpty: 'Aún no hay actividad de IA.',
-        openrouterUsageDisclaimer: 'Solo estimaciones. Verifica en openrouter.ai/activity',
         openrouterModelsTitle: 'Modelos en uso',
         openrouterModelsBody: 'Estos son los modelos a los que Appacadabra dirige las llamadas con tu clave de OpenRouter. Podemos actualizarlos en futuras versiones para equilibrar calidad y coste.',
 
@@ -2002,6 +1999,8 @@ export const translations = {
         // Async Notifications (FR)
         jobStarted: 'Lancement du Sort... 🪄',
         editJobStarted: 'Amélioration du Sort... 🪄',
+        spellFailedTitle: 'Échec de la génération du sort',
+        spellEditFailedTitle: 'Échec de la modification du sort',
         learnSpellSignInRequired: 'Connectez-vous avec Google pour apprendre ce sort.',
         learnSpellDownloading: 'Téléchargement du sort…',
         learnSpellSuccess: 'Sort appris ! Tapez pour ouvrir.',
@@ -2608,9 +2607,6 @@ export const translations = {
         openrouterTestNetwork: 'Impossible de joindre OpenRouter. Vérifiez votre connexion et réessayez.',
         openrouterSaveBtn: 'Enregistrer la clé',
         openrouterRemoveBtn: 'Supprimer la clé',
-        openrouterUsageTitle: 'Utilisation ce mois-ci',
-        openrouterUsageEmpty: 'Aucune activité IA pour l\'instant.',
-        openrouterUsageDisclaimer: 'Estimations uniquement. Vérifiez sur openrouter.ai/activity',
         openrouterModelsTitle: 'Modèles utilisés',
         openrouterModelsBody: 'Voici les modèles vers lesquels Appacadabra route actuellement avec votre clé OpenRouter. Nous pourrons les mettre à jour dans de futures versions pour équilibrer qualité et coût.',
 
@@ -2636,6 +2632,8 @@ export const translations = {
         // Async Notifications (DE)
         jobStarted: 'Zauber wird gewirkt... 🪄',
         editJobStarted: 'Zauber wird verbessert... 🪄',
+        spellFailedTitle: 'Zauberspruch-Erstellung fehlgeschlagen',
+        spellEditFailedTitle: 'Zauberspruch-Bearbeitung fehlgeschlagen',
         learnSpellSignInRequired: 'Melde dich mit Google an, um diesen Zauber zu lernen.',
         learnSpellDownloading: 'Zauber wird heruntergeladen…',
         learnSpellSuccess: 'Zauber gelernt! Tippen zum Öffnen.',
@@ -3174,9 +3172,6 @@ export const translations = {
         openrouterTestNetwork: 'OpenRouter konnte nicht erreicht werden. Prüfe deine Verbindung und versuche es erneut.',
         openrouterSaveBtn: 'Schlüssel speichern',
         openrouterRemoveBtn: 'Schlüssel entfernen',
-        openrouterUsageTitle: 'Nutzung diesen Monat',
-        openrouterUsageEmpty: 'Noch keine KI-Aktivität.',
-        openrouterUsageDisclaimer: 'Nur Schätzungen. Prüfe auf openrouter.ai/activity',
         openrouterModelsTitle: 'Verwendete Modelle',
         openrouterModelsBody: 'Das sind die Modelle, an die Appacadabra deine Aufrufe mit deinem OpenRouter-Schlüssel derzeit weiterleitet. In zukünftigen Versionen können wir sie anpassen, um Qualität und Kosten auszubalancieren.',
 
@@ -3202,6 +3197,8 @@ export const translations = {
         // Async Notifications (IT)
         jobStarted: 'Lancio Incantesimo... 🪄',
         editJobStarted: 'Miglioramento Incantesimo... 🪄',
+        spellFailedTitle: 'Generazione incantesimo fallita',
+        spellEditFailedTitle: 'Modifica incantesimo fallita',
         learnSpellSignInRequired: 'Accedi con Google per imparare questo incantesimo.',
         learnSpellDownloading: 'Scaricando incantesimo…',
         learnSpellSuccess: 'Incantesimo imparato! Tocca per aprire.',
@@ -3740,9 +3737,6 @@ export const translations = {
         openrouterTestNetwork: 'Impossibile contattare OpenRouter. Controlla la connessione e riprova.',
         openrouterSaveBtn: 'Salva chiave',
         openrouterRemoveBtn: 'Rimuovi chiave',
-        openrouterUsageTitle: 'Utilizzo di questo mese',
-        openrouterUsageEmpty: 'Nessuna attività IA ancora.',
-        openrouterUsageDisclaimer: 'Solo stime. Verifica su openrouter.ai/activity',
         openrouterModelsTitle: 'Modelli in uso',
         openrouterModelsBody: 'Questi sono i modelli verso cui Appacadabra instrada le chiamate con la tua chiave OpenRouter. Potremmo aggiornarli in versioni future per bilanciare qualità e costo.',
 
@@ -3768,6 +3762,8 @@ export const translations = {
         // Async Notifications (JA)
         jobStarted: '呪文を唱えています... 🪄',
         editJobStarted: '呪文を強化しています... 🪄',
+        spellFailedTitle: '魔法生成失敗',
+        spellEditFailedTitle: '魔法編集失敗',
         learnSpellSignInRequired: 'この呪文を学ぶにはGoogleでサインインしてください。',
         learnSpellDownloading: '呪文をダウンロード中…',
         learnSpellSuccess: '呪文習得！タップして開く',
@@ -4286,9 +4282,6 @@ export const translations = {
         openrouterTestNetwork: 'OpenRouterに接続できませんでした。接続を確認して再度お試しください。',
         openrouterSaveBtn: 'キーを保存',
         openrouterRemoveBtn: 'キーを削除',
-        openrouterUsageTitle: '今月の利用状況',
-        openrouterUsageEmpty: 'まだAIの利用履歴はありません。',
-        openrouterUsageDisclaimer: '見積もりのみ。openrouter.ai/activityで確認してください。',
         openrouterModelsTitle: '使用中のモデル',
         openrouterModelsBody: 'AppacadabraがあなたのOpenRouterキーで現在ルーティングしているモデルです。品質とコストのバランスを取るため、今後のバージョンで変更する可能性があります。',
 
@@ -4315,6 +4308,8 @@ export const translations = {
         // Async Notifications (ZH)
         jobStarted: '正在创建应用... 🪄',
         editJobStarted: '正在改进应用... 🪄',
+        spellFailedTitle: '咒语生成失败',
+        spellEditFailedTitle: '咒语编辑失败',
         learnSpellSignInRequired: '使用Google登录以学习这个咒语。',
         learnSpellDownloading: '正在下载咒语…',
         learnSpellSuccess: '咒语学会！点击打开',
@@ -4839,9 +4834,6 @@ export const translations = {
         openrouterTestNetwork: '无法连接到 OpenRouter。请检查网络后重试。',
         openrouterSaveBtn: '保存密钥',
         openrouterRemoveBtn: '移除密钥',
-        openrouterUsageTitle: '本月用量',
-        openrouterUsageEmpty: '暂无 AI 使用记录。',
-        openrouterUsageDisclaimer: '仅为估算。请在 openrouter.ai/activity 查看实际数据。',
         openrouterModelsTitle: '正在使用的模型',
         openrouterModelsBody: '这些是 Appacadabra 当前使用您的 OpenRouter 密钥路由到的模型。我们可能会在未来版本中更新它们，以平衡质量与成本。',
 
@@ -4868,6 +4860,8 @@ export const translations = {
         // Async Notifications (KO)
         jobStarted: '앱 생성 중... 🪄',
         editJobStarted: '앱 개선 중... 🪄',
+        spellFailedTitle: '주문 생성 실패',
+        spellEditFailedTitle: '주문 수정 실패',
         learnSpellSignInRequired: 'Google로 로그인하여 이 주문을 배우세요.',
         learnSpellDownloading: '주문 다운로드 중…',
         learnSpellSuccess: '주문 습득! 탭하여 열기',
@@ -5392,9 +5386,6 @@ export const translations = {
         openrouterTestNetwork: 'OpenRouter에 연결할 수 없습니다. 네트워크를 확인 후 다시 시도하세요.',
         openrouterSaveBtn: '키 저장',
         openrouterRemoveBtn: '키 제거',
-        openrouterUsageTitle: '이번 달 사용량',
-        openrouterUsageEmpty: '아직 AI 사용 내역이 없습니다.',
-        openrouterUsageDisclaimer: '추정치일 뿐입니다. openrouter.ai/activity 에서 확인하세요.',
         openrouterModelsTitle: '사용 중인 모델',
         openrouterModelsBody: 'Appacadabra가 현재 OpenRouter 키로 호출을 라우팅하는 모델입니다. 품질과 비용의 균형을 맞추기 위해 향후 버전에서 변경될 수 있습니다.',
 
@@ -5421,6 +5412,8 @@ export const translations = {
         // Async Notifications (AR)
         jobStarted: 'جاري إنشاء التطبيق... 🪄',
         editJobStarted: 'جاري تحسين التطبيق... 🪄',
+        spellFailedTitle: 'فشل إنشاء التعويذة',
+        spellEditFailedTitle: 'فشل تعديل التعويذة',
         learnSpellSignInRequired: 'سجّل الدخول باستخدام Google لتتعلم هذه التعويذة.',
         learnSpellDownloading: 'جارٍ تحميل التعويذة…',
         learnSpellSuccess: 'تم تعلم التعويذة! اضغط لفتح',
@@ -5945,9 +5938,6 @@ export const translations = {
         openrouterTestNetwork: 'تعذّر الوصول إلى OpenRouter. تحقق من اتصالك وأعد المحاولة.',
         openrouterSaveBtn: 'حفظ المفتاح',
         openrouterRemoveBtn: 'إزالة المفتاح',
-        openrouterUsageTitle: 'الاستخدام هذا الشهر',
-        openrouterUsageEmpty: 'لا يوجد نشاط للذكاء الاصطناعي بعد.',
-        openrouterUsageDisclaimer: 'تقديرات فقط. تحقق على openrouter.ai/activity',
         openrouterModelsTitle: 'النماذج المستخدمة',
         openrouterModelsBody: 'هذه هي النماذج التي يوجّه إليها Appacadabra الطلبات حاليًا باستخدام مفتاح OpenRouter الخاص بك. قد نقوم بتحديثها في الإصدارات المستقبلية لتحقيق التوازن بين الجودة والتكلفة.',
 
@@ -5974,6 +5964,8 @@ export const translations = {
         // Async Notifications (HI)
         jobStarted: 'ऐप बना रहा है... 🪄',
         editJobStarted: 'ऐप सुधार रहा है... 🪄',
+        spellFailedTitle: 'जादू उत्पन्न करने में विफल',
+        spellEditFailedTitle: 'जादू संपादित करने में विफल',
         learnSpellSignInRequired: 'इस मंत्र को सीखने के लिए Google से साइन इन करें।',
         learnSpellDownloading: 'मंत्र डाउनलोड हो रहा है…',
         learnSpellSuccess: 'मंत्र सीखा! खोलने के लिए टैप करें',
@@ -6498,9 +6490,6 @@ export const translations = {
         openrouterTestNetwork: 'OpenRouter से कनेक्ट नहीं हो सका। अपना कनेक्शन जाँचें और पुनः प्रयास करें।',
         openrouterSaveBtn: 'कुंजी सहेजें',
         openrouterRemoveBtn: 'कुंजी हटाएँ',
-        openrouterUsageTitle: 'इस महीने का उपयोग',
-        openrouterUsageEmpty: 'अभी तक कोई AI गतिविधि नहीं।',
-        openrouterUsageDisclaimer: 'केवल अनुमान। openrouter.ai/activity पर सत्यापित करें।',
         openrouterModelsTitle: 'उपयोग में मॉडल',
         openrouterModelsBody: 'ये वे मॉडल हैं जिन पर Appacadabra आपकी OpenRouter कुंजी के साथ वर्तमान में अनुरोध भेजता है। गुणवत्ता और लागत के बीच संतुलन बनाने के लिए हम भविष्य के संस्करणों में इन्हें बदल सकते हैं।',
 
@@ -6527,6 +6516,8 @@ export const translations = {
         // Async Notifications (RU)
         jobStarted: 'Создание приложения... 🪄',
         editJobStarted: 'Улучшение приложения... 🪄',
+        spellFailedTitle: 'Не удалось создать заклинание',
+        spellEditFailedTitle: 'Не удалось отредактировать заклинание',
         learnSpellSignInRequired: 'Войдите через Google, чтобы выучить это заклинание.',
         learnSpellDownloading: 'Загрузка заклинания…',
         learnSpellSuccess: 'Заклинание выучено! Нажмите, чтобы открыть.',
@@ -7051,9 +7042,6 @@ export const translations = {
         openrouterTestNetwork: 'Не удалось связаться с OpenRouter. Проверьте подключение и повторите попытку.',
         openrouterSaveBtn: 'Сохранить ключ',
         openrouterRemoveBtn: 'Удалить ключ',
-        openrouterUsageTitle: 'Использование в этом месяце',
-        openrouterUsageEmpty: 'Пока нет активности ИИ.',
-        openrouterUsageDisclaimer: 'Только оценки. Проверяйте на openrouter.ai/activity',
         openrouterModelsTitle: 'Используемые модели',
         openrouterModelsBody: 'Это модели, на которые Appacadabra сейчас направляет запросы с вашим ключом OpenRouter. В будущих версиях мы можем обновить их, чтобы сбалансировать качество и стоимость.',
 
@@ -7080,6 +7068,8 @@ export const translations = {
         // Async Notifications (TR)
         jobStarted: 'Uygulama oluşturuluyor... 🪄',
         editJobStarted: 'Uygulama geliştiriliyor... 🪄',
+        spellFailedTitle: 'Büyü oluşturma başarısız',
+        spellEditFailedTitle: 'Büyü düzenleme başarısız',
         learnSpellSignInRequired: 'Bu büyüyü öğrenmek için Google ile giriş yapın.',
         learnSpellDownloading: 'Büyü indiriliyor…',
         learnSpellSuccess: 'Büyü öğrenildi! Açmak için dokun.',
@@ -7602,9 +7592,6 @@ export const translations = {
         openrouterTestNetwork: 'OpenRouter\'a ulaşılamadı. Bağlantını kontrol edip tekrar dene.',
         openrouterSaveBtn: 'Anahtarı kaydet',
         openrouterRemoveBtn: 'Anahtarı kaldır',
-        openrouterUsageTitle: 'Bu ayki kullanım',
-        openrouterUsageEmpty: 'Henüz yapay zeka etkinliği yok.',
-        openrouterUsageDisclaimer: 'Yalnızca tahmin. openrouter.ai/activity adresinde doğrula',
         openrouterModelsTitle: 'Kullanılan modeller',
         openrouterModelsBody: 'Bunlar, Appacadabra\'nın OpenRouter anahtarınla şu anda yönlendirme yaptığı modellerdir. Kalite ve maliyet dengesini sağlamak için gelecekteki sürümlerde bunları güncelleyebiliriz.',
 
@@ -7631,6 +7618,8 @@ export const translations = {
         // Async Notifications (NL)
         jobStarted: 'App aan het maken... 🪄',
         editJobStarted: 'App aan het verbeteren... 🪄',
+        spellFailedTitle: 'Spreuk genereren mislukt',
+        spellEditFailedTitle: 'Spreuk bewerken mislukt',
         learnSpellSignInRequired: 'Meld je aan met Google om deze spreuk te leren.',
         learnSpellDownloading: 'Spreuk wordt gedownload…',
         learnSpellSuccess: 'Spreuk geleerd! Tik om te openen.',
@@ -8154,9 +8143,6 @@ export const translations = {
         openrouterTestNetwork: 'Kan OpenRouter niet bereiken. Controleer je verbinding en probeer opnieuw.',
         openrouterSaveBtn: 'Sleutel opslaan',
         openrouterRemoveBtn: 'Sleutel verwijderen',
-        openrouterUsageTitle: 'Gebruik deze maand',
-        openrouterUsageEmpty: 'Nog geen AI-activiteit.',
-        openrouterUsageDisclaimer: 'Alleen schattingen. Verifieer op openrouter.ai/activity',
         openrouterModelsTitle: 'Gebruikte modellen',
         openrouterModelsBody: 'Dit zijn de modellen waar Appacadabra momenteel je verzoeken naar routeert met je OpenRouter-sleutel. We kunnen ze in toekomstige versies bijwerken om kwaliteit en kosten in balans te houden.',
 
@@ -8183,6 +8169,8 @@ export const translations = {
         // Async Notifications (PL)
         jobStarted: 'Tworzenie aplikacji... 🪄',
         editJobStarted: 'Ulepszanie aplikacji... 🪄',
+        spellFailedTitle: 'Nie udało się wygenerować zaklęcia',
+        spellEditFailedTitle: 'Nie udało się edytować zaklęcia',
         learnSpellSignInRequired: 'Zaloguj się przez Google, aby nauczyć się tego zaklęcia.',
         learnSpellDownloading: 'Pobieranie zaklęcia…',
         learnSpellSuccess: 'Zaklęcie nauczone! Stuknij, aby otworzyć.',
@@ -8708,9 +8696,6 @@ export const translations = {
         openrouterTestNetwork: 'Nie można połączyć się z OpenRouter. Sprawdź połączenie i spróbuj ponownie.',
         openrouterSaveBtn: 'Zapisz klucz',
         openrouterRemoveBtn: 'Usuń klucz',
-        openrouterUsageTitle: 'Użycie w tym miesiącu',
-        openrouterUsageEmpty: 'Brak aktywności AI.',
-        openrouterUsageDisclaimer: 'Tylko szacunki. Zweryfikuj na openrouter.ai/activity',
         openrouterModelsTitle: 'Używane modele',
         openrouterModelsBody: 'To są modele, do których Appacadabra obecnie kieruje wywołania z twoim kluczem OpenRouter. Możemy je zaktualizować w przyszłych wersjach, aby zachować równowagę między jakością a kosztem.',
 
@@ -8737,6 +8722,8 @@ export const translations = {
         // Async Notifications (VI)
         jobStarted: 'Đang tạo ứng dụng... 🪄',
         editJobStarted: 'Đang cải tiến ứng dụng... 🪄',
+        spellFailedTitle: 'Tạo phép thuật thất bại',
+        spellEditFailedTitle: 'Chỉnh sửa phép thuật thất bại',
         learnSpellSignInRequired: 'Đăng nhập bằng Google để học phép thuật này.',
         learnSpellDownloading: 'Đang tải phép thuật…',
         learnSpellSuccess: 'Phép thuật đã học! Chạm để mở.',
@@ -9262,9 +9249,6 @@ export const translations = {
         openrouterTestNetwork: 'Không thể kết nối đến OpenRouter. Kiểm tra kết nối và thử lại.',
         openrouterSaveBtn: 'Lưu khóa',
         openrouterRemoveBtn: 'Xóa khóa',
-        openrouterUsageTitle: 'Sử dụng trong tháng này',
-        openrouterUsageEmpty: 'Chưa có hoạt động AI nào.',
-        openrouterUsageDisclaimer: 'Chỉ là ước tính. Hãy xác minh tại openrouter.ai/activity',
         openrouterModelsTitle: 'Mô hình đang sử dụng',
         openrouterModelsBody: 'Đây là các mô hình mà Appacadabra hiện đang định tuyến đến bằng khóa OpenRouter của bạn. Chúng tôi có thể cập nhật chúng trong các phiên bản tương lai để cân bằng giữa chất lượng và chi phí.',
 
@@ -9291,6 +9275,8 @@ export const translations = {
         // Async Notifications (TH)
         jobStarted: 'กำลังสร้างแอป... 🪄',
         editJobStarted: 'กำลังปรับปรุงแอป... 🪄',
+        spellFailedTitle: 'สร้างคาถาล้มเหลว',
+        spellEditFailedTitle: 'แก้ไขคาถาล้มเหลว',
         learnSpellSignInRequired: 'ลงชื่อเข้าใช้ด้วย Google เพื่อเรียนรู้คาถานี้',
         learnSpellDownloading: 'กำลังดาวน์โหลดคาถา…',
         learnSpellSuccess: 'คาถาเรียนรู้แล้ว! แตะเพื่อเปิด',
@@ -9816,9 +9802,6 @@ export const translations = {
         openrouterTestNetwork: 'ไม่สามารถเชื่อมต่อ OpenRouter ได้ ตรวจสอบการเชื่อมต่อและลองอีกครั้ง',
         openrouterSaveBtn: 'บันทึกคีย์',
         openrouterRemoveBtn: 'ลบคีย์',
-        openrouterUsageTitle: 'การใช้งานเดือนนี้',
-        openrouterUsageEmpty: 'ยังไม่มีกิจกรรม AI',
-        openrouterUsageDisclaimer: 'เป็นเพียงการประมาณการ ตรวจสอบที่ openrouter.ai/activity',
         openrouterModelsTitle: 'โมเดลที่ใช้งาน',
         openrouterModelsBody: 'นี่คือโมเดลที่ Appacadabra กำลังกำหนดเส้นทางไปหาด้วยคีย์ OpenRouter ของคุณ เราอาจอัปเดตในเวอร์ชันต่อๆ ไปเพื่อรักษาสมดุลระหว่างคุณภาพและต้นทุน',
 

@@ -20,6 +20,7 @@ jest.mock('../api/keyStorage', () => ({
 jest.mock('../database/db', () => ({
     getSetting: jest.fn(() => Promise.resolve('true')),
     setSetting: jest.fn(),
+    incrementSpendUsd: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('../capabilities/mediaHelpers', () => ({
@@ -141,6 +142,67 @@ describe('audioCapability', () => {
 
             expect(mockCreateSound).toHaveBeenCalledWith({ uri: data.url }, { shouldPlay: true });
             expect(result).toEqual({ success: true, result: 'Playing' });
+        });
+    });
+
+    describe('AUDIO_SPEAK_AI', () => {
+        it('sets the audio session mode before creating the Sound', async () => {
+            // Regression bar: without setAudioModeAsync a prior recordStart (or
+            // another capability) leaves the session in a mode where MediaPlayer
+            // silently drops playback on Android. Mirrors AUDIO_PLAY.
+            const ctx = createMockCtx(1, 'onSpeak');
+
+            (Audio.setAudioModeAsync as jest.Mock).mockClear();
+            const mockCreateSound = jest.fn(() => Promise.resolve({
+                sound: {
+                    playAsync: jest.fn(),
+                    stopAsync: jest.fn(),
+                    unloadAsync: jest.fn(),
+                    setOnPlaybackStatusUpdate: jest.fn(),
+                },
+            }));
+            (Audio.Sound.createAsync as jest.Mock) = mockCreateSound;
+
+            await audioCapability.handleMessage('AUDIO_SPEAK_AI', { text: 'hello' }, ctx);
+
+            expect(Audio.setAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({
+                allowsRecordingIOS: false,
+                playsInSilentModeIOS: true,
+            }));
+            const modeOrder = (Audio.setAudioModeAsync as jest.Mock).mock.invocationCallOrder[0];
+            const createOrder = mockCreateSound.mock.invocationCallOrder[0];
+            expect(modeOrder).toBeLessThan(createOrder);
+        });
+
+        it('stops and unloads the previous TTS Sound before creating a new one', async () => {
+            const ctx = createMockCtx(1, 'onSpeak');
+
+            const firstStop = jest.fn();
+            const firstUnload = jest.fn();
+            (Audio.Sound.createAsync as jest.Mock) = jest.fn(() => Promise.resolve({
+                sound: {
+                    playAsync: jest.fn(),
+                    stopAsync: firstStop,
+                    unloadAsync: firstUnload,
+                    setOnPlaybackStatusUpdate: jest.fn(),
+                },
+            }));
+            await audioCapability.handleMessage('AUDIO_SPEAK_AI', { text: 'first' }, ctx);
+
+            const secondStop = jest.fn();
+            const secondUnload = jest.fn();
+            (Audio.Sound.createAsync as jest.Mock) = jest.fn(() => Promise.resolve({
+                sound: {
+                    playAsync: jest.fn(),
+                    stopAsync: secondStop,
+                    unloadAsync: secondUnload,
+                    setOnPlaybackStatusUpdate: jest.fn(),
+                },
+            }));
+            await audioCapability.handleMessage('AUDIO_SPEAK_AI', { text: 'second' }, ctx);
+
+            expect(firstStop).toHaveBeenCalled();
+            expect(firstUnload).toHaveBeenCalled();
         });
     });
 

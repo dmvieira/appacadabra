@@ -98,6 +98,10 @@ describe('generateSpellCreate (happy path)', () => {
         expect(result.usage.promptTokens).toBe(60);
         expect(result.usage.responseTokens).toBe(100);
         expect(result.usage.totalTokens).toBe(160);
+        // costUsd prefers OpenRouter's reported usage.cost summed across calls
+        // (0.0005 planner + 0.001 coder) rather than per-token pricing — same
+        // guard used everywhere else. Reversion here breaks spell-list totals.
+        expect(result.costUsd).toBeCloseTo(0.0015, 6);
 
         expect(result.html).toContain('<title>Calculator</title>');
         expect(result.appName).toBe('Calculator');
@@ -181,6 +185,8 @@ describe('generateWebviewAI (happy path)', () => {
         expect(result.usage.promptTokens).toBe(100);
         // costUsd prefers the OpenRouter reported usage.cost when > 0.
         expect(result.costUsd).toBe(0.0012);
+        // Regressão: chamadas WebView nunca devem usar o prompt cache do OpenRouter.
+        expect((mChat.mock.calls[0][0] as any).noCache).toBe(true);
     });
 
     it('attaches a json_schema response_format when a schema is supplied', async () => {
@@ -195,6 +201,51 @@ describe('generateWebviewAI (happy path)', () => {
         const sent = mChat.mock.calls[0][0] as any;
         expect(sent.extra.response_format.type).toBe('json_schema');
         expect(sent.extra.response_format.json_schema.schema.properties.score).toEqual({ type: 'number' });
+        expect(sent.extra.response_format.json_schema.strict).toBe(true);
+        expect(sent.extra.response_format.json_schema.schema.additionalProperties).toBe(false);
+        expect(sent.extra.provider.require_parameters).toBe(true);
+    });
+
+    it('normalizes nested objects recursively for strict mode', async () => {
+        mChat.mockResolvedValueOnce(chatResponse(JSON.stringify({ user: { name: 'x' } })));
+        await generateWebviewAI({
+            prompt: 'give me a user',
+            schema: {
+                type: 'object',
+                properties: {
+                    user: {
+                        type: 'object',
+                        properties: { name: { type: 'string' } },
+                    },
+                },
+            },
+        });
+        const sent = mChat.mock.calls[0][0] as any;
+        const schema = sent.extra.response_format.json_schema.schema;
+        expect(schema.additionalProperties).toBe(false);
+        expect(schema.required).toEqual(['user']);
+        expect(schema.properties.user.additionalProperties).toBe(false);
+        expect(schema.properties.user.required).toEqual(['name']);
+    });
+
+    it('preserves an explicit additionalProperties:true set by the caller', async () => {
+        mChat.mockResolvedValueOnce(chatResponse(JSON.stringify({ meta: { anything: 1 } })));
+        await generateWebviewAI({
+            prompt: 'loose schema',
+            schema: {
+                type: 'object',
+                properties: {
+                    meta: {
+                        type: 'object',
+                        properties: {},
+                        additionalProperties: true,
+                    },
+                },
+            },
+        });
+        const sent = mChat.mock.calls[0][0] as any;
+        const schema = sent.extra.response_format.json_schema.schema;
+        expect(schema.properties.meta.additionalProperties).toBe(true);
     });
 
     it('includes images as image_url parts in the user message', async () => {
@@ -214,8 +265,11 @@ describe('generateWebviewAI (happy path)', () => {
         const sysMsg = sent.messages.find((m: any) => m.role === 'system');
         expect(typeof sysMsg.content).toBe('string');
         expect(sysMsg.content).toContain('web search');
-        // OR_WEB_SEARCH tools are spread into the request.
-        expect(Array.isArray(sent.tools)).toBe(true);
-        expect(sent.tools.length).toBeGreaterThan(0);
+        // OR_WEB_SEARCH plugin is spread into the request (new shape — the
+        // legacy `tools: [{type: 'openrouter:web_search'}]` was making
+        // reasoning models return finish_reason=tool_calls with empty content).
+        expect(Array.isArray(sent.plugins)).toBe(true);
+        expect(sent.plugins.length).toBeGreaterThan(0);
+        expect(sent.plugins[0].id).toBe('web');
     });
 });

@@ -192,6 +192,52 @@ describe('driveInProcess (create happy path)', () => {
     });
 });
 
+describe('driveInProcess cost accounting', () => {
+    // Same guard as WebView AI: prefer OpenRouter's reported usage.cost when
+    // present and > 0 (already accounts for web search + reasoning fees), and
+    // fall back to per-token pricing otherwise. Regression bar for the
+    // "criação/edição não conta custo" fix.
+    it('sums usage.cost from each chat call into result.costUsd', async () => {
+        const plan = { appName: 'x', technicalRequirements: { apis: [] } };
+        const html = '<!DOCTYPE html><html><head><title>x</title></head><body/></html>';
+        mChat
+            .mockResolvedValueOnce(chatResponse(JSON.stringify(plan), {
+                prompt_tokens: 10, completion_tokens: 20, total_tokens: 30, cost: 0.0005,
+            }))
+            .mockResolvedValueOnce(chatResponse('```html\n' + html + '\n```', {
+                prompt_tokens: 50, completion_tokens: 100, total_tokens: 150, cost: 0.002,
+            }));
+
+        const result = await driveInProcess(
+            initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
+            nextCreateStage,
+        );
+        expect(result.costUsd).toBeCloseTo(0.0025, 6);
+    });
+
+    it('falls back to per-token calc when no chat call reports a cost', async () => {
+        const plan = { appName: 'x', technicalRequirements: { apis: [] } };
+        const html = '<!DOCTYPE html><html><head><title>x</title></head><body/></html>';
+        // usage object without a `cost` field — accUsage should treat as 0.
+        mChat
+            .mockResolvedValueOnce(chatResponse(JSON.stringify(plan), {
+                prompt_tokens: 1000, completion_tokens: 2000, total_tokens: 3000,
+            }))
+            .mockResolvedValueOnce(chatResponse('```html\n' + html + '\n```', {
+                prompt_tokens: 3000, completion_tokens: 5000, total_tokens: 8000,
+            }));
+
+        const result = await driveInProcess(
+            initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
+            nextCreateStage,
+        );
+        // deepseek-v4-flash: 0.14 in / 0.28 out per M tokens.
+        // (4000/1M)*0.14 + (7000/1M)*0.28 = 0.00056 + 0.00196 = 0.00252
+        expect(result.costUsd).toBeCloseTo(0.00252, 6);
+        expect(result.costUsd).toBeGreaterThan(0);
+    });
+});
+
 describe('nextEditStage', () => {
     it('planner → patch', async () => {
         const plan = { changes: [{ op: 'replace' }] };

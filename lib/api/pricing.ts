@@ -27,25 +27,15 @@ export type ModelId = (typeof MODELS)[keyof typeof MODELS];
 
 export const OR_REASONING_HIGH = { reasoning: { effort: 'high' as const } };
 
+// OpenRouter's web-search integration. Uses the current `plugins: [{id:'web'}]`
+// shape (handled server-side by OpenRouter, no tool_calls loop on our side).
+// The old `tools: [{type: 'openrouter:web_search'}, ...]` shape was making
+// reasoning models (DeepSeek V4 Flash) return `finish_reason: 'tool_calls'`
+// with empty content, which threw `Empty AI response (finish_reason:
+// tool_calls)` and cascaded into `No JSON object found` when the planner
+// stage tried to parse the empty response.
 export const OR_WEB_SEARCH = {
-    tools: [
-        {
-            type: 'openrouter:web_search',
-            parameters: {
-                engine: 'parallel',
-                max_results: 10,
-                max_total_results: 20,
-            },
-        },
-        {
-            type: 'openrouter:web_fetch',
-            parameters: {
-                engine: 'openrouter',
-                max_uses: 10,
-                max_content_tokens: 50000,
-            },
-        },
-    ],
+    plugins: [{ id: 'web', max_results: 10 }],
 };
 
 // ============= USD COST CALCULATION =============

@@ -24,7 +24,7 @@
  * retry budget must match `generators.ts` byte-for-byte. If the two drift,
  * behaviour will differ between foreground and backgrounded generation.
  */
-import { chat as openrouterChat, type ChatResponse, type ChatMessage } from './openrouter';
+import { chat as openrouterChat, OpenRouterError, type ChatResponse, type ChatMessage } from './openrouter';
 import { MODELS, OR_REASONING_HIGH, OR_WEB_SEARCH, calculateCostUsd } from './pricing';
 import {
     UNIFIED_CREATE_PLANNER_PROMPT,
@@ -64,6 +64,13 @@ const GENERATION_TIMEOUT_MS = 480_000;
 export const MAX_OUTER_ATTEMPTS = 3;
 export const CREATE_FIX_BUDGET = 2;
 export const EDIT_FIX_BUDGET = 1;
+
+// Explicit output cap for the spell pipeline. DeepSeek V4 Flash with
+// `reasoning: high` burns a large thinking budget before emitting content;
+// without an explicit `max_tokens` the model can be cut off mid-response
+// (surfacing as `AI response was truncated (depth: N, inString: …)` from
+// `extractJson`). 32k leaves generous room for reasoning + full HTML output.
+export const SPELL_MAX_TOKENS = 32_000;
 
 // ------------------------------------------------------------
 // State types
@@ -214,23 +221,68 @@ async function raceTimeout<T>(promise: Promise<T>): Promise<T> {
 async function callModel(
     userContent: string,
     systemInstructions: string,
+    outerAttempt: number,
     signal?: AbortSignal,
 ): Promise<ChatResponse> {
     return raceTimeout(
-        withRetry(async () => {
-            const res = await openrouterChat({
-                model: MODELS.SPELL_S,
-                messages: [makeSystemContent(systemInstructions), makeUserContent(userContent)],
-                ...OR_REASONING_HIGH,
-                ...OR_WEB_SEARCH,
-                signal,
-            });
-            if (!extractText(res)) {
-                throw new Error(
-                    `Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`,
-                );
+        withRetry(async retryAttempt => {
+            // Bypass OpenRouter's prompt cache on any retry (outer driver loop
+            // or inner withRetry). A cached response that was already empty /
+            // truncated / tool_calls-only would just re-serve itself and defeat
+            // the retry.
+            const noCache = outerAttempt > 0 || retryAttempt > 0;
+            const messages = [makeSystemContent(systemInstructions), makeUserContent(userContent)];
+            let res: ChatResponse;
+            try {
+                res = await openrouterChat({
+                    model: MODELS.SPELL_S,
+                    messages,
+                    ...OR_REASONING_HIGH,
+                    ...OR_WEB_SEARCH,
+                    max_tokens: SPELL_MAX_TOKENS,
+                    noCache,
+                    signal,
+                });
+            } catch (err) {
+                // Reproduzido em scripts/repro-deepseek-500.ts: DeepSeek V4 Flash
+                // devolve 500 upstream quando o plugin `web` viaja junto com
+                // payload grande. Como planear/patchar HTML não precisa de web
+                // search, cair pra sem-plugin em vez de estourar o withRetry todo.
+                if (err instanceof OpenRouterError && (err.status ?? 0) >= 500) {
+                    console.warn('[generatorStages.callModel] Upstream 5xx com web plugin; retry sem web');
+                    res = await openrouterChat({
+                        model: MODELS.SPELL_S,
+                        messages,
+                        ...OR_REASONING_HIGH,
+                        max_tokens: SPELL_MAX_TOKENS,
+                        noCache: true,
+                        signal,
+                    });
+                } else {
+                    throw err;
+                }
             }
-            return res;
+            if (extractText(res)) return res;
+
+            // Some reasoning models return empty content with
+            // finish_reason='tool_calls' when the web plugin misfires (usually
+            // when the model decides to call the plugin but its output never
+            // gets threaded back). Retry once without the plugin — the
+            // planner/patch/coder prompts don't actually need web search to
+            // succeed, so this is a safe fallback.
+            const reason = res.choices?.[0]?.finish_reason ?? 'unknown';
+            if (reason === 'tool_calls') {
+                const retry = await openrouterChat({
+                    model: MODELS.SPELL_S,
+                    messages,
+                    ...OR_REASONING_HIGH,
+                    max_tokens: SPELL_MAX_TOKENS,
+                    noCache: true,
+                    signal,
+                });
+                if (extractText(retry)) return retry;
+            }
+            throw new Error(`Empty AI response (finish_reason: ${reason})`);
         }),
     );
 }
@@ -247,14 +299,22 @@ function runValidation(html: string): ValidationError[] {
     ];
 }
 
+function resolveCostUsd(usage: GenerationUsage): number {
+    // Same guard as WebView AI: prefer OpenRouter's reported cost when > 0,
+    // fall back to per-token pricing otherwise. The reported figure already
+    // accounts for web-search fees and provider-side discounts.
+    return usage.reportedCostUsd > 0
+        ? usage.reportedCostUsd
+        : calculateCostUsd(MODELS.SPELL_S, usage);
+}
+
 function completeCreate(state: CreateJobState): CompleteResult {
     const html = state.html!;
-    const costUsd = calculateCostUsd(MODELS.SPELL_S, state.usage);
     return {
         kind: 'create',
         html,
         usage: state.usage,
-        costUsd,
+        costUsd: resolveCostUsd(state.usage),
         appName: extractTitle(html),
         initialValidationErrors: state.initialErrors,
     };
@@ -262,12 +322,11 @@ function completeCreate(state: CreateJobState): CompleteResult {
 
 function completeEdit(state: EditJobState): CompleteResult {
     const html = state.html!;
-    const costUsd = calculateCostUsd(MODELS.SPELL_S, state.usage);
     return {
         kind: 'edit',
         html,
         usage: state.usage,
-        costUsd,
+        costUsd: resolveCostUsd(state.usage),
         initialValidationErrors: state.initialErrors,
     };
 }
@@ -314,6 +373,7 @@ export async function nextCreateStage(
             const res = await callModel(
                 `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${state.prompt}`,
                 sys,
+                state.outerAttempt,
                 opts?.signal,
             );
             const usage = { ...state.usage };
@@ -335,6 +395,7 @@ export async function nextCreateStage(
             const res = await callModel(
                 `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(state.plan, null, 2)}`,
                 sys,
+                state.outerAttempt,
                 opts?.signal,
             );
             const usage = { ...state.usage };
@@ -387,6 +448,7 @@ export async function nextCreateStage(
             const res = await callModel(
                 generateFixPrompt(state.lastErrors, state.html!),
                 sys,
+                state.outerAttempt,
                 opts?.signal,
             );
             const usage = { ...state.usage };
@@ -422,7 +484,7 @@ export async function nextEditStage(
         case 'planner': {
             const sys = buildPlannerSystemInstructions(state.appVersion, ALL_CAPABILITIES);
             const userMsg = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${state.instruction}${state.historyContext}${state.selectionPart}${state.storageKeysPart}\n\nFull code:\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
-            const res = await callModel(userMsg, sys, opts?.signal);
+            const res = await callModel(userMsg, sys, state.outerAttempt, opts?.signal);
             const usage = { ...state.usage };
             accUsage(usage, res);
             const plan = extractJson(extractText(res));
@@ -432,7 +494,7 @@ export async function nextEditStage(
         case 'patch': {
             const sys = buildSystemInstructions(state.appVersion, ALL_CAPABILITIES);
             const userMsg = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(state.plan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
-            const res = await callModel(userMsg, sys, opts?.signal);
+            const res = await callModel(userMsg, sys, state.outerAttempt, opts?.signal);
             const usage = { ...state.usage };
             accUsage(usage, res);
             const patchResponse = extractJson(extractText(res));
@@ -475,6 +537,7 @@ export async function nextEditStage(
             const res = await callModel(
                 generateFixPrompt(state.lastErrors, state.html!),
                 'Follow instructions and fix these errors in the code',
+                state.outerAttempt,
                 opts?.signal,
             );
             const usage = { ...state.usage };

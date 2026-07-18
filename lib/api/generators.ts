@@ -11,7 +11,7 @@
  * same response shape.
  */
 
-import { chat as openrouterChat, type ChatResponse, type ChatMessage } from './openrouter';
+import { chat as openrouterChat, OpenRouterError, type ChatResponse, type ChatMessage } from './openrouter';
 import { MODELS, OR_REASONING_HIGH, OR_WEB_SEARCH, calculateCostUsd } from './pricing';
 import {
     UNIFIED_CREATE_PLANNER_PROMPT,
@@ -43,6 +43,7 @@ import {
     type ValidationError,
 } from '../validators/codeValidator';
 import { validateWithExecution } from '../validators/executionValidator';
+import { SPELL_MAX_TOKENS } from './generatorStages';
 
 // ============================================================
 // Shared types
@@ -77,6 +78,15 @@ function makeUserContent(text: string): ChatMessage {
 
 function makeSystemContent(text: string): ChatMessage {
     return { role: 'system', content: text };
+}
+
+// Prefer OpenRouter's reported usage.cost (already includes web search + reasoning)
+// and fall back to local per-token pricing when the field is missing. Same guard
+// as the WebView AI path in lib/api/ai.ts.
+function resolveCostUsd(usage: GenerationUsage): number {
+    return usage.reportedCostUsd > 0
+        ? usage.reportedCostUsd
+        : calculateCostUsd(MODELS.SPELL_S, usage);
 }
 
 // ============================================================
@@ -120,20 +130,57 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
 
             const callModel = (content: string, sysInstr: string): Promise<ChatResponse> =>
                 raceTimeout(
-                    withRetry(async () => {
-                        const res = await openrouterChat({
-                            model: MODELS.SPELL_S,
-                            messages: [makeSystemContent(sysInstr), makeUserContent(content)],
-                            ...OR_REASONING_HIGH,
-                            ...OR_WEB_SEARCH,
-                            signal,
-                        });
-                        if (!extractText(res)) {
-                            throw new Error(
-                                `Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`,
-                            );
+                    withRetry(async retryAttempt => {
+                        // Bypass OpenRouter's prompt cache on any retry (outer
+                        // loop or inner withRetry). A cached response that was
+                        // already empty/truncated/tool_calls-only would just
+                        // re-serve itself and defeat the retry.
+                        const noCache = attempt > 0 || retryAttempt > 0;
+                        const messages = [makeSystemContent(sysInstr), makeUserContent(content)];
+                        let res: ChatResponse;
+                        try {
+                            res = await openrouterChat({
+                                model: MODELS.SPELL_S,
+                                messages,
+                                ...OR_REASONING_HIGH,
+                                ...OR_WEB_SEARCH,
+                                max_tokens: SPELL_MAX_TOKENS,
+                                noCache,
+                                signal,
+                            });
+                        } catch (err) {
+                            // Reproduzido em scripts/repro-deepseek-500.ts: DeepSeek V4
+                            // Flash devolve 500 upstream quando o plugin `web` viaja
+                            // junto com payload grande. Como planear/coder HTML não
+                            // precisa de web search, cair pra sem-plugin.
+                            if (err instanceof OpenRouterError && (err.status ?? 0) >= 500) {
+                                console.warn('[generateSpellCreate.callModel] Upstream 5xx com web plugin; retry sem web');
+                                res = await openrouterChat({
+                                    model: MODELS.SPELL_S,
+                                    messages,
+                                    ...OR_REASONING_HIGH,
+                                    max_tokens: SPELL_MAX_TOKENS,
+                                    noCache: true,
+                                    signal,
+                                });
+                            } else {
+                                throw err;
+                            }
                         }
-                        return res;
+                        if (extractText(res)) return res;
+                        const reason = res.choices?.[0]?.finish_reason ?? 'unknown';
+                        if (reason === 'tool_calls') {
+                            const retry = await openrouterChat({
+                                model: MODELS.SPELL_S,
+                                messages,
+                                ...OR_REASONING_HIGH,
+                                max_tokens: SPELL_MAX_TOKENS,
+                                noCache: true,
+                                signal,
+                            });
+                            if (extractText(retry)) return retry;
+                        }
+                        throw new Error(`Empty AI response (finish_reason: ${reason})`);
                     }),
                 );
 
@@ -208,7 +255,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
             html = currentHtml;
 
             const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-            const costUsd = calculateCostUsd(MODELS.SPELL_S, usage);
+            const costUsd = resolveCostUsd(usage);
             onProgress?.({ type: 'completed' });
             return {
                 html,
@@ -317,20 +364,49 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
 
             const callEditModel = (content: string, sysInstr: string): Promise<ChatResponse> =>
                 raceTimeout(
-                    withRetry(async () => {
-                        const res = await openrouterChat({
-                            model: MODELS.SPELL_S,
-                            messages: [makeSystemContent(sysInstr), makeUserContent(content)],
-                            ...OR_REASONING_HIGH,
-                            ...OR_WEB_SEARCH,
-                            signal,
-                        });
-                        if (!extractText(res)) {
-                            throw new Error(
-                                `Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`,
-                            );
+                    withRetry(async retryAttempt => {
+                        const noCache = attempt > 0 || retryAttempt > 0;
+                        const messages = [makeSystemContent(sysInstr), makeUserContent(content)];
+                        let res: ChatResponse;
+                        try {
+                            res = await openrouterChat({
+                                model: MODELS.SPELL_S,
+                                messages,
+                                ...OR_REASONING_HIGH,
+                                ...OR_WEB_SEARCH,
+                                max_tokens: SPELL_MAX_TOKENS,
+                                noCache,
+                                signal,
+                            });
+                        } catch (err) {
+                            if (err instanceof OpenRouterError && (err.status ?? 0) >= 500) {
+                                console.warn('[generateSpellEdit.callEditModel] Upstream 5xx com web plugin; retry sem web');
+                                res = await openrouterChat({
+                                    model: MODELS.SPELL_S,
+                                    messages,
+                                    ...OR_REASONING_HIGH,
+                                    max_tokens: SPELL_MAX_TOKENS,
+                                    noCache: true,
+                                    signal,
+                                });
+                            } else {
+                                throw err;
+                            }
                         }
-                        return res;
+                        if (extractText(res)) return res;
+                        const reason = res.choices?.[0]?.finish_reason ?? 'unknown';
+                        if (reason === 'tool_calls') {
+                            const retry = await openrouterChat({
+                                model: MODELS.SPELL_S,
+                                messages,
+                                ...OR_REASONING_HIGH,
+                                max_tokens: SPELL_MAX_TOKENS,
+                                noCache: true,
+                                signal,
+                            });
+                            if (extractText(retry)) return retry;
+                        }
+                        throw new Error(`Empty AI response (finish_reason: ${reason})`);
                     }),
                 );
 
@@ -386,7 +462,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
                 throw new Error(`Edit failed: ${initErrors[0]?.message}`);
             }
 
-            const costUsd = calculateCostUsd(MODELS.SPELL_S, usage);
+            const costUsd = resolveCostUsd(usage);
             onProgress?.({ type: 'completed' });
             return { html, usage, costUsd, initialValidationErrors: initErrors };
         } catch (err) {
@@ -447,7 +523,7 @@ export async function generateConvert(params: ConvertParams): Promise<ConvertRes
 
     const html = fixCallbackPatterns(extractHtml(extractText(result)));
     if (!html) throw new Error('AI returned empty response');
-    const costUsd = calculateCostUsd(MODELS.SPELL_S, usage);
+    const costUsd = resolveCostUsd(usage);
     return { html, usage, costUsd };
 }
 
@@ -496,6 +572,20 @@ function inferSchema(data: any): any {
         return { type: 'object', properties, required };
     }
     return { type: 'string' };
+}
+
+// OpenRouter strict json_schema requires additionalProperties:false and complete required[] on every object.
+function normalizeSchemaForStrictMode(schema: any): any {
+    if (!schema || typeof schema !== 'object') return schema;
+    if (schema.type === 'object' && schema.properties && typeof schema.properties === 'object') {
+        if (schema.additionalProperties === undefined) schema.additionalProperties = false;
+        if (!Array.isArray(schema.required) || schema.required.length === 0) {
+            schema.required = Object.keys(schema.properties);
+        }
+        Object.keys(schema.properties).forEach(k => normalizeSchemaForStrictMode(schema.properties[k]));
+    }
+    if (schema.type === 'array' && schema.items) normalizeSchemaForStrictMode(schema.items);
+    return schema;
 }
 
 export async function generateWebviewAI(params: WebviewAIParams): Promise<WebviewAIResult> {
@@ -559,6 +649,7 @@ export async function generateWebviewAI(params: WebviewAIParams): Promise<Webvie
             model: effectiveModel,
             messages,
             max_tokens: 65536,
+            noCache: true,
             ...OR_REASONING_HIGH,
             ...(useWebSearch ? OR_WEB_SEARCH : {}),
             ...(resolvedSchema
@@ -568,10 +659,11 @@ export async function generateWebviewAI(params: WebviewAIParams): Promise<Webvie
                               type: 'json_schema',
                               json_schema: {
                                   name: 'response',
-                                  schema: resolvedSchema as any,
-                                  strict: false,
+                                  schema: normalizeSchemaForStrictMode(resolvedSchema) as any,
+                                  strict: true,
                               },
                           },
+                          provider: { require_parameters: true },
                       },
                   }
                 : {}),

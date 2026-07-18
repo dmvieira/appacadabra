@@ -70,6 +70,7 @@ export function GenerationErrorModal() {
     const router = useRouter();
     const error = useAppStore(s => s.generationError);
     const clearGenerationError = useAppStore(s => s.clearGenerationError);
+    const retryGeneration = useAppStore(s => s.retryGeneration);
 
     if (!error) return null;
 
@@ -87,10 +88,7 @@ export function GenerationErrorModal() {
             Linking.openURL('https://openrouter.ai/credits').catch(() => {});
             return;
         }
-        // 'retry' — the prompt is already in lastFailedPrompt (set alongside
-        // generationError). The existing effect in app/index.tsx (create) and
-        // app/spell/[id].tsx (edit) reopens the ChatDialog pre-filled.
-        clearGenerationError();
+        retryGeneration();
     };
 
     return (

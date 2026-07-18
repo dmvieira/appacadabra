@@ -67,9 +67,14 @@ export interface ChatRequest {
     reasoning?: { effort: 'low' | 'medium' | 'high' };
     tools?: unknown[];
     tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
+    plugins?: unknown[];
     extra?: Record<string, unknown>;
     signal?: AbortSignal;
     timeoutMs?: number;
+    // Bypass OpenRouter's prompt cache for this call. Retries flip this to
+    // `true` so a bad cached response (empty content, truncated JSON, etc.)
+    // cannot re-serve itself and defeat the retry.
+    noCache?: boolean;
 }
 
 export interface OpenRouterUsage {
@@ -104,7 +109,7 @@ export interface ChatStreamDelta {
 
 // ============= INTERNAL =============
 
-async function buildHeaders(): Promise<Record<string, string>> {
+async function buildHeaders(noCache?: boolean): Promise<Record<string, string>> {
     const key = await getOpenRouterKey();
     if (!key) {
         throw new OpenRouterError('byok.error.noKey', 'OpenRouter key is not configured');
@@ -114,7 +119,7 @@ async function buildHeaders(): Promise<Record<string, string>> {
         'Content-Type': 'application/json',
         'HTTP-Referer': APP_REFERRER,
         'X-Title': APP_TITLE,
-        'X-OpenRouter-Cache': 'true',
+        'X-OpenRouter-Cache': noCache ? 'false' : 'true',
     };
 }
 
@@ -138,9 +143,9 @@ function mapHttpError(status: number, bodyText: string): OpenRouterError {
 async function rawFetchOnce(
     path: string,
     body: object,
-    opts: { signal?: AbortSignal; timeoutMs?: number; accept?: string },
+    opts: { signal?: AbortSignal; timeoutMs?: number; accept?: string; noCache?: boolean },
 ): Promise<Response> {
-    const headers = await buildHeaders();
+    const headers = await buildHeaders(opts.noCache);
     if (opts.accept) headers.Accept = opts.accept;
 
     const controller = new AbortController();
@@ -197,6 +202,7 @@ export async function chat(req: ChatRequest): Promise<ChatResponse> {
         reasoning: req.reasoning,
         tools: req.tools,
         tool_choice: req.tool_choice,
+        plugins: req.plugins,
         usage: { include: true },
         ...req.extra,
     };
@@ -204,6 +210,7 @@ export async function chat(req: ChatRequest): Promise<ChatResponse> {
     const response = await rawFetch('/chat/completions', body, {
         signal: req.signal,
         timeoutMs: req.timeoutMs,
+        noCache: req.noCache,
     });
     try {
         return (await response.json()) as ChatResponse;
@@ -231,6 +238,7 @@ export async function* chatStream(req: ChatRequest): AsyncGenerator<ChatStreamDe
         reasoning: req.reasoning,
         tools: req.tools,
         tool_choice: req.tool_choice,
+        plugins: req.plugins,
         stream: true,
         usage: { include: true },
         ...req.extra,
@@ -240,6 +248,7 @@ export async function* chatStream(req: ChatRequest): AsyncGenerator<ChatStreamDe
         signal: req.signal,
         timeoutMs: req.timeoutMs,
         accept: 'text/event-stream',
+        noCache: req.noCache,
     });
 
     const reader = response.body && typeof (response.body as ReadableStream).getReader === 'function'
@@ -335,7 +344,7 @@ export async function generateImage(req: ImageGenerationRequest): Promise<ImageG
             messages: [{ role: 'user', content: userParts }],
             usage: { include: true },
         },
-        { signal: req.signal, timeoutMs: req.timeoutMs },
+        { signal: req.signal, timeoutMs: req.timeoutMs, noCache: true },
     );
     type ImagePart = { type?: string; image_url?: { url?: string }; data?: string };
     const json = (await response.json()) as {
@@ -390,6 +399,12 @@ export async function tts(req: TtsRequest): Promise<TtsResponse> {
     // Gemini TTS via OpenRouter uses the dedicated `/audio/speech` endpoint and
     // returns raw PCM bytes (not JSON). We wrap the PCM in a WAV header so the
     // WebView `<audio>` element can play it back directly.
+    //
+    // Confirmed via live probe (2026-07-18): this endpoint accepts ONLY
+    // response_format=pcm for Gemini TTS. `wav` returns 400 (Zod: expected
+    // "mp3"|"pcm") and `mp3` returns 400 ("Gemini TTS only supports pcm").
+    // Response Content-Type is `audio/pcm;rate=24000;channels=1`, matching the
+    // constants in pcmToWav below.
     const response = await rawFetch(
         '/audio/speech',
         {

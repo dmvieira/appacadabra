@@ -9,7 +9,6 @@
  *   A — What is OpenRouter? (link out)
  *   B — Key input (secure entry, paste, masked preview if already set)
  *   C — Test Key (`GET /auth/key`) with idle/loading/valid/invalid states
- *   D — Usage this month (placeholder for SQLite spell-level USD sum)
  *
  * Security:
  *   - Key written through `keyStorage.setOpenRouterKey` (Keystore-backed).
@@ -246,12 +245,6 @@ export default function OpenRouterSettings() {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{t('openrouterUsageTitle')}</Text>
-                    <Text style={styles.sectionBody}>{t('openrouterUsageDisclaimer')}</Text>
-                    <Text style={styles.placeholder}>{t('openrouterUsageEmpty')}</Text>
-                </View>
-
-                <View style={styles.section}>
                     <Text style={styles.sectionTitle}>{t('openrouterModelsTitle')}</Text>
                     <Text style={styles.sectionBody}>{t('openrouterModelsBody')}</Text>
                     {OPERATION_LABELS.map(({ key, label }) => (
@@ -403,11 +396,6 @@ const styles = StyleSheet.create({
     statusBody: {
         color: colors.onSurfaceVariant,
         fontSize: 13,
-    },
-    placeholder: {
-        color: colors.onSurfaceVariant,
-        fontSize: 13,
-        fontStyle: 'italic',
     },
     modelRow: {
         flexDirection: 'row',

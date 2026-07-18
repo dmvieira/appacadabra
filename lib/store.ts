@@ -9,7 +9,7 @@ import * as bgGen from './backgroundGenerator';
 import type { BgGenCompletedEvent, BgGenFailedEvent } from './backgroundGenerator';
 import * as openrouter from './api/openrouter';
 import type { OpenRouterErrorCode } from './api/openrouter';
-import { MODELS } from './api/pricing';
+import { MODELS, calcImageUsd } from './api/pricing';
 import * as backup from './backup';
 import { onboardingTemplates } from './onboardingTemplates';
 import * as projectConverter from './projectConverter';
@@ -75,8 +75,10 @@ interface AppState {
         message: string;
         promptText: string;
         appId: number | null;
+        selectedContext: string | null;
     } | null;
     clearGenerationError: () => void;
+    retryGeneration: () => void;
 
     // Bumped after the user saves/clears the OpenRouter key.
     // Components that depend on key presence subscribe to this to re-read
@@ -184,6 +186,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     clearLastFailedPrompt: () => set({ lastFailedPrompt: null }),
     clearGenerationError: () => set({ generationError: null }),
+    retryGeneration: () => {
+        const err = get().generationError;
+        if (!err) return;
+        set({ generationError: null });
+        if (err.type === 'create') {
+            void get().createApp(err.promptText);
+            return;
+        }
+        const app = err.appId != null
+            ? get().apps.find(a => a.id === err.appId)
+            : undefined;
+        if (!app) return;
+        void get().updateAppWithAI(app, err.promptText, err.selectedContext ?? undefined);
+    },
     bumpAiKeyVersion: () => set(state => ({ aiKeyVersion: state.aiKeyVersion + 1 })),
 
     dismissContent: (uri: string) => {
@@ -345,6 +361,15 @@ export const useAppStore = create<AppState>((set, get) => ({
                     lightColor: '#FF9500',
                 });
 
+                await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: t('appReadyTitle'),
+                        body: t('appReadyBody', { name: appName }),
+                        data: { appId: id, kind: 'create-success' },
+                    },
+                    trigger: null,
+                }).catch(() => {});
+
                 const app = await db.getAppById(id);
                 if (app) {
                     SharingShortcuts.publishShortcut(id.toString(), app.name, app.iconPath);
@@ -396,6 +421,14 @@ export const useAppStore = create<AppState>((set, get) => ({
                 lastErrorCode: code,
                 lastErrorMessage: e.message,
             }).catch(() => {});
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: t('spellFailedTitle'),
+                    body: e.message || t('errorProcessingJob'),
+                    data: { jobId, kind: 'create-failure' },
+                },
+                trigger: null,
+            }).catch(() => {});
             set({
                 generationError: {
                     jobId,
@@ -404,6 +437,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     message: e.message,
                     promptText: description,
                     appId: null,
+                    selectedContext: null,
                 },
                 lastFailedPrompt: { type: 'create', text: description },
             });
@@ -444,6 +478,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     message,
                     promptText: description,
                     appId: null,
+                    selectedContext: null,
                 },
             }));
         }
@@ -522,6 +557,15 @@ export const useAppStore = create<AppState>((set, get) => ({
                 await get().loadApps();
                 markBackupDirty();
 
+                await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: t('appUpdatedTitle'),
+                        body: t('appUpdatedBody', { name: app.name }),
+                        data: { appId: app.id, kind: 'edit-success' },
+                    },
+                    trigger: null,
+                }).catch(() => {});
+
                 set({ lastCompletedEditAppId: app.id });
                 setTimeout(() => {
                     if (get().lastCompletedEditAppId === app.id) get().clearLastCompletedEdit();
@@ -558,6 +602,14 @@ export const useAppStore = create<AppState>((set, get) => ({
                 lastErrorCode: code,
                 lastErrorMessage: e.message,
             }).catch(() => {});
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: t('spellEditFailedTitle'),
+                    body: e.message || t('errorProcessingJob'),
+                    data: { appId: app.id, jobId, kind: 'edit-failure' },
+                },
+                trigger: null,
+            }).catch(() => {});
             set({
                 generationError: {
                     jobId,
@@ -566,6 +618,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     message: e.message,
                     promptText: instructions,
                     appId: app.id,
+                    selectedContext: selectedContext ?? null,
                 },
                 lastFailedPrompt: { type: 'edit', text: instructions, appId: app.id },
             });
@@ -610,6 +663,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     message,
                     promptText: instructions,
                     appId: app.id,
+                    selectedContext: selectedContext ?? null,
                 },
             }));
         }
@@ -774,7 +828,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     generateAndSaveAppIcon: async (appId: number, prompt: string): Promise<{ iconPath: string; creditsUsed: number }> => {
-        const { images } = await openrouter.generateImage({
+        const { images, usage } = await openrouter.generateImage({
             model: MODELS.IMAGE,
             prompt,
         });
@@ -802,6 +856,24 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
 
         await get().updateAppIcon(appId, iconPath);
+
+        // Same guard as WebView image path in lib/api/ai.ts: prefer OpenRouter's
+        // reported cost, fall back to local pricing when absent so the spell's
+        // accumulated spend stays honest.
+        const reportedCost = (usage as any)?.cost;
+        const costUsd =
+            typeof reportedCost === 'number' && reportedCost > 0
+                ? reportedCost
+                : calcImageUsd(0);
+        await db.incrementSpendUsd(appId, costUsd);
+        set(state => ({
+            apps: state.apps.map(a =>
+                a.id === appId
+                    ? { ...a, totalSpendUsd: (a.totalSpendUsd ?? 0) + costUsd }
+                    : a,
+            ),
+        }));
+
         return { iconPath, creditsUsed: 0 };
     },
 
@@ -1142,6 +1214,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         message: 'App was closed during generation',
                         promptText: newest.promptText,
                         appId: newest.appId,
+                        selectedContext: newest.selectedContext ?? null,
                     },
                     lastFailedPrompt: {
                         type: newest.type,

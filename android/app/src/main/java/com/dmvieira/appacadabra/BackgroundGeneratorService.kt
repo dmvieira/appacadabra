@@ -37,6 +37,26 @@ class BackgroundGeneratorService : HeadlessJsTaskService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
+    /**
+     * HeadlessJsTaskService's default `onHeadlessJsTaskFinish` just calls
+     * `stopSelf()` — that stops the service but on some Android versions /
+     * OEM skins the ongoing foreground notification lingers until the OS
+     * garbage-collects the service. Users see "Generating spell…" sit next
+     * to the success/failure notification we posted from JS.
+     *
+     * Explicitly drop the foreground state with `STOP_FOREGROUND_REMOVE`
+     * first so the ongoing notification is dismissed synchronously, then
+     * let the base class handle the normal task-finished bookkeeping.
+     */
+    override fun onHeadlessJsTaskFinish(taskId: Int) {
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (_: Exception) {
+            // Best effort — if this fails the base class will still stopSelf().
+        }
+        super.onHeadlessJsTaskFinish(taskId)
+    }
+
     override fun getTaskConfig(intent: Intent?): HeadlessJsTaskConfig? {
         val extras = intent?.extras ?: return null
         val taskKey = extras.getString(EXTRA_TASK_KEY) ?: return null
