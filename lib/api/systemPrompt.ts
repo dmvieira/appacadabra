@@ -16,6 +16,8 @@ import type { CapabilityModule } from '../capabilities/types';
 // Byte-for-byte copy of firebase/functions/src/prompts.ts:SYSTEM_PREAMBLE.
 // DO NOT EDIT without also updating the server file and the parity snapshot.
 export const SYSTEM_PREAMBLE = `
+TERMINOLOGY: The user may refer to the app as a "spell" — treat this as a synonym for the app you are building.
+
 IMPORTANT: The app will run in a WebView. For data persistence:
 - Use localStorage to save any user data, settings, or state
 - Example: localStorage.setItem('key', JSON.stringify(data)) and JSON.parse(localStorage.getItem('key'))
@@ -108,7 +110,7 @@ All Appacadabra API callbacks follow: \`callback(success, data)\`
 - **Audio/Video**: Use HTML5 \`<audio>\` and \`<video>\` tags.
 - **Geolocation**: Use \`navigator.geolocation.getCurrentPosition()\` (permission handled).
 - **LocalStorage**: Use \`localStorage.setItem/getItem\` (persisted automatically).
-- **File Picker**: Use \`<input type="file">\` (file access enabled).
+- **File Picker**: Use \`<input type="file">\` (file access enabled). ALWAYS set a specific \`accept\` attribute (e.g. \`accept="image/*"\`, \`accept="audio/*"\`, \`accept="video/*"\`, \`accept=".pdf,.zip"\`) — this tells the mobile OS to open the right picker and ensures shared files from other apps land in the correct input when the spell has multiple file fields.
 `;
 
 /** Semver comparison: returns true if appVersion >= minVersion. */

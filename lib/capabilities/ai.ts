@@ -99,6 +99,7 @@ export const aiCapability: CapabilityModule = {
 
     docs: `🤖 AI (AppacadabraAI)
 - **Fluent Builder API**: Chain methods to configure AI generation.
+- **CONTEXT INJECTION (CRITICAL)**: The model has NO access to real-world state — it does not know the current date, time, timezone, or user location. Whenever the task depends on any of these (e.g. "what should I do today?", "restaurants near me", "how many days until Christmas?", "is it currently business hours?"), you MUST prepend the relevant context to the prompt yourself. Get date/time with \`new Date().toISOString()\`, timezone with \`Intl.DateTimeFormat().resolvedOptions().timeZone\`, and GPS coordinates with \`navigator.geolocation.getCurrentPosition(...)\`. Skipping this leads to hallucinated dates, wrong assumptions, or generic non-actionable answers.
 - **Builder Methods** (chainable — call \`generate()\` last):
     - \`generate(prompt, callback)\`: Execute the AI request with the configured options.
     - \`withSearch()\`: Enable Google Search grounding for real-time info.

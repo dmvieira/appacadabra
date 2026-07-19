@@ -1082,18 +1082,56 @@ export function createSharedContentSetupScript(translations?: InjectedTranslatio
         }
       }
 
+      // Mirror of matchesAccept() / pickFileInputElement() in
+      // lib/sharedFileRouting.ts — kept in sync manually since this script
+      // is injected as a static string and can't import from a module.
+      function matchesAccept(accept, mimeType, fileName) {
+        const acc = String(accept || '').trim().toLowerCase();
+        if (!acc) return true;
+        const mime = String(mimeType || '').trim().toLowerCase();
+        const name = String(fileName || '').toLowerCase();
+        const tokens = acc.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+        if (tokens.length === 0) return true;
+        for (let i = 0; i < tokens.length; i++) {
+          const token = tokens[i];
+          if (token === '*' || token === '*/*') return true;
+          if (token.charAt(0) === '.') {
+            if (name.endsWith(token)) return true;
+            continue;
+          }
+          if (token.indexOf('/') !== -1) {
+            if (token.endsWith('/*')) {
+              const prefix = token.slice(0, -1);
+              if (mime.startsWith(prefix)) return true;
+            } else if (mime === token) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      function pickFileInputElement(mimeType, fileName) {
+        const inputs = document.querySelectorAll('input[type="file"]');
+        for (let i = 0; i < inputs.length; i++) {
+          const input = inputs[i];
+          const accept = input.getAttribute('accept') || '';
+          if (matchesAccept(accept, mimeType, fileName)) return input;
+        }
+        return null;
+      }
+
       function handleSharedContent(sharedContent) {
         console.log('Handling shared content:', sharedContent.mimeType);
         window.__sharedContent = sharedContent;
-        
+
         const isImage = sharedContent.mimeType && sharedContent.mimeType.startsWith('image/');
         const isText = sharedContent.mimeType && (sharedContent.mimeType.startsWith('text/') || !sharedContent.mimeType);
-        
+
         // Ensure hasBase64 is accurate
         if (sharedContent.base64 && !sharedContent.hasBase64) {
              sharedContent.hasBase64 = true;
         }
-        
+
         let injected = false;
 
         // 1. Try Text Injection
@@ -1109,16 +1147,17 @@ export function createSharedContentSetupScript(translations?: InjectedTranslatio
           }
         }
 
-        // 2. Try File Injection (Input)
+        // 2. Try File Injection (Input) — pick by accept attribute so a
+        // shared audio doesn't land in an image-only input.
         if (!injected && (sharedContent.hasBase64 || sharedContent.base64)) {
-           const fileInput = document.querySelector('input[type="file"]');
+           const fileInput = pickFileInputElement(sharedContent.mimeType, sharedContent.fileName);
            if (fileInput) {
              if (injectFileIntoInput(fileInput, sharedContent.base64, sharedContent.mimeType, sharedContent.fileName)) {
                showToast('__FILE_ATTACHED__');
                injected = true;
              }
            } else {
-             console.log('No file input found');
+             console.log('No file input matched the shared content type');
            }
         }
 
@@ -1131,18 +1170,22 @@ export function createSharedContentSetupScript(translations?: InjectedTranslatio
              injected = true;
            }
         }
-        
+
         // 4. Dispatch Event
         if (!injected) {
-            // Check if we failed because of missing input
-            const fileInput = document.querySelector('input[type="file"]');
-            if (sharedContent.base64 && !fileInput) {
+            // If there's no compatible file input (either none at all, or
+            // none whose accept matches the shared MIME), surface the same
+            // "received but no target" toast rather than silently dropping
+            // into the wrong input.
+            const anyFileInputPresent = document.querySelector('input[type="file"]') !== null;
+            const compatibleInput = pickFileInputElement(sharedContent.mimeType, sharedContent.fileName);
+            if (sharedContent.base64 && (!anyFileInputPresent || !compatibleInput)) {
                 showToast('__FILE_RECEIVED_NO_UPLOAD__');
             } else if (!sharedContent.base64 && !sharedContent.text) {
                 showToast('__ERROR_EMPTY_CONTENT__');
             }
-            
-            window.dispatchEvent(new CustomEvent('sharedFile', { 
+
+            window.dispatchEvent(new CustomEvent('sharedFile', {
               detail: sharedContent
             }));
             window.dispatchEvent(new CustomEvent('sharedContent', { detail: sharedContent }));
