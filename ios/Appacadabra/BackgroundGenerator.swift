@@ -28,6 +28,12 @@ import BackgroundTasks
 @objc(BackgroundGenerator)
 class BackgroundGenerator: RCTEventEmitter {
     private var activeJobs: [String: UIBackgroundTaskIdentifier] = [:]
+    // Independent bucket for WebView-initiated AI calls (AppacadabraAI.* inside
+    // a running spell). Kept separate from `activeJobs` so the spell-generation
+    // pipeline and the WebView keep-alive can't accidentally release each
+    // other's background tokens.
+    private var keepAliveTokens: [String: UIBackgroundTaskIdentifier] = [:]
+    private var keepAliveCounter: UInt64 = 0
     private let queue = DispatchQueue(label: "ai.appacadabra.bggen", attributes: .concurrent)
 
     override init() {
@@ -161,6 +167,66 @@ class BackgroundGenerator: RCTEventEmitter {
             AppDelegate.scheduleNextBackgroundProcessing()
         }
         resolve(nil)
+    }
+
+    // MARK: - WebView AI keep-alive
+    //
+    // Called by JS (`lib/webviewAiKeepAlive.ts`) around every AI call made
+    // from within a spell's WebView (`AppacadabraAI.*`). Each `acquire`
+    // returns a unique token; the JS side stores it and passes it back to
+    // `release` in a `finally` block. Multiple concurrent AI calls each hold
+    // their own token, and `UIApplication.beginBackgroundTask` is called
+    // once per token — iOS coalesces them and gives us the same ~30s
+    // background window shared across all outstanding tokens.
+    //
+    // If iOS calls the expiration handler, we drop the specific token so a
+    // later `release` from JS is a no-op. The AI call itself will either
+    // finish on the resume path (foreground) or its result is caught by the
+    // `completed_ai_*` recovery in `RunnerApp.tsx`.
+
+    @objc(acquireKeepAlive:resolver:rejecter:)
+    func acquireKeepAlive(
+        _ reason: NSString?,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        var tokenId: String = ""
+        queue.sync(flags: .barrier) {
+            keepAliveCounter &+= 1
+            tokenId = "ka-\(keepAliveCounter)"
+        }
+        let name = "webview.ai.\((reason as String?) ?? "generic").\(tokenId)"
+        let app = UIApplication.shared
+        var bgId: UIBackgroundTaskIdentifier = .invalid
+        bgId = app.beginBackgroundTask(withName: name) { [weak self] in
+            self?.releaseKeepAliveInternal(tokenId: tokenId)
+        }
+        queue.async(flags: .barrier) {
+            self.keepAliveTokens[tokenId] = bgId
+        }
+        resolve(tokenId)
+    }
+
+    @objc(releaseKeepAlive:resolver:rejecter:)
+    func releaseKeepAlive(
+        _ tokenId: String,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        releaseKeepAliveInternal(tokenId: tokenId)
+        resolve(nil)
+    }
+
+    private func releaseKeepAliveInternal(tokenId: String) {
+        var bgId: UIBackgroundTaskIdentifier = .invalid
+        queue.sync(flags: .barrier) {
+            if let existing = self.keepAliveTokens.removeValue(forKey: tokenId) {
+                bgId = existing
+            }
+        }
+        if bgId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgId)
+        }
     }
 
     // MARK: - Background task lifecycle

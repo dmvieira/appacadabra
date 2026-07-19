@@ -21,7 +21,7 @@ import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Video, ResizeMode } from 'expo-av';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, ExpandedStorageItem } from './lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, createDomSnapshotScript, createDomSnapshotRestoreScript, ExpandedStorageItem } from './lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, AI_MEDIA_MIME, buildBlobMarker } from './lib/bridges/messageHandlers';
 import { saveAiResultToCache } from './lib/bridges/aiCacheUtils';
 import * as db from './lib/database/db';
@@ -215,6 +215,32 @@ function RunnerContent({ appId }: Props) {
         }
     }, [appId]);
 
+    // Ask the WebView to serialize its DOM state (forms, scroll, sessionStorage).
+    // The script posts back a `DOM_SNAPSHOT` message that messageHandlers.ts
+    // persists to app_storage under DOM_SNAPSHOT_KEY. Fire-and-forget — we
+    // typically have ~200ms of JS budget between the AppState transition and
+    // the OS suspending the WebView, and serialization is synchronous and
+    // fast for typical spells.
+    const captureDomSnapshot = useCallback(() => {
+        try {
+            webViewRef.current?.injectJavaScript(createDomSnapshotScript());
+        } catch (e) {
+            console.warn('RunnerApp: captureDomSnapshot failed:', e);
+        }
+    }, []);
+
+    // Drop the saved snapshot — used when the user explicitly asks for a
+    // fresh state (pull-to-refresh) or when the spell code changed
+    // (APP_UPDATED / pending version applied) so the restore doesn't stamp
+    // stale UI state on top of a reload the user asked for.
+    const deleteDomSnapshot = useCallback(async () => {
+        try {
+            await db.removeStorageItem(appId, db.DOM_SNAPSHOT_KEY);
+        } catch (e) {
+            console.warn('RunnerApp: deleteDomSnapshot failed:', e);
+        }
+    }, [appId]);
+
     const applyStorageReload = useCallback(async () => {
         const items = await db.getStorageForApp(appId);
         const storageItems = items.map((s: { key: string; value: string }) => ({ key: s.key, value: s.value }));
@@ -234,6 +260,9 @@ function RunnerContent({ appId }: Props) {
             setApp(pendingVersionApp);
             lastCodeRef.current = pendingVersionApp.code;
 
+            // New spell version — old snapshot's selectors won't map cleanly.
+            await deleteDomSnapshot();
+
             // Reload storage for new version
             const storage = await db.getStorageForApp(pendingVersionApp.id);
             const storageItems = storage.map(s => ({ key: s.key, value: s.value }));
@@ -245,7 +274,7 @@ function RunnerContent({ appId }: Props) {
             setPendingVersionApp(null);
             setWebViewKey(k => k + 1);
         }
-    }, [pendingVersionApp]);
+    }, [pendingVersionApp, deleteDomSnapshot]);
 
     // Initial Load
     useEffect(() => {
@@ -258,11 +287,15 @@ function RunnerContent({ appId }: Props) {
         const subscription = DeviceEventEmitter.addListener('APP_UPDATED', (event) => {
             if (event.appId === appId) {
                 console.log('RunnerApp: Received APP_UPDATED event, refreshing...');
+                // Code changed under us — the snapshot's selectors may no
+                // longer match the new DOM; drop it so restore doesn't fire
+                // partial garbage after reload.
+                deleteDomSnapshot();
                 loadApp();
             }
         });
         return () => subscription.remove();
-    }, [appId, loadApp]);
+    }, [appId, loadApp, deleteDomSnapshot]);
 
     // Storage Cleared Listener
     useEffect(() => {
@@ -318,13 +351,16 @@ function RunnerContent({ appId }: Props) {
     // Pull-to-Refresh Handler
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
+        // User asked for a fresh state — discard any saved DOM snapshot so
+        // the reload doesn't stamp the pre-refresh UI back on top.
+        await deleteDomSnapshot();
         await loadApp();
         setRefreshing(false);
         // We typically want to reload the WebView content too if data changed
-        // But since 'app' state updates, React will re-render. 
+        // But since 'app' state updates, React will re-render.
         // If we want a hard reset of JS state, we can increment key:
         setWebViewKey(k => k + 1);
-    }, [loadApp]);
+    }, [loadApp, deleteDomSnapshot]);
 
 
     useEffect(() => {
@@ -334,8 +370,12 @@ function RunnerContent({ appId }: Props) {
             if (nextAppState === 'background' || nextAppState === 'inactive') {
                 wasInBackground = true;
                 console.log('RunnerApp: App went to background/inactive');
-                // Guard: don't stop media if we're just opening a native picker (camera, image gallery)
+                // Capture DOM state BEFORE cleanupAllMedia — cleanupAllMedia
+                // injects a pause script and we want the snapshot injection
+                // scheduled first so the message is queued while the WebView
+                // is still fully alive.
                 if (!useBridgeUIStore.getState().isNativeActivityActive) {
+                    captureDomSnapshot();
                     cleanupAllMedia();
                 } else {
                     console.log('RunnerApp: Native activity active, skipping media cleanup');
@@ -369,6 +409,10 @@ function RunnerContent({ appId }: Props) {
                 await loadApp();
                 // Recreate WebView only for Runner→Runner transitions (not HOME key returns).
                 if (event.isRunnerToRunner && !useBridgeUIStore.getState().isNativeActivityActive) {
+                    // Grab a snapshot before the recreate. The outgoing Runner
+                    // won't have fired AppState 'background' (process stayed
+                    // foreground), so this is our only capture window.
+                    captureDomSnapshot();
                     console.log('RunnerApp: setWebViewKey → recreating WebView');
                     setWebViewKey(k => k + 1);
                 } else {
@@ -752,6 +796,25 @@ function RunnerContent({ appId }: Props) {
                                     createStorageRestoreScript(savedStorageRef.current)
                                 );
                             }
+
+                            // Restore DOM snapshot (forms, scroll, sessionStorage)
+                            // captured before the last WebView pause/recreate.
+                            // Runs after localStorage restore so any spell code
+                            // that reads from localStorage on load has the
+                            // right data before user-facing UI state layers
+                            // on top.
+                            (async () => {
+                                try {
+                                    const snap = await db.getStorageItem(appId, db.DOM_SNAPSHOT_KEY);
+                                    if (snap && webViewRef.current) {
+                                        webViewRef.current.injectJavaScript(
+                                            createDomSnapshotRestoreScript(snap)
+                                        );
+                                    }
+                                } catch (e) {
+                                    console.warn('RunnerApp: DOM snapshot restore failed:', e);
+                                }
+                            })();
 
                             // Inject shared content if available
                             if (sharedContent && webViewRef.current) {

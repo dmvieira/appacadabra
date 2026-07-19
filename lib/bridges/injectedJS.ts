@@ -725,6 +725,270 @@ export function createStorageRestoreScript(items: ExpandedStorageItem[]): string
 
 
 
+// ============================================================================
+// DOM Snapshot: preserve form values, scroll positions, sessionStorage and
+// contenteditable content across WebView recreates (backgrounding, process
+// death, RunnerActivity resume, PONG-detected reload).
+//
+// Capture is fire-and-forget from RunnerApp's AppState 'background|inactive'
+// branch — we have ~200ms of JS budget before the OS suspends the WebView, so
+// serialization must be synchronous and cheap. postMessage is buffered by the
+// WebView and delivered when the RN side is scheduled again.
+//
+// Restore runs in onLoadEnd AFTER createStorageRestoreScript so localStorage
+// is populated first. Selectors that no longer match (spell code changed) are
+// silently ignored.
+// ============================================================================
+
+/** Shape of the snapshot payload persisted in app_storage under DOM_SNAPSHOT_KEY. */
+export interface DomSnapshot {
+  fields: Array<{
+    selector: string;
+    tag: string;
+    type?: string;
+    value?: string;
+    checked?: boolean;
+    selectedIndex?: number;
+    selectedValues?: string[];
+  }>;
+  scrolls: Array<{ selector: string; top: number; left: number }>;
+  windowScroll: { x: number; y: number };
+  session: Record<string, string>;
+  editable: Array<{ selector: string; html: string }>;
+}
+
+export function createDomSnapshotScript(): string {
+  // The IIFE runs inside the WebView and posts a `DOM_SNAPSHOT` message. All
+  // logic must be plain ES5 for maximum WebView compatibility.
+  return `
+    (function() {
+      if (window.__APPACADABRA_RESTORING__) return;
+      try {
+        function cssEscapeId(s) {
+          if (typeof CSS !== 'undefined' && CSS && typeof CSS.escape === 'function') {
+            try { return CSS.escape(s); } catch(e) {}
+          }
+          // Minimal fallback for older WebViews / test environments — escapes
+          // only characters that would break a #id selector. Good enough for
+          // the ID subset browsers actually accept.
+          return String(s).replace(/([\\0-\\x1f\\x7f #.>+~*^$|=:,;'"()\\[\\]{}!@%&/\\\\?])/g, '\\\\$1');
+        }
+        function stableSelector(el) {
+          if (!el || el === document.body || el === document.documentElement) return '';
+          if (el.id) return el.tagName.toLowerCase() + '#' + cssEscapeId(el.id);
+          var tag = el.tagName ? el.tagName.toLowerCase() : '';
+          if (!tag) return '';
+          var parent = el.parentNode;
+          if (!parent || parent === document) return tag;
+          var siblings = parent.children;
+          var index = 0;
+          var nth = 0;
+          for (var i = 0; i < siblings.length; i++) {
+            if (siblings[i].tagName === el.tagName) {
+              index++;
+              if (siblings[i] === el) nth = index;
+            }
+          }
+          var self = tag + (nth ? ':nth-of-type(' + nth + ')' : '');
+          var parentSel = stableSelector(parent);
+          return parentSel ? parentSel + ' > ' + self : self;
+        }
+
+        var fields = [];
+        var inputs = document.querySelectorAll('input, textarea, select');
+        for (var i = 0; i < inputs.length; i++) {
+          var el = inputs[i];
+          var sel = stableSelector(el);
+          if (!sel) continue;
+          var entry = { selector: sel, tag: el.tagName.toLowerCase() };
+          if (el.tagName === 'INPUT') {
+            entry.type = el.type || 'text';
+            if (el.type === 'checkbox' || el.type === 'radio') {
+              entry.checked = !!el.checked;
+            } else if (el.type !== 'password' && el.type !== 'file') {
+              entry.value = el.value || '';
+            }
+          } else if (el.tagName === 'TEXTAREA') {
+            entry.value = el.value || '';
+          } else if (el.tagName === 'SELECT') {
+            entry.selectedIndex = el.selectedIndex;
+            if (el.multiple) {
+              var vals = [];
+              for (var j = 0; j < el.options.length; j++) {
+                if (el.options[j].selected) vals.push(el.options[j].value);
+              }
+              entry.selectedValues = vals;
+            } else {
+              entry.value = el.value || '';
+            }
+          }
+          fields.push(entry);
+        }
+
+        var scrolls = [];
+        var scrollables = document.querySelectorAll('*');
+        for (var s = 0; s < scrollables.length; s++) {
+          var se = scrollables[s];
+          if (se.scrollTop > 0 || se.scrollLeft > 0) {
+            var ssel = stableSelector(se);
+            if (ssel) scrolls.push({ selector: ssel, top: se.scrollTop, left: se.scrollLeft });
+          }
+        }
+
+        var session = {};
+        try {
+          for (var k = 0; k < sessionStorage.length; k++) {
+            var key = sessionStorage.key(k);
+            if (key != null) session[key] = sessionStorage.getItem(key) || '';
+          }
+        } catch (e) {}
+
+        var editable = [];
+        var editables = document.querySelectorAll('[contenteditable="true"], [contenteditable=""]');
+        for (var e2 = 0; e2 < editables.length; e2++) {
+          var ee = editables[e2];
+          var html = ee.innerHTML;
+          if (html && html.length > 0) {
+            var esel = stableSelector(ee);
+            if (esel) editable.push({ selector: esel, html: html });
+          }
+        }
+
+        var snapshot = {
+          fields: fields,
+          scrolls: scrolls,
+          windowScroll: { x: window.scrollX || 0, y: window.scrollY || 0 },
+          session: session,
+          editable: editable
+        };
+
+        // 500KB cap. Session then editable are the two big-blob suspects
+        // (base64 in a textarea already lives in fields.value — we can't
+        // drop that without user surprise). Serialize, measure, drop
+        // opportunistic parts, re-serialize.
+        var serialized = JSON.stringify(snapshot);
+        if (serialized.length > 500000) {
+          snapshot.session = {};
+          serialized = JSON.stringify(snapshot);
+        }
+        if (serialized.length > 500000) {
+          snapshot.editable = [];
+          serialized = JSON.stringify(snapshot);
+        }
+        if (serialized.length > 500000) {
+          // Give up on the snapshot entirely rather than persist junk.
+          return;
+        }
+
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DOM_SNAPSHOT', data: serialized }));
+        }
+      } catch (err) {
+        // Silent — snapshot is best-effort.
+      }
+    })();
+  `;
+}
+
+export function createDomSnapshotRestoreScript(snapshotJson: string): string {
+  // The runtime side does its own restore inside a small delay so DOM built
+  // asynchronously by the spell (setTimeout / requestAnimationFrame / late
+  // fetch) has a chance to render before we try to querySelector.
+  const escaped = JSON.stringify(snapshotJson);
+  return `
+    (function() {
+      window.__APPACADABRA_RESTORING__ = true;
+      try {
+        var raw = ${escaped};
+        var snap;
+        try { snap = JSON.parse(raw); } catch(e) { snap = null; }
+        if (!snap) { window.__APPACADABRA_RESTORING__ = false; return; }
+
+        function applyOnce() {
+          try {
+            if (snap.session) {
+              try { sessionStorage.clear(); } catch(e) {}
+              var keys = Object.keys(snap.session);
+              for (var i = 0; i < keys.length; i++) {
+                try { sessionStorage.setItem(keys[i], snap.session[keys[i]]); } catch(e) {}
+              }
+            }
+
+            if (snap.fields) {
+              for (var f = 0; f < snap.fields.length; f++) {
+                var fld = snap.fields[f];
+                var el;
+                try { el = document.querySelector(fld.selector); } catch(e) { el = null; }
+                if (!el) continue;
+                if (fld.tag === 'input') {
+                  if (fld.type === 'checkbox' || fld.type === 'radio') {
+                    el.checked = !!fld.checked;
+                  } else if (typeof fld.value === 'string') {
+                    el.value = fld.value;
+                  }
+                } else if (fld.tag === 'textarea') {
+                  if (typeof fld.value === 'string') el.value = fld.value;
+                } else if (fld.tag === 'select') {
+                  if (fld.selectedValues && el.multiple) {
+                    for (var o = 0; o < el.options.length; o++) {
+                      el.options[o].selected = fld.selectedValues.indexOf(el.options[o].value) !== -1;
+                    }
+                  } else if (typeof fld.value === 'string') {
+                    el.value = fld.value;
+                  } else if (typeof fld.selectedIndex === 'number') {
+                    el.selectedIndex = fld.selectedIndex;
+                  }
+                }
+                try {
+                  el.dispatchEvent(new Event('input', { bubbles: true }));
+                  el.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch(e) {}
+              }
+            }
+
+            if (snap.editable) {
+              for (var e2 = 0; e2 < snap.editable.length; e2++) {
+                var ent = snap.editable[e2];
+                var eel;
+                try { eel = document.querySelector(ent.selector); } catch(e) { eel = null; }
+                if (eel) eel.innerHTML = ent.html;
+              }
+            }
+
+            if (snap.scrolls) {
+              for (var s = 0; s < snap.scrolls.length; s++) {
+                var scr = snap.scrolls[s];
+                var sel;
+                try { sel = document.querySelector(scr.selector); } catch(e) { sel = null; }
+                if (sel) {
+                  sel.scrollTop = scr.top;
+                  sel.scrollLeft = scr.left;
+                }
+              }
+            }
+
+            if (snap.windowScroll) {
+              try { window.scrollTo(snap.windowScroll.x || 0, snap.windowScroll.y || 0); } catch(e) {}
+            }
+          } catch (err) {
+            // Silent — restore is best-effort.
+          } finally {
+            window.__APPACADABRA_RESTORING__ = false;
+          }
+        }
+
+        // 50ms lets spells that build DOM in a microtask (React etc.) mount
+        // first. If the DOM isn't ready yet, selectors just miss and the
+        // restore is a no-op for that field — acceptable for a best-effort
+        // recovery.
+        setTimeout(applyOnce, 50);
+      } catch(outer) {
+        window.__APPACADABRA_RESTORING__ = false;
+      }
+    })();
+  `;
+}
+
 // Interface for shared content
 interface SharedContent {
   mimeType: string;

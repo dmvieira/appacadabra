@@ -4,6 +4,23 @@ import * as db from '../database/db';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
 import { hasOpenRouterKey } from '../api/keyStorage';
 import { estimateUsd, formatUsd, MODELS, type EstimateType } from '../api/pricing';
+import * as keepAlive from '../webviewAiKeepAlive';
+
+/**
+ * Wraps a WebView-initiated AI call in a keep-alive acquire/release. On iOS
+ * this extends the background execution window (~30s); on Android it holds a
+ * foreground service so the fetch to OpenRouter isn't killed if the user
+ * backgrounds the app mid-call. The release is guaranteed even if the AI
+ * call throws or the network layer rejects.
+ */
+async function withKeepAlive<T>(reason: string, fn: () => Promise<T>): Promise<T> {
+    const token = await keepAlive.acquire(reason);
+    try {
+        return await fn();
+    } finally {
+        await keepAlive.release(token);
+    }
+}
 
 /**
  * BYOK pre-check + cost confirmation. Returns `{ ok: true }` when the call
@@ -489,14 +506,14 @@ export const aiCapability: CapabilityModule = {
                 if (!gate.ok) return { success: false, result: gate.result };
                 console.log(`[Bridge] AI Generate request: ${data.prompt?.substring(0, 50)}...`);
                 try {
-                    const genResult = await ai.aiGenerate({
+                    const genResult = await withKeepAlive('generate', () => ai.aiGenerate({
                         prompt: data.prompt,
                         search: data.search,
                         schema: data.schema,
                         images: data.images,
                         videos: data.videos,
                         audios: data.audios,
-                    });
+                    }));
                     const result = genResult.text;
                     const costUsd = genResult.costUsd || 0;
                     console.log(`[Bridge] AI generated. costUsd: ${costUsd}`);
@@ -516,7 +533,7 @@ export const aiCapability: CapabilityModule = {
                 if (!gate.ok) return { success: false, result: gate.result };
                 console.log(`[Bridge] AI Similarity request: ${data.items?.length || 0} items`);
                 try {
-                    const simResult = await ai.aiSimilarity(data.items || []);
+                    const simResult = await withKeepAlive('similarity', () => ai.aiSimilarity(data.items || []));
                     const result = simResult.text;
                     const costUsd = simResult.costUsd || 0;
 
@@ -535,7 +552,7 @@ export const aiCapability: CapabilityModule = {
                 if (!gate.ok) return { success: false, result: gate.result };
                 console.log(`[Bridge] AI Image Gen request: ${data.prompt?.substring(0, 50)}...`);
                 try {
-                    const imgResult = await ai.aiGenerateImage(data.prompt, data.images ?? undefined);
+                    const imgResult = await withKeepAlive('image', () => ai.aiGenerateImage(data.prompt, data.images ?? undefined));
                     const result = imgResult.imageBase64;
                     const costUsd = imgResult.costUsd || 0;
 
@@ -554,7 +571,7 @@ export const aiCapability: CapabilityModule = {
                 if (!gate.ok) return { success: false, result: gate.result };
                 console.log(`[Bridge] AI Video Gen request: ${data.prompt?.substring(0, 50)}...`);
                 try {
-                    const videoResult = await ai.aiGenerateVideo(data.prompt, data.images ?? undefined);
+                    const videoResult = await withKeepAlive('video', () => ai.aiGenerateVideo(data.prompt, data.images ?? undefined));
                     // Runner owns disk persistence, cache registration and file:// WebView delivery.
                     const result = videoResult.videoBase64;
                     const costUsd = videoResult.costUsd || 0;

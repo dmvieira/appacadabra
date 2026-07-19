@@ -7,7 +7,10 @@ import com.facebook.react.uimanager.ViewManager
 
 class BackgroundGeneratorPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(BackgroundGeneratorModule(reactContext))
+        return listOf(
+            BackgroundGeneratorModule(reactContext),
+            WebViewAiKeepAliveModule(reactContext),
+        )
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {

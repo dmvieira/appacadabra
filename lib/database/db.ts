@@ -432,12 +432,19 @@ export async function deleteVersion(versionId: number): Promise<void> {
 
 // ============= Storage Operations =============
 
+// Reserved key for the runner's DOM snapshot (form values, scroll positions,
+// sessionStorage). Kept in app_storage to reuse the existing per-appId table,
+// but filtered from getStorageForApp() so a spell can't observe it through
+// localStorage.
+export const DOM_SNAPSHOT_KEY = '__appacadabra_dom_snapshot';
+
 export async function getStorageForApp(appId: number): Promise<AppStorage[]> {
     const database = await getDatabase();
-    return database.getAllAsync<AppStorage>(
-        'SELECT * FROM app_storage WHERE appId = ?',
-        [appId]
+    const rows = await database.getAllAsync<AppStorage>(
+        'SELECT * FROM app_storage WHERE appId = ? AND key != ?',
+        [appId, DOM_SNAPSHOT_KEY]
     );
+    return rows;
 }
 
 export async function getStorageItem(appId: number, key: string): Promise<string | null> {

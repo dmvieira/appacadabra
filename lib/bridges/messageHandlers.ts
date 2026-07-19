@@ -486,6 +486,22 @@ export async function handleBridgeMessage(
             }
             break;
 
+        case 'DOM_SNAPSHOT':
+            // Persist runner UI state (form values, scroll, sessionStorage)
+            // so a WebView recreate — background/foreground, PONG-triggered
+            // reload, RunnerActivity resume — can restore what the user was
+            // doing. Bypasses updateStorageCache so the spell can never see
+            // this key via localStorage (see DOM_SNAPSHOT_KEY filter in
+            // getStorageForApp).
+            if (ctx.appId && typeof data.data === 'string') {
+                try {
+                    await db.setStorageItem(ctx.appId, db.DOM_SNAPSHOT_KEY, data.data);
+                } catch (e) {
+                    debugLog(`DOM_SNAPSHOT persist failed: ${e instanceof Error ? e.message : String(e)}`);
+                }
+            }
+            break;
+
         case 'STORAGE_CLEAR':
             debugLog('Storage clear');
             if (ctx.appId) {

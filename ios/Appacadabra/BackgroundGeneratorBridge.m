@@ -30,6 +30,17 @@ RCT_EXTERN_METHOD(status:(NSString *)jobId
 RCT_EXTERN_METHOD(scheduleBackgroundProcessing:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+// Keep-alive for WebView AI calls (AppacadabraAI.* inside a spell). Consumed
+// via lib/webviewAiKeepAlive.ts — one acquire per AI call, one release in the
+// completion path (success or failure).
+RCT_EXTERN_METHOD(acquireKeepAlive:(NSString *)reason
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(releaseKeepAlive:(NSString *)tokenId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 + (BOOL)requiresMainQueueSetup
 {
   return NO;

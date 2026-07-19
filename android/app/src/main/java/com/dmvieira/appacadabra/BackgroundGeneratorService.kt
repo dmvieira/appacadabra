@@ -49,12 +49,31 @@ class BackgroundGeneratorService : HeadlessJsTaskService() {
      * let the base class handle the normal task-finished bookkeeping.
      */
     override fun onHeadlessJsTaskFinish(taskId: Int) {
+        dismissNotification()
+        super.onHeadlessJsTaskFinish(taskId)
+    }
+
+    override fun onDestroy() {
+        // Belt-and-suspenders: if the service is stopped by any other path
+        // (task-timeout, process death recovery, OEM quirk), still drop the
+        // notification here.
+        dismissNotification()
+        super.onDestroy()
+    }
+
+    private fun dismissNotification() {
         try {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } catch (_: Exception) {
-            // Best effort — if this fails the base class will still stopSelf().
+            // Best effort.
         }
-        super.onHeadlessJsTaskFinish(taskId)
+        try {
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(NOTIFICATION_ID)
+        } catch (_: Exception) {
+            // Best effort — some OEM ROMs leave the ongoing notification
+            // pinned past stopForeground; explicit cancel is our fallback.
+        }
     }
 
     override fun getTaskConfig(intent: Intent?): HeadlessJsTaskConfig? {

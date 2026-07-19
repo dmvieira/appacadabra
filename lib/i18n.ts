@@ -40,10 +40,8 @@ export const translations = {
         describeOrMic: '💡 Describe or use the microphone',
         appNamePlaceholder: 'Spell Name',
         generatingApp: 'Conjuring Spell...',
-        updatingApp: 'Enhancing Spell...',
-
-
-        // Async Notifications
+        webviewAiKeepAliveNotification: 'Running AI…',
+        updatingApp: 'Enhancing Spell...',        // Async Notifications
         jobStarted: 'Casting Spell... 🪄',
         editJobStarted: 'Enhancing Spell... 🪄',
         spellFailedTitle: 'Spell generation failed',
@@ -746,10 +744,8 @@ export const translations = {
         describeOrMic: '💡 Descreva ou use o microfone',
         appNamePlaceholder: 'Nome do Feitiço',
         generatingApp: 'Conjurando Feitiço...',
-        updatingApp: 'Melhorando Feitiço...',
-
-
-        // Menu
+        webviewAiKeepAliveNotification: 'IA em execução…',
+        updatingApp: 'Melhorando Feitiço...',        // Menu
         importProject: 'Importar Pergaminho 📜',
         shareSpell: 'Compartilhar Feitiço',
         shareSpellFile: 'Envia o arquivo do feitiço',
@@ -1396,10 +1392,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" ha sido actualizado con tus cambios.',
         errorProcessingJob: '¡El hechizo falló! La magia se disipó.',
         generatingApp: 'Conjurando Hechizo...',
-        updatingApp: 'Mejorando Hechizo...',
-
-
-        run: 'Lanzar',
+        webviewAiKeepAliveNotification: 'IA en curso…',
+        updatingApp: 'Mejorando Hechizo...',        run: 'Lanzar',
         edit: 'Modificar',
         delete: 'Eliminar',
 
@@ -2030,10 +2024,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" a été mis à jour avec vos changements.',
         errorProcessingJob: 'Le sort a échoué ! La magie s\'est dissipée.',
         generatingApp: 'Incantation du Sort...',
-        updatingApp: 'Amélioration du Sort...',
-
-
-        run: 'Lancer',
+        webviewAiKeepAliveNotification: 'IA en cours…',
+        updatingApp: 'Amélioration du Sort...',        run: 'Lancer',
         edit: 'Modifier',
         delete: 'Supprimer',
 
@@ -2663,10 +2655,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" wurde mit deinen Änderungen aktualisiert.',
         errorProcessingJob: 'Der Zauber ist fehlgeschlagen! Die Magie hat sich aufgelöst.',
         generatingApp: 'Zauber wird beschworen...',
-        updatingApp: 'Zauber wird verbessert...',
-
-
-        run: 'Wirken',
+        webviewAiKeepAliveNotification: 'KI läuft…',
+        updatingApp: 'Zauber wird verbessert...',        run: 'Wirken',
         edit: 'Ändern',
         delete: 'Löschen',
 
@@ -3228,10 +3218,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" è stato aggiornato con le tue modifiche.',
         errorProcessingJob: 'L\'incantesimo è fallito! La magia si è dissipata.',
         generatingApp: 'Evocazione Incantesimo...',
-        updatingApp: 'Miglioramento Incantesimo...',
-
-
-        run: 'Lancia',
+        webviewAiKeepAliveNotification: 'IA in corso…',
+        updatingApp: 'Miglioramento Incantesimo...',        run: 'Lancia',
         edit: 'Modifica',
         delete: 'Elimina',
 
@@ -3793,10 +3781,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" が変更内容で更新されました。',
         errorProcessingJob: '呪文が失敗しました！魔法が消散しました。',
         generatingApp: '呪文を召喚中...',
-        updatingApp: '呪文を強化中...',
-
-
-        run: '唱える',
+        webviewAiKeepAliveNotification: 'AI 実行中…',
+        updatingApp: '呪文を強化中...',        run: '唱える',
         edit: '変更',
         delete: '削除',
 
@@ -4339,10 +4325,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" 已更新。',
         errorProcessingJob: '应用创建失败！魔法消散了。',
         generatingApp: '正在召唤应用...',
-        updatingApp: '正在改进应用...',
-
-
-        run: '运行',
+        webviewAiKeepAliveNotification: 'AI 运行中…',
+        updatingApp: '正在改进应用...',        run: '运行',
         edit: '编辑',
         delete: '删除',
 
@@ -4897,10 +4881,8 @@ export const translations = {
         network_unknown: '알 수 없는 네트워크',
         errorProcessingJob: '앱 생성 실패! 마법이 흩어졌습니다.',
         generatingApp: '앱 소환 중...',
-        updatingApp: '앱 개선 중...',
-
-
-        run: '실행',
+        webviewAiKeepAliveNotification: 'AI 실행 중…',
+        updatingApp: '앱 개선 중...',        run: '실행',
         edit: '편집',
         delete: '삭제',
 
@@ -5443,10 +5425,8 @@ export const translations = {
         appUpdatedBody: 'تم تحديث "%{name}" بتغييراتك.',
         errorProcessingJob: 'فشل التطبيق! تبدد السحر.',
         generatingApp: 'استدعاء التطبيق...',
-        updatingApp: 'تحسين التطبيق...',
-
-
-        run: 'تشغيل',
+        webviewAiKeepAliveNotification: 'الذكاء الاصطناعي يعمل…',
+        updatingApp: 'تحسين التطبيق...',        run: 'تشغيل',
         edit: 'تعديل',
         delete: 'حذف',
 
@@ -5995,10 +5975,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" आपके बदलावों के साथ अपडेट कर दिया गया है।',
         errorProcessingJob: 'ऐप विफल रहा! जादू बिखर गया।',
         generatingApp: 'ऐप बुला रहा है...',
-        updatingApp: 'ऐप सुधार रहा है...',
-
-
-        run: 'चलाएं',
+        webviewAiKeepAliveNotification: 'AI चल रहा है…',
+        updatingApp: 'ऐप सुधार रहा है...',        run: 'चलाएं',
         edit: 'संपादित करें',
         delete: 'हटाएं',
 
@@ -6547,10 +6525,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" обновлено с вашими изменениями.',
         errorProcessingJob: 'Ошибка приложения! Магия рассеялась.',
         generatingApp: 'Призыв приложения...',
-        updatingApp: 'Улучшение приложения...',
-
-
-        run: 'Запустить',
+        webviewAiKeepAliveNotification: 'ИИ выполняется…',
+        updatingApp: 'Улучшение приложения...',        run: 'Запустить',
         edit: 'Редактировать',
         delete: 'Удалить',
 
@@ -7099,10 +7075,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" değişikliklerinizle güncellendi.',
         errorProcessingJob: 'Uygulama hatası! Büyü bozuldu.',
         generatingApp: 'Uygulama çağrılıyor...',
-        updatingApp: 'Uygulama geliştiriliyor...',
-
-
-        run: 'Çalıştır',
+        webviewAiKeepAliveNotification: 'Yapay zeka çalışıyor…',
+        updatingApp: 'Uygulama geliştiriliyor...',        run: 'Çalıştır',
         edit: 'Düzenle',
         delete: 'Sil',
 
@@ -7649,10 +7623,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" is bijgewerkt met jouw wijzigingen.',
         errorProcessingJob: 'App fout! De magie is verbroken.',
         generatingApp: 'App oproepen...',
-        updatingApp: 'App verbeteren...',
-
-
-        run: 'Uitvoeren',
+        webviewAiKeepAliveNotification: 'AI actief…',
+        updatingApp: 'App verbeteren...',        run: 'Uitvoeren',
         edit: 'Bewerken',
         delete: 'Verwijderen',
 
@@ -8200,10 +8172,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" została zaktualizowana o Twoje zmiany.',
         errorProcessingJob: 'Błąd aplikacji! Magia prysła.',
         generatingApp: 'Przywoływanie aplikacji...',
-        updatingApp: 'Ulepszanie aplikacji...',
-
-
-        run: 'Uruchom',
+        webviewAiKeepAliveNotification: 'AI działa…',
+        updatingApp: 'Ulepszanie aplikacji...',        run: 'Uruchom',
         edit: 'Edytuj',
         delete: 'Usuń',
 
@@ -8753,10 +8723,8 @@ export const translations = {
         appUpdatedBody: '"%{name}" đã được cập nhật với các thay đổi của bạn.',
         errorProcessingJob: 'Lỗi ứng dụng! Phép thuật đã tan biến.',
         generatingApp: 'Đang triệu hồi ứng dụng...',
-        updatingApp: 'Đang cải tiến ứng dụng...',
-
-
-        run: 'Chạy',
+        webviewAiKeepAliveNotification: 'AI đang chạy…',
+        updatingApp: 'Đang cải tiến ứng dụng...',        run: 'Chạy',
         edit: 'Chỉnh sửa',
         delete: 'Xóa',
 
@@ -9306,10 +9274,8 @@ export const translations = {
         appUpdatedBody: 'อัปเดต "%{name}" ด้วยการเปลี่ยนแปลงของคุณแล้ว',
         errorProcessingJob: 'เกิดข้อผิดพลาดกับแอป! เวทมนตร์ล้มเหลว',
         generatingApp: 'กำลังเรียกแอป...',
-        updatingApp: 'กำลังปรับปรุงแอป...',
-
-
-        run: 'เรียกใช้',
+        webviewAiKeepAliveNotification: 'AI กำลังทำงาน…',
+        updatingApp: 'กำลังปรับปรุงแอป...',        run: 'เรียกใช้',
         edit: 'แก้ไข',
         delete: 'ลบ',
 

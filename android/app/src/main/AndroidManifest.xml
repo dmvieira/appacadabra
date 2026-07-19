@@ -111,6 +111,7 @@
         android:grantUriPermissions="true"/>
     <receiver android:name=".AlarmReceiver" android:exported="false"/>
     <service android:name=".BackgroundGeneratorService" android:foregroundServiceType="dataSync" android:exported="false"/>
+    <service android:name=".WebViewAiKeepAliveService" android:foregroundServiceType="dataSync" android:exported="false"/>
     <service
         android:name="androidx.work.impl.foreground.SystemForegroundService"
         android:foregroundServiceType="dataSync"

@@ -34,7 +34,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as AuthSession from 'expo-auth-session';
 import { Accelerometer, Gyroscope, Magnetometer } from 'expo-sensors';
 import { useAppStore } from '../../lib/store';
-import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, ExpandedStorageItem } from '../../lib/bridges/injectedJS';
+import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, createDomSnapshotScript, createDomSnapshotRestoreScript, ExpandedStorageItem } from '../../lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, saveAiMediaToFile, AI_MEDIA_MIME, buildBlobMarker } from '../../lib/bridges/messageHandlers';
 import * as ai from '../../lib/api/ai';
 import * as db from '../../lib/database/db';
@@ -236,6 +236,14 @@ export default function RunnerScreen() {
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextState) => {
             if (nextState === 'background' || nextState === 'inactive') {
+                // Snapshot the runner's DOM state (forms, scroll, sessionStorage)
+                // before the WebView is suspended. Fire-and-forget; the message
+                // is buffered and posted back the next time the RN side runs.
+                try {
+                    webViewRef.current?.injectJavaScript(createDomSnapshotScript());
+                } catch (e) {
+                    console.warn('Runner: captureDomSnapshot failed:', e);
+                }
                 cleanupAllMedia();
             }
         });
@@ -453,10 +461,14 @@ export default function RunnerScreen() {
 
     const applyPendingUpdate = useCallback(() => {
         if (pendingVersionApp) {
+            // New spell version — old snapshot's selectors may not map to
+            // the new DOM. Drop it so restore doesn't stamp partial garbage
+            // onto the reloaded WebView. Fire-and-forget.
+            db.removeStorageItem(Number(id), db.DOM_SNAPSHOT_KEY).catch(() => {});
             setApp(pendingVersionApp);
             setPendingVersionApp(null);
         }
-    }, [pendingVersionApp]);
+    }, [pendingVersionApp, id]);
 
     const applyStorageReload = useCallback(async () => {
         const appId = Number(id);
@@ -478,6 +490,10 @@ export default function RunnerScreen() {
         if (!app) return;
         setRefreshing(true);
         try {
+            // Pull-to-refresh is an explicit reset request — discard any
+            // saved DOM snapshot so the reload doesn't restore the pre-refresh
+            // UI state on top.
+            await db.removeStorageItem(app.id, db.DOM_SNAPSHOT_KEY).catch(() => {});
             const loadedApp = await db.getAppById(app.id);
             if (loadedApp) {
                 setApp(loadedApp);
@@ -884,6 +900,22 @@ export default function RunnerScreen() {
             console.log('Runner: Injecting', expandedToRestore.length, 'storage items from cache');
             const script = createStorageRestoreScript(expandedToRestore);
             webViewRef.current.injectJavaScript(script);
+
+            // Restore DOM snapshot (forms, scroll, sessionStorage) captured
+            // before the last WebView pause/recreate. Runs after the
+            // localStorage restore so spell code that reads storage on load
+            // has canonical data first, then user-facing UI state layers on
+            // top.
+            try {
+                const snap = await db.getStorageItem(app.id, db.DOM_SNAPSHOT_KEY);
+                if (snap && webViewRef.current) {
+                    webViewRef.current.injectJavaScript(
+                        createDomSnapshotRestoreScript(snap)
+                    );
+                }
+            } catch (e) {
+                console.warn('Runner: DOM snapshot restore failed:', e);
+            }
 
             // Recover undelivered AI responses (skip in edit mode — would re-trigger AI callbacks)
             if (!isEditMode) try {
