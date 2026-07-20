@@ -70,12 +70,12 @@
         <a href="index.html" class="back-link">← Back to Home</a>
 
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: January 2026</p>
+        <p class="updated">Last updated: July 2026</p>
 
         <h2>1. Introduction</h2>
-        <p>Appacadabra ("we", "our", or "the app") is a spell generation utility that uses artificial intelligence to
-            create personalized tools. This Privacy Policy describes how we collect, use, and protect your information.
-        </p>
+        <p>Appacadabra ("we", "our", or "the app") is a spell generation utility that connects your device to
+            third-party AI models to create personalized tools. This Privacy Policy describes how we collect, use, and
+            protect your information.</p>
 
         <h2>2. Information We Collect</h2>
 
@@ -105,46 +105,67 @@
             <li>All generated spells are stored <strong>exclusively on your device</strong></li>
             <li>Version history of your spells</li>
             <li>Preferences and settings</li>
+            <li>Your OpenRouter API key, stored encrypted in your device's secure storage (iOS Keychain / Android
+                Keystore). It is never transmitted to Appacadabra or any server we control.</li>
+            <li>AI generation cost estimates per spell, calculated locally from token usage returned by OpenRouter and
+                stored in the app's local database.</li>
         </ul>
 
         <h2>3. How We Use Your Information</h2>
         <ul>
-            <li><strong>Spell generation:</strong> Your descriptions are sent to Google's Gemini API to generate code
-            </li>
+            <li><strong>Spell generation:</strong> Your spell descriptions are sent from your device directly to
+                OpenRouter (openrouter.ai) using your API key. OpenRouter routes them to the AI model provider you have
+                selected (which may include Google, Anthropic, OpenAI, or others). Appacadabra does not intermediate
+                this request or receive a copy of your descriptions.</li>
             <li><strong>Local operation:</strong> Generated spells run locally on your device</li>
             <li><strong>Service improvement:</strong> Anonymous analytics may be used to improve the app</li>
         </ul>
+        <p>Because AI model providers may be located outside your country (including the United States), your spell
+            descriptions may be transferred internationally. These transfers are necessary to provide the core service
+            you have requested.</p>
 
         <h2>4. Data Sharing</h2>
 
-        <h3>4.1 Google Gemini API</h3>
-        <p>App descriptions are processed by Google's Gemini API. See <a href="https://policies.google.com/privacy"
-                target="_blank">Google's Privacy Policy</a> for more information.</p>
+        <h3>4.1 OpenRouter and AI Model Providers</h3>
+        <p>Spell descriptions are sent directly from your device to <a href="https://openrouter.ai" target="_blank"
+                rel="noopener">OpenRouter</a>, a third-party AI routing service, using your personal API key. OpenRouter
+            forwards requests to the AI model provider you have selected. The model providers available through
+            OpenRouter include Google, Anthropic, OpenAI, and others. Each provider's privacy policy governs how they
+            handle your data. See <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">OpenRouter's
+                Privacy Policy</a> for details.</p>
 
         <h3>4.2 We Do Not Share</h3>
         <ul>
             <li>We do not sell your personal data</li>
             <li>We do not share information with third parties for marketing</li>
             <li>We do not collect contacts, calendar, or location data to our servers</li>
+            <li>Spell descriptions leave your device only to reach OpenRouter and your chosen AI model provider — they
+                are not sent to or stored on Appacadabra's servers</li>
         </ul>
 
         <h2>5. Storage and Security</h2>
         <ul>
             <li>All data is stored <strong>locally on your device</strong></li>
             <li>We do not maintain servers with your personal data</li>
-            <li>The app uses secure connections (HTTPS) for API communication</li>
+            <li>The app uses secure connections (HTTPS) for all external communication, including requests to
+                OpenRouter and Firebase</li>
+            <li>Your OpenRouter API key is stored using your device's hardware-backed secure enclave (iOS Keychain /
+                Android Keystore) and is never transmitted to Appacadabra</li>
         </ul>
 
         <h2>6. Your Rights</h2>
-        <p>You have the right to:</p>
-        <ul>
-            <li>Delete any generated spell at any time</li>
-            <li>Revoke granted permissions in device settings</li>
-            <li>Uninstall the app, removing all local data</li>
-        </ul>
+        <p>You have the right to: delete any generated spell at any time from within the app; revoke device permissions
+            at any time in your device settings; uninstall the app, which removes all locally stored data; request
+            confirmation of what data (if any) Appacadabra holds about you by contacting us at the address below; and,
+            where applicable under GDPR or LGPD, the right to access, correct, delete, or port your data, and to lodge a
+            complaint with your local data protection authority. Because Appacadabra does not store your spell
+            descriptions or device data on its own servers, most data deletion is accomplished by uninstalling the app.
+            For any data held by OpenRouter, contact OpenRouter directly.</p>
 
         <h2>7. Children</h2>
-        <p>Appacadabra is not intended for children under 13. We do not knowingly collect information from children.</p>
+        <p>Appacadabra is not intended for children under 13. We do not knowingly collect information from children. The
+            app includes an age verification step that requires users to confirm they are 13 or older before using the
+            service.</p>
 
         <h2>8. Changes</h2>
         <p>We may update this policy periodically. We will notify you of significant changes through the app.</p>
