@@ -257,6 +257,33 @@ describe('generateWebviewAI (happy path)', () => {
         expect(parts.some(p => p.type === 'image_url')).toBe(true);
     });
 
+    it('detects audio container from magic bytes and sets input_audio.format accordingly', async () => {
+        // Real magic-byte prefixes as base64 (first N chars):
+        // OGG ("OggS...") → "T2dnUw"; WhatsApp voice notes are OPUS-in-OGG.
+        // WAV ("RIFF...") → "UklGR".
+        // MP3 with ID3v2 ("ID3...") → "SUQz".
+        // FLAC ("fLaC...") → "ZkxhQw".
+        const cases: Array<{ input: string; expected: string }> = [
+            { input: 'T2dnUwABCDEFGHIJKLMNOPQRSTUVWXYZ', expected: 'ogg' }, // WhatsApp .opus
+            { input: 'UklGRhwAAABXQVZFZm10IBAAAAABAAEA', expected: 'wav' },
+            { input: 'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2', expected: 'mp3' },
+            { input: 'ZkxhQwAAACIAAAAAAAAAAAAAAAAAAAAA', expected: 'flac' },
+            { input: '//tQxAADB8AAAAAAAAAAAAAAAAAAA', expected: 'mp3' }, // raw MPEG sync
+            { input: 'GkXfo6NChoEBQveBAULygQRC84EIQoK', expected: 'webm' },
+            { input: 'nonsense_base64_that_does_not_ma', expected: 'wav' }, // fallback
+        ];
+        for (const { input, expected } of cases) {
+            mChat.mockResolvedValueOnce(chatResponse('ok'));
+            await generateWebviewAI({ prompt: 'x', audios: [input] });
+            const sent = mChat.mock.calls[mChat.mock.calls.length - 1][0] as any;
+            const userMsg = sent.messages.find((m: any) => m.role === 'user');
+            const audioPart = (userMsg.content as any[]).find(p => p.type === 'input_audio');
+            expect(audioPart).toBeDefined();
+            expect(audioPart.input_audio.format).toBe(expected);
+            expect(audioPart.input_audio.data).toBe(input);
+        }
+    });
+
     it('adds googleSearch tool + web-search system note when useSearch=true', async () => {
         mChat.mockResolvedValueOnce(chatResponse('answer'));
         await generateWebviewAI({ prompt: 'fresh news', useSearch: true });

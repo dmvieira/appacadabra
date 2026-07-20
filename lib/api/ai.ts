@@ -133,8 +133,13 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
 
     const { prompt, search, schema, images, audios } = options;
 
-    // Clean base64 prefixes aggressively (handle redundant or double prefixes)
-    const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
+    // Strip any leading data URI header — including MIME parameters like
+    // "; codecs=opus" that WhatsApp attaches to voice notes (mimeType comes
+    // through as "audio/ogg; codecs=opus" and the previous regex stopped at
+    // the first ";", leaving the header embedded in the payload and getting
+    // the request rejected by the provider). Matching up to the first comma
+    // covers every RFC-2397-shaped prefix regardless of the parameter list.
+    const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^,]+,)+/i, '') : str;
     const cleanImages = images?.map(cleanPrefix);
     const cleanAudios = audios?.map(cleanPrefix);
 

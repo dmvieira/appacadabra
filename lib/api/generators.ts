@@ -89,6 +89,40 @@ function resolveCostUsd(usage: GenerationUsage): number {
         : calculateCostUsd(MODELS.SPELL_S, usage);
 }
 
+// Sniff audio container from magic bytes on the raw base64 (no decoding
+// needed — we compare base64 prefixes directly).
+// Gemini/OpenRouter reject audio when `input_audio.format` disagrees with
+// the actual container, so hardcoding 'wav' breaks OGG (WhatsApp voice
+// notes), MP3, FLAC, AAC, etc. Defaults to 'wav' if unrecognized — most
+// clients that produce audio inside the WebView (MediaRecorder) still emit
+// WAV/PCM, so this is a safe fallback.
+function detectAudioFormat(base64: string): 'wav' | 'mp3' | 'ogg' | 'flac' | 'aac' | 'm4a' | 'webm' {
+    if (!base64) return 'wav';
+    // WAV: "RIFF" → "UklGR"
+    if (base64.startsWith('UklGR')) return 'wav';
+    // OGG (incl. OPUS-in-OGG from WhatsApp): "OggS" → "T2dnU" or "T2dnUw"
+    if (base64.startsWith('T2dnU')) return 'ogg';
+    // FLAC: "fLaC" → "ZkxhQw"
+    if (base64.startsWith('ZkxhQ')) return 'flac';
+    // MP3 with ID3v2 tag: "ID3" → "SUQz"
+    if (base64.startsWith('SUQz')) return 'mp3';
+    // MPEG/AAC frame sync — first byte 0xFF makes chars 1-2 always "//"; the
+    // 3rd char narrows to a 2-bit-varying set determined by the sync + layer:
+    //   0xFFFB (MP3 L3 MPEG-1)  → s,t,u,v      0xFFF3 (MP3 L3 MPEG-2) → M,N,O,P
+    //   0xFFFA (MP3 L2 MPEG-1)  → o,p,q,r      0xFFF2 (MP3 L2 MPEG-2) → I,J,K,L
+    //   0xFFF1/0xFFF9 (ADTS AAC) → E,F,G,H / k,l,m,n
+    if (base64.startsWith('//')) {
+        const c3 = base64.charAt(2);
+        if ('stuvMNOPopqrIJKL'.indexOf(c3) >= 0) return 'mp3';
+        if ('EFGHklmn'.indexOf(c3) >= 0) return 'aac';
+    }
+    // MP4/M4A: ISO box "ftyp" at byte offset 4 → base64 chars 5..12 contain "ZnR5cA"
+    if (base64.length >= 16 && base64.slice(4, 14).indexOf('ZnR5cA') >= 0) return 'm4a';
+    // WebM/Matroska EBML header "1A 45 DF A3" → "GkXf"
+    if (base64.startsWith('GkXf')) return 'webm';
+    return 'wav';
+}
+
 // ============================================================
 // generateSpellCreate
 // ============================================================
@@ -620,7 +654,7 @@ export async function generateWebviewAI(params: WebviewAIParams): Promise<Webvie
         for (const aud of audios) {
             userContent.push({
                 type: 'input_audio',
-                input_audio: { data: aud, format: 'wav' },
+                input_audio: { data: aud, format: detectAudioFormat(aud) },
             });
         }
     }
