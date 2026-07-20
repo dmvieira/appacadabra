@@ -17,7 +17,7 @@ Appacadabra ("we", "our", or "the app") is a spell generation utility that conne
 The app may request access to:
 - **Health Data:** With your explicit consent via Google Health Connect, we **access** health-related metrics (including Steps, Heart Rate, Total Calories Burned, Sleep Sessions, and Exercise Sessions) strictly for local processing on your device. We use this data exclusively to display your daily wellness summary and as context to generate personalized insights. **We do NOT collect, transmit, or store your health data on our or any external servers.** Your health data never leaves your device and is never sold or shared with third parties.
 - **Contacts:** Only when a generated spell needs to access your contact list
-- **Calendar:** For creating events in generated spells
+- **Calendar:** To read, create, and delete events on behalf of generated spells that request it.
 - **Location:** When generated spells require geolocation
 - **Camera:** Used only when a generated spell requests it (e.g., scanning QR codes, taking photos). We do not access the camera without your explicit action within a spell.
 - **Microphone:** Used only for voice commands or audio recording spells. We do not record audio without your explicit action.
@@ -31,6 +31,7 @@ The app may request access to:
 - Preferences and settings
 - Your OpenRouter API key, stored encrypted in your device's secure storage (iOS Keychain / Android Keystore). It is never transmitted to Appacadabra or any server we control.
 - AI generation cost estimates per spell, calculated locally from token usage returned by OpenRouter and stored in the app's local database.
+- An anonymous installation identifier issued by Firebase Anonymous Auth on first launch. It is used to publish spells to and learn spells from the public Store, and is not tied to any personal information you provide.
 
 ## 3. How We Use Your Information
 
@@ -39,6 +40,17 @@ The app may request access to:
 - **Service improvement:** Anonymous analytics may be used to improve the app
 
 Because AI model providers may be located outside your country (including the United States), your spell descriptions may be transferred internationally. These transfers are necessary to provide the core service you have requested.
+
+### 3.1 Always-on Infrastructure Services
+
+The following services run whenever the app is used and cannot currently be disabled from within the app:
+
+- **Firebase Analytics:** aggregated, non-identifying usage metrics to help us improve the app.
+- **Firebase Crashlytics:** automatic crash reports (including device model, OS version, and stack traces) when the app terminates unexpectedly.
+- **Firebase App Check:** device attestation via Google Play Integrity (Android) or App Attest (iOS) to protect our backend from abuse.
+- **Firebase Anonymous Auth:** issues the anonymous installation identifier described in Section 2.3.
+- **Google Cloud Storage (`storage.googleapis.com`):** serves icons and preview assets for spells listed in the public Store.
+- **Google Search & Google Maps APIs:** called on demand when a running spell uses AI capabilities that depend on them (for example, to fetch search results or geocode a location).
 
 ## 4. Data Sharing
 
@@ -55,7 +67,7 @@ Spell descriptions are sent directly from your device to [OpenRouter](https://op
 
 - All data is stored **locally on your device**
 - We do not maintain servers with your personal data
-- The app uses secure connections (HTTPS) for all external communication, including requests to OpenRouter and Firebase
+- The app uses secure connections (HTTPS) for all external communication, including requests to OpenRouter, Firebase, and Google Cloud Storage
 - Your OpenRouter API key is stored using your device's hardware-backed secure enclave (iOS Keychain / Android Keystore) and is never transmitted to Appacadabra
 
 ## 6. Your Rights
@@ -64,7 +76,7 @@ You have the right to: delete any generated spell at any time from within the ap
 
 ## 7. Children
 
-Appacadabra is not intended for children under 13. We do not knowingly collect information from children. The app includes an age verification step that requires users to confirm they are 13 or older before using the service.
+Appacadabra is not intended for children under 13. We do not knowingly collect information from children.
 
 ## 8. Changes
 

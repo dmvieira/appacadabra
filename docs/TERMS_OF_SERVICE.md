@@ -73,7 +73,7 @@ We are not responsible for:
 - Problems caused by generated spells
 - Third-party misuse of spells you created
 
-The public Store lists spells created by other users. These spells are executable JavaScript that runs inside Appacadabra with access to the device capabilities you have granted the app. Appacadabra does not create, review, endorse, or verify third-party spells. You acknowledge that installing and running any community spell is at your own risk, and that Appacadabra shall not be liable for any damages, data loss, data exfiltration, or harm caused by third-party spells. Appacadabra reserves the right to remove any spell at any time without notice.
+The public Store lists spells created by other users. These spells are executable JavaScript that runs inside Appacadabra with access to the device capabilities you have granted the app. Appacadabra applies automated structural checks to submitted spells (size limits, script-source allowlist, API-key detection, and publication rate limits) but does not manually review, endorse, or verify the content or behavior of third-party spells. You acknowledge that installing and running any community spell is at your own risk, and that Appacadabra shall not be liable for any damages, data loss, data exfiltration, or harm caused by third-party spells. Appacadabra reserves the right to remove any spell at any time without notice.
 
 ## 9. Modifications
 

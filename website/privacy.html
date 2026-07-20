@@ -91,7 +91,7 @@
         <ul>
             <li><strong>Health Data:</strong> With your explicit consent via Google Health Connect, we <strong>access</strong> health-related metrics (including Steps, Heart Rate, Total Calories Burned, Sleep Sessions, and Exercise Sessions) strictly for local processing on your device. We use this data exclusively to display your daily wellness summary and as context to generate personalized insights. <strong>We do NOT collect, transmit, or store your health data on our or any external servers.</strong> Your health data never leaves your device and is never sold or shared with third parties.</li>
             <li><strong>Contacts:</strong> Only when a generated spell needs to access your contact list</li>
-            <li><strong>Calendar:</strong> For creating events in generated spells</li>
+            <li><strong>Calendar:</strong> To read, create, and delete events on behalf of generated spells that request it.</li>
             <li><strong>Location:</strong> When generated spells require geolocation</li>
             <li><strong>Camera:</strong> Used only when a generated spell requests it (e.g., scanning QR codes, taking photos). We do not access the camera without your explicit action.</li>
             <li><strong>Microphone:</strong> Used only for voice commands or audio recording spells. We do not record audio without your explicit action.</li>
@@ -109,6 +109,9 @@
                 Keystore). It is never transmitted to Appacadabra or any server we control.</li>
             <li>AI generation cost estimates per spell, calculated locally from token usage returned by OpenRouter and
                 stored in the app's local database.</li>
+            <li>An anonymous installation identifier issued by Firebase Anonymous Auth on first launch. It is used to
+                publish spells to and learn spells from the public Store, and is not tied to any personal information you
+                provide.</li>
         </ul>
 
         <h2>3. How We Use Your Information</h2>
@@ -123,6 +126,17 @@
         <p>Because AI model providers may be located outside your country (including the United States), your spell
             descriptions may be transferred internationally. These transfers are necessary to provide the core service
             you have requested.</p>
+
+        <h3>3.1 Always-on Infrastructure Services</h3>
+        <p>The following services run whenever the app is used and cannot currently be disabled from within the app:</p>
+        <ul>
+            <li><strong>Firebase Analytics:</strong> aggregated, non-identifying usage metrics to help us improve the app.</li>
+            <li><strong>Firebase Crashlytics:</strong> automatic crash reports (including device model, OS version, and stack traces) when the app terminates unexpectedly.</li>
+            <li><strong>Firebase App Check:</strong> device attestation via Google Play Integrity (Android) or App Attest (iOS) to protect our backend from abuse.</li>
+            <li><strong>Firebase Anonymous Auth:</strong> issues the anonymous installation identifier described in Section 2.3.</li>
+            <li><strong>Google Cloud Storage (<code>storage.googleapis.com</code>):</strong> serves icons and preview assets for spells listed in the public Store.</li>
+            <li><strong>Google Search &amp; Google Maps APIs:</strong> called on demand when a running spell uses AI capabilities that depend on them (for example, to fetch search results or geocode a location).</li>
+        </ul>
 
         <h2>4. Data Sharing</h2>
 
@@ -148,7 +162,7 @@
             <li>All data is stored <strong>locally on your device</strong></li>
             <li>We do not maintain servers with your personal data</li>
             <li>The app uses secure connections (HTTPS) for all external communication, including requests to
-                OpenRouter and Firebase</li>
+                OpenRouter, Firebase, and Google Cloud Storage</li>
             <li>Your OpenRouter API key is stored using your device's hardware-backed secure enclave (iOS Keychain /
                 Android Keystore) and is never transmitted to Appacadabra</li>
         </ul>
@@ -163,9 +177,7 @@
             For any data held by OpenRouter, contact OpenRouter directly.</p>
 
         <h2>7. Children</h2>
-        <p>Appacadabra is not intended for children under 13. We do not knowingly collect information from children. The
-            app includes an age verification step that requires users to confirm they are 13 or older before using the
-            service.</p>
+        <p>Appacadabra is not intended for children under 13. We do not knowingly collect information from children.</p>
 
         <h2>8. Changes</h2>
         <p>We may update this policy periodically. We will notify you of significant changes through the app.</p>
