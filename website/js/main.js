@@ -214,9 +214,9 @@ const observer = new IntersectionObserver((entries) => {
     });
 }, observerOptions);
 
-// Animate feature cards, steps, screen cards and mana cards on scroll
+// Animate feature cards, steps, screen cards and pricing cards on scroll
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.feature-card, .step, .screen-card, .mana-card').forEach(el => {
+    document.querySelectorAll('.feature-card, .step, .screen-card, .byok-step').forEach(el => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(20px)';
         el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
