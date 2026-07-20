@@ -234,7 +234,7 @@ function setupLearnButton(spellId, spell) {
     checkAlreadyLearned(user);
     if (user && sessionStorage.getItem('pendingLearn') === spellId) {
       sessionStorage.removeItem('pendingLearn');
-      triggerLearn();
+      guardLearn(triggerLearn);
     }
   });
   checkAlreadyLearned(getCurrentUser());
@@ -247,14 +247,45 @@ function setupLearnButton(spellId, spell) {
       if (deepLink) window.location.href = deepLink;
       return;
     }
-    const user = getCurrentUser();
-    if (!user) {
-      sessionStorage.setItem('pendingLearn', spellId);
-      signIn();
-      return;
-    }
-    triggerLearn();
+    guardLearn(() => {
+      const user = getCurrentUser();
+      if (!user) {
+        sessionStorage.setItem('pendingLearn', spellId);
+        signIn();
+        return;
+      }
+      triggerLearn();
+    });
   });
+}
+
+const DISCLAIMER_FLAG = 'appacadabra_store_disclaimer_v1';
+
+function guardLearn(onProceed) {
+  try {
+    if (localStorage.getItem(DISCLAIMER_FLAG)) {
+      return onProceed();
+    }
+  } catch (_) {
+    // localStorage unavailable (private mode) — always show the modal, never persist.
+  }
+  showSafetyModal(() => {
+    try { localStorage.setItem(DISCLAIMER_FLAG, '1'); } catch (_) {}
+    onProceed();
+  });
+}
+
+function showSafetyModal(onConfirm) {
+  showConfirmModal(
+    t('safetyModalTitle'),
+    t('safetyModalBody'),
+    onConfirm,
+    {
+      confirmLabel: t('safetyModalConfirm'),
+      cancelLabel: t('cancel'),
+      confirmVariant: 'primary',
+    }
+  );
 }
 
 function setupShareButtons(spellId, spell) {
@@ -343,8 +374,18 @@ function showConfirmModal(title, message, onConfirm, opts = {}) {
   `;
   document.body.appendChild(overlay);
 
-  const close = () => overlay.remove();
+  const previousFocus = document.activeElement;
+  const restoreFocus = () => {
+    if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+  };
+  const onKey = (e) => { if (e.key === 'Escape') cancel(); };
+  const close = () => {
+    document.removeEventListener('keydown', onKey);
+    overlay.remove();
+    restoreFocus();
+  };
   const cancel = () => { close(); if (onCancel) onCancel(); };
+  document.addEventListener('keydown', onKey);
   overlay.querySelector('#confirm-modal-cancel').addEventListener('click', cancel);
   overlay.addEventListener('click', e => { if (e.target === overlay) cancel(); });
   overlay.querySelector('#confirm-modal-ok').addEventListener('click', async () => {

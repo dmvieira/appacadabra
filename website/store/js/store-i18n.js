@@ -35,6 +35,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Learn more",
     spellFreeInline: "✨ Free to learn",
     spellSafetyInline: "Community spell — run at your own discretion.",
+    safetyModalTitle: "A note about community spells",
+    safetyModalBody: "This spell was created by a community member, not by Appacadabra. Community spells run as web apps on your device and can use the capabilities you've already granted to Appacadabra. Review the preview before running it on your phone.",
+    safetyModalConfirm: "Got it — add to my spells",
   },
   pt: {
     signIn: 'Entrar com Google',
@@ -72,6 +75,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Saiba mais",
     spellFreeInline: "✨ Grátis para aprender",
     spellSafetyInline: "Feitiço da comunidade — use por sua conta e risco.",
+    safetyModalTitle: "Uma nota sobre feitiços da comunidade",
+    safetyModalBody: "Este feitiço foi criado por um membro da comunidade, não pelo Appacadabra. Feitiços da comunidade rodam como web apps no seu aparelho e podem usar as capacidades que você já concedeu ao Appacadabra. Confira o preview antes de rodar no seu celular.",
+    safetyModalConfirm: "Entendi — adicionar aos meus feitiços",
   },
   es: {
     signIn: 'Iniciar sesión con Google',
@@ -109,6 +115,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Más información",
     spellFreeInline: "✨ Gratis para aprender",
     spellSafetyInline: "Hechizo de la comunidad — úsalo bajo tu propia responsabilidad.",
+    safetyModalTitle: "Una nota sobre los hechizos de la comunidad",
+    safetyModalBody: "Este hechizo fue creado por un miembro de la comunidad, no por Appacadabra. Los hechizos de la comunidad se ejecutan como aplicaciones web en tu dispositivo y pueden usar las capacidades que ya has concedido a Appacadabra. Revisa la vista previa antes de ejecutarlo en tu teléfono.",
+    safetyModalConfirm: "Entendido — añadir a mis hechizos",
   },
   fr: {
     signIn: 'Se connecter avec Google',
@@ -146,6 +155,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "En savoir plus",
     spellFreeInline: "✨ Gratuit à apprendre",
     spellSafetyInline: "Sort de la communauté — à utiliser à vos propres risques.",
+    safetyModalTitle: "À propos des sorts de la communauté",
+    safetyModalBody: "Ce sort a été créé par un membre de la communauté, pas par Appacadabra. Les sorts de la communauté fonctionnent comme des applications web sur votre appareil et peuvent utiliser les autorisations que vous avez déjà accordées à Appacadabra. Examinez l'aperçu avant de l'exécuter sur votre téléphone.",
+    safetyModalConfirm: "Compris — ajouter à mes sorts",
   },
   de: {
     signIn: 'Mit Google anmelden',
@@ -183,6 +195,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Mehr erfahren",
     spellFreeInline: "✨ Kostenlos zum Lernen",
     spellSafetyInline: "Community-Zauber — Nutzung auf eigenes Risiko.",
+    safetyModalTitle: "Ein Hinweis zu Community-Zaubern",
+    safetyModalBody: "Dieser Zauber wurde von einem Community-Mitglied erstellt, nicht von Appacadabra. Community-Zauber laufen als Web-Apps auf deinem Gerät und können die Berechtigungen nutzen, die du Appacadabra bereits erteilt hast. Prüfe die Vorschau, bevor du ihn auf deinem Telefon ausführst.",
+    safetyModalConfirm: "Verstanden — zu meinen Zaubern hinzufügen",
   },
   it: {
     signIn: 'Accedi con Google',
@@ -220,6 +235,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Scopri di più",
     spellFreeInline: "✨ Gratis da imparare",
     spellSafetyInline: "Incantesimo della community — usalo a tuo rischio.",
+    safetyModalTitle: "Una nota sugli incantesimi della community",
+    safetyModalBody: "Questo incantesimo è stato creato da un membro della community, non da Appacadabra. Gli incantesimi della community vengono eseguiti come web app sul tuo dispositivo e possono usare le autorizzazioni che hai già concesso ad Appacadabra. Controlla l'anteprima prima di eseguirlo sul telefono.",
+    safetyModalConfirm: "Ho capito — aggiungi ai miei incantesimi",
   },
   ja: {
     signIn: 'Googleでサインイン',
@@ -257,6 +275,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "詳細",
     spellFreeInline: "✨ 学ぶのは無料",
     spellSafetyInline: "コミュニティの呪文 — 自己責任でご利用ください。",
+    safetyModalTitle: "コミュニティの呪文について",
+    safetyModalBody: "この呪文は Appacadabra ではなくコミュニティのメンバーによって作成されました。コミュニティの呪文はデバイス上で Web アプリとして実行され、すでに Appacadabra に付与した機能を使用できます。スマートフォンで実行する前にプレビューを確認してください。",
+    safetyModalConfirm: "了解しました — 自分の呪文に追加",
   },
   zh: {
     signIn: '使用 Google 登录',
@@ -294,6 +315,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "了解更多",
     spellFreeInline: "✨ 免费学习",
     spellSafetyInline: "社区法术 — 请自行斟酌使用。",
+    safetyModalTitle: "关于社区法术的说明",
+    safetyModalBody: "此法术由社区成员创建，而非 Appacadabra。社区法术在您的设备上作为 Web 应用运行，并可使用您已授予 Appacadabra 的能力。在手机上运行之前，请先查看预览。",
+    safetyModalConfirm: "知道了 — 添加到我的法术",
   },
   ko: {
     signIn: 'Google로 로그인',
@@ -331,6 +355,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "자세히 보기",
     spellFreeInline: "✨ 배우기 무료",
     spellSafetyInline: "커뮤니티 주문 — 본인 책임하에 사용하세요.",
+    safetyModalTitle: "커뮤니티 주문에 대한 안내",
+    safetyModalBody: "이 주문은 Appacadabra가 아닌 커뮤니티 구성원이 만든 것입니다. 커뮤니티 주문은 사용자의 기기에서 웹 앱으로 실행되며, 이미 Appacadabra에 부여한 권한을 사용할 수 있습니다. 휴대전화에서 실행하기 전에 미리보기를 확인하세요.",
+    safetyModalConfirm: "알겠습니다 — 내 주문에 추가",
   },
   ar: {
     signIn: 'تسجيل الدخول باستخدام Google',
@@ -368,6 +395,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "اعرف المزيد",
     spellFreeInline: "✨ التعلم مجاني",
     spellSafetyInline: "تعويذة من المجتمع — استخدمها على مسؤوليتك الخاصة.",
+    safetyModalTitle: "ملاحظة حول تعاويذ المجتمع",
+    safetyModalBody: "تم إنشاء هذه التعويذة من قبل أحد أعضاء المجتمع، وليس بواسطة Appacadabra. تعمل تعاويذ المجتمع كتطبيقات ويب على جهازك ويمكنها استخدام الصلاحيات التي منحتها بالفعل لـ Appacadabra. راجع المعاينة قبل تشغيلها على هاتفك.",
+    safetyModalConfirm: "حسنًا — أضف إلى تعاويذي",
   },
   hi: {
     signIn: 'Google से साइन इन करें',
@@ -405,6 +435,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "और जानें",
     spellFreeInline: "✨ सीखना मुफ़्त",
     spellSafetyInline: "समुदाय का मंत्र — अपने विवेक से उपयोग करें।",
+    safetyModalTitle: "समुदाय के मंत्रों के बारे में एक नोट",
+    safetyModalBody: "यह मंत्र Appacadabra द्वारा नहीं, बल्कि समुदाय के एक सदस्य द्वारा बनाया गया है। समुदाय के मंत्र आपके डिवाइस पर वेब ऐप्स के रूप में चलते हैं और उन क्षमताओं का उपयोग कर सकते हैं जो आपने पहले से ही Appacadabra को दी हैं। इसे अपने फ़ोन पर चलाने से पहले पूर्वावलोकन देखें।",
+    safetyModalConfirm: "समझ गया — मेरे मंत्रों में जोड़ें",
   },
   ru: {
     signIn: 'Войти через Google',
@@ -442,6 +475,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Подробнее",
     spellFreeInline: "✨ Учить бесплатно",
     spellSafetyInline: "Заклинание сообщества — используйте на свой страх и риск.",
+    safetyModalTitle: "Заметка о заклинаниях сообщества",
+    safetyModalBody: "Это заклинание создано участником сообщества, а не Appacadabra. Заклинания сообщества работают на вашем устройстве как веб-приложения и могут использовать разрешения, которые вы уже предоставили Appacadabra. Просмотрите предварительный просмотр, прежде чем запускать его на телефоне.",
+    safetyModalConfirm: "Понятно — добавить в мои заклинания",
   },
   tr: {
     signIn: 'Google ile giriş yap',
@@ -479,6 +515,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Daha fazla bilgi",
     spellFreeInline: "✨ Öğrenmek ücretsiz",
     spellSafetyInline: "Topluluk büyüsü — kendi sorumluluğunuzda kullanın.",
+    safetyModalTitle: "Topluluk büyüleri hakkında bir not",
+    safetyModalBody: "Bu büyü Appacadabra tarafından değil, topluluk üyesi tarafından oluşturuldu. Topluluk büyüleri cihazınızda web uygulaması olarak çalışır ve Appacadabra'ya zaten verdiğiniz yetkileri kullanabilir. Telefonunuzda çalıştırmadan önce önizlemeyi inceleyin.",
+    safetyModalConfirm: "Anladım — büyülerime ekle",
   },
   nl: {
     signIn: 'Inloggen met Google',
@@ -516,6 +555,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Meer informatie",
     spellFreeInline: "✨ Gratis om te leren",
     spellSafetyInline: "Community-spreuk — gebruik op eigen risico.",
+    safetyModalTitle: "Een opmerking over community-spreuken",
+    safetyModalBody: "Deze spreuk is gemaakt door een lid van de community, niet door Appacadabra. Community-spreuken draaien als web-apps op je apparaat en kunnen de rechten gebruiken die je al aan Appacadabra hebt verleend. Bekijk het voorbeeld voordat je het op je telefoon uitvoert.",
+    safetyModalConfirm: "Begrepen — toevoegen aan mijn spreuken",
   },
   pl: {
     signIn: 'Zaloguj się przez Google',
@@ -553,6 +595,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Dowiedz się więcej",
     spellFreeInline: "✨ Nauka za darmo",
     spellSafetyInline: "Zaklęcie społeczności — używaj na własną odpowiedzialność.",
+    safetyModalTitle: "Uwaga dotycząca zaklęć społeczności",
+    safetyModalBody: "To zaklęcie zostało stworzone przez członka społeczności, a nie przez Appacadabra. Zaklęcia społeczności działają jako aplikacje internetowe na Twoim urządzeniu i mogą korzystać z uprawnień, które już przyznałeś Appacadabra. Przejrzyj podgląd przed uruchomieniem go na telefonie.",
+    safetyModalConfirm: "Rozumiem — dodaj do moich zaklęć",
   },
   vi: {
     signIn: 'Đăng nhập bằng Google',
@@ -590,6 +635,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "Tìm hiểu thêm",
     spellFreeInline: "✨ Miễn phí để học",
     spellSafetyInline: "Phép thuật cộng đồng — sử dụng theo trách nhiệm của bạn.",
+    safetyModalTitle: "Lưu ý về phép thuật cộng đồng",
+    safetyModalBody: "Phép thuật này được tạo bởi một thành viên cộng đồng, không phải bởi Appacadabra. Phép thuật cộng đồng chạy như các ứng dụng web trên thiết bị của bạn và có thể sử dụng các quyền mà bạn đã cấp cho Appacadabra. Xem trước trước khi chạy trên điện thoại của bạn.",
+    safetyModalConfirm: "Đã hiểu — thêm vào phép thuật của tôi",
   },
   th: {
     signIn: 'ลงชื่อเข้าใช้ด้วย Google',
@@ -627,6 +675,9 @@ const STORE_STRINGS = {
     storeSafetyLearnMore: "เรียนรู้เพิ่มเติม",
     spellFreeInline: "✨ เรียนรู้ฟรี",
     spellSafetyInline: "คาถาของชุมชน — ใช้ด้วยความระมัดระวังของคุณเอง",
+    safetyModalTitle: "ข้อควรทราบเกี่ยวกับคาถาของชุมชน",
+    safetyModalBody: "คาถานี้สร้างโดยสมาชิกในชุมชน ไม่ใช่โดย Appacadabra คาถาของชุมชนทำงานเป็นเว็บแอปบนอุปกรณ์ของคุณ และสามารถใช้สิทธิ์ที่คุณให้กับ Appacadabra ไปแล้วได้ ตรวจสอบตัวอย่างก่อนเรียกใช้บนโทรศัพท์ของคุณ",
+    safetyModalConfirm: "เข้าใจแล้ว — เพิ่มในคาถาของฉัน",
   },
 };
 
