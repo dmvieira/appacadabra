@@ -18,7 +18,15 @@ function getPlatform() {
   return 'desktop';
 }
 
+function applyStoreI18n(root = document) {
+  root.querySelectorAll('[data-store-i18n]').forEach(el => {
+    const key = el.getAttribute('data-store-i18n');
+    if (key) el.textContent = t(key);
+  });
+}
+
 async function initDetail() {
+  applyStoreI18n();
   const spellId = parseSpellId(location.pathname);
 
   if (!spellId) { showError('Spell not found.'); return; }

@@ -130,7 +130,15 @@ function syncSortToUrl(sort) {
   history.replaceState(null, '', url.toString());
 }
 
+function applyStoreI18n(root = document) {
+  root.querySelectorAll('[data-store-i18n]').forEach(el => {
+    const key = el.getAttribute('data-store-i18n');
+    if (key) el.textContent = t(key);
+  });
+}
+
 function initBrowse() {
+  applyStoreI18n();
   // Restore sort from URL so back-navigation preserves the active tab
   const savedSort = new URLSearchParams(location.search).get('sort');
   if (savedSort === 'popular') {
