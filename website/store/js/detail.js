@@ -306,7 +306,14 @@ function setupOwnerControls(spellId, spell) {
   });
 }
 
-function showConfirmModal(title, message, onConfirm) {
+function showConfirmModal(title, message, onConfirm, opts = {}) {
+  const {
+    confirmLabel = t('confirm'),
+    cancelLabel = t('cancel'),
+    confirmVariant = 'danger',
+    onCancel,
+  } = opts;
+
   document.getElementById('confirm-modal')?.remove();
 
   const overlay = document.createElement('div');
@@ -315,21 +322,23 @@ function showConfirmModal(title, message, onConfirm) {
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'confirm-modal-title');
+  const confirmClass = confirmVariant === 'primary' ? 'btn-primary' : 'btn-danger';
   overlay.innerHTML = `
     <div class="confirm-modal">
       <h2 id="confirm-modal-title" class="confirm-modal-title">${escapeHtml(title)}</h2>
       <p class="confirm-modal-message">${escapeHtml(message)}</p>
       <div class="confirm-modal-actions">
-        <button id="confirm-modal-cancel" class="btn-ghost" type="button">Cancelar</button>
-        <button id="confirm-modal-ok" class="btn-danger" type="button">Confirmar</button>
+        <button id="confirm-modal-cancel" class="btn-ghost" type="button">${escapeHtml(cancelLabel)}</button>
+        <button id="confirm-modal-ok" class="${confirmClass}" type="button">${escapeHtml(confirmLabel)}</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
 
   const close = () => overlay.remove();
-  overlay.querySelector('#confirm-modal-cancel').addEventListener('click', close);
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  const cancel = () => { close(); if (onCancel) onCancel(); };
+  overlay.querySelector('#confirm-modal-cancel').addEventListener('click', cancel);
+  overlay.addEventListener('click', e => { if (e.target === overlay) cancel(); });
   overlay.querySelector('#confirm-modal-ok').addEventListener('click', async () => {
     close();
     await onConfirm();
