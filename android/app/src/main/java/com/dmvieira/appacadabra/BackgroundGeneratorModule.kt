@@ -100,6 +100,25 @@ class BackgroundGeneratorModule(private val reactContext: ReactApplicationContex
         promise.resolve(null)
     }
 
+    /**
+     * Called from the JS store's onCompleted/onFailed handlers to explicitly
+     * tear down the FGS. Relying on HeadlessJsTaskService.onHeadlessJsTaskFinish
+     * to stop the service (and thus dismiss the ongoing "Conjurando Feitiço"
+     * notification) proved unreliable under the New Architecture and on some
+     * OEM ROMs — the pipeline finishes but the notification lingers. This
+     * mirrors the WebViewAiKeepAliveModule.release() pattern: JS knows exactly
+     * when the job is done, so it drives the stopService directly, which
+     * triggers Service.onDestroy → dismissNotification synchronously.
+     */
+    @ReactMethod
+    fun finishJob(jobId: String, promise: Promise) {
+        activeJobIds.remove(jobId)
+        BackgroundGeneratorWorker.cancel(reactContext, jobId)
+        val intent = Intent(reactContext, BackgroundGeneratorService::class.java)
+        reactContext.stopService(intent)
+        promise.resolve(null)
+    }
+
     @ReactMethod
     fun status(jobId: String, promise: Promise) {
         val map: WritableMap = Arguments.createMap()

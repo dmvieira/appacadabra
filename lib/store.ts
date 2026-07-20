@@ -334,6 +334,10 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (e.jobId !== jobId) return;
             completedSub.remove();
             failedSub.remove();
+            // Dismiss the FGS ongoing notification immediately. Waiting on
+            // HeadlessJsTaskService.onHeadlessJsTaskFinish leaves it lingering
+            // on some OEM ROMs under the New Architecture.
+            void bgGen.finishJob(jobId);
             try {
                 const appName = (e.appName && e.appName.trim()) || description.slice(0, 40);
                 const now = Date.now();
@@ -406,6 +410,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (e.jobId !== jobId) return;
             completedSub.remove();
             failedSub.remove();
+            void bgGen.finishJob(jobId);
             const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
                 ? (e.code as OpenRouterErrorCode)
                 : 'unknown';
@@ -539,6 +544,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (e.jobId !== jobId) return;
             completedSub.remove();
             failedSub.remove();
+            void bgGen.finishJob(jobId);
             try {
                 const newVersion = app.currentVersion + 1;
                 const newTotalSpendUsd = (app.totalSpendUsd ?? 0) + (e.costUsd ?? 0);
@@ -587,6 +593,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (e.jobId !== jobId) return;
             completedSub.remove();
             failedSub.remove();
+            void bgGen.finishJob(jobId);
             const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
                 ? (e.code as OpenRouterErrorCode)
                 : 'unknown';

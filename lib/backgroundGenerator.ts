@@ -108,6 +108,14 @@ interface NativeBackgroundGenerator {
      */
     clearWatchdog?(jobId: string): Promise<void>;
     /**
+     * Android only. Cancels the watchdog AND stops the BackgroundGenerator
+     * foreground service. Called from the store when the job hits a terminal
+     * state so the "Conjurando Feitiço" ongoing notification is dismissed
+     * synchronously — Service.onDestroy runs dismissNotification. Mirrors
+     * the WebViewAiKeepAliveModule.release() pattern.
+     */
+    finishJob?(jobId: string): Promise<void>;
+    /**
      * iOS only. Submits a BGProcessingTaskRequest to iOS for opportunistic
      * background wake-up while the app is suspended. Handler (in
      * AppDelegate) emits `BGReconcileRequest`, which JS uses to trigger
@@ -286,6 +294,26 @@ export async function clearWatchdog(jobId: string): Promise<void> {
         await native.clearWatchdog(jobId);
     } catch {
         // Best-effort — WorkManager will still no-op if the job is complete.
+    }
+}
+
+/**
+ * Tear down the FGS + watchdog for a terminal job. Android only; no-op
+ * elsewhere (iOS uses `endJob` from the in-process runner instead).
+ *
+ * Called from the store's onCompleted/onFailed handlers so the "Conjurando
+ * Feitiço" ongoing notification is dismissed at the same moment the app
+ * posts the success/failure notification — instead of waiting on
+ * HeadlessJsTaskService.onHeadlessJsTaskFinish, which fires unreliably on
+ * some OEM ROMs under the New Architecture.
+ */
+export async function finishJob(jobId: string): Promise<void> {
+    const native = getNativeModule();
+    if (!native?.finishJob) return;
+    try {
+        await native.finishJob(jobId);
+    } catch {
+        // Best-effort — the RN task-finish path is still there as a fallback.
     }
 }
 
