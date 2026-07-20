@@ -1,116 +1,154 @@
 ## Version Name
-Spells Survive Reinstalls
+BYOK: Free AI Generation + Voice Notes Fix
 
 <en-US>
-• Tap a "Learn Spell" link right after a cold start and it now works — the app waits for sign-in before acting on the link, so you never land on a blank screen
-• Reinstalled the app? Spells you already learned are recovered automatically — no need to tap the link again
-• Learn Spell now shows a toast at every step: downloading, already owned, or success, so you always know what happened
+• Appacadabra is now free — bring your own OpenRouter key and pay only for AI usage at cost
+• Real spend tracking: see exactly how much each spell costs in USD
+• Spell generation is now more resilient: automatic retry if a model returns a server error
+• WhatsApp voice notes and audio files (OGG, MP3, FLAC, AAC) now work correctly when shared to a spell
+• Shared files that can't be read now show a clear error instead of sending empty content
 </en-US>
 
 <pt-BR>
-• Toca num link "Aprender Feitiço" logo após arrancar o app e funciona — o app aguarda o login antes de agir, sem tela em branco
-• Reinstalou o app? Os feitiços que já tinhas aprendido são recuperados automaticamente
-• Aprender Feitiço mostra uma notificação em cada etapa: a descarregar, já tens, ou sucesso
+• O Appacadabra agora é gratuito — traga sua própria chave OpenRouter e pague apenas pelo uso de IA pelo custo real
+• Rastreamento de gastos real: veja exatamente quanto cada feitiço custa em USD
+• A geração de feitiços ficou mais resiliente: nova tentativa automática se o modelo retornar erro do servidor
+• Mensagens de voz do WhatsApp e arquivos de áudio (OGG, MP3, FLAC, AAC) agora funcionam ao serem partilhados com um feitiço
+• Se um arquivo partilhado não puder ser lido, aparece uma mensagem clara em vez de conteúdo vazio
 </pt-BR>
 
 <es-419>
-• Toca un enlace "Aprender Hechizo" al abrir el app en frío y funciona — espera el inicio de sesión antes de actuar, sin pantalla en blanco
-• ¿Reinstalaste el app? Los hechizos que ya aprendiste se recuperan automáticamente
-• Aprender Hechizo muestra un aviso en cada paso: descargando, ya lo tienes o listo
+• Appacadabra ahora es gratis — trae tu propia clave de OpenRouter y paga solo por el uso de IA al costo real
+• Seguimiento real de gastos: ve exactamente cuánto cuesta cada hechizo en USD
+• La generación de hechizos es más resiliente: reintento automático si un modelo devuelve error del servidor
+• Las notas de voz de WhatsApp y archivos de audio (OGG, MP3, FLAC, AAC) ya funcionan al compartirlos con un hechizo
+• Si un archivo compartido no se puede leer, aparece un mensaje claro en vez de contenido vacío
 </es-419>
 
 <es-ES>
-• Toca un enlace "Aprender Hechizo" al arrancar el app y funciona — espera el inicio de sesión antes de actuar, sin pantalla en blanco
-• ¿Reinstalaste el app? Los hechizos que ya aprendiste se recuperan automáticamente
-• Aprender Hechizo muestra un aviso en cada paso: descargando, ya lo tienes o completado
+• Appacadabra ahora es gratuito — trae tu propia clave de OpenRouter y paga solo por el uso de IA al coste real
+• Seguimiento real de gastos: ve exactamente cuánto cuesta cada hechizo en USD
+• La generación de hechizos es más resiliente: reintento automático si un modelo devuelve un error del servidor
+• Las notas de voz de WhatsApp y archivos de audio (OGG, MP3, FLAC, AAC) ya funcionan al compartirlos con un hechizo
+• Si un archivo compartido no se puede leer, aparece un mensaje claro en lugar de contenido vacío
 </es-ES>
 
 <fr-FR>
-• Tapez un lien "Apprendre un sort" dès le démarrage et ça marche — l'app attend la connexion avant d'agir, sans écran vide
-• Réinstallé l'app ? Les sorts déjà appris sont récupérés automatiquement
-• Apprendre un sort affiche un message à chaque étape : téléchargement, déjà possédé ou succès
+• Appacadabra est maintenant gratuit — apportez votre propre clé OpenRouter et ne payez que l'usage IA au coût réel
+• Suivi des dépenses réel : voyez exactement combien coûte chaque sort en USD
+• La génération de sorts est plus résiliente : nouvel essai automatique si un modèle renvoie une erreur serveur
+• Les notes vocales WhatsApp et fichiers audio (OGG, MP3, FLAC, AAC) fonctionnent désormais correctement lors du partage avec un sort
+• Si un fichier partagé ne peut pas être lu, un message clair s'affiche au lieu d'envoyer un contenu vide
 </fr-FR>
 
 <fr-CA>
-• Appuyez sur un lien "Apprendre un sort" au démarrage et ça fonctionne — l'app attend la connexion, sans écran vide
-• Réinstallé l'app ? Les sorts déjà appris sont récupérés automatiquement
-• Apprendre un sort affiche un avis à chaque étape : téléchargement, déjà possédé ou succès
+• Appacadabra est maintenant gratuit — apportez votre propre clé OpenRouter et payez seulement l'usage IA au coût réel
+• Suivi des dépenses réel : voyez exactement combien coûte chaque sort en USD
+• La génération de sorts est plus résiliente : nouvelle tentative automatique si un modèle retourne une erreur serveur
+• Les notes vocales WhatsApp et fichiers audio (OGG, MP3, FLAC, AAC) fonctionnent maintenant correctement quand partagés avec un sort
+• Si un fichier partagé ne peut pas être lu, un message clair s'affiche au lieu de contenu vide
 </fr-CA>
 
 <de-DE>
-• Link „Zauber lernen" direkt beim Kaltstart antippen und er funktioniert — die App wartet auf die Anmeldung, kein leerer Bildschirm
-• App neu installiert? Bereits gelernte Zauber werden automatisch wiederhergestellt
-• Zauber lernen zeigt bei jedem Schritt einen Hinweis: Herunterladen, bereits vorhanden oder Erfolg
+• Appacadabra ist jetzt kostenlos — bring deinen eigenen OpenRouter-Schlüssel mit und zahle nur für die KI-Nutzung zum Selbstkostenpreis
+• Echtes Ausgaben-Tracking: sieh genau, wie viel jeder Zauber in USD kostet
+• Die Zaubergenerierung ist jetzt robuster: automatischer Wiederholungsversuch bei Server-Fehler
+• WhatsApp-Sprachnachrichten und Audiodateien (OGG, MP3, FLAC, AAC) funktionieren jetzt korrekt beim Teilen mit einem Zauber
+• Kann eine geteilte Datei nicht gelesen werden, erscheint eine klare Meldung statt leerer Inhalte
 </de-DE>
 
 <it-IT>
-• Tocca un link "Impara Incantesimo" all'avvio a freddo e funziona — l'app aspetta l'accesso prima di agire, nessuna schermata bianca
-• Hai reinstallato l'app? Gli incantesimi già appresi vengono recuperati automaticamente
-• Impara Incantesimo mostra un avviso a ogni passaggio: scaricamento, già posseduto o successo
+• Appacadabra è ora gratuito — porta la tua chiave OpenRouter e paga solo per l'utilizzo AI al costo reale
+• Monitoraggio reale delle spese: vedi esattamente quanto costa ogni incantesimo in USD
+• La generazione degli incantesimi è più resiliente: nuovo tentativo automatico se un modello restituisce un errore del server
+• I messaggi vocali di WhatsApp e i file audio (OGG, MP3, FLAC, AAC) ora funzionano correttamente quando condivisi con un incantesimo
+• Se un file condiviso non può essere letto, appare un messaggio chiaro invece di contenuto vuoto
 </it-IT>
 
 <ja-JP>
-• コールドスタート直後に「スペルを学ぶ」リンクをタップしても動作するようになった — サインイン待機により空白画面が出なくなった
-• アプリを再インストールしても、すでに学んだスペルは自動的に復元される
-• 各ステップでトースト通知が表示されるようになった：ダウンロード中、取得済み、または成功
+• Appacadabraが無料になった — 自分のOpenRouterキーを持ち込み、AI利用分だけ実費で支払う
+• リアルな支出追跡：各スペルのコストをUSDで正確に確認できる
+• スペル生成がより安定した：モデルがサーバーエラーを返した場合に自動リトライ
+• WhatsApp音声メモや音声ファイル（OGG・MP3・FLAC・AAC）をスペルに共有すると正しく動作するようになった
+• 共有ファイルが読み込めない場合、空のコンテンツではなく明確なエラーメッセージを表示
 </ja-JP>
 
 <zh-CN>
-• 冷启动后点击"学习法术"链接即可生效 — 应用等待登录后再处理链接，不再出现空白页面
-• 重新安装应用？已学法术会自动恢复，无需重新点击链接
-• 学习法术的每个步骤都会显示提示：下载中、已拥有或成功
+• Appacadabra 现已免费 — 带上你自己的 OpenRouter 密钥，仅按实际 AI 用量付费
+• 真实费用追踪：精确查看每个法术的 USD 花费
+• 法术生成更稳定：模型返回服务器错误时自动重试
+• WhatsApp 语音消息和音频文件（OGG、MP3、FLAC、AAC）共享到法术时现已正常工作
+• 共享文件无法读取时，显示清晰提示而非发送空内容
 </zh-CN>
 
 <ko-KR>
-• 콜드 스타트 직후 "주문 배우기" 링크를 눌러도 작동 — 앱이 로그인 후 링크를 처리해 빈 화면이 사라짐
-• 앱을 재설치해도 이미 배운 주문이 자동으로 복구됨
-• 주문 배우기의 각 단계에서 알림 표시: 다운로드 중, 이미 보유 또는 성공
+• Appacadabra가 이제 무료 — 본인의 OpenRouter 키를 사용하고 AI 이용료만 실비로 지불
+• 실제 지출 추적: 각 주문이 USD로 얼마나 드는지 정확히 확인
+• 주문 생성이 더 안정적: 모델이 서버 오류를 반환할 때 자동 재시도
+• WhatsApp 음성 메모와 오디오 파일(OGG, MP3, FLAC, AAC)을 주문에 공유하면 이제 정상 작동
+• 공유 파일을 읽을 수 없을 때 빈 내용 대신 명확한 오류 메시지 표시
 </ko-KR>
 
 <ar>
-• اضغط على رابط "تعلّم التعويذة" فور بدء التشغيل البارد وسيعمل — التطبيق ينتظر تسجيل الدخول قبل المتابعة، لا شاشة فارغة
-• أعدت تثبيت التطبيق؟ التعويذات التي تعلّمتها تُستعاد تلقائياً
-• يعرض تعلّم التعويذة إشعاراً في كل خطوة: جارٍ التنزيل، تمتلكه أو نجاح
+• أصبح Appacadabra مجانياً — أحضر مفتاح OpenRouter الخاص بك وادفع فقط مقابل استخدام الذكاء الاصطناعي بالتكلفة الفعلية
+• تتبع الإنفاق الحقيقي: شاهد بالضبط كم يكلف كل تعويذة بالدولار الأمريكي
+• توليد التعاويذ أصبح أكثر مرونة: إعادة محاولة تلقائية عند خطأ الخادم
+• رسائل الصوت على واتساب وملفات الصوت (OGG وMP3 وFLAC وAAC) تعمل الآن بشكل صحيح عند مشاركتها مع تعويذة
+• إذا تعذّر قراءة ملف مشارك، تظهر رسالة واضحة بدلاً من إرسال محتوى فارغ
 </ar>
 
 <hi-IN>
-• कोल्ड स्टार्ट के तुरंत बाद "स्पेल सीखें" लिंक टैप करें, अब काम करेगा — ऐप साइन-इन का इंतजार करके लिंक प्रोसेस करता है, कोई खाली स्क्रीन नहीं
-• ऐप फिर से इंस्टॉल किया? पहले से सीखे स्पेल अपने आप वापस आ जाते हैं
-• स्पेल सीखने के हर चरण पर टोस्ट: डाउनलोड हो रहा है, पहले से है, या सफल
+• Appacadabra अब मुफ़्त है — अपनी खुद की OpenRouter key लाएं और केवल AI उपयोग की वास्तविक लागत चुकाएं
+• असली खर्च ट्रैकिंग: देखें कि हर स्पेल पर USD में कितना खर्च होता है
+• स्पेल जनरेशन अब अधिक मज़बूत: मॉडल सर्वर एरर देने पर स्वतः पुनः प्रयास
+• WhatsApp वॉयस नोट्स और ऑडियो फ़ाइलें (OGG, MP3, FLAC, AAC) किसी स्पेल के साथ शेयर करने पर अब सही काम करती हैं
+• शेयर की गई फ़ाइल न पढ़ी जा सके तो खाली डेटा भेजने के बजाय स्पष्ट संदेश दिखेगा
 </hi-IN>
 
 <ru-RU>
-• Нажмите ссылку «Выучить заклинание» сразу после холодного запуска — приложение ждёт входа в аккаунт, пустой экран не появится
-• Переустановили приложение? Уже выученные заклинания восстановятся автоматически
-• При каждом шаге обучения появляется уведомление: загрузка, уже есть или успех
+• Appacadabra теперь бесплатен — используйте свой ключ OpenRouter и платите только за фактическое использование ИИ
+• Реальное отслеживание расходов: точно видите, сколько стоит каждое заклинание в USD
+• Генерация заклинаний стала надёжнее: автоматическая повторная попытка при ошибке сервера
+• Голосовые сообщения WhatsApp и аудиофайлы (OGG, MP3, FLAC, AAC) теперь корректно работают при отправке в заклинание
+• Если общий файл не удаётся прочитать, отображается понятное сообщение вместо пустого содержимого
 </ru-RU>
 
 <tr-TR>
-• Soğuk başlatma sonrası "Büyü Öğren" bağlantısına dokunun, artık çalışıyor — app oturum açmayı bekleyerek işlem yapar, boş ekran yok
-• Uygulamayı yeniden yüklediniz? Öğrendiğiniz büyüler otomatik olarak geri yüklenir
-• Her adımda bildirim gösterilir: indiriliyor, zaten var veya başarılı
+• Appacadabra artık ücretsiz — kendi OpenRouter anahtarını getir ve yalnızca gerçek maliyet üzerinden AI kullanımı öde
+• Gerçek harcama takibi: her büyünün USD cinsinden tam maliyetini görün
+• Büyü oluşturma daha dayanıklı hale geldi: model sunucu hatası döndürürse otomatik yeniden deneme
+• WhatsApp sesli notları ve ses dosyaları (OGG, MP3, FLAC, AAC) artık bir büyüyle paylaşıldığında doğru çalışıyor
+• Paylaşılan dosya okunamazsa boş içerik yerine net bir hata mesajı gösteriliyor
 </tr-TR>
 
 <nl-NL>
-• Tik op een "Spreuk Leren"-link direct bij een koude start en het werkt — de app wacht op aanmelden voor het de link verwerkt, geen leeg scherm
-• App opnieuw geïnstalleerd? Reeds geleerde spreuken worden automatisch hersteld
-• Bij elke stap verschijnt een melding: downloaden, al in bezit of gelukt
+• Appacadabra is nu gratis — breng je eigen OpenRouter-sleutel mee en betaal alleen voor AI-gebruik tegen kostprijs
+• Echte uitgaventracking: zie precies hoeveel elke spreuk in USD kost
+• Spreukcreatie is robuuster: automatische herpoging als een model een serverfout geeft
+• WhatsApp-voiceberichten en audiobestanden (OGG, MP3, FLAC, AAC) werken nu correct bij het delen met een spreuk
+• Als een gedeeld bestand niet gelezen kan worden, verschijnt er een duidelijke melding in plaats van lege inhoud
 </nl-NL>
 
 <pl-PL>
-• Dotknij linku „Naucz się zaklęcia" zaraz po zimnym starcie i zadziała — aplikacja czeka na logowanie przed wykonaniem akcji, bez pustego ekranu
-• Ponownie zainstalowałeś aplikację? Już poznane zaklęcia są przywracane automatycznie
-• Na każdym etapie nauki pojawia się powiadomienie: pobieranie, już posiadasz lub sukces
+• Appacadabra jest teraz bezpłatny — przynieś własny klucz OpenRouter i płać tylko za faktyczne użycie AI
+• Śledzenie rzeczywistych wydatków: sprawdź dokładnie, ile kosztuje każde zaklęcie w USD
+• Generowanie zaklęć jest teraz bardziej niezawodne: automatyczne ponowienie przy błędzie serwera
+• Wiadomości głosowe WhatsApp i pliki audio (OGG, MP3, FLAC, AAC) działają teraz poprawnie po udostępnieniu do zaklęcia
+• Jeśli udostępniony plik nie może zostać odczytany, wyświetlany jest wyraźny komunikat zamiast pustej zawartości
 </pl-PL>
 
 <vi>
-• Nhấn vào liên kết "Học Phép Thuật" ngay sau khi mở lạnh ứng dụng, giờ hoạt động được — ứng dụng chờ đăng nhập trước khi xử lý liên kết, không còn màn hình trắng
-• Cài lại ứng dụng? Các phép thuật đã học được khôi phục tự động
-• Mỗi bước học phép thuật đều hiện thông báo: đang tải, đã có, hoặc thành công
+• Appacadabra giờ miễn phí — mang khóa OpenRouter của riêng bạn và chỉ trả phí sử dụng AI theo giá thực
+• Theo dõi chi phí thực: xem chính xác mỗi phép thuật tốn bao nhiêu USD
+• Tạo phép thuật ổn định hơn: tự động thử lại khi mô hình trả về lỗi máy chủ
+• Tin nhắn thoại WhatsApp và tệp âm thanh (OGG, MP3, FLAC, AAC) giờ hoạt động đúng khi chia sẻ với một phép thuật
+• Nếu tệp được chia sẻ không đọc được, hiển thị thông báo rõ ràng thay vì gửi nội dung trống
 </vi>
 
 <th>
-• แตะลิงก์ "เรียน Spell" ทันทีหลังเปิดแอปแบบ cold start ก็ทำงานได้แล้ว — แอปรอการลงชื่อเข้าใช้ก่อนประมวลผลลิงก์ ไม่มีหน้าจอว่างอีกต่อไป
-• ติดตั้งแอปใหม่? Spell ที่เรียนไว้แล้วจะถูกกู้คืนอัตโนมัติ
-• ทุกขั้นตอนของการเรียน Spell จะแสดงการแจ้งเตือน: กำลังดาวน์โหลด มีแล้ว หรือสำเร็จ
+• Appacadabra ฟรีแล้ว — นำคีย์ OpenRouter ของคุณมาเองและจ่ายเฉพาะค่าใช้จ่าย AI ตามต้นทุนจริง
+• ติดตามค่าใช้จ่ายจริง: ดูว่าแต่ละ Spell มีค่าใช้จ่ายเท่าไหร่เป็น USD
+• การสร้าง Spell เสถียรขึ้น: ลองใหม่อัตโนมัติหากโมเดลส่งคืนข้อผิดพลาดของเซิร์ฟเวอร์
+• ข้อความเสียง WhatsApp และไฟล์เสียง (OGG, MP3, FLAC, AAC) ใช้งานได้ถูกต้องแล้วเมื่อแชร์ให้ Spell
+• หากไม่สามารถอ่านไฟล์ที่แชร์ได้ จะแสดงข้อความที่ชัดเจนแทนที่จะส่งเนื้อหาว่าง
 </th>
