@@ -630,6 +630,116 @@ body {
 }
 
 /* ============================================
+   BYOK / Pricing Section
+   ============================================ */
+.byok-section {
+    padding: var(--section-padding);
+    background: var(--bg-primary);
+    text-align: center;
+}
+
+.byok-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent-primary);
+    margin-bottom: 12px;
+}
+
+.byok-price-card {
+    max-width: 460px;
+    margin: 32px auto 40px;
+    padding: 32px 24px;
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(157, 78, 221, 0.25);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.byok-price-value {
+    font-size: 3.5rem;
+    font-weight: 700;
+    line-height: 1;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+}
+
+.byok-price-caption {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.byok-price-explain {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    opacity: 0.85;
+    line-height: 1.5;
+}
+
+.byok-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto 32px;
+}
+
+.byok-step {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: 28px 22px;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.byok-step:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+    border-color: var(--accent-primary);
+}
+
+.byok-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 14px;
+}
+
+.byok-step-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    line-height: 1.35;
+}
+
+.byok-step-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.byok-note {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    line-height: 1.5;
+}
+
+/* ============================================
    FAQ Section
    ============================================ */
 .faq-section {

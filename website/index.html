@@ -261,6 +261,37 @@
         <p class="integrations-more" data-i18n="intMore">...and more coming!</p>
     </section>
 
+    <!-- BYOK Section -->
+    <section class="byok-section" id="pricing">
+        <p class="byok-label" data-i18n="byokLabel">How pricing works</p>
+        <h2 class="section-title" data-i18n="byokTitle">Your spell costs exactly what the AI costs. Nothing more.</h2>
+        <p class="section-subtitle" data-i18n="byokSubtitle">Appacadabra is free. You bring your own OpenRouter key, pay the model directly — no subscription, no markup, no monthly surprise.</p>
+        <div class="byok-price-card">
+            <div class="byok-price-value" data-i18n="byokPriceValue">$0.02</div>
+            <div class="byok-price-caption" data-i18n="byokPriceCaption">about the same as a text message</div>
+            <div class="byok-price-explain" data-i18n="byokPriceExplain">You pay OpenRouter directly. Appacadabra charges nothing for generation.</div>
+        </div>
+        <div class="byok-steps">
+            <div class="byok-step">
+                <div class="byok-step-num">1</div>
+                <h3 class="byok-step-title" data-i18n="byokStep1Title">Create a free OpenRouter account</h3>
+                <p class="byok-step-desc" data-i18n="byokStep1Desc">Sign up at openrouter.ai in about 2 minutes.</p>
+            </div>
+            <div class="byok-step">
+                <div class="byok-step-num">2</div>
+                <h3 class="byok-step-title" data-i18n="byokStep2Title">Paste your key into Appacadabra</h3>
+                <p class="byok-step-desc" data-i18n="byokStep2Desc">It never leaves your device.</p>
+            </div>
+            <div class="byok-step">
+                <div class="byok-step-num">3</div>
+                <h3 class="byok-step-title" data-i18n="byokStep3Title">Cast spells at cost price</h3>
+                <p class="byok-step-desc" data-i18n="byokStep3Desc">No markup, no subscription.</p>
+            </div>
+        </div>
+        <p class="byok-note" data-i18n="byokSecurityNote">🛡️ Your key is stored encrypted on your device only.</p>
+        <p class="byok-note" data-i18n="byokCommunityNote">✨ Learning and publishing spells in the Store is always free.</p>
+    </section>
+
     <!-- Privacy Section -->
     <section class="privacy">
         <div class="privacy-content">
@@ -308,6 +339,15 @@
             </div>
             <div class="faq-item">
                 <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq4Q">How do I get my OpenRouter key?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq4A">Sign up at openrouter.ai (about 2 minutes, free). Add credit — $5 gets you hundreds of spells. Copy your API key and paste it into Appacadabra's settings. That's it.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
                     <span data-i18n="faq5Q">Does it work on iOS?</span>
                     <span class="faq-arrow">▼</span>
                 </button>
@@ -323,6 +363,15 @@
                 <div class="faq-answer" hidden>
                     <p data-i18n="faq6A">Any personal tool: organizers, calculators, trackers, camera tools, QR
                         scanners, voice assistants, games, and much more. If you can describe it, the AI creates it.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq7Q">Does the Store cost anything?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq7A">No. Learning any community spell — and publishing your own for others — is free, forever. You only pay OpenRouter when you use AI to create or edit a spell.</p>
                 </div>
             </div>
         </div>
