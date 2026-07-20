@@ -96,18 +96,19 @@ export default function RootLayout() {
             }
 
             const content = response.notification.request.content as any;
-            const notificationType = content?.data?.notificationType;
+            const kind = content?.data?.kind;
             const appId = extractAppIdFromNotification(content);
 
             if (!appId) {
-                if (notificationType === 'app_created') {
+                if (kind === 'create-success') {
                     try { router.replace('/'); } catch {}
                 }
                 return;
             }
 
-            // Guard: do not open runner for unknown/deleted spell — skip for app_created (app may not exist yet)
-            if (notificationType !== 'app_created') {
+            // Guard: do not open runner for unknown/deleted spell — skip for
+            // create-success (the app was just inserted and store may not have hydrated yet).
+            if (kind !== 'create-success') {
                 const knownApps = useAppStore.getState().apps;
                 if (!knownApps.some(a => String(a.id) === String(appId))) {
                     console.warn('[Layout] Notification for unknown/deleted spell:', appId);
@@ -120,15 +121,9 @@ export default function RootLayout() {
 
             lastHandledNotificationTapId = tapId || String(appId);
 
-            if (notificationType === 'app_created') {
-                const status = content?.data?.status;
+            if (kind === 'create-success') {
                 try {
-                    if (status === 'failed') {
-                        // App was never created — don't pass a nonexistent setupAppId
-                        router.replace('/');
-                    } else {
-                        router.replace({ pathname: '/', params: { setupAppId: String(appId) } });
-                    }
+                    router.replace({ pathname: '/', params: { setupAppId: String(appId) } });
                 } catch {
                     // If navigator isn't ready yet, initial route is listing anyway.
                 }
@@ -139,7 +134,6 @@ export default function RootLayout() {
             // effect at app/runner/[id].tsx:567 detects lastFailedPrompt and
             // reopens the ChatDialog pre-filled with the failed instruction,
             // so the user can retry directly.
-            const kind = content?.data?.kind;
             if (kind === 'edit-failure') {
                 try {
                     router.push({ pathname: '/runner/[id]', params: { id: String(appId), edit: 'true' } });
