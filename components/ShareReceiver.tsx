@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, FlatList, Image, AppState, Platform, Animated } from 'react-native';
+import { View, Text, Modal, StyleSheet, TouchableOpacity, FlatList, Image, AppState, Platform, Animated, Alert } from 'react-native';
 
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import { peekBackupMetadata } from '../lib/backup';
 import { markBackupDirty } from '../lib/backupSync';
+import { readContentUriAsBase64 } from '../lib/shareRead';
 
 const AVATAR_COLORS = [
     '#7B2EFF', '#00B4D8', '#FF2EAB', '#00C853', '#FF6D00',
@@ -383,31 +384,23 @@ export default function ShareReceiver() {
 
         // If there's a URI, read it as base64
         if (sharedContent.uri) {
-            try {
-                console.log('ShareReceiver: Reading file from URI:', sharedContent.uri);
-
-                // content:// URIs need to be copied to local cache first
-                const fileName = sharedContent.uri.split('/').pop() || 'shared_cache';
-                const cacheUri = FileSystem.cacheDirectory + fileName;
-
-                // Copy to cache
-                await FileSystem.copyAsync({
-                    from: sharedContent.uri,
-                    to: cacheUri,
-                });
-                console.log('ShareReceiver: File copied to:', cacheUri);
-
-                // Now read from cache
-                const fileContent = await FileSystem.readAsStringAsync(cacheUri, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-                base64Data = fileContent.replace(/[\r\n]/g, '');
-                console.log('ShareReceiver: File read successfully, base64 length:', base64Data?.length || 0);
-
-                // Clean up cache file
-                await FileSystem.deleteAsync(cacheUri, { idempotent: true });
-            } catch (error) {
-                console.error('ShareReceiver: Failed to read file:', error);
+            console.log('ShareReceiver: Reading file from URI:', sharedContent.uri);
+            const result = await readContentUriAsBase64(
+                sharedContent.uri,
+                sharedContent.fileName || '',
+            );
+            if (result) {
+                base64Data = result;
+                console.log('ShareReceiver: File read successfully, base64 length:', base64Data.length);
+            } else if (!sharedContent.text) {
+                // Every read strategy failed and there's no text fallback —
+                // don't ship an empty payload to the spell.
+                console.error('ShareReceiver: All read strategies failed for', sharedContent.uri);
+                Alert.alert(t('sharedFileReadFailedTitle'), t('sharedFileReadFailed'));
+                appSelectionInProgress = false;
+                isHandlingAction = false;
+                setIsProcessing(false);
+                return;
             }
         }
 

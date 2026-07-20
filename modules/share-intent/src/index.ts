@@ -28,6 +28,15 @@ export function getContentFileName(uri: string): string | null {
     return ShareIntentModule.getContentFileName(uri);
 }
 
+// Android-only: reads a content:// URI via ContentResolver.openInputStream
+// and returns base64. Fallback for when Expo FileSystem.copyAsync can't
+// process quirky ContentProviders (WhatsApp voice notes). Returns null on
+// any failure (empty stream, permission denied, unsupported provider, iOS).
+export function readContentUriBase64(uri: string): string | null {
+    if (typeof ShareIntentModule.readContentUriBase64 !== 'function') return null;
+    return ShareIntentModule.readContentUriBase64(uri);
+}
+
 export function checkShareIntent(): void {
     ShareIntentModule.checkShareIntent();
 }

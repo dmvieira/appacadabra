@@ -43,6 +43,29 @@ class ShareIntentModule : Module() {
                 return@Function null
             }
         }
+
+        // Fallback for content:// URIs that Expo FileSystem.copyAsync can't
+        // process (e.g. WhatsApp voice notes). Uses ContentResolver.openInputStream
+        // directly and returns base64 or null. Called from ShareReceiver as last
+        // resort after copyAsync + readAsStringAsync both fail.
+        Function("readContentUriBase64") { uriString: String ->
+            try {
+                val uri = Uri.parse(uriString)
+                val resolver = appContext.reactContext?.contentResolver
+                    ?: return@Function null
+                val stream = resolver.openInputStream(uri)
+                    ?: return@Function null
+                val bytes = stream.use { it.readBytes() }
+                if (bytes.isEmpty()) {
+                    Log.w(TAG, "readContentUriBase64: empty stream for $uriString")
+                    return@Function null
+                }
+                return@Function android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            } catch (e: Exception) {
+                Log.e(TAG, "readContentUriBase64 failed for $uriString: ${e.message}")
+                return@Function null
+            }
+        }
         
         Function("checkShareIntent") {
             Log.d(TAG, "Manual checkShareIntent triggered")
