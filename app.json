@@ -2,7 +2,7 @@
   "expo": {
     "name": "Appacadabra",
     "slug": "appacadabra",
-    "version": "3.1.0",
+    "version": "3.1.1",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -160,8 +160,8 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
             "minSdkVersion": 26
           }
         }
