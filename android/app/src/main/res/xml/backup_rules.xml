@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Excludes from cloud auto-backup (Android 6-11). The encrypted SharedPreferences
-  file used by expo-secure-store must never leave the device — it stores the
-  user's OpenRouter API key.
+  Excludes from cloud auto-backup (Android 6-11).
+  - SecureStore/expo-secure-store: stores the OpenRouter API key.
+  - appacadabra.db (+ journal): holds model_pricing_snapshot and per-spell
+    totalSpendUsd. Uploading to Google Drive would leak spend-adjacent
+    per-user data tied to the user's Google account.
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="SecureStore.xml"/>
     <exclude domain="sharedpref" path="expo-secure-store.xml"/>
+    <exclude domain="database" path="appacadabra.db"/>
+    <exclude domain="database" path="appacadabra.db-journal"/>
 </full-backup-content>

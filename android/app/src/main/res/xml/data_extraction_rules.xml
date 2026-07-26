@@ -8,9 +8,13 @@
     <cloud-backup>
         <exclude domain="sharedpref" path="SecureStore.xml"/>
         <exclude domain="sharedpref" path="expo-secure-store.xml"/>
+        <exclude domain="database" path="appacadabra.db"/>
+        <exclude domain="database" path="appacadabra.db-journal"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="SecureStore.xml"/>
         <exclude domain="sharedpref" path="expo-secure-store.xml"/>
+        <exclude domain="database" path="appacadabra.db"/>
+        <exclude domain="database" path="appacadabra.db-journal"/>
     </device-transfer>
 </data-extraction-rules>
