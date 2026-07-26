@@ -9,6 +9,7 @@ jest.mock('../bridgeUIStore', () => ({
         getState: jest.fn(() => ({
             requestCostEstimate: jest.fn(() => Promise.resolve(true)),
             requestKeyMissing: jest.fn(() => Promise.resolve('openSettings')),
+            requestModelUnavailable: jest.fn(),
         })),
     },
 }));
@@ -30,6 +31,11 @@ jest.mock('../capabilities/mediaHelpers', () => ({
 
 jest.mock('../api/ai', () => ({
     aiGenerateTTS: jest.fn(() => Promise.resolve({ audioBase64: 'mock-base64', creditsUsed: 0 })),
+    aiGenerateMusic: jest.fn(() => Promise.resolve({ audioBase64: 'mock-music-base64', usage: null, creditsUsed: 0, costUsd: 0.08 })),
+}));
+
+jest.mock('../api/modelPreferences', () => ({
+    getPreferredModel: jest.fn(async (task: string) => `fallback/${task.toLowerCase()}`),
 }));
 
 // Helper to create mock context
@@ -174,6 +180,26 @@ describe('audioCapability', () => {
             expect(modeOrder).toBeLessThan(createOrder);
         });
 
+        it('signals ModelUnavailableModal when aiGenerateTTS throws byok.error.modelUnavailable', async () => {
+            const ctx = createMockCtx(1, 'onSpeak');
+            const requestModelUnavailable = jest.fn();
+            const { useBridgeUIStore } = require('../bridgeUIStore');
+            (useBridgeUIStore.getState as jest.Mock).mockReturnValue({
+                requestCostEstimate: jest.fn(() => Promise.resolve(true)),
+                requestKeyMissing: jest.fn(),
+                requestModelUnavailable,
+            });
+            const { OpenRouterError } = require('../api/openrouter');
+            const { aiGenerateTTS } = require('../api/ai');
+            (aiGenerateTTS as jest.Mock).mockRejectedValueOnce(
+                new OpenRouterError('byok.error.modelUnavailable', 'gone', 404, false, 'x/dead-tts'),
+            );
+
+            await audioCapability.handleMessage('AUDIO_SPEAK_AI', { text: 'hi', language: 'en' }, ctx);
+
+            expect(requestModelUnavailable).toHaveBeenCalledWith(1, 'TTS', 'x/dead-tts');
+        });
+
         it('stops and unloads the previous TTS Sound before creating a new one', async () => {
             const ctx = createMockCtx(1, 'onSpeak');
 
@@ -203,6 +229,86 @@ describe('audioCapability', () => {
 
             expect(firstStop).toHaveBeenCalled();
             expect(firstUnload).toHaveBeenCalled();
+        });
+    });
+
+    describe('AUDIO_GENERATE_MUSIC', () => {
+        it('returns raw base64 and reports costUsd as creditsUsed on happy path', async () => {
+            const ctx = createMockCtx(1, 'onMusic');
+
+            const result = await audioCapability.handleMessage(
+                'AUDIO_GENERATE_MUSIC',
+                { prompt: 'upbeat lo-fi hip hop' },
+                ctx,
+            );
+
+            expect(result?.success).toBe(true);
+            expect(result?.result).toBe('mock-music-base64');
+            expect(result?.creditsUsed).toBe(0.08);
+        });
+
+        it('surfaces requestKeyMissing when no OpenRouter key is set', async () => {
+            const ctx = createMockCtx(1, 'onMusic');
+            const { hasOpenRouterKey } = require('../api/keyStorage');
+            const requestKeyMissing = jest.fn(() => Promise.resolve('openSettings'));
+            (hasOpenRouterKey as jest.Mock).mockResolvedValueOnce(false);
+            const { useBridgeUIStore } = require('../bridgeUIStore');
+            (useBridgeUIStore.getState as jest.Mock).mockReturnValueOnce({
+                requestKeyMissing,
+                requestCostEstimate: jest.fn(),
+            });
+
+            const result = await audioCapability.handleMessage(
+                'AUDIO_GENERATE_MUSIC',
+                { prompt: 'anything' },
+                ctx,
+            );
+
+            expect(requestKeyMissing).toHaveBeenCalledWith('music');
+            expect(result?.success).toBe(false);
+        });
+
+        it('aborts if the cost estimate is cancelled', async () => {
+            const ctx = createMockCtx(1, 'onMusic');
+            const { useBridgeUIStore } = require('../bridgeUIStore');
+            (useBridgeUIStore.getState as jest.Mock).mockReturnValueOnce({
+                requestKeyMissing: jest.fn(),
+                requestCostEstimate: jest.fn(() => Promise.resolve(false)),
+            });
+
+            const result = await audioCapability.handleMessage(
+                'AUDIO_GENERATE_MUSIC',
+                { prompt: 'anything' },
+                ctx,
+            );
+
+            expect(result?.success).toBe(false);
+            expect(result?.result).toBe('Cost confirmation cancelled.');
+        });
+
+        it('signals ModelUnavailableModal when aiGenerateMusic throws byok.error.modelUnavailable', async () => {
+            const ctx = createMockCtx(2, 'onMusic');
+            const requestModelUnavailable = jest.fn();
+            const { useBridgeUIStore } = require('../bridgeUIStore');
+            (useBridgeUIStore.getState as jest.Mock).mockReturnValue({
+                requestCostEstimate: jest.fn(() => Promise.resolve(true)),
+                requestKeyMissing: jest.fn(),
+                requestModelUnavailable,
+            });
+            const { OpenRouterError } = require('../api/openrouter');
+            const { aiGenerateMusic } = require('../api/ai');
+            (aiGenerateMusic as jest.Mock).mockRejectedValueOnce(
+                new OpenRouterError('byok.error.modelUnavailable', 'gone', 404, false, 'x/dead-music'),
+            );
+
+            const result = await audioCapability.handleMessage(
+                'AUDIO_GENERATE_MUSIC',
+                { prompt: 'anything' },
+                ctx,
+            );
+
+            expect(requestModelUnavailable).toHaveBeenCalledWith(2, 'MUSIC', 'x/dead-music');
+            expect(result?.success).toBe(false);
         });
     });
 

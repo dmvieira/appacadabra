@@ -24,9 +24,25 @@ jest.mock('react-native', () => ({
     },
 }));
 
-jest.mock('../api/openrouter', () => ({
-    chat: jest.fn(),
-}));
+jest.mock('../api/openrouter', () => {
+    class OpenRouterError extends Error {
+        code: string;
+        status?: number;
+        retryable?: boolean;
+        modelId?: string;
+        constructor(code: string, message: string, status?: number, retryable?: boolean, modelId?: string) {
+            super(message);
+            this.code = code;
+            this.status = status;
+            this.retryable = retryable;
+            this.modelId = modelId;
+        }
+    }
+    return {
+        chat: jest.fn(),
+        OpenRouterError,
+    };
+});
 
 jest.mock('../validators/codeValidator', () => ({
     validateGeneratedCode: jest.fn(() => ({ valid: true, errors: [], canRetry: false })),
@@ -129,6 +145,9 @@ describe('backgroundGenerator (iOS)', () => {
                 jobId: 'job_err',
                 code: 'byok.error.upstream',
                 message: 'kaboom',
+                // Non-modelUnavailable errors carry a null modelId so the
+                // store subscription can uniformly destructure the payload.
+                modelId: null,
             });
             expect(upsert).toHaveBeenCalledWith(
                 expect.objectContaining({

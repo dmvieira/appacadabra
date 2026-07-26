@@ -37,6 +37,7 @@ beforeEach(() => {
     document.body.innerHTML = '';
     try { sessionStorage.clear(); } catch { /* ignore */ }
     delete (window as any).__APPACADABRA_RESTORING__;
+    (window as any).scrollTo = () => {}; // jsdom não implementa
 });
 
 describe('DOM snapshot — capture', () => {

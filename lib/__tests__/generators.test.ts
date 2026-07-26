@@ -29,6 +29,17 @@ jest.mock('../capabilities', () => ({
     ALL_CAPABILITIES: [],
 }));
 
+// Pin the preferred model to MODELS.SPELL_S so the test asserts on a stable
+// planner-model value. Without this mock, `getPreferredModel` would consult
+// the tier system (`sorcerer` default → `deepseek/deepseek-v4-pro`) which
+// leaks the tier map into the orchestration assertions.
+jest.mock('../api/modelPreferences', () => ({
+    getPreferredModel: jest.fn(async (task: string) => {
+        const { MODELS } = require('../api/pricing');
+        return MODELS[task];
+    }),
+}));
+
 import * as openrouter from '../api/openrouter';
 import {
     generateSpellCreate,

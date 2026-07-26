@@ -27,6 +27,10 @@ jest.mock('../capabilities', () => ({
     ALL_CAPABILITIES: [],
 }));
 
+jest.mock('../api/modelPreferences', () => ({
+    getPreferredModel: jest.fn(async () => 'deepseek/deepseek-v4-flash'),
+}));
+
 import * as openrouter from '../api/openrouter';
 import * as codeValidator from '../validators/codeValidator';
 import * as execValidator from '../validators/executionValidator';
@@ -80,7 +84,7 @@ describe('nextCreateStage', () => {
         const plan = { appName: 'x', technicalRequirements: { apis: [] } };
         mChat.mockResolvedValueOnce(chatResponse(JSON.stringify(plan)));
 
-        const state = initCreateState({ prompt: 'p', appVersion: '3.0.0' });
+        const state = await initCreateState({ prompt: 'p', appVersion: '3.0.0' });
         const out = await nextCreateStage(state);
 
         expect(out.done).toBe(false);
@@ -95,7 +99,7 @@ describe('nextCreateStage', () => {
         const html = '<!DOCTYPE html><html><head><title>t</title></head><body/></html>';
         mChat.mockResolvedValueOnce(chatResponse('```html\n' + html + '\n```'));
 
-        const state = initCreateState({ prompt: 'p', appVersion: '3.0.0' });
+        const state = await initCreateState({ prompt: 'p', appVersion: '3.0.0' });
         const out = await nextCreateStage({ ...state, stage: 'coder', plan: { technicalRequirements: { apis: [] } } });
 
         expect(out.done).toBe(false);
@@ -106,7 +110,7 @@ describe('nextCreateStage', () => {
     });
 
     it('validate with no errors → done', async () => {
-        const state = initCreateState({ prompt: 'p', appVersion: '3.0.0' });
+        const state = await initCreateState({ prompt: 'p', appVersion: '3.0.0' });
         const out = await nextCreateStage({
             ...state,
             stage: 'validate',
@@ -126,7 +130,7 @@ describe('nextCreateStage', () => {
             errors: [{ type: 'unknown', message: 'boom', fixable: true } as any],
             canRetry: true,
         });
-        const state = initCreateState({ prompt: 'p', appVersion: '3.0.0' });
+        const state = await initCreateState({ prompt: 'p', appVersion: '3.0.0' });
         const out = await nextCreateStage({
             ...state,
             stage: 'validate',
@@ -143,7 +147,7 @@ describe('nextCreateStage', () => {
             errors: [{ type: 'unknown', message: 'boom', fixable: true } as any],
             canRetry: true,
         });
-        const state = initCreateState({ prompt: 'p', appVersion: '3.0.0' });
+        const state = await initCreateState({ prompt: 'p', appVersion: '3.0.0' });
         await expect(
             nextCreateStage({ ...state, stage: 'validate', html: '<html/>', fixAttempt: 2 }),
         ).rejects.toThrow(/App generation failed/);
@@ -164,7 +168,7 @@ describe('driveInProcess (create happy path)', () => {
 
         const seen: string[] = [];
         const result = await driveInProcess(
-            initCreateState({ prompt: 'a calculator', appVersion: '3.0.0' }),
+            await initCreateState({ prompt: 'a calculator', appVersion: '3.0.0' }),
             nextCreateStage,
             { onState: (s) => seen.push(s.stage) },
         );
@@ -185,7 +189,7 @@ describe('driveInProcess (create happy path)', () => {
             .mockResolvedValueOnce(chatResponse('```html\n' + html + '\n```'));
 
         const result = await driveInProcess(
-            initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
+            await initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
             nextCreateStage,
         );
         expect(result.appName).toBe('x');
@@ -209,7 +213,7 @@ describe('driveInProcess cost accounting', () => {
             }));
 
         const result = await driveInProcess(
-            initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
+            await initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
             nextCreateStage,
         );
         expect(result.costUsd).toBeCloseTo(0.0025, 6);
@@ -228,7 +232,7 @@ describe('driveInProcess cost accounting', () => {
             }));
 
         const result = await driveInProcess(
-            initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
+            await initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
             nextCreateStage,
         );
         // deepseek-v4-flash: 0.14 in / 0.28 out per M tokens.
@@ -243,7 +247,7 @@ describe('nextEditStage', () => {
         const plan = { changes: [{ op: 'replace' }] };
         mChat.mockResolvedValueOnce(chatResponse(JSON.stringify(plan)));
 
-        const state = initEditState({
+        const state = await initEditState({
             currentCode: '<html><body>orig</body></html>',
             instruction: 'change text',
             appVersion: '3.0.0',

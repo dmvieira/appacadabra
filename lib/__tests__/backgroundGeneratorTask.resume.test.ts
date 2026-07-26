@@ -29,6 +29,10 @@ jest.mock('../capabilities', () => ({
     ALL_CAPABILITIES: [],
 }));
 
+jest.mock('../api/modelPreferences', () => ({
+    getPreferredModel: jest.fn(async () => 'deepseek/deepseek-v4-flash'),
+}));
+
 import { initCreateState, initEditState } from '../api/generatorStages';
 import type { PendingJob } from '../database/types';
 
@@ -47,7 +51,7 @@ describe('backgroundGeneratorTask (resume)', () => {
     // the persisted cursor. We reproduce the overlay locally to pin the
     // contract — if backgroundGeneratorTask.ts ever restructures the
     // overlay, this test will still specify what "resuming a job" means.
-    it('resumed create state should preserve stage/plan/html/attempt from PendingJob', () => {
+    it('resumed create state should preserve stage/plan/html/attempt from PendingJob', async () => {
         const row: PendingJob = {
             jobId: 'job_1',
             type: 'create',
@@ -71,7 +75,7 @@ describe('backgroundGeneratorTask (resume)', () => {
             }),
         };
 
-        const base = initCreateState({ prompt: row.promptText, appVersion: '3.0.0' });
+        const base = await initCreateState({ prompt: row.promptText, appVersion: '3.0.0' });
         expect(base.stage).toBe('planner');
         expect(base.plan).toBeNull();
 
@@ -94,7 +98,7 @@ describe('backgroundGeneratorTask (resume)', () => {
         expect(base.kind).toBe('create');
     });
 
-    it('resumed edit state should preserve stage/plan/html/attempt from PendingJob', () => {
+    it('resumed edit state should preserve stage/plan/html/attempt from PendingJob', async () => {
         const row: PendingJob = {
             jobId: 'job_2',
             type: 'edit',
@@ -118,7 +122,7 @@ describe('backgroundGeneratorTask (resume)', () => {
             }),
         };
 
-        const base = initEditState({
+        const base = await initEditState({
             currentCode: '<html>light</html>',
             instruction: row.promptText,
             appVersion: '3.0.0',

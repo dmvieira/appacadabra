@@ -80,6 +80,15 @@ jest.mock('expo-localization', () => ({
     getLocales: () => [{ languageCode: 'en' }]
 }));
 
+jest.mock('expo-contacts', () => ({
+    requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+    getContactsAsync: jest.fn(() => Promise.resolve({ data: [], hasNextPage: false })),
+    addContactAsync: jest.fn(() => Promise.resolve('contact-id-1')),
+    presentFormAsync: jest.fn(() => Promise.resolve()),
+    Fields: { Emails: 'emails', PhoneNumbers: 'phoneNumbers', Name: 'name' },
+    SortTypes: { LastName: 'lastName' },
+}));
+
 // Mock i18n-js to prevent its TypeScript ESM source from crashing Jest.
 // lib/i18n.ts wraps this package, so we mock the package rather than lib/i18n
 // to allow the real lib/i18n exports (t, getWebViewTranslations, etc.) to work.

@@ -21,11 +21,11 @@ describe('pricing.MODELS', () => {
     it('uses the same model identifiers as the server `config.ts`', () => {
         expect(MODELS).toEqual({
             SPELL_S: 'deepseek/deepseek-v4-flash',
-            SUGGEST: 'deepseek/deepseek-v4-flash',
             WEBVIEW: 'google/gemini-3-flash-preview',
             IMAGE: 'google/gemini-3.1-flash-image-preview',
             IMAGE_EDIT: 'google/gemini-2.5-flash-image',
             TTS: 'google/gemini-3.1-flash-tts-preview',
+            MUSIC: 'google/lyria-3-pro-preview',
             EMBED: 'google/gemini-embedding-001',
             VIDEO_FAST: 'google/veo-3.1-lite',
             VIDEO_STD: 'google/veo-3.1-fast',
