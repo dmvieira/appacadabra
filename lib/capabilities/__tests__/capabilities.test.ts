@@ -167,11 +167,6 @@ jest.mock('../../api/modelPreferences', () => ({
     getPreferredModel: jest.fn(() => Promise.resolve('test/model')),
 }));
 
-jest.mock('pdfjs-dist/legacy/build/pdf.js', () => ({
-    GlobalWorkerOptions: { workerSrc: '' },
-    getDocument: jest.fn(),
-}), { virtual: true });
-
 jest.mock('mammoth/mammoth.browser.min.js', () => ({
     extractRawText: jest.fn(),
 }), { virtual: true });
@@ -1233,7 +1228,6 @@ describeCapability('docs')('handleMessage — docs', () => {
 
     describe('DOCS_EXTRACT', () => {
         const b64 = (s: string) => Buffer.from(s, 'utf-8').toString('base64');
-        const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
         const mammoth = require('mammoth/mammoth.browser.min.js');
         const aiApi = require('../../api/ai');
         const bridgeStore = require('../../bridgeUIStore');
@@ -1241,7 +1235,6 @@ describeCapability('docs')('handleMessage — docs', () => {
         const dbMod = require('../../database/db');
 
         beforeEach(() => {
-            (pdfjs.getDocument as jest.Mock).mockReset();
             (mammoth.extractRawText as jest.Mock).mockReset();
             (aiApi.aiGenerate as jest.Mock).mockClear();
             (dbMod.incrementSpendUsd as jest.Mock).mockClear();
@@ -1302,69 +1295,34 @@ describeCapability('docs')('handleMessage — docs', () => {
             expect(result).toMatchObject({ success: false, result: 'encrypted_docx' });
         });
 
-        it('extracts text from PDF with selectable text (skips OCR)', async () => {
-            const fakePage = {
-                getTextContent: jest.fn().mockResolvedValue({
-                    items: [{ str: 'Line one of the document with plenty of content' }],
-                }),
-            };
-            (pdfjs.getDocument as jest.Mock).mockReturnValueOnce({
-                promise: Promise.resolve({ numPages: 1, getPage: jest.fn().mockResolvedValue(fakePage) }),
-            });
-            const result = await cap.handleMessage('DOCS_EXTRACT',
-                { base64: b64('pdf'), mimeType: 'application/pdf' }, ctx);
-            expect(result).toMatchObject({ success: true });
-            expect(result!.result as string).toContain('Line one');
-            expect(aiApi.aiGenerate).not.toHaveBeenCalled();
-        });
-
-        it('scanned PDF: shows cost modal, runs OCR loop, aggregates text and spend', async () => {
-            const jpegBytes = new Uint8Array([0xff, 0xd8, 0x01, 0x02, 0x03]);
-            const scannedPage = {
-                getTextContent: jest.fn().mockResolvedValue({ items: [{ str: 'x' }] }),
-                getOperatorList: jest.fn().mockResolvedValue({
-                    fnArray: [85],
-                    argsArray: [['img_p1']],
-                }),
-                objs: { get: (_name: string, cb: (v: any) => void) => cb({ data: jpegBytes }) },
-            };
-            (pdfjs.getDocument as jest.Mock).mockReturnValueOnce({
-                promise: Promise.resolve({ numPages: 2, getPage: jest.fn().mockResolvedValue(scannedPage) }),
-            });
-
+        it('PDF: shows cost modal, sends base64 to aiGenerate, records spend, returns text', async () => {
             const requestCostEstimate = jest.fn().mockResolvedValue(true);
             (bridgeStore.useBridgeUIStore.getState as jest.Mock).mockReturnValueOnce({
                 requestCostEstimate,
                 requestKeyMissing: jest.fn(),
             });
-            (aiApi.aiGenerate as jest.Mock)
-                .mockResolvedValueOnce({ text: 'Page 1', usage: {}, creditsUsed: 0, costUsd: 0.002 })
-                .mockResolvedValueOnce({ text: 'Page 2', usage: {}, creditsUsed: 0, costUsd: 0.003 });
-
-            const result = await cap.handleMessage('DOCS_EXTRACT',
-                { base64: b64('scanned'), mimeType: 'application/pdf' }, ctx);
-
-            expect(requestCostEstimate).toHaveBeenCalledWith(1, 'generate', expect.any(String), 'test/model', 2);
-            expect(aiApi.aiGenerate).toHaveBeenCalledTimes(2);
-            expect(result).toMatchObject({ success: true });
-            expect(result!.result as string).toBe('Page 1\n\nPage 2');
-            expect(dbMod.incrementSpendUsd).toHaveBeenCalledWith(1, 0.005);
-        });
-
-        it('scanned PDF: user cancels cost modal → user_cancelled', async () => {
-            const jpegBytes = new Uint8Array([0xff, 0xd8, 0, 0]);
-            const scannedPage = {
-                getTextContent: jest.fn().mockResolvedValue({ items: [] }),
-                getOperatorList: jest.fn().mockResolvedValue({
-                    fnArray: [85],
-                    argsArray: [['img_x']],
-                }),
-                objs: { get: (_name: string, cb: (v: any) => void) => cb({ data: jpegBytes }) },
-            };
-            (pdfjs.getDocument as jest.Mock).mockReturnValueOnce({
-                promise: Promise.resolve({ numPages: 1, getPage: jest.fn().mockResolvedValue(scannedPage) }),
+            (aiApi.aiGenerate as jest.Mock).mockResolvedValueOnce({
+                text: 'Extracted PDF text',
+                usage: {},
+                creditsUsed: 0,
+                costUsd: 0.004,
             });
 
+            const pdfB64 = b64('pdf-bytes');
+            const result = await cap.handleMessage('DOCS_EXTRACT',
+                { base64: pdfB64, mimeType: 'application/pdf' }, ctx);
+
+            expect(requestCostEstimate).toHaveBeenCalledWith(1, 'generate', expect.any(String), 'test/model', 1);
+            expect(aiApi.aiGenerate).toHaveBeenCalledTimes(1);
+            expect(aiApi.aiGenerate).toHaveBeenCalledWith(expect.objectContaining({
+                prompt: expect.stringMatching(/Extract all text/i),
+                pdfs: [pdfB64],
+            }));
+            expect(result).toMatchObject({ success: true, result: 'Extracted PDF text' });
+            expect(dbMod.incrementSpendUsd).toHaveBeenCalledWith(1, 0.004);
+        });
+
+        it('PDF: user cancels cost modal → user_cancelled, aiGenerate not called', async () => {
             (bridgeStore.useBridgeUIStore.getState as jest.Mock).mockReturnValueOnce({
                 requestCostEstimate: jest.fn().mockResolvedValue(false),
                 requestKeyMissing: jest.fn(),
@@ -1374,15 +1332,10 @@ describeCapability('docs')('handleMessage — docs', () => {
                 { base64: b64('scan'), mimeType: 'application/pdf' }, ctx);
             expect(result).toMatchObject({ success: false, result: 'user_cancelled' });
             expect(aiApi.aiGenerate).not.toHaveBeenCalled();
+            expect(dbMod.incrementSpendUsd).not.toHaveBeenCalled();
         });
 
-        it('scanned PDF: no OpenRouter key → no_openrouter_key', async () => {
-            const scannedPage = {
-                getTextContent: jest.fn().mockResolvedValue({ items: [] }),
-            };
-            (pdfjs.getDocument as jest.Mock).mockReturnValueOnce({
-                promise: Promise.resolve({ numPages: 1, getPage: jest.fn().mockResolvedValue(scannedPage) }),
-            });
+        it('PDF: no OpenRouter key → no_openrouter_key, requestKeyMissing invoked', async () => {
             (keyStorage.hasOpenRouterKey as jest.Mock).mockResolvedValueOnce(false);
             const requestKeyMissing = jest.fn().mockResolvedValue('openSettings');
             (bridgeStore.useBridgeUIStore.getState as jest.Mock).mockReturnValueOnce({
@@ -1394,21 +1347,20 @@ describeCapability('docs')('handleMessage — docs', () => {
                 { base64: b64('scan'), mimeType: 'application/pdf' }, ctx);
             expect(requestKeyMissing).toHaveBeenCalledWith('generate');
             expect(result).toMatchObject({ success: false, result: 'no_openrouter_key' });
+            expect(aiApi.aiGenerate).not.toHaveBeenCalled();
         });
 
-        it('scanned PDF with no extractable image → ocr_unsupported_pdf', async () => {
-            const scannedPage = {
-                getTextContent: jest.fn().mockResolvedValue({ items: [] }),
-                getOperatorList: jest.fn().mockResolvedValue({ fnArray: [], argsArray: [] }),
-                objs: { get: jest.fn() },
-            };
-            (pdfjs.getDocument as jest.Mock).mockReturnValueOnce({
-                promise: Promise.resolve({ numPages: 1, getPage: jest.fn().mockResolvedValue(scannedPage) }),
+        it('PDF: aiGenerate rejects → surfaces error, no crash', async () => {
+            (bridgeStore.useBridgeUIStore.getState as jest.Mock).mockReturnValueOnce({
+                requestCostEstimate: jest.fn().mockResolvedValue(true),
+                requestKeyMissing: jest.fn(),
             });
+            (aiApi.aiGenerate as jest.Mock).mockRejectedValueOnce(new Error('model_does_not_support_pdf'));
 
             const result = await cap.handleMessage('DOCS_EXTRACT',
-                { base64: b64('bad'), mimeType: 'application/pdf' }, ctx);
-            expect(result).toMatchObject({ success: false, result: 'ocr_unsupported_pdf' });
+                { base64: b64('pdf'), mimeType: 'application/pdf' }, ctx);
+            expect(result).toMatchObject({ success: false, result: 'model_does_not_support_pdf' });
+            expect(dbMod.incrementSpendUsd).not.toHaveBeenCalled();
         });
     });
 

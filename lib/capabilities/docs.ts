@@ -284,10 +284,7 @@ async function fetchDocSnapshot(docId: string, token: string): Promise<DocSnapsh
 
 // ============= Extract (PDF / DOCX / TXT / Markdown → text) =============
 
-const SCANNED_CHAR_THRESHOLD = 20;
-const EXTRACT_MAX_PAGES_DEFAULT = 50;
-const EXTRACT_MAX_PAGES_HARD_CAP = 200;
-const OCR_PROMPT = 'Extract the text from this scanned page verbatim. Output only the text, no commentary.';
+const PDF_EXTRACT_PROMPT = 'Extract all text content from this PDF verbatim, preserving structure. Output only the extracted text, no commentary.';
 
 function base64ToUint8Array(b64: string): Uint8Array {
     const clean = b64.replace(/^data:[^,]+,/i, '').replace(/\s+/g, '');
@@ -296,88 +293,6 @@ function base64ToUint8Array(b64: string): Uint8Array {
     const out = new Uint8Array(len);
     for (let i = 0; i < len; i++) out[i] = bin.charCodeAt(i);
     return out;
-}
-
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-    let bin = '';
-    const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk) {
-        bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
-    }
-    return globalThis.btoa(bin);
-}
-
-interface PdfTextResult {
-    text: string;
-    pageCount: number;
-    avgCharsPerPage: number;
-    doc: any;
-}
-
-async function loadPdfjs(): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
-    if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = '';
-    return pdfjs;
-}
-
-async function extractTextFromPdf(bytes: Uint8Array, maxPages: number): Promise<PdfTextResult> {
-    const pdfjs = await loadPdfjs();
-    const doc = await pdfjs.getDocument({ data: bytes, disableWorker: true, useWorker: false, isEvalSupported: false }).promise;
-    const pageCount = Math.min(doc.numPages, maxPages);
-    const parts: string[] = [];
-    let totalChars = 0;
-    for (let i = 1; i <= pageCount; i++) {
-        const page = await doc.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items.map((it: any) => (typeof it.str === 'string' ? it.str : '')).join(' ');
-        parts.push(pageText);
-        totalChars += pageText.replace(/\s/g, '').length;
-    }
-    return {
-        text: parts.join('\n\n').trim(),
-        pageCount,
-        avgCharsPerPage: pageCount > 0 ? totalChars / pageCount : 0,
-        doc,
-    };
-}
-
-async function extractJpegImagesFromPdf(doc: any, pageCount: number): Promise<string[]> {
-    const images: string[] = [];
-    for (let i = 1; i <= pageCount; i++) {
-        const page = await doc.getPage(i);
-        const ops = await page.getOperatorList();
-        const imageNames: string[] = [];
-        for (let j = 0; j < ops.fnArray.length; j++) {
-            const fn = ops.fnArray[j];
-            // OPS.paintImageXObject === 85 in pdfjs; check by name defensively.
-            const name = ops.argsArray[j]?.[0];
-            if (typeof name === 'string' && name.startsWith('img_')) {
-                imageNames.push(name);
-            }
-        }
-        if (imageNames.length === 0) {
-            throw new Error('ocr_unsupported_pdf');
-        }
-        // Grab first image (scanned PDFs typically have one full-page image).
-        const imgObj: any = await new Promise((resolve) => {
-            try {
-                page.objs.get(imageNames[0], (img: any) => resolve(img));
-            } catch (_) {
-                resolve(null);
-            }
-        });
-        const rawData: Uint8Array | undefined = imgObj?.data;
-        if (!rawData || rawData.length < 4) {
-            throw new Error('ocr_unsupported_pdf');
-        }
-        // JPEG magic (0xFF 0xD8). If not JPEG, we don't have a canvas to encode PNG.
-        if (rawData[0] !== 0xff || rawData[1] !== 0xd8) {
-            throw new Error('ocr_unsupported_pdf');
-        }
-        images.push(uint8ArrayToBase64(rawData));
-    }
-    return images;
 }
 
 async function extractFromDocx(bytes: Uint8Array): Promise<string> {
@@ -406,7 +321,7 @@ export const docsCapability: CapabilityModule = {
     id: 'docs',
     displayName: 'Docs',
     minVersion: '1.0.0',
-    description: "`createDoc` creates a document with optional markdown content; `getDoc` reads it back as markdown; `appendText` adds content to the end; `setDoc` replaces the full body; `watchDoc`/`stopWatchDoc` poll for external changes; `convert` transforms between markdown, HTML, and PDF; `extract` reads text from PDF, DOCX, TXT or MD files (scanned PDFs auto-OCR with user cost confirmation).",
+    description: "`createDoc` creates a document with optional markdown content; `getDoc` reads it back as markdown; `appendText` adds content to the end; `setDoc` replaces the full body; `watchDoc`/`stopWatchDoc` poll for external changes; `convert` transforms between markdown, HTML, and PDF; `extract` reads text from PDF, DOCX, TXT or MD files (PDF extraction runs through the user's OpenRouter key with a cost-confirmation modal).",
 
     docs: `📄 DOCS (AppacadabraDocs) — Google Sign-In required (consent shown on first use only)
 ⚠️ **Restricted access:** \`getDoc()\`, \`appendText()\`, \`setDoc()\` and \`watchDoc()\` work **only with documents created by this app via \`createDoc()\`**. Existing Google Docs from the user cannot be accessed — not even documents they created manually in Google Drive. If the user mentions an existing document, explain that the app can only access files it generated itself and offer to create a new one.
@@ -456,18 +371,16 @@ Combined with \`AppacadabraShare\`, lets a spell read the contents of any PDF, D
 - \`extract(base64OrBlobMarker, mimeType, callback, options?)\` — Extracts plain text
   - \`base64OrBlobMarker\`: raw base64, \`data:...;base64,...\`, or an \`__appblob__:\` marker (e.g. what \`AppacadabraShare\` gives you). All three shapes are accepted.
   - \`mimeType\`: e.g. \`'application/pdf'\`, \`'application/vnd.openxmlformats-officedocument.wordprocessingml.document'\`, \`'text/plain'\`, \`'text/markdown'\`
-  - \`options.maxPages\`: for PDFs only. Default 50, hard cap 200. Ignored for other formats.
+  - \`options\`: reserved for future use, currently ignored.
   - **Callback data (ok, text)**:
-    - On success: \`text\` is the plain extracted text (concatenated across pages for PDF; body only for DOCX).
+    - On success: \`text\` is the plain extracted text.
     - On failure the second argument is one of:
-      - \`'user_cancelled'\` — user cancelled the OCR cost confirmation
-      - \`'no_openrouter_key'\` — OCR needed but user has no OpenRouter key
-      - \`'ocr_unsupported_pdf'\` — PDF is scanned but pages have no extractable embedded image (rare, layered/masked PDFs)
-      - \`'password_protected'\` — encrypted PDF
+      - \`'user_cancelled'\` — user cancelled the PDF cost confirmation
+      - \`'no_openrouter_key'\` — PDF extraction needs an OpenRouter key
       - \`'encrypted_docx'\` — encrypted DOCX
       - \`'Unsupported mimeType: ...'\` for other formats
       - a generic error message string for anything else
-- **Scanned PDFs are handled automatically:** if a PDF has no selectable text the capability falls back to AI OCR. It shows **one** cost-confirmation modal for the whole file (aggregated over N pages), then runs OCR silently. The spell doesn't need to decide anything — just call \`extract\`.
+- **PDFs go through the AI:** any PDF (text-based or scanned) is sent to the user's OpenRouter model for extraction. The capability shows a single cost-confirmation modal before running. TXT/MD are decoded locally (free, instant); DOCX uses a local library (free, instant).
 
 \`\`\`js
 AppacadabraShare.receiveShared(function(ok, shared) {
@@ -890,30 +803,22 @@ window.onConverted = function(ok, md) {
             case 'DOCS_EXTRACT': {
                 const base64: string = typeof data?.base64 === 'string' ? data.base64 : '';
                 const mimeType: string = typeof data?.mimeType === 'string' ? data.mimeType : '';
-                const opts = data?.options ?? {};
-                const requestedMax = typeof opts.maxPages === 'number' && opts.maxPages > 0 ? opts.maxPages : EXTRACT_MAX_PAGES_DEFAULT;
-                const maxPages = Math.min(requestedMax, EXTRACT_MAX_PAGES_HARD_CAP);
 
                 if (!base64) return { success: false, result: 'Empty file contents' };
                 if (!mimeType) return { success: false, result: 'Missing mimeType' };
 
                 console.log(`[Bridge] Docs extract: mimeType=${mimeType}, base64=${base64.length}B`);
 
-                let bytes: Uint8Array;
-                try {
-                    bytes = base64ToUint8Array(base64);
-                } catch (e) {
-                    return { success: false, result: 'Invalid base64 input' };
-                }
-
                 try {
                     if (isTextMime(mimeType)) {
+                        const bytes = base64ToUint8Array(base64);
                         const text = new TextDecoder('utf-8').decode(bytes);
                         return { success: true, result: text };
                     }
 
                     if (isDocxMime(mimeType)) {
                         try {
+                            const bytes = base64ToUint8Array(base64);
                             const text = await extractFromDocx(bytes);
                             return { success: true, result: text };
                         } catch (e) {
@@ -926,64 +831,35 @@ window.onConverted = function(ok, md) {
                     }
 
                     if (isPdfMime(mimeType)) {
-                        let pdf: PdfTextResult;
-                        try {
-                            pdf = await extractTextFromPdf(bytes, maxPages);
-                        } catch (e) {
-                            const msg = e instanceof Error ? e.message : String(e);
-                            if (/password|encrypted/i.test(msg)) {
-                                return { success: false, result: 'password_protected' };
-                            }
-                            return { success: false, result: msg };
-                        }
-
-                        // If the PDF has selectable text, we're done.
-                        if (pdf.avgCharsPerPage >= SCANNED_CHAR_THRESHOLD) {
-                            return { success: true, result: pdf.text };
-                        }
-
-                        // ── Scanned PDF: OCR fallback ────────────────────
                         const hasKey = await hasOpenRouterKey();
                         if (!hasKey) {
                             await useBridgeUIStore.getState().requestKeyMissing('generate');
                             return { success: false, result: 'no_openrouter_key' };
                         }
 
-                        let pageImages: string[];
-                        try {
-                            pageImages = await extractJpegImagesFromPdf(pdf.doc, pdf.pageCount);
-                        } catch (e) {
-                            const msg = e instanceof Error ? e.message : String(e);
-                            return { success: false, result: msg === 'ocr_unsupported_pdf' ? 'ocr_unsupported_pdf' : msg };
-                        }
-
+                        // base64 length ≈ bytes * 4/3, so bytes ≈ len * 0.75.
+                        const pdfBytes = Math.floor(base64.length * 0.75);
                         const modelId = await getPreferredModel('WEBVIEW');
-                        const perPageUsd = estimateUsd({
+                        const totalUsd = estimateUsd({
                             type: 'webview_ai',
-                            promptLength: OCR_PROMPT.length,
-                            inputImages: 1,
+                            promptLength: PDF_EXTRACT_PROMPT.length,
+                            inputPdfBytes: pdfBytes,
                             modelId,
                         });
-                        const totalUsd = perPageUsd * pageImages.length;
                         const confirmed = await useBridgeUIStore
                             .getState()
-                            .requestCostEstimate(ctx.appId, 'generate', formatUsd(totalUsd), modelId, pageImages.length);
+                            .requestCostEstimate(ctx.appId, 'generate', formatUsd(totalUsd), modelId, 1);
                         if (!confirmed) return { success: false, result: 'user_cancelled' };
 
-                        const texts: string[] = [];
-                        let accumulatedUsd = 0;
-                        for (const imgB64 of pageImages) {
-                            const result = await aiApi.aiGenerate({
-                                prompt: OCR_PROMPT,
-                                images: [imgB64],
-                            });
-                            texts.push(String(result.text ?? '').trim());
-                            accumulatedUsd += result.costUsd ?? 0;
+                        const result = await aiApi.aiGenerate({
+                            prompt: PDF_EXTRACT_PROMPT,
+                            pdfs: [base64],
+                        });
+                        const spent = result.costUsd ?? 0;
+                        if (ctx.appId !== null && spent > 0) {
+                            try { await db.incrementSpendUsd(ctx.appId, spent); } catch (_) {}
                         }
-                        if (ctx.appId !== null && accumulatedUsd > 0) {
-                            try { await db.incrementSpendUsd(ctx.appId, accumulatedUsd); } catch (_) {}
-                        }
-                        return { success: true, result: texts.join('\n\n').trim() };
+                        return { success: true, result: String(result.text ?? '').trim() };
                     }
 
                     return { success: false, result: `Unsupported mimeType: ${mimeType}` };

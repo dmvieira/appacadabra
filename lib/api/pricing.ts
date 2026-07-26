@@ -222,6 +222,7 @@ export interface EstimateInput {
     type: EstimateType;
     promptLength?: number;
     inputImages?: number;
+    inputPdfBytes?: number;
     videoSeconds?: number;
     videoHasImages?: boolean;
     ttsCharacters?: number;
@@ -252,11 +253,21 @@ export function estimateUsd(input: EstimateInput): number {
             });
         case 'app_icon':
             return calcImageUsd(0);
-        case 'webview_ai':
+        case 'webview_ai': {
+            // Gemini bills PDFs at ~258 tokens per page. We don't know the page
+            // count without parsing, so approximate from byte size (typical PDF
+            // ≈ 80 KB/page). Response scales with pages too — assume the model
+            // returns ~one page of extracted text per input page (~1500 tok).
+            const estimatedPdfPages = input.inputPdfBytes
+                ? Math.max(1, Math.ceil(input.inputPdfBytes / 80_000))
+                : 0;
+            const pdfInputTokens = estimatedPdfPages * 258;
+            const pdfResponseTokens = estimatedPdfPages * 1500;
             return calculateCostUsd(input.modelId ?? MODELS.WEBVIEW, {
-                promptTokens: promptTokens + 200,
-                responseTokens: 800,
+                promptTokens: promptTokens + 200 + pdfInputTokens,
+                responseTokens: 800 + pdfResponseTokens,
             });
+        }
         case 'webview_ai_image':
             return calcImageUsd(input.inputImages ?? 0);
         case 'webview_ai_video':

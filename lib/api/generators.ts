@@ -577,6 +577,7 @@ export interface WebviewAIParams {
     schema?: Record<string, unknown>;
     images?: string[];
     audios?: string[];
+    pdfs?: string[];
     useSearch?: boolean;
     requestedModel?: string;
     requestedTools?: string[];
@@ -635,6 +636,7 @@ export async function generateWebviewAI(params: WebviewAIParams): Promise<Webvie
         schema,
         images,
         audios,
+        pdfs,
         useSearch,
         requestedModel,
         requestedTools,
@@ -664,6 +666,19 @@ export async function generateWebviewAI(params: WebviewAIParams): Promise<Webvie
                 input_audio: { data: aud, format: detectAudioFormat(aud) },
             });
         }
+    }
+    if (pdfs?.length) {
+        // OpenRouter unified PDF format: forwards to Gemini `inline_data`,
+        // Claude `document`, GPT `input_file` transparently.
+        pdfs.forEach((pdf, i) => {
+            userContent.push({
+                type: 'file',
+                file: {
+                    filename: `document-${i + 1}.pdf`,
+                    file_data: `data:application/pdf;base64,${pdf}`,
+                },
+            });
+        });
     }
 
     const resolvedSchema = schema

@@ -185,9 +185,10 @@ describe('filterModelsForTask', () => {
         const catalog = [
             makeModel({ id: 'text-only', architecture: { input_modalities: ['text'], output_modalities: ['text'] } }),
             makeModel({ id: 'text-image-audio', architecture: { input_modalities: ['text', 'image', 'audio'], output_modalities: ['text'] } }),
+            makeModel({ id: 'text-image-audio-file', architecture: { input_modalities: ['text', 'image', 'audio', 'file'], output_modalities: ['text'] } }),
         ];
         const out = filterModelsForTask('WEBVIEW', catalog);
-        expect(out.map((m: any) => m.id)).toEqual(['text-image-audio']);
+        expect(out.map((m: any) => m.id)).toEqual(['text-image-audio-file']);
     });
 
     it('applies requiredParams (reasoning for SPELL_S)', () => {

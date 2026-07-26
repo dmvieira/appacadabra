@@ -102,7 +102,7 @@ const MUSIC_ID_HINTS = ['lyria', 'musicgen', 'suno'];
 
 export const TASK_REQUIREMENTS: Record<TaskKey, TaskRequirement> = {
     SPELL_S: { input: ['text'], output: ['text'], requiredParams: ['reasoning'] },
-    WEBVIEW: { input: ['text', 'image', 'audio'], output: ['text'] },
+    WEBVIEW: { input: ['text', 'image', 'audio', 'file'], output: ['text'] },
     IMAGE: { input: ['text'], output: ['image'] },
     IMAGE_EDIT: { input: ['text', 'image'], output: ['image'] },
     TTS: { input: ['text'], output: ['speech'] },

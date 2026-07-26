@@ -147,13 +147,14 @@ export interface AIGenerateOptions {
     images?: string[]; // base64 array
     videos?: string[]; // base64 array
     audios?: string[]; // base64 array
+    pdfs?: string[]; // base64 array (application/pdf)
 }
 
 // Used by WebView Bridge
 export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: string, usage: any, creditsUsed: number, costUsd: number }> {
-    console.log('[AI] aiGenerate (BYOK)', JSON.stringify({ ...options, images: options.images?.length || 0, videos: options.videos?.length || 0, audios: options.audios?.length || 0 }));
+    console.log('[AI] aiGenerate (BYOK)', JSON.stringify({ ...options, images: options.images?.length || 0, videos: options.videos?.length || 0, audios: options.audios?.length || 0, pdfs: options.pdfs?.length || 0 }));
 
-    const { prompt, search, schema, images, audios } = options;
+    const { prompt, search, schema, images, audios, pdfs } = options;
 
     // Strip any leading data URI header — including MIME parameters like
     // "; codecs=opus" that WhatsApp attaches to voice notes (mimeType comes
@@ -164,12 +165,14 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^,]+,)+/i, '') : str;
     const cleanImages = images?.map(cleanPrefix);
     const cleanAudios = audios?.map(cleanPrefix);
+    const cleanPdfs = pdfs?.map(cleanPrefix);
 
     const result = await byokGenerateWebviewAI({
         prompt,
         schema: schema as Record<string, unknown> | undefined,
         images: cleanImages,
         audios: cleanAudios,
+        pdfs: cleanPdfs,
         useSearch: search,
     });
 
