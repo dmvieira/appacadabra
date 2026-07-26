@@ -199,6 +199,163 @@ describe('filterModelsForTask', () => {
         const out = filterModelsForTask('SPELL_S', catalog);
         expect(out.map((m: any) => m.id)).toEqual(['reason']);
     });
+
+    it('EMBED matches models tagged output_modalities: [embeddings] (no id heuristic)', () => {
+        const { filterModelsForTask } = require('../modelCatalog');
+        const catalog = [
+            // OpenRouter tags these cleanly; the picker must not rely on the
+            // "embedding" substring anymore.
+            makeModel({
+                id: 'openai/text-embedding-3-small',
+                architecture: { input_modalities: ['text'], output_modalities: ['embeddings'] },
+            }),
+            makeModel({
+                id: 'nvidia/nemotron-3-embed-1b',
+                architecture: { input_modalities: ['text', 'image'], output_modalities: ['embeddings'] },
+            }),
+            makeModel({ id: 'chat/only', architecture: { input_modalities: ['text'], output_modalities: ['text'] } }),
+        ];
+        const out = filterModelsForTask('EMBED', catalog);
+        expect(out.map((m: any) => m.id).sort()).toEqual([
+            'nvidia/nemotron-3-embed-1b',
+            'openai/text-embedding-3-small',
+        ]);
+    });
+
+    it('TTS matches models tagged output_modalities: [speech]', () => {
+        const { filterModelsForTask } = require('../modelCatalog');
+        const catalog = [
+            makeModel({
+                id: 'openai/gpt-4o-mini-tts',
+                architecture: { input_modalities: ['text'], output_modalities: ['speech'] },
+            }),
+            makeModel({
+                id: 'google/lyria-3-pro-preview',
+                architecture: { input_modalities: ['text'], output_modalities: ['audio'] },
+            }),
+        ];
+        const out = filterModelsForTask('TTS', catalog);
+        expect(out.map((m: any) => m.id)).toEqual(['openai/gpt-4o-mini-tts']);
+    });
+
+    it('VIDEO_FAST matches any video model that accepts text (text-only or text+image)', () => {
+        const { filterModelsForTask } = require('../modelCatalog');
+        const catalog = [
+            makeModel({
+                id: 'google/veo-3.1-lite',
+                architecture: { input_modalities: ['text'], output_modalities: ['video'] },
+            }),
+            makeModel({
+                id: 'x-ai/grok-imagine-video-1.5',
+                architecture: { input_modalities: ['text', 'image'], output_modalities: ['video'] },
+            }),
+        ];
+        const out = filterModelsForTask('VIDEO_FAST', catalog);
+        expect(out.map((m: any) => m.id).sort()).toEqual([
+            'google/veo-3.1-lite',
+            'x-ai/grok-imagine-video-1.5',
+        ]);
+    });
+
+    it('VIDEO_STD excludes text-only video models (needs text + image input)', () => {
+        const { filterModelsForTask } = require('../modelCatalog');
+        const catalog = [
+            makeModel({
+                id: 'google/veo-3.1-lite',
+                architecture: { input_modalities: ['text'], output_modalities: ['video'] },
+            }),
+            makeModel({
+                id: 'x-ai/grok-imagine-video-1.5',
+                architecture: { input_modalities: ['text', 'image'], output_modalities: ['video'] },
+            }),
+        ];
+        const out = filterModelsForTask('VIDEO_STD', catalog);
+        expect(out.map((m: any) => m.id)).toEqual(['x-ai/grok-imagine-video-1.5']);
+    });
+
+    it('MUSIC still uses id-substring heuristic to scope to known providers', () => {
+        const { filterModelsForTask } = require('../modelCatalog');
+        const catalog = [
+            makeModel({
+                id: 'google/lyria-3-pro-preview',
+                architecture: { input_modalities: ['text'], output_modalities: ['audio'] },
+            }),
+            makeModel({
+                // Voice-cloning model with the same output modality as Lyria —
+                // must not cross-list.
+                id: 'someprovider/voiceclone-1',
+                architecture: { input_modalities: ['text'], output_modalities: ['audio'] },
+            }),
+        ];
+        const out = filterModelsForTask('MUSIC', catalog);
+        expect(out.map((m: any) => m.id)).toEqual(['google/lyria-3-pro-preview']);
+    });
+});
+
+describe('fetchOpenRouterModels (multi-modality merge)', () => {
+    it('merges base + embeddings + video + speech + image slices, deduping by id', async () => {
+        const chat = [makeModel({ id: 'chat/one' })];
+        const emb = [makeModel({
+            id: 'openai/text-embedding-3-small',
+            architecture: { input_modalities: ['text'], output_modalities: ['embeddings'] },
+        })];
+        const vid = [makeModel({
+            id: 'google/veo-3.1',
+            architecture: { input_modalities: ['text', 'image'], output_modalities: ['video'] },
+        })];
+        const spc = [makeModel({
+            id: 'openai/gpt-4o-mini-tts',
+            architecture: { input_modalities: ['text'], output_modalities: ['speech'] },
+        })];
+        const img = [makeModel({
+            id: 'black-forest-labs/flux.2-pro',
+            architecture: { input_modalities: ['text', 'image'], output_modalities: ['image'] },
+        })];
+        // Order matches Promise.allSettled invocation: base, embeddings, video, speech, image.
+        mockFetchOk(chat);
+        mockFetchOk(emb);
+        mockFetchOk(vid);
+        mockFetchOk(spc);
+        mockFetchOk(img);
+
+        const { fetchOpenRouterModels } = require('../modelCatalog');
+        const merged = await fetchOpenRouterModels();
+        const ids = merged.map((m: any) => m.id).sort();
+        expect(ids).toEqual([
+            'black-forest-labs/flux.2-pro',
+            'chat/one',
+            'google/veo-3.1',
+            'openai/gpt-4o-mini-tts',
+            'openai/text-embedding-3-small',
+        ]);
+    });
+
+    it('tolerates modality slice failure — still returns base models', async () => {
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const chat = [makeModel({ id: 'chat/one' })];
+        mockFetchOk(chat);       // base OK
+        mockFetchFail(500);      // embeddings fails
+        mockFetchFail(500);      // video fails
+        mockFetchFail(500);      // speech fails
+        mockFetchFail(500);      // image fails
+
+        const { fetchOpenRouterModels } = require('../modelCatalog');
+        const out = await fetchOpenRouterModels();
+        expect(out.map((m: any) => m.id)).toEqual(['chat/one']);
+        expect(warnSpy).toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
+    it('base slice failure propagates (catalog cannot be built without chat models)', async () => {
+        mockFetchFail(503);      // base fails
+        mockFetchOk([]);         // slices ok (but useless without base)
+        mockFetchOk([]);
+        mockFetchOk([]);
+        mockFetchOk([]);
+
+        const { fetchOpenRouterModels } = require('../modelCatalog');
+        await expect(fetchOpenRouterModels()).rejects.toThrow(/503/);
+    });
 });
 
 describe('Cache B — snapshot + resolvePricingForModel', () => {

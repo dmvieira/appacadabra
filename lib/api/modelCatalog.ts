@@ -86,29 +86,28 @@ export interface TaskRequirement {
     input: string[];
     output: string[];
     requiredParams?: string[];
-    isEmbedding?: boolean;
     /**
-     * TTS and MUSIC share modalities (text→audio) so the naive filter would
-     * list the same set for both. These flags trigger id/name-substring
-     * heuristics in filterModelsForTask, same pattern as isEmbedding.
+     * MUSIC shares its `output: ['audio']` modality with any future audio
+     * model, so it's scoped by id-substring to the known music providers.
+     * TTS and EMBED used to have similar flags but OpenRouter now tags them
+     * with dedicated `output_modalities` values (`speech`, `embeddings`) so
+     * the modality check alone is enough.
      */
-    isTts?: boolean;
     isMusic?: boolean;
 }
 
 // Whitelist substrings for id/name matching. Extend when OpenRouter adds
 // new providers (Suno/MusicGen/…).
 const MUSIC_ID_HINTS = ['lyria', 'musicgen', 'suno'];
-const TTS_ID_HINTS = ['tts', 'speech'];
 
 export const TASK_REQUIREMENTS: Record<TaskKey, TaskRequirement> = {
     SPELL_S: { input: ['text'], output: ['text'], requiredParams: ['reasoning'] },
     WEBVIEW: { input: ['text', 'image', 'audio'], output: ['text'] },
     IMAGE: { input: ['text'], output: ['image'] },
     IMAGE_EDIT: { input: ['text', 'image'], output: ['image'] },
-    TTS: { input: ['text'], output: ['audio'], isTts: true },
+    TTS: { input: ['text'], output: ['speech'] },
     MUSIC: { input: ['text'], output: ['audio'], isMusic: true },
-    EMBED: { input: ['text'], output: [], isEmbedding: true },
+    EMBED: { input: ['text'], output: ['embeddings'] },
     VIDEO_FAST: { input: ['text'], output: ['video'] },
     VIDEO_STD: { input: ['text', 'image'], output: ['video'] },
 };
@@ -131,21 +130,63 @@ export const TASK_LABEL_KEYS: Record<TaskKey, string> = {
 
 // ============= FETCH =============
 
+// `GET /api/v1/models` without a filter returns only chat/completion models.
+// Non-chat modalities (embeddings, video, speech, image) require the
+// `?output_modalities=<X>` query param to appear. We fetch the base + one
+// slice per non-chat modality in parallel and merge them into a single
+// catalog. Add new slices here as OpenRouter surfaces new modalities.
+const MODALITY_SLICES = ['embeddings', 'video', 'speech', 'image'] as const;
+
+async function fetchModelsSlice(
+    url: string,
+    headers: Record<string, string>,
+    signal?: AbortSignal,
+): Promise<OpenRouterModel[]> {
+    const response = await fetch(url, { method: 'GET', headers, signal });
+    if (!response.ok) {
+        throw new Error(`OpenRouter ${url} returned ${response.status}`);
+    }
+    const json = (await response.json()) as { data: OpenRouterModel[] };
+    return json.data ?? [];
+}
+
 /**
- * Calls `GET /api/v1/models`. Auth is optional for this endpoint but we pass
- * the user's key when available for attribution/consistency.
+ * Calls `GET /api/v1/models` plus one slice per non-chat modality
+ * (`?output_modalities=embeddings|video|speech`) in parallel and merges the
+ * results by `id`. The base slice is critical — its failure propagates.
+ * Modality slice failures are logged but non-fatal so a single flaky
+ * endpoint can't wipe the whole catalog.
+ *
+ * Auth is optional for `/models` but we pass the user's key when available
+ * for attribution/consistency.
  */
 export async function fetchOpenRouterModels(signal?: AbortSignal): Promise<OpenRouterModel[]> {
     const key = await getOpenRouterKey();
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (key) headers.Authorization = `Bearer ${key}`;
 
-    const response = await fetch(`${OR_BASE_URL}/models`, { method: 'GET', headers, signal });
-    if (!response.ok) {
-        throw new Error(`OpenRouter /models returned ${response.status}`);
+    const baseUrl = `${OR_BASE_URL}/models`;
+    const [baseResult, ...sliceResults] = await Promise.allSettled([
+        fetchModelsSlice(baseUrl, headers, signal),
+        ...MODALITY_SLICES.map(m =>
+            fetchModelsSlice(`${baseUrl}?output_modalities=${m}`, headers, signal),
+        ),
+    ]);
+
+    if (baseResult.status === 'rejected') {
+        throw baseResult.reason;
     }
-    const json = (await response.json()) as { data: OpenRouterModel[] };
-    return json.data ?? [];
+
+    const byId = new Map<string, OpenRouterModel>();
+    for (const model of baseResult.value) byId.set(model.id, model);
+    for (const result of sliceResults) {
+        if (result.status === 'fulfilled') {
+            for (const model of result.value) byId.set(model.id, model);
+        } else {
+            console.warn('[modelCatalog] modality slice fetch failed:', result.reason);
+        }
+    }
+    return Array.from(byId.values());
 }
 
 // ============= CATALOG (Cache A) =============
@@ -367,29 +408,16 @@ export function filterModelsForTask(taskKey: TaskKey, catalog: OpenRouterModel[]
     const req = TASK_REQUIREMENTS[taskKey];
     return catalog.filter(m => {
         const arch = m.architecture;
-        if (req.isEmbedding) {
-            // Heuristic: OpenRouter's /models mixes chat and embedding models.
-            // Embedding models return zero completion tokens (they emit vectors,
-            // not text) and typically include "embedding" in their id/name.
-            const id = m.id.toLowerCase();
-            const name = (m.name ?? '').toLowerCase();
-            const looksLikeEmbedding = id.includes('embedding') || name.includes('embedding');
-            const zeroCompletion = m.pricing?.completion === '0' || m.pricing?.completion === undefined;
-            return looksLikeEmbedding && zeroCompletion;
-        }
         if (!hasAll(arch?.input_modalities, req.input)) return false;
         if (!hasAll(arch?.output_modalities, req.output)) return false;
         if (req.requiredParams && !hasAll(m.supported_parameters, req.requiredParams)) return false;
-        // TTS and MUSIC share text→audio modalities; split them by id/name
-        // substring so the picker doesn't cross-list voice models with music
-        // models.
-        if (req.isMusic || req.isTts) {
+        if (req.isMusic) {
+            // MUSIC shares `output: ['audio']` with any other audio-output
+            // model (e.g. voice cloning). Scope to known music providers so
+            // the picker doesn't cross-list them.
             const id = m.id.toLowerCase();
             const name = (m.name ?? '').toLowerCase();
-            const looksLikeMusic = MUSIC_ID_HINTS.some(h => id.includes(h) || name.includes(h));
-            if (req.isMusic) return looksLikeMusic;
-            const looksLikeTts = TTS_ID_HINTS.some(h => id.includes(h) || name.includes(h));
-            return looksLikeTts && !looksLikeMusic;
+            return MUSIC_ID_HINTS.some(h => id.includes(h) || name.includes(h));
         }
         return true;
     });

@@ -130,6 +130,7 @@ export const USD_PRICING_SEED: Record<string, CatalogPricing> = {
     'intfloat/multilingual-e5-large': { inputPerMToken: 0.10, outputPerMToken: 0 },
     // Video price-per-second lives in USD_VIDEO_PER_SECOND_* — token entries are informational only.
     'google/veo-3.1-lite': { inputPerMToken: 0, outputPerMToken: 0 },
+    'google/veo-3.1-fast': { inputPerMToken: 0, outputPerMToken: 0 },
     'google/veo-3.1': { inputPerMToken: 0, outputPerMToken: 0 },
 };
 
