@@ -167,6 +167,12 @@ jest.mock('../../api/modelPreferences', () => ({
     getPreferredModel: jest.fn(() => Promise.resolve('test/model')),
 }));
 
+jest.mock('../../webviewAiKeepAlive', () => ({
+    acquire: jest.fn(() => Promise.resolve('mock-token')),
+    release: jest.fn(() => Promise.resolve()),
+    withKeepAlive: jest.fn(async (_reason: string, fn: () => Promise<unknown>) => fn()),
+}));
+
 jest.mock('mammoth/mammoth.browser.min.js', () => ({
     extractRawText: jest.fn(),
 }), { virtual: true });
@@ -1318,7 +1324,11 @@ describeCapability('docs')('handleMessage — docs', () => {
                 prompt: expect.stringMatching(/Extract all text/i),
                 pdfs: [pdfB64],
             }));
-            expect(result).toMatchObject({ success: true, result: 'Extracted PDF text' });
+            expect(result).toMatchObject({
+                success: true,
+                result: 'Extracted PDF text',
+                creditsUsed: 0.004,
+            });
             expect(dbMod.incrementSpendUsd).toHaveBeenCalledWith(1, 0.004);
         });
 

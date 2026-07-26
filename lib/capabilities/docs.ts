@@ -12,6 +12,7 @@ import { hasOpenRouterKey } from '../api/keyStorage';
 import { useBridgeUIStore } from '../bridgeUIStore';
 import { estimateUsd, formatUsd } from '../api/pricing';
 import { getPreferredModel } from '../api/modelPreferences';
+import { withKeepAlive } from '../webviewAiKeepAlive';
 
 const DOCS_CACHE_PREFIX = 'appacadabra_docs_cache_';
 
@@ -285,6 +286,15 @@ async function fetchDocSnapshot(docId: string, token: string): Promise<DocSnapsh
 // ============= Extract (PDF / DOCX / TXT / Markdown → text) =============
 
 const PDF_EXTRACT_PROMPT = 'Extract all text content from this PDF verbatim, preserving structure. Output only the extracted text, no commentary.';
+
+async function checkAndMarkFirstAiUse(): Promise<boolean> {
+    const hasUsed = await db.getSetting('has_used_ai_ever');
+    if (!hasUsed) {
+        await db.setSetting('has_used_ai_ever', 'true');
+        return true;
+    }
+    return false;
+}
 
 function base64ToUint8Array(b64: string): Uint8Array {
     const clean = b64.replace(/^data:[^,]+,/i, '').replace(/\s+/g, '');
@@ -851,15 +861,20 @@ window.onConverted = function(ok, md) {
                             .requestCostEstimate(ctx.appId, 'generate', formatUsd(totalUsd), modelId, 1);
                         if (!confirmed) return { success: false, result: 'user_cancelled' };
 
-                        const result = await aiApi.aiGenerate({
+                        const result = await withKeepAlive('generate', () => aiApi.aiGenerate({
                             prompt: PDF_EXTRACT_PROMPT,
                             pdfs: [base64],
-                        });
+                        }));
                         const spent = result.costUsd ?? 0;
-                        if (ctx.appId !== null && spent > 0) {
-                            try { await db.incrementSpendUsd(ctx.appId, spent); } catch (_) {}
-                        }
-                        return { success: true, result: String(result.text ?? '').trim() };
+                        console.log(`[Bridge] Docs extract PDF: costUsd: ${spent}`);
+                        if (ctx.appId) await db.incrementSpendUsd(ctx.appId, spent);
+                        const isFirstAiUse = await checkAndMarkFirstAiUse();
+                        return {
+                            success: true,
+                            result: String(result.text ?? '').trim(),
+                            creditsUsed: spent,
+                            isFirstAiUse,
+                        };
                     }
 
                     return { success: false, result: `Unsupported mimeType: ${mimeType}` };
