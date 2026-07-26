@@ -131,6 +131,28 @@ describe('saveAiResultToCache', () => {
         });
     });
 
+    describe('AUDIO_GENERATE_MUSIC', () => {
+        it('saves when mediaLocalPath is provided', async () => {
+            const id = await saveAiResultToCache({
+                ...BASE, type: 'AUDIO_GENERATE_MUSIC', success: true,
+                result: 'file:///path/music.wav', mediaLocalPath: '/path/music.wav',
+            });
+            expect(id).toBe(42);
+            expect(mockSaveWebviewAiCache).toHaveBeenCalledWith(expect.objectContaining({
+                action: 'AUDIO_GENERATE_MUSIC',
+                mediaLocalPath: '/path/music.wav',
+            }));
+        });
+
+        it('does not save when mediaLocalPath is absent', async () => {
+            const id = await saveAiResultToCache({
+                ...BASE, type: 'AUDIO_GENERATE_MUSIC', success: true, result: 'base64audio',
+            });
+            expect(id).toBeNull();
+            expect(mockSaveWebviewAiCache).not.toHaveBeenCalled();
+        });
+    });
+
     describe('tipos desconhecidos', () => {
         it('não salva para tipos não-AI', async () => {
             const id = await saveAiResultToCache({ ...BASE, type: 'STORAGE_SET', success: true, result: 'OK' });

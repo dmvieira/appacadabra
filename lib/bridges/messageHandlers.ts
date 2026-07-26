@@ -92,11 +92,13 @@ export const AI_MEDIA_EXT: Record<string, string> = {
     AI_GENERATE_IMAGE: 'jpg', AI_GENERATE_VIDEO: 'mp4',
     CAMERA_TAKE_PHOTO: 'jpg', CAMERA_RECORD_VIDEO: 'mp4',
     AUDIO_RECORD_STOP: 'm4a', AUDIO_SPEAK_AI: 'wav',
+    AUDIO_GENERATE_MUSIC: 'wav',
 };
 export const AI_MEDIA_MIME: Record<string, string> = {
     AI_GENERATE_IMAGE: 'image/jpeg', AI_GENERATE_VIDEO: 'video/mp4',
     CAMERA_TAKE_PHOTO: 'image/jpeg', CAMERA_RECORD_VIDEO: 'video/mp4',
     AUDIO_RECORD_STOP: 'audio/m4a', AUDIO_SPEAK_AI: 'audio/wav',
+    AUDIO_GENERATE_MUSIC: 'audio/wav',
 };
 
 export async function saveAiMediaToFile(

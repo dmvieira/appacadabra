@@ -461,7 +461,7 @@ function RunnerContent({ appId }: Props) {
 
             const isAiCall = [
                 'AI_GENERATE', 'AI_SIMILARITY', 'AI_GENERATE_IMAGE',
-                'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI'
+                'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI', 'AUDIO_GENERATE_MUSIC'
             ].includes(type);
 
             if (isAiCall) {
@@ -501,11 +501,11 @@ function RunnerContent({ appId }: Props) {
 
             // Cache media results and save to DB
             const RUNNER_MEDIA_TYPES = new Set([
-                'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI',
+                'AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI', 'AUDIO_GENERATE_MUSIC',
                 'CAMERA_TAKE_PHOTO', 'CAMERA_RECORD_VIDEO', 'AUDIO_RECORD_STOP',
             ]);
             // Only AI-generated content should be cached for recovery — device captures should not
-            const AI_CACHE_TYPES = new Set(['AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI']);
+            const AI_CACHE_TYPES = new Set(['AI_GENERATE_IMAGE', 'AI_GENERATE_VIDEO', 'AUDIO_SPEAK_AI', 'AUDIO_GENERATE_MUSIC']);
             let mediaLocalPath: string | undefined;
             let aiCacheId: number | null = null;
             if (callbackName) {
