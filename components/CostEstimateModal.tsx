@@ -49,7 +49,7 @@ export function CostEstimateModal() {
 
     if (!request) return null;
 
-    const { appId, operationType, costUsd, modelId } = request;
+    const { appId, operationType, costUsd, modelId, callCount } = request;
 
     const handleConfirm = async () => {
         if (dontShowAgain && appId !== null) {
@@ -81,6 +81,12 @@ export function CostEstimateModal() {
                     <Text style={styles.title}>
                         {icon}  {title}
                     </Text>
+
+                    {callCount && callCount > 1 && (
+                        <Text style={styles.batchNote}>
+                            {t('costEstimateBatch').replace('{count}', String(callCount))}
+                        </Text>
+                    )}
 
                     <View style={styles.costRow}>
                         <Text style={styles.costLabel}>≈</Text>
@@ -169,6 +175,12 @@ const styles = StyleSheet.create({
         color: colors.onSurfaceVariant,
         fontFamily: 'monospace',
         marginBottom: spacing.sm,
+    },
+    batchNote: {
+        fontSize: 13,
+        color: colors.onSurfaceVariant,
+        marginBottom: spacing.xs,
+        fontWeight: '500',
     },
     disclaimer: {
         fontSize: 11,

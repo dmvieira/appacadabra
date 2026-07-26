@@ -20,6 +20,12 @@ interface CostEstimateRequest {
     costUsd: string;
     /** Model id that will handle the call, e.g. "deepseek/deepseek-v4-flash". */
     modelId: string;
+    /**
+     * When > 1, the modal treats this as a batch confirmation (e.g. OCR of N
+     * pages via multimodal AI). The `costUsd` string represents the aggregated
+     * total for all N calls.
+     */
+    callCount?: number;
     resolve: (confirmed: boolean) => void;
 }
 
@@ -60,7 +66,7 @@ interface BridgeUIState {
     closeScanner: (scannedData?: string) => void;
     setWebViewRef: (ref: React.RefObject<WebView>) => void;
     setNativeActivityActive: (active: boolean) => void;
-    requestCostEstimate: (appId: number | null, operationType: ManaOperationType, costUsd: string, modelId: string) => Promise<boolean>;
+    requestCostEstimate: (appId: number | null, operationType: ManaOperationType, costUsd: string, modelId: string, callCount?: number) => Promise<boolean>;
     resolveCostEstimate: (confirmed: boolean) => void;
     requestKeyMissing: (operationType: ManaOperationType | 'create' | 'edit') => Promise<'openSettings' | 'cancel'>;
     resolveKeyMissing: (action: 'openSettings' | 'cancel') => void;
@@ -88,7 +94,7 @@ export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
     setNativeActivityActive: (active: boolean) => set({ isNativeActivityActive: active }),
     openVideoPlayer: (uri, callback) => set({ videoPlayback: { uri, callback }, isNativeActivityActive: true }),
     closeVideoPlayer: () => set({ videoPlayback: null, isNativeActivityActive: false }),
-    requestCostEstimate: async (appId, operationType, costUsd, modelId) => {
+    requestCostEstimate: async (appId, operationType, costUsd, modelId, callCount) => {
         if (appId !== null) {
             const key = `cost_estimate_skip_${appId}_${operationType}`;
             try {
@@ -97,7 +103,7 @@ export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
             } catch (_) {}
         }
         return new Promise<boolean>((resolve) => {
-            set({ costEstimateRequest: { appId, operationType, costUsd, modelId, resolve } });
+            set({ costEstimateRequest: { appId, operationType, costUsd, modelId, callCount, resolve } });
         });
     },
     resolveCostEstimate: (confirmed) => {
