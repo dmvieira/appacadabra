@@ -38,6 +38,22 @@ jest.mock('../api/modelPreferences', () => ({
     getPreferredModel: jest.fn(async (task: string) => `fallback/${task.toLowerCase()}`),
 }));
 
+jest.mock('../webviewAiKeepAlive', () => {
+    const acquire = jest.fn((_reason: string) => Promise.resolve('tok-music'));
+    const release = jest.fn((_token: string) => Promise.resolve());
+    return {
+        acquire,
+        release,
+        // Preserve the real wrapper's contract so the finally-path assertion
+        // in the failure test actually exercises the release.
+        withKeepAlive: jest.fn(async (reason: string, fn: () => Promise<unknown>) => {
+            const token = await acquire(reason);
+            try { return await fn(); }
+            finally { await release(token); }
+        }),
+    };
+});
+
 // Helper to create mock context
 const createMockCtx = (appId: number | null = 1, callbackName: string = 'onDone'): HandlerContext => ({
     webViewRef: { current: { injectJavaScript: jest.fn() } },
@@ -309,6 +325,44 @@ describe('audioCapability', () => {
 
             expect(requestModelUnavailable).toHaveBeenCalledWith(2, 'MUSIC', 'x/dead-music');
             expect(result?.success).toBe(false);
+        });
+
+        it('acquires the keep-alive before aiGenerateMusic and releases after (Android FGS / iOS BG task)', async () => {
+            const ctx = createMockCtx(1, 'onMusic');
+            const { acquire, release } = require('../webviewAiKeepAlive');
+            const { aiGenerateMusic } = require('../api/ai');
+
+            await audioCapability.handleMessage(
+                'AUDIO_GENERATE_MUSIC',
+                { prompt: 'jazz' },
+                ctx,
+            );
+
+            expect(acquire).toHaveBeenCalledWith('music');
+            expect(release).toHaveBeenCalledWith('tok-music');
+            const acquireOrder = (acquire as jest.Mock).mock.invocationCallOrder[0];
+            const generateOrder = (aiGenerateMusic as jest.Mock).mock.invocationCallOrder[0];
+            const releaseOrder = (release as jest.Mock).mock.invocationCallOrder[0];
+            expect(acquireOrder).toBeLessThan(generateOrder);
+            expect(generateOrder).toBeLessThan(releaseOrder);
+        });
+
+        it('releases the keep-alive even when aiGenerateMusic rejects (finally path)', async () => {
+            // Regression bar: if release is skipped on error, the Android
+            // foreground service notification stays up indefinitely.
+            const ctx = createMockCtx(1, 'onMusic');
+            const { release } = require('../webviewAiKeepAlive');
+            const { aiGenerateMusic } = require('../api/ai');
+            (aiGenerateMusic as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+
+            const result = await audioCapability.handleMessage(
+                'AUDIO_GENERATE_MUSIC',
+                { prompt: 'anything' },
+                ctx,
+            );
+
+            expect(result?.success).toBe(false);
+            expect(release).toHaveBeenCalledWith('tok-music');
         });
     });
 

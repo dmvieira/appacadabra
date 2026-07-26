@@ -14,6 +14,7 @@ import {
     chatStream,
     checkAuth,
     tts,
+    generateMusic,
     OpenRouterError,
 } from '../api/openrouter';
 
@@ -168,6 +169,129 @@ describe('openrouter.chatStream', () => {
             if (evt.type === 'delta') combined += evt.text;
         }
         expect(combined).toBe('AB');
+    });
+});
+
+describe('openrouter.generateMusic', () => {
+    beforeEach(() => {
+        mockedGetKey.mockResolvedValue('sk-or-v1-test-key');
+    });
+
+    // Builds a text-only Response (no `body.getReader`) — mirrors what
+    // Hermes/RN 0.81 hands back for a streaming fetch. This is the regression
+    // shape for the previous fallback bug.
+    function sseTextResponse(sseText: string, status = 200): Response {
+        return new Response(sseText, {
+            status,
+            headers: { 'Content-Type': 'text/event-stream' },
+        }) as Response;
+    }
+
+    it('sends the invariant request body Lyria requires (stream:true, modalities, audio format, usage)', async () => {
+        const sse =
+            `data: {"choices":[{"delta":{"audio":{"data":"AA"}}}],"usage":{"cost":0.01,"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}\n\n` +
+            `data: [DONE]\n\n`;
+        (global as any).fetch = jest.fn().mockResolvedValue(sseTextResponse(sse));
+
+        await generateMusic({ model: 'google/lyria-3-pro-preview', prompt: 'x' });
+
+        const args = ((global as any).fetch as jest.Mock).mock.calls[0];
+        const sent = JSON.parse(args[1].body);
+        expect(sent.stream).toBe(true);
+        expect(sent.model).toBe('google/lyria-3-pro-preview');
+        expect(sent.messages).toEqual([{ role: 'user', content: 'x' }]);
+        expect(sent.modalities).toEqual(['text', 'audio']);
+        expect(sent.audio).toEqual({ format: 'wav' });
+        expect(sent.usage).toEqual({ include: true });
+        expect(args[1].headers.Accept).toBe('text/event-stream');
+    });
+
+    it('parses SSE from a text-only Response (Hermes/RN case) — accumulates audio and captures usage', async () => {
+        // The final `chat.completion.chunk` frame carries the audio chunk AND
+        // the usage object (matches OpenRouter's live shape captured against
+        // Lyria — see plan for the exact live capture).
+        const sse =
+            `: OPENROUTER PROCESSING\n\n` +
+            `data: {"choices":[{"delta":{"audio":{"data":"AAAA"}}}]}\n\n` +
+            `data: {"choices":[{"delta":{"audio":{"data":"BBBB"}}}],"usage":{"cost":0.08,"prompt_tokens":6,"completion_tokens":2,"total_tokens":8}}\n\n` +
+            `data: [DONE]\n\n`;
+        (global as any).fetch = jest.fn().mockResolvedValue(sseTextResponse(sse));
+
+        const out = await generateMusic({ model: 'google/lyria-3-pro-preview', prompt: 'jazz' });
+
+        expect(out.audioBase64).toBe('AAAABBBB');
+        expect(out.mimeType).toBe('audio/wav');
+        expect(out.usage?.cost).toBe(0.08);
+    });
+
+    it('makes exactly one fetch call — no fallback re-issue with stream:false', async () => {
+        const sse =
+            `data: {"choices":[{"delta":{"audio":{"data":"ZZ"}}}]}\n\n` +
+            `data: [DONE]\n\n`;
+        (global as any).fetch = jest.fn().mockResolvedValue(sseTextResponse(sse));
+
+        await generateMusic({ model: 'google/lyria-3-pro-preview', prompt: 'anything' });
+
+        expect(((global as any).fetch as jest.Mock).mock.calls.length).toBe(1);
+    });
+
+    it('tolerates keep-alive comments and malformed data frames', async () => {
+        const sse =
+            `: keep-alive\n\n` +
+            `data: {"choices":[{"delta":{"audio":{"data":"AA"}}}]}\n\n` +
+            `data: not json\n\n` +
+            `data: {"choices":[{"delta":{"audio":{"data":"BB"}}}]}\n\n` +
+            `data: [DONE]\n\n`;
+        (global as any).fetch = jest.fn().mockResolvedValue(sseTextResponse(sse));
+
+        const out = await generateMusic({ model: 'google/lyria-3-pro-preview', prompt: 'x' });
+        expect(out.audioBase64).toBe('AABB');
+    });
+
+    it('throws byok.error.parse when no audio chunks are emitted', async () => {
+        const sse = `data: [DONE]\n\n`;
+        (global as any).fetch = jest.fn().mockResolvedValue(sseTextResponse(sse));
+        await expect(
+            generateMusic({ model: 'google/lyria-3-pro-preview', prompt: 'x' }),
+        ).rejects.toMatchObject({ code: 'byok.error.parse' });
+    });
+
+    it('maps HTTP 400 "Audio output requires stream: true" to byok.error.upstream with the message preserved', async () => {
+        // Regression guard: documents the mapping if OpenRouter ever changes
+        // the contract. The pre-fix code path (stream:false fallback) hit
+        // exactly this response — the fix removes the fallback, so callers
+        // should now never see this in practice. Still worth pinning the map.
+        const errBody = JSON.stringify({ error: { message: 'Audio output requires stream: true', code: 400 } });
+        (global as any).fetch = jest.fn().mockResolvedValue(
+            new Response(errBody, { status: 400, headers: { 'Content-Type': 'application/json' } }),
+        );
+
+        try {
+            await generateMusic({ model: 'google/lyria-3-pro-preview', prompt: 'x' });
+            fail('should have thrown');
+        } catch (e) {
+            expect(e).toBeInstanceOf(OpenRouterError);
+            expect((e as OpenRouterError).code).toBe('byok.error.upstream');
+            expect((e as OpenRouterError).status).toBe(400);
+            expect((e as OpenRouterError).message).toContain('Audio output requires stream');
+        }
+    });
+
+    it('throws byok.error.aborted when the caller passes a pre-aborted signal', async () => {
+        const controller = new AbortController();
+        controller.abort();
+        (global as any).fetch = jest.fn().mockImplementation(() => {
+            const err = new Error('aborted');
+            (err as any).name = 'AbortError';
+            return Promise.reject(err);
+        });
+        await expect(
+            generateMusic({
+                model: 'google/lyria-3-pro-preview',
+                prompt: 'x',
+                signal: controller.signal,
+            }),
+        ).rejects.toMatchObject({ code: 'byok.error.aborted' });
     });
 });
 

@@ -7,23 +7,7 @@ import { estimateUsd, formatUsd, type EstimateType } from '../api/pricing';
 import { getPreferredModel } from '../api/modelPreferences';
 import type { TaskKey } from '../api/modelCatalog';
 import { signalModelUnavailable } from '../api/modelUnavailableSignal';
-import * as keepAlive from '../webviewAiKeepAlive';
-
-/**
- * Wraps a WebView-initiated AI call in a keep-alive acquire/release. On iOS
- * this extends the background execution window (~30s); on Android it holds a
- * foreground service so the fetch to OpenRouter isn't killed if the user
- * backgrounds the app mid-call. The release is guaranteed even if the AI
- * call throws or the network layer rejects.
- */
-async function withKeepAlive<T>(reason: string, fn: () => Promise<T>): Promise<T> {
-    const token = await keepAlive.acquire(reason);
-    try {
-        return await fn();
-    } finally {
-        await keepAlive.release(token);
-    }
-}
+import { withKeepAlive } from '../webviewAiKeepAlive';
 
 /**
  * BYOK pre-check + cost confirmation. Returns `{ ok: true }` when the call

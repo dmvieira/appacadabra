@@ -525,13 +525,20 @@ export interface MusicResponse {
 
 /**
  * Music generation via OpenRouter's chat-completions with audio output
- * modality. Lyria (google/lyria-3-pro-preview) requires `stream: true` and
- * streams base64 WAV chunks in `delta.audio.data`; we accumulate them into a
- * single string.
+ * modality. Lyria (google/lyria-3-pro-preview) mandates `stream: true` on the
+ * request whenever `modalities` includes `'audio'` — sending `stream: false`
+ * returns HTTP 400 "Audio output requires stream: true", so we cannot drop
+ * streaming at the request level regardless of the runtime.
  *
- * Falls back to non-streaming if `response.body.getReader` is unavailable,
- * reading `message.audio.data` from a single JSON response (same degradation
- * pattern used by `chatStream`).
+ * Hermes/RN 0.81 does not expose a real `ReadableStream` on `response.body`
+ * (no `getReader`) — RN buffers the whole payload internally — so we always
+ * read the SSE payload via `response.text()` and parse it with a single loop.
+ * The parser tolerates SSE keep-alive comments (e.g. `: OPENROUTER PROCESSING`)
+ * by only reacting to lines starting with `data:`, and swallows malformed
+ * frames in a try/catch so a corrupt intermediate frame never aborts the
+ * whole read. Usage arrives on the final `chat.completion.chunk` frame
+ * (with `finish_reason: 'stop'`), not on a separate frame — we capture it
+ * from any frame that carries a `usage` object.
  */
 export async function generateMusic(req: MusicRequest): Promise<MusicResponse> {
     const body = {
@@ -549,65 +556,26 @@ export async function generateMusic(req: MusicRequest): Promise<MusicResponse> {
         accept: 'text/event-stream',
     });
 
-    const reader = response.body && typeof (response.body as ReadableStream).getReader === 'function'
-        ? (response.body as ReadableStream<Uint8Array>).getReader()
-        : null;
-
-    if (!reader) {
-        // Streaming unsupported — re-issue without stream and read the whole
-        // audio payload from the single response.
-        const fallbackBody = { ...body, stream: false };
-        const fallbackResponse = await rawFetch('/chat/completions', fallbackBody, {
-            signal: req.signal,
-            timeoutMs: req.timeoutMs ?? 240_000,
-        });
-        const json = (await fallbackResponse.json()) as {
-            choices: Array<{ message: { audio?: { data?: string } } }>;
-            usage?: OpenRouterUsage;
-        };
-        const data = json.choices?.[0]?.message?.audio?.data ?? '';
-        if (!data) throw new OpenRouterError('byok.error.parse', 'No audio in music response');
-        return { audioBase64: data, mimeType: 'audio/wav', usage: json.usage };
-    }
-
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
+    const raw = await response.text();
     let audioBase64 = '';
     let finalUsage: OpenRouterUsage | undefined;
 
-    try {
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            let nlIdx: number;
-            while ((nlIdx = buffer.indexOf('\n')) >= 0) {
-                const line = buffer.slice(0, nlIdx).replace(/\r$/, '');
-                buffer = buffer.slice(nlIdx + 1);
-                if (!line.startsWith('data:')) continue;
-                const data = line.slice(5).trim();
-                if (!data) continue;
-                if (data === '[DONE]') {
-                    if (!audioBase64) throw new OpenRouterError('byok.error.parse', 'Empty music response');
-                    return { audioBase64, mimeType: 'audio/wav', usage: finalUsage };
-                }
-                try {
-                    const evt = JSON.parse(data) as {
-                        choices?: Array<{ delta?: { audio?: { data?: string } } }>;
-                        usage?: OpenRouterUsage;
-                    };
-                    const chunk = evt.choices?.[0]?.delta?.audio?.data;
-                    if (chunk) audioBase64 += chunk;
-                    if (evt.usage) finalUsage = evt.usage;
-                } catch {
-                    // Ignore malformed SSE frames — matches chatStream's tolerance
-                    // for keepalive comments and partial JSON across chunks.
-                }
-            }
+    for (const line of raw.split('\n')) {
+        const stripped = line.replace(/\r$/, '');
+        if (!stripped.startsWith('data:')) continue;
+        const payload = stripped.slice(5).trim();
+        if (!payload || payload === '[DONE]') continue;
+        try {
+            const evt = JSON.parse(payload) as {
+                choices?: Array<{ delta?: { audio?: { data?: string } } }>;
+                usage?: OpenRouterUsage;
+            };
+            const chunk = evt.choices?.[0]?.delta?.audio?.data;
+            if (chunk) audioBase64 += chunk;
+            if (evt.usage) finalUsage = evt.usage;
+        } catch {
+            // Tolerate keep-alive comments and malformed frames.
         }
-    } finally {
-        try { reader.releaseLock(); } catch { /* noop */ }
     }
 
     if (!audioBase64) throw new OpenRouterError('byok.error.parse', 'Empty music response');

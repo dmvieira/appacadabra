@@ -9,6 +9,7 @@ import { hasOpenRouterKey } from '../api/keyStorage';
 import { estimateUsd, formatUsd } from '../api/pricing';
 import { getPreferredModel } from '../api/modelPreferences';
 import { signalModelUnavailable } from '../api/modelUnavailableSignal';
+import { withKeepAlive } from '../webviewAiKeepAlive';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
 
 // Module-level state
@@ -303,7 +304,7 @@ window.onAudioResult = function(success, base64) {
                 if (!confirmedMusic) { return { success: false, result: 'Cost confirmation cancelled.' }; }
                 console.log(`[Bridge] Music generation request: "${data.prompt?.substring(0, 50)}..."`);
                 try {
-                    const { audioBase64, costUsd } = await ai.aiGenerateMusic(data.prompt);
+                    const { audioBase64, costUsd } = await withKeepAlive('music', () => ai.aiGenerateMusic(data.prompt));
                     if (ctx.appId) await db.incrementSpendUsd(ctx.appId, costUsd);
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
                     // Returns raw base64 only — the spell decides when/how to

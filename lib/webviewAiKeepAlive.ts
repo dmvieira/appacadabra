@@ -93,3 +93,19 @@ export async function release(tokenId: string): Promise<void> {
         console.warn('[keepAlive] release failed:', e);
     }
 }
+
+/**
+ * Wraps a WebView-initiated AI call in an acquire/release pair. On iOS this
+ * extends the background execution window (~30s); on Android it holds a
+ * foreground service so the fetch to OpenRouter isn't killed if the user
+ * backgrounds the app mid-call. The release is guaranteed even if the wrapped
+ * call throws — critical to avoid a stuck FGS notification.
+ */
+export async function withKeepAlive<T>(reason: string, fn: () => Promise<T>): Promise<T> {
+    const token = await acquire(reason);
+    try {
+        return await fn();
+    } finally {
+        await release(token);
+    }
+}
