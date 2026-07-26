@@ -144,6 +144,14 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_pending_jobs_status ON pending_jobs(status);
     CREATE INDEX IF NOT EXISTS idx_pending_jobs_type_appId ON pending_jobs(type, appId);
+
+    CREATE TABLE IF NOT EXISTS model_pricing_snapshot (
+      modelId TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      pricingJson TEXT NOT NULL,
+      firstSeenAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL
+    );
   `);
 
     // Defensive column add for users upgrading from a schema without storeAuthorUid.
@@ -650,6 +658,41 @@ export async function deleteSetting(key: string): Promise<void> {
     await database.runAsync('DELETE FROM app_settings WHERE key = ?', [key]);
 }
 
+// ============= Model Pricing Snapshot (BYOK) =============
+
+export interface ModelPricingSnapshotRow {
+    modelId: string;
+    name: string;
+    pricingJson: string;
+    firstSeenAt: number;
+    updatedAt: number;
+}
+
+export async function upsertPricingSnapshot(
+    modelId: string,
+    name: string,
+    pricingJson: string,
+): Promise<void> {
+    const database = await getDatabase();
+    const now = Date.now();
+    await database.runAsync(
+        `INSERT INTO model_pricing_snapshot (modelId, name, pricingJson, firstSeenAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(modelId) DO UPDATE SET
+           name = excluded.name,
+           pricingJson = excluded.pricingJson,
+           updatedAt = excluded.updatedAt`,
+        [modelId, name, pricingJson, now, now],
+    );
+}
+
+export async function getAllPricingSnapshots(): Promise<ModelPricingSnapshotRow[]> {
+    const database = await getDatabase();
+    return database.getAllAsync<ModelPricingSnapshotRow>(
+        'SELECT modelId, name, pricingJson, firstSeenAt, updatedAt FROM model_pricing_snapshot',
+    );
+}
+
 // ============= Deleted App Tombstones =============
 
 export async function addDeletedAppName(name: string, deletedAt: number, snapshotJson?: string): Promise<void> {
@@ -833,6 +876,14 @@ export async function listProcessingJobs(): Promise<PendingJob[]> {
     const database = await getDatabase();
     return database.getAllAsync<PendingJob>(
         "SELECT * FROM pending_jobs WHERE status = 'processing' ORDER BY startedAt ASC"
+    );
+}
+
+export async function listFailedJobsWithCode(code: string): Promise<PendingJob[]> {
+    const database = await getDatabase();
+    return database.getAllAsync<PendingJob>(
+        "SELECT * FROM pending_jobs WHERE status = 'failed' AND lastErrorCode = ? ORDER BY updatedAt DESC",
+        [code]
     );
 }
 

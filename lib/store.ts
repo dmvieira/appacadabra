@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as Notifications from 'expo-notifications';
-import { DeviceEventEmitter, Platform } from 'react-native';
+import { DeviceEventEmitter, Platform, ToastAndroid } from 'react-native';
 import { GeneratedApp, NewGeneratedApp, PendingJob } from './database/types';
 import * as db from './database/db';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -9,7 +9,15 @@ import * as bgGen from './backgroundGenerator';
 import type { BgGenCompletedEvent, BgGenFailedEvent } from './backgroundGenerator';
 import * as openrouter from './api/openrouter';
 import type { OpenRouterErrorCode } from './api/openrouter';
-import { MODELS, calcImageUsd } from './api/pricing';
+import { useBridgeUIStore } from './bridgeUIStore';
+import { calcImageUsd } from './api/pricing';
+import { getPreferredModel, getAllPreferredModels } from './api/modelPreferences';
+import {
+    loadPricingSnapshotIntoMemory,
+    getModelCatalog,
+    findMissingModelTasks,
+    type TaskKey,
+} from './api/modelCatalog';
 import * as backup from './backup';
 import { onboardingTemplates } from './onboardingTemplates';
 import * as projectConverter from './projectConverter';
@@ -21,6 +29,10 @@ import { cancelSpellNotifications } from './bridges/messageHandlers';
 import { markBackupDirty } from './backupSync';
 
 const DISMISSED_URI_TTL_MS = 15000;
+
+// Module-scoped one-shot latch for the startup missing-models toast. Reset
+// only when the process restarts, so a manual picker refresh doesn't spam.
+let missingModelTasksToastFired = false;
 
 interface AppState {
     apps: GeneratedApp[];
@@ -85,6 +97,12 @@ interface AppState {
     // hasOpenRouterKey() without polling.
     aiKeyVersion: number;
     bumpAiKeyVersion: () => void;
+
+    // Tasks whose user-chosen model is no longer in the current OpenRouter
+    // catalog. Computed at boot (Cache A load) and after any picker change.
+    // Consumed by the Settings entry-point badge and the startup toast.
+    missingModelTasks: TaskKey[];
+    refreshMissingModelTasks: () => Promise<void>;
 
     initializeListeners: () => void;
 
@@ -183,6 +201,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     lastFailedPrompt: null,
     generationError: null,
     aiKeyVersion: 0,
+    missingModelTasks: [],
 
     clearLastFailedPrompt: () => set({ lastFailedPrompt: null }),
     clearGenerationError: () => set({ generationError: null }),
@@ -201,6 +220,38 @@ export const useAppStore = create<AppState>((set, get) => ({
         void get().updateAppWithAI(app, err.promptText, err.selectedContext ?? undefined);
     },
     bumpAiKeyVersion: () => set(state => ({ aiKeyVersion: state.aiKeyVersion + 1 })),
+
+    refreshMissingModelTasks: async () => {
+        try {
+            const [catalog, chosen] = await Promise.all([
+                getModelCatalog(),
+                getAllPreferredModels(),
+            ]);
+            const missing = findMissingModelTasks(catalog, chosen);
+            set({ missingModelTasks: missing });
+            // One-shot startup toast (Android) so the user sees the situation
+            // even if they haven't opened Settings yet. The Layer-2 badge in
+            // Settings still stays until they resolve each task. This fires
+            // once per process launch, not once per refresh — a manual
+            // refresh from the picker must not re-toast the user.
+            if (
+                Platform.OS === 'android' &&
+                missing.length > 0 &&
+                !missingModelTasksToastFired
+            ) {
+                missingModelTasksToastFired = true;
+                ToastAndroid.show(
+                    t('openrouterModelUnavailableToast', { count: missing.length }),
+                    ToastAndroid.LONG,
+                );
+            }
+        } catch (e) {
+            // Network failure at boot must not crash the store. Old missing
+            // list is retained — a later manual refresh from the picker will
+            // reconcile.
+            console.warn('[Store] refreshMissingModelTasks failed:', e);
+        }
+    },
 
     dismissContent: (uri: string) => {
         const now = Date.now();
@@ -232,9 +283,17 @@ export const useAppStore = create<AppState>((set, get) => ({
             await db.clearOldDismissedUris(DISMISSED_URI_TTL_MS);
             const [apps, dismissedUris] = await Promise.all([
                 db.getAllApps(),
-                db.getDismissedUris()
+                db.getDismissedUris(),
+                // Populates the hot in-memory pricing map from the persistent
+                // Cache B snapshot before any AI call fires. Idempotent.
+                loadPricingSnapshotIntoMemory(),
             ]);
             set({ apps, dismissedUris, isLoading: false });
+
+            // Fire-and-forget: reconcile picker state against Cache A. Uses
+            // whatever the cache has (fresh or stale) and dispatches a refresh
+            // in the background if stale — never blocks boot.
+            void get().refreshMissingModelTasks();
 
             // Publish Direct Share shortcuts for all apps
             apps.forEach(async (app) => {
@@ -414,6 +473,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
                 ? (e.code as OpenRouterErrorCode)
                 : 'unknown';
+            if (code === 'byok.error.modelUnavailable' && e.modelId) {
+                useBridgeUIStore.getState().requestModelUnavailable(null, 'SPELL_S', e.modelId);
+            }
             await db.upsertPendingJob({
                 jobId,
                 type: 'create',
@@ -429,8 +491,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             await Notifications.scheduleNotificationAsync({
                 content: {
                     title: t('spellFailedTitle'),
-                    body: e.message || t('errorProcessingJob'),
-                    data: { jobId, kind: 'create-failure' },
+                    body: t('errorProcessingJob'),
+                    data: { jobId, kind: 'create-failure', errorMessage: e.message },
                 },
                 trigger: null,
             }).catch(() => {});
@@ -597,6 +659,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
                 ? (e.code as OpenRouterErrorCode)
                 : 'unknown';
+            if (code === 'byok.error.modelUnavailable' && e.modelId) {
+                useBridgeUIStore.getState().requestModelUnavailable(app.id, 'SPELL_S', e.modelId);
+            }
             await db.upsertPendingJob({
                 jobId,
                 type: 'edit',
@@ -612,8 +677,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             await Notifications.scheduleNotificationAsync({
                 content: {
                     title: t('spellEditFailedTitle'),
-                    body: e.message || t('errorProcessingJob'),
-                    data: { appId: app.id, jobId, kind: 'edit-failure' },
+                    body: t('errorProcessingJob'),
+                    data: { appId: app.id, jobId, kind: 'edit-failure', errorMessage: e.message },
                 },
                 trigger: null,
             }).catch(() => {});
@@ -835,8 +900,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     generateAndSaveAppIcon: async (appId: number, prompt: string): Promise<{ iconPath: string; creditsUsed: number }> => {
+        const imageModel = await getPreferredModel('IMAGE');
         const { images, usage } = await openrouter.generateImage({
-            model: MODELS.IMAGE,
+            model: imageModel,
             prompt,
         });
         const first = images[0] ?? '';
@@ -1160,6 +1226,26 @@ export const useAppStore = create<AppState>((set, get) => ({
         //     driven by this process, the JS driver was interrupted and we
         //     should try to resume from the last persisted stage.
         try {
+            // First: any failed row the background task persisted while the
+            // main JS context was down. Model-unavailable is the only code
+            // that triggers a modal on reconnect — for it, `lastErrorMessage`
+            // was overwritten with the offending modelId by `persistFailure`.
+            const orphanUnavailable = await db.listFailedJobsWithCode(
+                'byok.error.modelUnavailable',
+            );
+            for (const j of orphanUnavailable) {
+                const modelId = j.lastErrorMessage;
+                if (!modelId) continue;
+                useBridgeUIStore.getState().requestModelUnavailable(
+                    j.appId,
+                    'SPELL_S',
+                    modelId,
+                );
+                // Consume the signal so it does not re-fire on the next boot.
+                await db.deletePendingJob(j.jobId).catch(() => {});
+                break;
+            }
+
             const processing = await db.listProcessingJobs();
             if (processing.length === 0) return;
 

@@ -359,6 +359,20 @@ export function applyPatches(sourceCode: string, patches: Patch[]): string {
     return lines.join('\n');
 }
 
+// ============= EMPTY RESPONSE ERROR =============
+
+/**
+ * Build an Error for the "AI returned no content" case. Marks it retryable
+ * so `withRetry` reissues the request (with `noCache: true`) before letting
+ * the outer pipeline restart from the planner — that outer retry is
+ * expensive and shows up in the UI as a failed job.
+ */
+export function makeRetryableEmptyResponseError(reason: string | null | undefined): Error {
+    const err = new Error(`Empty AI response (finish_reason: ${reason ?? 'unknown'})`);
+    (err as any).retryable = true;
+    return err;
+}
+
 // ============= RETRY LOGIC =============
 
 /**

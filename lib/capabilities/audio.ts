@@ -6,7 +6,9 @@ import { useBridgeUIStore } from '../bridgeUIStore';
 import * as db from '../database/db';
 import { saveAiMediaToFile, buildBlobMarker } from './mediaHelpers';
 import { hasOpenRouterKey } from '../api/keyStorage';
-import { estimateUsd, formatUsd, MODELS } from '../api/pricing';
+import { estimateUsd, formatUsd } from '../api/pricing';
+import { getPreferredModel } from '../api/modelPreferences';
+import { signalModelUnavailable } from '../api/modelUnavailableSignal';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
 
 // Module-level state
@@ -27,7 +29,7 @@ export const audioCapability: CapabilityModule = {
     id: 'audio',
     displayName: 'Audio',
     minVersion: '1.0.0',
-    description: "`recordStart`/`recordStop` capture microphone audio (M4A); `play`/`stop`/`isPlaying` play audio from base64 or URL; `speak` uses the device TTS engine (free); `speakAI`/`stopSpeaking`/`isSpeaking` drive high-quality AI voice via Gemini TTS (costs Mana).",
+    description: "`recordStart`/`recordStop` capture microphone audio (M4A); `play`/`stop`/`isPlaying` play audio from base64 or URL; `speak` uses the device TTS engine (free); `speakAI`/`stopSpeaking`/`isSpeaking` drive high-quality AI voice (costs credits); `generateMusic` generates full songs from a text prompt and returns base64 WAV (costs credits — model configurable in Settings).",
     androidPermissions: [
         'android.permission.RECORD_AUDIO',
         'android.permission.MODIFY_AUDIO_SETTINGS',
@@ -49,6 +51,14 @@ export const audioCapability: CapabilityModule = {
     - Use \`speak()\` for free device TTS; use \`speakAI()\` when voice quality matters
     - **Return**: "Speaking" (string) — callback called when audio starts playing
     - **Example**: \`AppacadabraAudio.speakAI("Welcome to your spell!", { voice: "Kore" }, "onSpeakDone")\`
+- \`generateMusic(prompt, callback)\` - Generate a full song from a text prompt (costs credits — model configurable in Settings > AI Provider). Returns raw base64 WAV; use \`play()\` to hear it.
+    - **Callback Data (string)**: base64 WAV.
+    - **Example**:
+      \`\`\`javascript
+      AppacadabraAudio.generateMusic("upbeat lo-fi hip hop about coffee", function(ok, base64) {
+        if (ok) AppacadabraAudio.play(base64, { mimeType: "audio/wav" }, "onPlaying");
+      });
+      \`\`\`
 - \`stopSpeaking(callback)\` - Stop ALL speech (current + queued)
     - **Return**: "Stopped" (string)
 - \`isSpeaking(callback)\` - Check if currently speaking
@@ -107,6 +117,12 @@ window.onAudioResult = function(success, base64) {
           voiceName: opts.voice || 'Aoede',
           language: opts.language || null
         }, interceptName);
+      },
+      generateMusic: function(prompt, callbackName) {
+        console.log('[AppacadabraAudio.generateMusic] prompt:', prompt && prompt.substring(0, 50), 'callback:', callbackName);
+        var interceptName = '__caigm' + Date.now();
+        __setupLegacyBlobInterceptor(callbackName, interceptName);
+        sendMessage('AUDIO_GENERATE_MUSIC', { prompt: prompt }, interceptName);
       },
       stopSpeaking: function(callbackName) {
         console.log('[AppacadabraAudio.stopSpeaking] callback:', callbackName);
@@ -200,7 +216,7 @@ window.onAudioResult = function(success, base64) {
                     ttsCharacters: typeof data?.text === 'string' ? data.text.length : 0,
                 });
                 const confirmedAudio = await useBridgeUIStore.getState()
-                    .requestCostEstimate(ctx.appId, 'audio', formatUsd(audioUsd), MODELS.TTS);
+                    .requestCostEstimate(ctx.appId, 'audio', formatUsd(audioUsd), await getPreferredModel('TTS'));
                 if (!confirmedAudio) { return { success: false, result: 'Cost confirmation cancelled.' }; }
                 console.log(`[Bridge] AI TTS request: "${data.text?.substring(0, 50)}..." voice=${data.voiceName || 'Aoede'}`);
                 try {
@@ -249,6 +265,16 @@ window.onAudioResult = function(success, base64) {
                     return { success: true, result: audioBase64, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
                     const errorMsg = e instanceof Error ? e.message : 'Error';
+                    // Surface the picker modal if the user's chosen TTS model
+                    // is dead. We still fall back to native Speech below so
+                    // the user hears *something*; the modal is the recovery
+                    // path they'll use next time.
+                    signalModelUnavailable(
+                        ctx.appId ?? null,
+                        'TTS',
+                        e,
+                        await getPreferredModel('TTS'),
+                    );
                     console.warn('[AUDIO_SPEAK_AI] AI TTS failed, falling back to Speech.speak:', errorMsg);
                     try {
                         Speech.speak(data.text, { language: data.language || undefined });
@@ -256,6 +282,44 @@ window.onAudioResult = function(success, base64) {
                     } catch (fallbackErr) {
                         return { success: false, result: errorMsg };
                     }
+                }
+            }
+
+            case 'AUDIO_GENERATE_MUSIC': {
+                const hasKey = await hasOpenRouterKey();
+                if (!hasKey) {
+                    const action = await useBridgeUIStore.getState().requestKeyMissing('music');
+                    return {
+                        success: false,
+                        result:
+                            action === 'openSettings'
+                                ? 'AI key required. Configure OpenRouter to continue.'
+                                : 'AI key not configured.',
+                    };
+                }
+                const musicUsd = estimateUsd({ type: 'webview_ai_music' });
+                const confirmedMusic = await useBridgeUIStore.getState()
+                    .requestCostEstimate(ctx.appId, 'music', formatUsd(musicUsd), await getPreferredModel('MUSIC'));
+                if (!confirmedMusic) { return { success: false, result: 'Cost confirmation cancelled.' }; }
+                console.log(`[Bridge] Music generation request: "${data.prompt?.substring(0, 50)}..."`);
+                try {
+                    const { audioBase64, costUsd } = await ai.aiGenerateMusic(data.prompt);
+                    if (ctx.appId) await db.incrementSpendUsd(ctx.appId, costUsd);
+                    const isFirstAiUse = await checkAndMarkFirstAiUse();
+                    // Returns raw base64 only — the spell decides when/how to
+                    // play it via AppacadabraAudio.play(). Reusing AUDIO_PLAY
+                    // keeps a single Sound state machine on the native side.
+                    return { success: true, result: audioBase64, creditsUsed: costUsd, isFirstAiUse };
+                } catch (e) {
+                    const errorMsg = e instanceof Error ? e.message : 'Error';
+                    signalModelUnavailable(
+                        ctx.appId ?? null,
+                        'MUSIC',
+                        e,
+                        await getPreferredModel('MUSIC'),
+                    );
+                    console.warn('[AUDIO_GENERATE_MUSIC] failed:', errorMsg);
+                    return { success: false, result: errorMsg };
                 }
             }
 

@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { TaskKey } from './api/modelCatalog';
 
-export type ManaOperationType = 'generate' | 'image' | 'video' | 'audio' | 'similarity';
+export type ManaOperationType = 'generate' | 'image' | 'video' | 'audio' | 'music' | 'similarity';
 
 interface LargePayloadConfirmRequest {
     resolve: (confirmed: boolean) => void;
@@ -29,6 +30,17 @@ interface KeyMissingRequest {
     resolve: (action: 'openSettings' | 'cancel') => void;
 }
 
+/**
+ * Surfaced when an AI call fails because the chosen model has been
+ * discontinued by OpenRouter. The modal offers the user two paths:
+ * pick a replacement, or reset the task's preference to the default.
+ */
+interface ModelUnavailableRequest {
+    appId: number | null;
+    taskKey: TaskKey;
+    modelId: string;
+}
+
 interface VideoPlayback {
     uri: string;
     callback?: string;
@@ -41,6 +53,7 @@ interface BridgeUIState {
     isNativeActivityActive: boolean;
     costEstimateRequest: CostEstimateRequest | null;
     keyMissingRequest: KeyMissingRequest | null;
+    modelUnavailableRequest: ModelUnavailableRequest | null;
     largePayloadConfirmRequest: LargePayloadConfirmRequest | null;
     videoPlayback: VideoPlayback | null;
     openScanner: (callback: string) => void;
@@ -51,6 +64,8 @@ interface BridgeUIState {
     resolveCostEstimate: (confirmed: boolean) => void;
     requestKeyMissing: (operationType: ManaOperationType | 'create' | 'edit') => Promise<'openSettings' | 'cancel'>;
     resolveKeyMissing: (action: 'openSettings' | 'cancel') => void;
+    requestModelUnavailable: (appId: number | null, taskKey: TaskKey, modelId: string) => void;
+    dismissModelUnavailable: () => void;
     requestLargePayloadConfirmation: () => Promise<boolean>;
     resolveLargePayloadConfirmation: (confirmed: boolean) => void;
     openVideoPlayer: (uri: string, callback?: string) => void;
@@ -64,6 +79,7 @@ export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
     isNativeActivityActive: false,
     costEstimateRequest: null,
     keyMissingRequest: null,
+    modelUnavailableRequest: null,
     largePayloadConfirmRequest: null,
     videoPlayback: null,
     openScanner: (callback) => set({ isScannerOpen: true, scannerCallback: callback, isNativeActivityActive: true }),
@@ -101,6 +117,10 @@ export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
             set({ keyMissingRequest: null });
         }
     },
+    requestModelUnavailable: (appId, taskKey, modelId) => {
+        set({ modelUnavailableRequest: { appId, taskKey, modelId } });
+    },
+    dismissModelUnavailable: () => set({ modelUnavailableRequest: null }),
     requestLargePayloadConfirmation: () => new Promise<boolean>((resolve) => {
         set({ largePayloadConfirmRequest: { resolve } });
     }),

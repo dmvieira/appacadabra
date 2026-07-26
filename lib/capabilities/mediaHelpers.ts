@@ -45,6 +45,7 @@ export const AI_MEDIA_EXT: Record<string, string> = {
     AI_GENERATE_IMAGE: 'jpg', AI_GENERATE_VIDEO: 'mp4',
     CAMERA_TAKE_PHOTO: 'jpg', CAMERA_RECORD_VIDEO: 'mp4',
     AUDIO_RECORD_STOP: 'm4a', AUDIO_SPEAK_AI: 'wav',
+    AUDIO_GENERATE_MUSIC: 'wav',
 };
 
 export async function saveAiMediaToFile(

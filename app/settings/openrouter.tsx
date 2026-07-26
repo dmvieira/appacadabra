@@ -16,7 +16,7 @@
  *   - Key never logged or copied to clipboard from this screen.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -27,9 +27,10 @@ import {
     ActivityIndicator,
     Linking,
     Platform,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as ScreenCapture from 'expo-screen-capture';
 import { colors, spacing, borderRadius } from '../../lib/theme';
@@ -40,21 +41,39 @@ import {
     maskKey,
 } from '../../lib/api/keyStorage';
 import { checkAuth, OpenRouterError } from '../../lib/api/openrouter';
-import { formatUsd, MODELS } from '../../lib/api/pricing';
+import { formatUsd, MODELS, AI_TIERS, DEFAULT_AI_TIER, type AiTier } from '../../lib/api/pricing';
 import { t } from '../../lib/i18n';
 import { useAppStore } from '../../lib/store';
+import {
+    getAllPreferredModels,
+    clearPreferredModel,
+    getAiTier,
+    setAiTier,
+    clearAllModelPreferences,
+} from '../../lib/api/modelPreferences';
+import {
+    getModelCatalog,
+    TASK_LABEL_KEYS,
+    type TaskKey,
+} from '../../lib/api/modelCatalog';
+import { ModelPicker } from '../../components/ModelPicker';
 
-const OPERATION_LABELS: { key: keyof typeof MODELS; label: string }[] = [
-    { key: 'SPELL_S', label: 'Spell create / edit' },
-    { key: 'SUGGEST', label: 'Suggestions' },
-    { key: 'WEBVIEW', label: 'In-spell AI (text)' },
-    { key: 'IMAGE', label: 'Image generation' },
-    { key: 'IMAGE_EDIT', label: 'Image editing' },
-    { key: 'TTS', label: 'Text-to-speech' },
-    { key: 'EMBED', label: 'Embeddings / similarity' },
-    { key: 'VIDEO_FAST', label: 'Video (fast)' },
-    { key: 'VIDEO_STD', label: 'Video (with reference)' },
+const TASK_KEYS: TaskKey[] = [
+    'SPELL_S', 'WEBVIEW', 'IMAGE', 'IMAGE_EDIT',
+    'TTS', 'MUSIC', 'EMBED', 'VIDEO_FAST', 'VIDEO_STD',
 ];
+
+const TIER_LABEL_KEYS: Record<AiTier, string> = {
+    apprentice: 'openrouterTierApprenticeLabel',
+    sorcerer: 'openrouterTierSorcererLabel',
+    archmage: 'openrouterTierArchmageLabel',
+};
+
+const TIER_DESC_KEYS: Record<AiTier, string> = {
+    apprentice: 'openrouterTierApprenticeDescription',
+    sorcerer: 'openrouterTierSorcererDescription',
+    archmage: 'openrouterTierArchmageDescription',
+};
 
 type TestState =
     | { kind: 'idle' }
@@ -65,10 +84,91 @@ type TestState =
 
 export default function OpenRouterSettings() {
     const bumpAiKeyVersion = useAppStore(s => s.bumpAiKeyVersion);
+    const missingModelTasks = useAppStore(s => s.missingModelTasks);
+    const refreshMissingModelTasks = useAppStore(s => s.refreshMissingModelTasks);
+    const params = useLocalSearchParams<{ openPicker?: string }>();
     const [existingKey, setExistingKey] = useState<string | null>(null);
     const [keyDraft, setKeyDraft] = useState('');
     const [test, setTest] = useState<TestState>({ kind: 'idle' });
     const [saving, setSaving] = useState(false);
+    const [preferredIds, setPreferredIds] = useState<Record<TaskKey, string> | null>(null);
+    const [catalogIds, setCatalogIds] = useState<Set<string> | null>(null);
+    const [pickerFor, setPickerFor] = useState<TaskKey | null>(null);
+    // Tracks the last `openPicker` value we already acted on, so the effect
+    // re-fires when a *new* deep-link value arrives while this screen is
+    // still mounted (e.g. modal → picker → dismiss → modal fires again).
+    const lastHandledOpenPicker = useRef<string | null>(null);
+    const [tier, setTier] = useState<AiTier>(DEFAULT_AI_TIER);
+
+    const loadPreferences = useCallback(async () => {
+        try {
+            const [prefs, catalog, currentTier] = await Promise.all([
+                getAllPreferredModels(),
+                getModelCatalog().catch(() => []),
+                getAiTier(),
+            ]);
+            setPreferredIds(prefs);
+            setCatalogIds(new Set(catalog.map(m => m.id)));
+            setTier(currentTier);
+        } catch {
+            // Non-fatal — screen still renders defaults.
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadPreferences();
+    }, [loadPreferences]);
+
+    // Router param handoff from ModelUnavailableModal.
+    // Re-fires whenever a *distinct* openPicker value arrives so the picker
+    // opens even when Settings is already mounted (fixes the boolean-latch
+    // regression where the modal → picker path only worked on cold nav).
+    useEffect(() => {
+        const target = params.openPicker;
+        if (!target || !TASK_KEYS.includes(target as TaskKey)) return;
+        if (lastHandledOpenPicker.current === target) return;
+        lastHandledOpenPicker.current = target;
+        setPickerFor(target as TaskKey);
+    }, [params.openPicker]);
+
+    const handlePickerClose = () => {
+        setPickerFor(null);
+        // Clear the ref so the same task key can re-open the picker later
+        // (e.g. user dismisses, tries the same model again, and it fails again).
+        lastHandledOpenPicker.current = null;
+        void loadPreferences();
+        void refreshMissingModelTasks();
+    };
+
+    const handleResetAll = async () => {
+        await Promise.all(TASK_KEYS.map(k => clearPreferredModel(k)));
+        await loadPreferences();
+        await refreshMissingModelTasks();
+    };
+
+    const applyTierChange = useCallback(async (newTier: AiTier) => {
+        await setAiTier(newTier);
+        await clearAllModelPreferences();
+        await loadPreferences();
+        await refreshMissingModelTasks();
+        bumpAiKeyVersion();
+    }, [loadPreferences, refreshMissingModelTasks, bumpAiKeyVersion]);
+
+    const handleTierPress = useCallback((next: AiTier) => {
+        if (next === tier) return;
+        Alert.alert(
+            t('openrouterTierChangeConfirmTitle'),
+            t('openrouterTierChangeConfirmBody'),
+            [
+                { text: t('openrouterTierChangeConfirmCancel'), style: 'cancel' },
+                {
+                    text: t('openrouterTierChangeConfirmCta'),
+                    style: 'destructive',
+                    onPress: () => { void applyTierChange(next); },
+                },
+            ],
+        );
+    }, [tier, applyTierChange]);
 
     useFocusEffect(
         useCallback(() => {
@@ -245,16 +345,70 @@ export default function OpenRouterSettings() {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{t('openrouterModelsTitle')}</Text>
-                    <Text style={styles.sectionBody}>{t('openrouterModelsBody')}</Text>
-                    {OPERATION_LABELS.map(({ key, label }) => (
-                        <View key={key} style={styles.modelRow}>
-                            <Text style={styles.modelOp}>{label}</Text>
-                            <Text style={styles.modelId}>{MODELS[key]}</Text>
-                        </View>
-                    ))}
+                    <Text style={styles.sectionTitle}>{t('openrouterTierSectionTitle')}</Text>
+                    <Text style={styles.sectionBody}>{t('openrouterTierSectionDescription')}</Text>
+                    <View style={styles.tierRow}>
+                        {AI_TIERS.map((entry) => {
+                            const selected = entry === tier;
+                            return (
+                                <TouchableOpacity
+                                    key={entry}
+                                    style={[styles.tierPill, selected && styles.tierPillSelected]}
+                                    onPress={() => handleTierPress(entry)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={[styles.tierPillLabel, selected && styles.tierPillLabelSelected]}>
+                                        {t(TIER_LABEL_KEYS[entry])}
+                                    </Text>
+                                    <Text style={[styles.tierPillDesc, selected && styles.tierPillDescSelected]}>
+                                        {t(TIER_DESC_KEYS[entry])}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>{t('openrouterAdvancedModelsTitle')}</Text>
+                    <Text style={styles.sectionBody}>{t('openrouterAdvancedModelsHint')}</Text>
+                    {TASK_KEYS.map((key) => {
+                        const label = t(TASK_LABEL_KEYS[key]);
+                        const chosen = preferredIds?.[key] ?? MODELS[key];
+                        const missing = missingModelTasks.includes(key)
+                            || (catalogIds !== null && !catalogIds.has(chosen));
+                        return (
+                            <TouchableOpacity
+                                key={key}
+                                style={[styles.modelRow, missing && styles.modelRowMissing]}
+                                onPress={() => setPickerFor(key)}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.modelRowMain}>
+                                    <Text style={styles.modelOp}>
+                                        {missing ? '⚠️  ' : ''}{label}
+                                    </Text>
+                                    <Text style={styles.modelId}>{chosen}</Text>
+                                    {missing && (
+                                        <Text style={styles.modelWarning}>
+                                            {t('openrouterModelUnavailableInlineWarning')}
+                                        </Text>
+                                    )}
+                                </View>
+                                <Text style={styles.modelChevron}>›</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                    <TouchableOpacity onPress={handleResetAll} style={styles.resetAllBtn}>
+                        <Text style={styles.resetAllText}>{t('openrouterModelResetAll')}</Text>
+                    </TouchableOpacity>
                 </View>
             </ScrollView>
+            <ModelPicker
+                taskKey={pickerFor}
+                taskLabel={pickerFor ? t(TASK_LABEL_KEYS[pickerFor]) : ''}
+                onClose={handlePickerClose}
+            />
         </SafeAreaView>
     );
 }
@@ -399,21 +553,83 @@ const styles = StyleSheet.create({
     },
     modelRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: spacing.xs,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xs,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: colors.surfaceVariant,
+    },
+    modelRowMissing: {
+        backgroundColor: 'rgba(255,75,110,0.12)',
+        borderRadius: borderRadius.sm,
+    },
+    modelRowMain: {
+        flex: 1,
     },
     modelOp: {
         color: colors.onSurface,
         fontSize: 13,
-        flex: 1,
+        fontWeight: '600',
     },
     modelId: {
         color: colors.onSurfaceVariant,
         fontSize: 11,
         fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-        marginStart: spacing.sm,
+        marginTop: 2,
+    },
+    modelWarning: {
+        color: colors.error,
+        fontSize: 11,
+        marginTop: 2,
+    },
+    modelChevron: {
+        color: colors.onSurfaceVariant,
+        fontSize: 20,
+        marginLeft: spacing.sm,
+    },
+    resetAllBtn: {
+        marginTop: spacing.md,
+        alignSelf: 'flex-end',
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+    },
+    resetAllText: {
+        color: colors.primary,
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    tierRow: {
+        flexDirection: 'row',
+        gap: spacing.xs,
+        marginTop: spacing.xs,
+    },
+    tierPill: {
+        flex: 1,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xs,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceVariant,
+        alignItems: 'center',
+    },
+    tierPillSelected: {
+        backgroundColor: colors.primary,
+    },
+    tierPillLabel: {
+        color: colors.onSurface,
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    tierPillLabelSelected: {
+        color: colors.onPrimary,
+    },
+    tierPillDesc: {
+        color: colors.onSurfaceVariant,
+        fontSize: 11,
+        marginTop: 2,
+        textAlign: 'center',
+    },
+    tierPillDescSelected: {
+        color: colors.onPrimary,
+        opacity: 0.9,
     },
 });

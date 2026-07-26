@@ -25,7 +25,8 @@
  * behaviour will differ between foreground and backgrounded generation.
  */
 import { chat as openrouterChat, OpenRouterError, type ChatResponse, type ChatMessage } from './openrouter';
-import { MODELS, OR_REASONING_HIGH, OR_WEB_SEARCH, calculateCostUsd } from './pricing';
+import { OR_REASONING_HIGH, OR_WEB_SEARCH, calculateCostUsd } from './pricing';
+import { getPreferredModel } from './modelPreferences';
 import {
     UNIFIED_CREATE_PLANNER_PROMPT,
     UNIFIED_CREATE_CODE_PROMPT,
@@ -45,6 +46,7 @@ import {
     fixCallbackPatterns,
     applyPatches,
     withRetry,
+    makeRetryableEmptyResponseError,
     accUsage,
     emptyUsage,
     type GenerationUsage,
@@ -83,6 +85,10 @@ export interface CreateJobState {
     kind: 'create';
     prompt: string;
     appVersion: string;
+    // Snapshot of the user's SPELL_S preference at job creation. Persisted
+    // with the job so a resumed background run uses the same model even if
+    // the user changed the preference mid-generation.
+    spellModel: string;
     outerAttempt: number;
     stage: CreateStage;
     fixAttempt: number;
@@ -97,6 +103,7 @@ export interface EditJobState {
     kind: 'edit';
     instruction: string;
     appVersion: string;
+    spellModel: string;
     normalizedCode: string;
     numberedCode: string;
     historyContext: string;
@@ -129,11 +136,12 @@ export type StageOutcome<S> =
 // State constructors
 // ------------------------------------------------------------
 
-export function initCreateState(params: { prompt: string; appVersion: string }): CreateJobState {
+export async function initCreateState(params: { prompt: string; appVersion: string }): Promise<CreateJobState> {
     return {
         kind: 'create',
         prompt: params.prompt,
         appVersion: params.appVersion,
+        spellModel: await getPreferredModel('SPELL_S'),
         outerAttempt: 0,
         stage: 'planner',
         fixAttempt: 0,
@@ -154,7 +162,7 @@ export interface InitEditParams {
     storageStructure?: { key: string; schema: unknown }[];
 }
 
-export function initEditState(params: InitEditParams): EditJobState {
+export async function initEditState(params: InitEditParams): Promise<EditJobState> {
     let rawCode = params.currentCode;
     if (rawCode && !rawCode.trimStart().startsWith('<')) {
         const recovered = extractHtml(rawCode);
@@ -180,6 +188,7 @@ export function initEditState(params: InitEditParams): EditJobState {
         kind: 'edit',
         instruction: params.instruction,
         appVersion: params.appVersion,
+        spellModel: await getPreferredModel('SPELL_S'),
         normalizedCode,
         numberedCode,
         historyContext,
@@ -222,6 +231,7 @@ async function callModel(
     userContent: string,
     systemInstructions: string,
     outerAttempt: number,
+    model: string,
     signal?: AbortSignal,
 ): Promise<ChatResponse> {
     return raceTimeout(
@@ -235,7 +245,7 @@ async function callModel(
             let res: ChatResponse;
             try {
                 res = await openrouterChat({
-                    model: MODELS.SPELL_S,
+                    model,
                     messages,
                     ...OR_REASONING_HIGH,
                     ...OR_WEB_SEARCH,
@@ -251,7 +261,7 @@ async function callModel(
                 if (err instanceof OpenRouterError && (err.status ?? 0) >= 500) {
                     console.warn('[generatorStages.callModel] Upstream 5xx com web plugin; retry sem web');
                     res = await openrouterChat({
-                        model: MODELS.SPELL_S,
+                        model,
                         messages,
                         ...OR_REASONING_HIGH,
                         max_tokens: SPELL_MAX_TOKENS,
@@ -273,7 +283,7 @@ async function callModel(
             const reason = res.choices?.[0]?.finish_reason ?? 'unknown';
             if (reason === 'tool_calls') {
                 const retry = await openrouterChat({
-                    model: MODELS.SPELL_S,
+                    model,
                     messages,
                     ...OR_REASONING_HIGH,
                     max_tokens: SPELL_MAX_TOKENS,
@@ -282,7 +292,7 @@ async function callModel(
                 });
                 if (extractText(retry)) return retry;
             }
-            throw new Error(`Empty AI response (finish_reason: ${reason})`);
+            throw makeRetryableEmptyResponseError(reason);
         }),
     );
 }
@@ -299,13 +309,13 @@ function runValidation(html: string): ValidationError[] {
     ];
 }
 
-function resolveCostUsd(usage: GenerationUsage): number {
+function resolveCostUsd(usage: GenerationUsage, modelId: string): number {
     // Same guard as WebView AI: prefer OpenRouter's reported cost when > 0,
     // fall back to per-token pricing otherwise. The reported figure already
     // accounts for web-search fees and provider-side discounts.
     return usage.reportedCostUsd > 0
         ? usage.reportedCostUsd
-        : calculateCostUsd(MODELS.SPELL_S, usage);
+        : calculateCostUsd(modelId, usage);
 }
 
 function completeCreate(state: CreateJobState): CompleteResult {
@@ -314,7 +324,7 @@ function completeCreate(state: CreateJobState): CompleteResult {
         kind: 'create',
         html,
         usage: state.usage,
-        costUsd: resolveCostUsd(state.usage),
+        costUsd: resolveCostUsd(state.usage, state.spellModel),
         appName: extractTitle(html),
         initialValidationErrors: state.initialErrors,
     };
@@ -326,7 +336,7 @@ function completeEdit(state: EditJobState): CompleteResult {
         kind: 'edit',
         html,
         usage: state.usage,
-        costUsd: resolveCostUsd(state.usage),
+        costUsd: resolveCostUsd(state.usage, state.spellModel),
         initialValidationErrors: state.initialErrors,
     };
 }
@@ -374,6 +384,7 @@ export async function nextCreateStage(
                 `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${state.prompt}`,
                 sys,
                 state.outerAttempt,
+                state.spellModel,
                 opts?.signal,
             );
             const usage = { ...state.usage };
@@ -396,6 +407,7 @@ export async function nextCreateStage(
                 `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(state.plan, null, 2)}`,
                 sys,
                 state.outerAttempt,
+                state.spellModel,
                 opts?.signal,
             );
             const usage = { ...state.usage };
@@ -449,6 +461,7 @@ export async function nextCreateStage(
                 generateFixPrompt(state.lastErrors, state.html!),
                 sys,
                 state.outerAttempt,
+                state.spellModel,
                 opts?.signal,
             );
             const usage = { ...state.usage };
@@ -484,7 +497,7 @@ export async function nextEditStage(
         case 'planner': {
             const sys = buildPlannerSystemInstructions(state.appVersion, ALL_CAPABILITIES);
             const userMsg = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${state.instruction}${state.historyContext}${state.selectionPart}${state.storageKeysPart}\n\nFull code:\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
-            const res = await callModel(userMsg, sys, state.outerAttempt, opts?.signal);
+            const res = await callModel(userMsg, sys, state.outerAttempt, state.spellModel, opts?.signal);
             const usage = { ...state.usage };
             accUsage(usage, res);
             const plan = extractJson(extractText(res));
@@ -494,7 +507,7 @@ export async function nextEditStage(
         case 'patch': {
             const sys = buildSystemInstructions(state.appVersion, ALL_CAPABILITIES);
             const userMsg = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(state.plan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
-            const res = await callModel(userMsg, sys, state.outerAttempt, opts?.signal);
+            const res = await callModel(userMsg, sys, state.outerAttempt, state.spellModel, opts?.signal);
             const usage = { ...state.usage };
             accUsage(usage, res);
             const patchResponse = extractJson(extractText(res));
@@ -538,6 +551,7 @@ export async function nextEditStage(
                 generateFixPrompt(state.lastErrors, state.html!),
                 'Follow instructions and fix these errors in the code',
                 state.outerAttempt,
+                state.spellModel,
                 opts?.signal,
             );
             const usage = { ...state.usage };

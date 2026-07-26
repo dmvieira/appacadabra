@@ -7,7 +7,9 @@ import {
     generateWebviewAI as byokGenerateWebviewAI,
 } from './generators';
 import * as openrouter from './openrouter';
-import { MODELS, calcImageUsd, calcVideoUsd, calculateCostUsd } from './pricing';
+import { calcImageUsd, calcMusicUsd, calcVideoUsd, calculateCostUsd } from './pricing';
+import { getPreferredModel } from './modelPreferences';
+import { signalModelUnavailable } from './modelUnavailableSignal';
 import Constants from 'expo-constants';
 
 // ============= CONTENT MODERATION =============
@@ -58,10 +60,15 @@ export async function generateApp(description: string): Promise<ByokGenerationRe
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    const result = await byokGenerateSpellCreate({ prompt: description, appVersion: getAppVersion() });
-    const wrapped = toGenerationResult(result);
-    logAppCreated(0);
-    return wrapped;
+    try {
+        const result = await byokGenerateSpellCreate({ prompt: description, appVersion: getAppVersion() });
+        const wrapped = toGenerationResult(result);
+        logAppCreated(0);
+        return wrapped;
+    } catch (err) {
+        signalModelUnavailable(null, 'SPELL_S', err, await getPreferredModel('SPELL_S'));
+        throw err;
+    }
 }
 
 export async function editApp(currentCode: string, instructions: string): Promise<ByokGenerationResult> {
@@ -70,14 +77,19 @@ export async function editApp(currentCode: string, instructions: string): Promis
         throw new Error(validation.reason || t('requestBlocked'));
     }
 
-    const result = await byokGenerateSpellEdit({
-        currentCode,
-        instruction: instructions,
-        appVersion: getAppVersion(),
-    });
-    const wrapped = toGenerationResult(result);
-    logAppEdited(0);
-    return wrapped;
+    try {
+        const result = await byokGenerateSpellEdit({
+            currentCode,
+            instruction: instructions,
+            appVersion: getAppVersion(),
+        });
+        const wrapped = toGenerationResult(result);
+        logAppEdited(0);
+        return wrapped;
+    } catch (err) {
+        signalModelUnavailable(null, 'SPELL_S', err, await getPreferredModel('SPELL_S'));
+        throw err;
+    }
 }
 
 export async function editAppWithContext(
@@ -95,25 +107,35 @@ export async function editAppWithContext(
         .filter(e => e.instruction !== null)
         .map(e => ({ version: e.version, instruction: e.instruction as string }));
 
-    const result = await byokGenerateSpellEdit({
-        currentCode,
-        instruction: instructions,
-        appVersion: getAppVersion(),
-        previousEdits: validEdits,
-        selectedContext,
-    });
-    const wrapped = toGenerationResult(result);
-    logAppEdited(0);
-    return wrapped;
+    try {
+        const result = await byokGenerateSpellEdit({
+            currentCode,
+            instruction: instructions,
+            appVersion: getAppVersion(),
+            previousEdits: validEdits,
+            selectedContext,
+        });
+        const wrapped = toGenerationResult(result);
+        logAppEdited(0);
+        return wrapped;
+    } catch (err) {
+        signalModelUnavailable(null, 'SPELL_S', err, await getPreferredModel('SPELL_S'));
+        throw err;
+    }
 }
 
 export async function convertNodeProject(sourceCode: string, frameworkHint: string): Promise<ByokGenerationResult> {
-    const result = await byokGenerateConvert({
-        sourceCode,
-        frameworkHint,
-        appVersion: getAppVersion(),
-    });
-    return toGenerationResult(result);
+    try {
+        const result = await byokGenerateConvert({
+            sourceCode,
+            frameworkHint,
+            appVersion: getAppVersion(),
+        });
+        return toGenerationResult(result);
+    } catch (err) {
+        signalModelUnavailable(null, 'SPELL_S', err, await getPreferredModel('SPELL_S'));
+        throw err;
+    }
 }
 
 // ============= BRIDGE AI FUNCTIONS =============
@@ -166,8 +188,9 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
 export async function aiSimilarity(items: string[], signal?: AbortSignal): Promise<{ text: string, creditsUsed: number, costUsd: number }> {
     console.log('[AI] aiSimilarity (BYOK)', items.length, 'items');
 
+    const embedModel = await getPreferredModel('EMBED');
     const { vectors, usage } = await openrouter.embed({
-        model: MODELS.EMBED,
+        model: embedModel,
         input: items,
         signal,
     });
@@ -188,7 +211,7 @@ export async function aiSimilarity(items: string[], signal?: AbortSignal): Promi
     const costUsd =
         typeof reportedCost === 'number' && reportedCost > 0
             ? reportedCost
-            : calculateCostUsd(MODELS.EMBED, {
+            : calculateCostUsd(embedModel, {
                   promptTokens: items.reduce((sum, s) => sum + Math.ceil(s.length / 4), 0),
                   responseTokens: 0,
               });
@@ -219,7 +242,9 @@ export async function aiGenerateImage(prompt: string, imagesBase64?: string[], s
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
     const cleanImages = imagesBase64?.map(cleanPrefix);
 
-    const model = cleanImages?.length ? MODELS.IMAGE_EDIT : MODELS.IMAGE;
+    const model = cleanImages?.length
+        ? await getPreferredModel('IMAGE_EDIT')
+        : await getPreferredModel('IMAGE');
     const { images: outImages, usage } = await openrouter.generateImage({
         model,
         prompt,
@@ -252,8 +277,9 @@ export async function aiGenerateImage(prompt: string, imagesBase64?: string[], s
 export async function aiGenerateTTS(text: string, voiceName?: string, signal?: AbortSignal): Promise<{ audioBase64: string, usage: any, creditsUsed: number, costUsd: number }> {
     console.log('[AI] aiGenerateTTS (BYOK)', text?.substring(0, 80), 'voice:', voiceName);
 
+    const ttsModel = await getPreferredModel('TTS');
     const { audioBase64, usage } = await openrouter.tts({
-        model: MODELS.TTS,
+        model: ttsModel,
         text,
         voice: voiceName,
         signal,
@@ -263,10 +289,37 @@ export async function aiGenerateTTS(text: string, voiceName?: string, signal?: A
     const costUsd =
         typeof reportedCost === 'number' && reportedCost > 0
             ? reportedCost
-            : calculateCostUsd(MODELS.TTS, {
+            : calculateCostUsd(ttsModel, {
                   promptTokens: Math.ceil((text?.length ?? 0) / 4) + 50,
                   responseTokens: Math.ceil((text?.length ?? 0) * 2),
               });
+
+    return {
+        audioBase64,
+        usage,
+        creditsUsed: 0,
+        costUsd,
+    };
+}
+
+// Used by WebView Bridge - Generate Music
+export async function aiGenerateMusic(prompt: string, signal?: AbortSignal): Promise<{ audioBase64: string, usage: any, creditsUsed: number, costUsd: number }> {
+    console.log('[AI] aiGenerateMusic (BYOK)', prompt?.substring(0, 80));
+
+    const musicModel = await getPreferredModel('MUSIC');
+    const { audioBase64, usage } = await openrouter.generateMusic({
+        model: musicModel,
+        prompt,
+        signal,
+    });
+
+    // Lyria bills per song ($0.08), not per token — usage.cost is authoritative
+    // when present, otherwise the fixed per-song fallback stands in.
+    const reportedCost = (usage as any)?.cost;
+    const costUsd =
+        typeof reportedCost === 'number' && reportedCost > 0
+            ? reportedCost
+            : calcMusicUsd();
 
     return {
         audioBase64,
@@ -287,7 +340,9 @@ export async function aiGenerateVideo(prompt: string, imagesBase64?: string[], s
     const cleanPrefix = (str: string) => typeof str === 'string' ? str.replace(/^(data:[^;]+;base64,)+/i, '') : str;
     const cleanImages = imagesBase64?.map(cleanPrefix);
     const firstImage = cleanImages?.[0];
-    const model = firstImage ? MODELS.VIDEO_STD : MODELS.VIDEO_FAST;
+    const model = firstImage
+        ? await getPreferredModel('VIDEO_STD')
+        : await getPreferredModel('VIDEO_FAST');
 
     const submission = await openrouter.submitVideo({
         model,

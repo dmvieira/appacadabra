@@ -3,7 +3,10 @@ import { useBridgeUIStore, ManaOperationType } from '../bridgeUIStore';
 import * as db from '../database/db';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
 import { hasOpenRouterKey } from '../api/keyStorage';
-import { estimateUsd, formatUsd, MODELS, type EstimateType } from '../api/pricing';
+import { estimateUsd, formatUsd, type EstimateType } from '../api/pricing';
+import { getPreferredModel } from '../api/modelPreferences';
+import type { TaskKey } from '../api/modelCatalog';
+import { signalModelUnavailable } from '../api/modelUnavailableSignal';
 import * as keepAlive from '../webviewAiKeepAlive';
 
 /**
@@ -27,11 +30,23 @@ async function withKeepAlive<T>(reason: string, fn: () => Promise<T>): Promise<T
  * should proceed (key configured, user confirmed cost). When `ok` is false,
  * the message handler short-circuits with the supplied error.
  */
+function taskKeyForOperation(operationType: ManaOperationType, data: any): TaskKey {
+    if (operationType === 'image') {
+        return data?.images?.length ? 'IMAGE_EDIT' : 'IMAGE';
+    }
+    if (operationType === 'video') {
+        return data?.images?.length ? 'VIDEO_STD' : 'VIDEO_FAST';
+    }
+    if (operationType === 'audio') return 'TTS';
+    if (operationType === 'similarity') return 'EMBED';
+    return 'WEBVIEW';
+}
+
 async function gateAiOperation(
     operationType: ManaOperationType,
     appId: number | null,
     data: any,
-): Promise<{ ok: true } | { ok: false; result: string }> {
+): Promise<{ ok: true; taskKey: TaskKey; modelId: string } | { ok: false; result: string }> {
     const hasKey = await hasOpenRouterKey();
     if (!hasKey) {
         const action = await useBridgeUIStore.getState().requestKeyMissing(operationType);
@@ -53,20 +68,8 @@ async function gateAiOperation(
                 : operationType === 'audio'
                   ? 'webview_ai_tts'
                   : 'webview_ai_similarity';
-    const modelId =
-        operationType === 'image'
-            ? data?.images?.length
-                ? MODELS.IMAGE_EDIT
-                : MODELS.IMAGE
-            : operationType === 'video'
-              ? data?.images?.length
-                  ? MODELS.VIDEO_STD
-                  : MODELS.VIDEO_FAST
-              : operationType === 'audio'
-                ? MODELS.TTS
-                : operationType === 'similarity'
-                  ? MODELS.EMBED
-                  : MODELS.WEBVIEW;
+    const taskKey = taskKeyForOperation(operationType, data);
+    const modelId = await getPreferredModel(taskKey);
     const usd = estimateUsd({
         type: estimateType,
         promptLength: typeof data?.prompt === 'string' ? data.prompt.length : 0,
@@ -74,12 +77,30 @@ async function gateAiOperation(
         videoHasImages: !!data?.images?.length,
         ttsCharacters: typeof data?.text === 'string' ? data.text.length : 0,
         similarityItems: data?.items?.length ?? 0,
+        modelId,
     });
     const confirmed = await useBridgeUIStore
         .getState()
         .requestCostEstimate(appId, operationType, formatUsd(usd), modelId);
     if (!confirmed) return { ok: false, result: 'Cost confirmation cancelled.' };
-    return { ok: true };
+    return { ok: true, taskKey, modelId };
+}
+
+/**
+ * Catch OpenRouter's "model no longer available" signal and surface the
+ * reactive-notification modal so the user can pick a replacement or reset
+ * to the default. Any other error is re-thrown for the normal error path.
+ * The actual fan-out lives in `lib/api/modelUnavailableSignal.ts` so the
+ * spell create/edit + TTS paths can reuse the exact same wiring.
+ */
+async function handleAiCallError(
+    err: unknown,
+    appId: number | null,
+    taskKey: TaskKey,
+    modelId: string,
+): Promise<never> {
+    signalModelUnavailable(appId, taskKey, err, modelId);
+    throw err;
 }
 
 async function checkAndMarkFirstAiUse(): Promise<boolean> {
@@ -524,8 +545,13 @@ export const aiCapability: CapabilityModule = {
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
                     return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
-                    const errorMsg = e instanceof Error ? e.message : 'Error';
-                    return { success: false, result: errorMsg };
+                    try {
+                        await handleAiCallError(e, ctx.appId, gate.taskKey, gate.modelId);
+                    } catch (rethrown) {
+                        const errorMsg = rethrown instanceof Error ? rethrown.message : 'Error';
+                        return { success: false, result: errorMsg };
+                    }
+                    return { success: false, result: 'Error' };
                 }
             }
 
@@ -543,8 +569,13 @@ export const aiCapability: CapabilityModule = {
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
                     return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
-                    const errorMsg = e instanceof Error ? e.message : 'Error';
-                    return { success: false, result: errorMsg };
+                    try {
+                        await handleAiCallError(e, ctx.appId, gate.taskKey, gate.modelId);
+                    } catch (rethrown) {
+                        const errorMsg = rethrown instanceof Error ? rethrown.message : 'Error';
+                        return { success: false, result: errorMsg };
+                    }
+                    return { success: false, result: 'Error' };
                 }
             }
 
@@ -562,8 +593,13 @@ export const aiCapability: CapabilityModule = {
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
                     return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
-                    const errorMsg = e instanceof Error ? e.message : 'Error';
-                    return { success: false, result: errorMsg };
+                    try {
+                        await handleAiCallError(e, ctx.appId, gate.taskKey, gate.modelId);
+                    } catch (rethrown) {
+                        const errorMsg = rethrown instanceof Error ? rethrown.message : 'Error';
+                        return { success: false, result: errorMsg };
+                    }
+                    return { success: false, result: 'Error' };
                 }
             }
 
@@ -582,8 +618,13 @@ export const aiCapability: CapabilityModule = {
                     const isFirstAiUse = await checkAndMarkFirstAiUse();
                     return { success: true, result, creditsUsed: costUsd, isFirstAiUse };
                 } catch (e) {
-                    const errorMsg = e instanceof Error ? e.message : 'Error';
-                    return { success: false, result: errorMsg };
+                    try {
+                        await handleAiCallError(e, ctx.appId, gate.taskKey, gate.modelId);
+                    } catch (rethrown) {
+                        const errorMsg = rethrown instanceof Error ? rethrown.message : 'Error';
+                        return { success: false, result: errorMsg };
+                    }
+                    return { success: false, result: 'Error' };
                 }
             }
 

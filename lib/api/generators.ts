@@ -12,7 +12,8 @@
  */
 
 import { chat as openrouterChat, OpenRouterError, type ChatResponse, type ChatMessage } from './openrouter';
-import { MODELS, OR_REASONING_HIGH, OR_WEB_SEARCH, calculateCostUsd } from './pricing';
+import { OR_REASONING_HIGH, OR_WEB_SEARCH, calculateCostUsd } from './pricing';
+import { getPreferredModel } from './modelPreferences';
 import {
     UNIFIED_CREATE_PLANNER_PROMPT,
     UNIFIED_CREATE_CODE_PROMPT,
@@ -33,6 +34,7 @@ import {
     fixCallbackPatterns,
     applyPatches,
     withRetry,
+    makeRetryableEmptyResponseError,
     accUsage,
     emptyUsage,
     type GenerationUsage,
@@ -82,11 +84,13 @@ function makeSystemContent(text: string): ChatMessage {
 
 // Prefer OpenRouter's reported usage.cost (already includes web search + reasoning)
 // and fall back to local per-token pricing when the field is missing. Same guard
-// as the WebView AI path in lib/api/ai.ts.
-function resolveCostUsd(usage: GenerationUsage): number {
+// as the WebView AI path in lib/api/ai.ts. `modelId` is the effective model
+// actually called (respects user's preference), so the fallback matches what
+// OpenRouter would have charged for that specific model.
+function resolveCostUsd(usage: GenerationUsage, modelId: string): number {
     return usage.reportedCostUsd > 0
         ? usage.reportedCostUsd
-        : calculateCostUsd(MODELS.SPELL_S, usage);
+        : calculateCostUsd(modelId, usage);
 }
 
 // Sniff audio container from magic bytes on the raw base64 (no decoding
@@ -153,6 +157,7 @@ export interface CreateParams {
  */
 export async function generateSpellCreate(params: CreateParams): Promise<CreateResult> {
     const { prompt, appVersion, signal, onProgress } = params;
+    const spellModel = await getPreferredModel('SPELL_S');
     let lastError: unknown;
 
     for (let attempt = 0; attempt <= 2; attempt++) {
@@ -174,7 +179,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
                         let res: ChatResponse;
                         try {
                             res = await openrouterChat({
-                                model: MODELS.SPELL_S,
+                                model: spellModel,
                                 messages,
                                 ...OR_REASONING_HIGH,
                                 ...OR_WEB_SEARCH,
@@ -190,7 +195,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
                             if (err instanceof OpenRouterError && (err.status ?? 0) >= 500) {
                                 console.warn('[generateSpellCreate.callModel] Upstream 5xx com web plugin; retry sem web');
                                 res = await openrouterChat({
-                                    model: MODELS.SPELL_S,
+                                    model: spellModel,
                                     messages,
                                     ...OR_REASONING_HIGH,
                                     max_tokens: SPELL_MAX_TOKENS,
@@ -205,7 +210,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
                         const reason = res.choices?.[0]?.finish_reason ?? 'unknown';
                         if (reason === 'tool_calls') {
                             const retry = await openrouterChat({
-                                model: MODELS.SPELL_S,
+                                model: spellModel,
                                 messages,
                                 ...OR_REASONING_HIGH,
                                 max_tokens: SPELL_MAX_TOKENS,
@@ -214,7 +219,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
                             });
                             if (extractText(retry)) return retry;
                         }
-                        throw new Error(`Empty AI response (finish_reason: ${reason})`);
+                        throw makeRetryableEmptyResponseError(reason);
                     }),
                 );
 
@@ -289,7 +294,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
             html = currentHtml;
 
             const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-            const costUsd = resolveCostUsd(usage);
+            const costUsd = resolveCostUsd(usage, spellModel);
             onProgress?.({ type: 'completed' });
             return {
                 html,
@@ -387,6 +392,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
 
     const editPlannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
     const editPatcherSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+    const spellModel = await getPreferredModel('SPELL_S');
 
     let lastError: unknown;
     for (let attempt = 0; attempt <= 2; attempt++) {
@@ -404,7 +410,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
                         let res: ChatResponse;
                         try {
                             res = await openrouterChat({
-                                model: MODELS.SPELL_S,
+                                model: spellModel,
                                 messages,
                                 ...OR_REASONING_HIGH,
                                 ...OR_WEB_SEARCH,
@@ -416,7 +422,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
                             if (err instanceof OpenRouterError && (err.status ?? 0) >= 500) {
                                 console.warn('[generateSpellEdit.callEditModel] Upstream 5xx com web plugin; retry sem web');
                                 res = await openrouterChat({
-                                    model: MODELS.SPELL_S,
+                                    model: spellModel,
                                     messages,
                                     ...OR_REASONING_HIGH,
                                     max_tokens: SPELL_MAX_TOKENS,
@@ -431,7 +437,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
                         const reason = res.choices?.[0]?.finish_reason ?? 'unknown';
                         if (reason === 'tool_calls') {
                             const retry = await openrouterChat({
-                                model: MODELS.SPELL_S,
+                                model: spellModel,
                                 messages,
                                 ...OR_REASONING_HIGH,
                                 max_tokens: SPELL_MAX_TOKENS,
@@ -440,7 +446,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
                             });
                             if (extractText(retry)) return retry;
                         }
-                        throw new Error(`Empty AI response (finish_reason: ${reason})`);
+                        throw makeRetryableEmptyResponseError(reason);
                     }),
                 );
 
@@ -496,7 +502,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
                 throw new Error(`Edit failed: ${initErrors[0]?.message}`);
             }
 
-            const costUsd = resolveCostUsd(usage);
+            const costUsd = resolveCostUsd(usage, spellModel);
             onProgress?.({ type: 'completed' });
             return { html, usage, costUsd, initialValidationErrors: initErrors };
         } catch (err) {
@@ -534,20 +540,21 @@ export async function generateConvert(params: ConvertParams): Promise<ConvertRes
     const { sourceCode, frameworkHint, appVersion, signal } = params;
     const usage = emptyUsage();
     const sys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+    const spellModel = await getPreferredModel('SPELL_S');
 
     const userMsg = `${CONVERT_PROJECT_PROMPT}\n\n--- SOURCE${frameworkHint ? ` (${frameworkHint})` : ''} ---\n\`\`\`\n${sourceCode}\n\`\`\``;
 
     const result = await raceTimeout(
         withRetry(async () => {
             const res = await openrouterChat({
-                model: MODELS.SPELL_S,
+                model: spellModel,
                 messages: [makeSystemContent(sys), makeUserContent(userMsg)],
                 ...OR_REASONING_HIGH,
                 signal,
             });
             if (!extractText(res)) {
-                throw new Error(
-                    `Empty AI response (finish_reason: ${res.choices?.[0]?.finish_reason ?? 'unknown'})`,
+                throw makeRetryableEmptyResponseError(
+                    res.choices?.[0]?.finish_reason ?? 'unknown',
                 );
             }
             return res;
@@ -557,7 +564,7 @@ export async function generateConvert(params: ConvertParams): Promise<ConvertRes
 
     const html = fixCallbackPatterns(extractHtml(extractText(result)));
     if (!html) throw new Error('AI returned empty response');
-    const costUsd = resolveCostUsd(usage);
+    const costUsd = resolveCostUsd(usage, spellModel);
     return { html, usage, costUsd };
 }
 
@@ -637,7 +644,7 @@ export async function generateWebviewAI(params: WebviewAIParams): Promise<Webvie
     let tools = requestedTools ?? [];
     if (useSearch && !tools.includes('googleSearch')) tools = [...tools, 'googleSearch'];
     const useWebSearch = tools.includes('googleSearch') || tools.includes('googleMaps');
-    const effectiveModel = requestedModel ?? MODELS.WEBVIEW;
+    const effectiveModel = requestedModel ?? (await getPreferredModel('WEBVIEW'));
 
     const userContent: Array<{ type: string; [key: string]: unknown }> = [
         { type: 'text', text: prompt },

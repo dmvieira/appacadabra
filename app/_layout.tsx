@@ -10,6 +10,7 @@ import { t } from '../lib/i18n';
 import ShareReceiver from '../components/ShareReceiver';
 import { CostEstimateModal } from '../components/CostEstimateModal';
 import { KeyMissingModal } from '../components/KeyMissingModal';
+import { ModelUnavailableModal } from '../components/ModelUnavailableModal';
 import { GenerationErrorModal } from '../components/GenerationErrorModal';
 import { LargePayloadConfirmModal } from '../components/LargePayloadConfirmModal';
 import { Toast } from '../components/Toast';
@@ -380,6 +381,7 @@ export default function RootLayout() {
             <ShareReceiver />
             <CostEstimateModal />
             <KeyMissingModal />
+            <ModelUnavailableModal />
             <GenerationErrorModal />
             <LargePayloadConfirmModal />
             <ToastComponent />

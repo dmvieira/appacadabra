@@ -35,20 +35,51 @@ export type OpenRouterErrorCode =
     | 'byok.error.upstream'
     | 'byok.error.network'
     | 'byok.error.aborted'
-    | 'byok.error.parse';
+    | 'byok.error.parse'
+    | 'byok.error.modelUnavailable';
 
 export class OpenRouterError extends Error {
     readonly code: OpenRouterErrorCode;
     readonly status?: number;
     readonly retryable: boolean;
+    /** Set when `code === 'byok.error.modelUnavailable'` so callers can surface the affected model in UI. */
+    readonly modelId?: string;
 
-    constructor(code: OpenRouterErrorCode, message: string, status?: number, retryable = false) {
+    constructor(
+        code: OpenRouterErrorCode,
+        message: string,
+        status?: number,
+        retryable = false,
+        modelId?: string,
+    ) {
         super(message);
         this.name = 'OpenRouterError';
         this.code = code;
         this.status = status;
         this.retryable = retryable;
+        this.modelId = modelId;
     }
+}
+
+const MODEL_UNAVAILABLE_CODES = new Set([
+    'model_not_found',
+    'model_unavailable',
+    'invalid_model',
+]);
+const MODEL_UNAVAILABLE_MSG_HINTS = ['not a valid model', 'does not exist', 'no endpoints found'];
+
+function looksLikeModelUnavailable(bodyText: string): boolean {
+    try {
+        const parsed = JSON.parse(bodyText) as { error?: { code?: string; message?: string } };
+        const code = parsed.error?.code;
+        if (code && MODEL_UNAVAILABLE_CODES.has(code)) return true;
+        const msg = (parsed.error?.message ?? '').toLowerCase();
+        if (msg && MODEL_UNAVAILABLE_MSG_HINTS.some(h => msg.includes(h))) return true;
+    } catch {
+        // Non-JSON error body — fall through to substring check.
+    }
+    const lower = bodyText.toLowerCase();
+    return MODEL_UNAVAILABLE_MSG_HINTS.some(h => lower.includes(h));
 }
 
 export interface ChatMessage {
@@ -123,7 +154,7 @@ async function buildHeaders(noCache?: boolean): Promise<Record<string, string>> 
     };
 }
 
-function mapHttpError(status: number, bodyText: string): OpenRouterError {
+function mapHttpError(status: number, bodyText: string, modelId?: string): OpenRouterError {
     const snippet = bodyText.slice(0, 300);
     if (status === 401 || status === 403) {
         return new OpenRouterError('byok.error.invalidKey', `Auth rejected: ${snippet}`, status);
@@ -133,6 +164,15 @@ function mapHttpError(status: number, bodyText: string): OpenRouterError {
     }
     if (status === 429) {
         return new OpenRouterError('byok.error.rateLimited', `Rate limited: ${snippet}`, status, true);
+    }
+    if (status === 404 || (status === 400 && looksLikeModelUnavailable(bodyText))) {
+        return new OpenRouterError(
+            'byok.error.modelUnavailable',
+            `Model unavailable: ${snippet}`,
+            status,
+            false,
+            modelId,
+        );
     }
     if (status >= 500) {
         return new OpenRouterError('byok.error.upstream', `Upstream ${status}: ${snippet}`, status, true);
@@ -179,7 +219,8 @@ async function rawFetchOnce(
 
     if (!response.ok) {
         const text = await response.text().catch(() => '');
-        throw mapHttpError(response.status, text);
+        const modelId = (body as { model?: string }).model;
+        throw mapHttpError(response.status, text, modelId);
     }
     return response;
 }
@@ -465,6 +506,112 @@ function bytesToBase64(bytes: Uint8Array): string {
         binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, end)));
     }
     return btoa(binary);
+}
+
+// ============= MUSIC =============
+
+export interface MusicRequest {
+    model: string;
+    prompt: string;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+}
+
+export interface MusicResponse {
+    audioBase64: string;
+    mimeType: string;
+    usage?: OpenRouterUsage;
+}
+
+/**
+ * Music generation via OpenRouter's chat-completions with audio output
+ * modality. Lyria (google/lyria-3-pro-preview) requires `stream: true` and
+ * streams base64 WAV chunks in `delta.audio.data`; we accumulate them into a
+ * single string.
+ *
+ * Falls back to non-streaming if `response.body.getReader` is unavailable,
+ * reading `message.audio.data` from a single JSON response (same degradation
+ * pattern used by `chatStream`).
+ */
+export async function generateMusic(req: MusicRequest): Promise<MusicResponse> {
+    const body = {
+        model: req.model,
+        messages: [{ role: 'user' as const, content: req.prompt }],
+        modalities: ['text', 'audio'],
+        audio: { format: 'wav' },
+        stream: true,
+        usage: { include: true },
+    };
+
+    const response = await rawFetch('/chat/completions', body, {
+        signal: req.signal,
+        timeoutMs: req.timeoutMs ?? 240_000,
+        accept: 'text/event-stream',
+    });
+
+    const reader = response.body && typeof (response.body as ReadableStream).getReader === 'function'
+        ? (response.body as ReadableStream<Uint8Array>).getReader()
+        : null;
+
+    if (!reader) {
+        // Streaming unsupported — re-issue without stream and read the whole
+        // audio payload from the single response.
+        const fallbackBody = { ...body, stream: false };
+        const fallbackResponse = await rawFetch('/chat/completions', fallbackBody, {
+            signal: req.signal,
+            timeoutMs: req.timeoutMs ?? 240_000,
+        });
+        const json = (await fallbackResponse.json()) as {
+            choices: Array<{ message: { audio?: { data?: string } } }>;
+            usage?: OpenRouterUsage;
+        };
+        const data = json.choices?.[0]?.message?.audio?.data ?? '';
+        if (!data) throw new OpenRouterError('byok.error.parse', 'No audio in music response');
+        return { audioBase64: data, mimeType: 'audio/wav', usage: json.usage };
+    }
+
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let audioBase64 = '';
+    let finalUsage: OpenRouterUsage | undefined;
+
+    try {
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            let nlIdx: number;
+            while ((nlIdx = buffer.indexOf('\n')) >= 0) {
+                const line = buffer.slice(0, nlIdx).replace(/\r$/, '');
+                buffer = buffer.slice(nlIdx + 1);
+                if (!line.startsWith('data:')) continue;
+                const data = line.slice(5).trim();
+                if (!data) continue;
+                if (data === '[DONE]') {
+                    if (!audioBase64) throw new OpenRouterError('byok.error.parse', 'Empty music response');
+                    return { audioBase64, mimeType: 'audio/wav', usage: finalUsage };
+                }
+                try {
+                    const evt = JSON.parse(data) as {
+                        choices?: Array<{ delta?: { audio?: { data?: string } } }>;
+                        usage?: OpenRouterUsage;
+                    };
+                    const chunk = evt.choices?.[0]?.delta?.audio?.data;
+                    if (chunk) audioBase64 += chunk;
+                    if (evt.usage) finalUsage = evt.usage;
+                } catch {
+                    // Ignore malformed SSE frames — matches chatStream's tolerance
+                    // for keepalive comments and partial JSON across chunks.
+                }
+            }
+        }
+    } finally {
+        try { reader.releaseLock(); } catch { /* noop */ }
+    }
+
+    if (!audioBase64) throw new OpenRouterError('byok.error.parse', 'Empty music response');
+    return { audioBase64, mimeType: 'audio/wav', usage: finalUsage };
 }
 
 // ============= VIDEO (submit + poll) =============

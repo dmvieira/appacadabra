@@ -25,6 +25,7 @@ const OPERATION_ICONS: Record<ManaOperationType, string> = {
     image: '🖼️',
     video: '🎬',
     audio: '🔊',
+    music: '🎵',
     similarity: '🔍',
 };
 
@@ -33,6 +34,7 @@ const OPERATION_LABEL_KEYS: Record<ManaOperationType, string> = {
     image: 'costEstimateOpImage',
     video: 'costEstimateOpVideo',
     audio: 'costEstimateOpAudio',
+    music: 'costEstimateOpMusic',
     similarity: 'costEstimateOpSimilarity',
 };
 

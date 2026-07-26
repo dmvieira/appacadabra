@@ -34,6 +34,7 @@ import {
 } from './api/generatorStages';
 import { logAppCreated, logAppEdited } from './analytics';
 import type { PendingJob } from './database/types';
+import { extractUnavailableModelId } from './api/modelUnavailableSignal';
 
 interface TaskData {
     taskKey: string;
@@ -99,8 +100,9 @@ export async function runJobWithReporting(
             error instanceof Error && 'code' in error
                 ? String((error as Error & { code: unknown }).code)
                 : 'unknown';
-        await persistFailure(jobId, code, message);
-        DeviceEventEmitter.emit('BGGenFailed', { jobId, code, message });
+        const modelId = extractUnavailableModelId(error);
+        await persistFailure(jobId, code, message, modelId);
+        DeviceEventEmitter.emit('BGGenFailed', { jobId, code, message, modelId });
     } finally {
         // Android: clears the WorkManager watchdog so a completed job does
         // not fire the resume path 20 min later. No-op on iOS (native side
@@ -110,7 +112,7 @@ export async function runJobWithReporting(
 }
 
 export async function runCreateJob(p: CreateParams): Promise<void> {
-    const state = initCreateState({ prompt: p.prompt, appVersion: getAppVersion(p.appVersion) });
+    const state = await initCreateState({ prompt: p.prompt, appVersion: getAppVersion(p.appVersion) });
     await persistState(p.jobId, state);
     emitProgress(p.jobId, state);
 
@@ -133,7 +135,7 @@ export async function runCreateJob(p: CreateParams): Promise<void> {
 }
 
 export async function runEditJob(p: EditParams): Promise<void> {
-    const state = initEditState({
+    const state = await initEditState({
         currentCode: p.currentCode,
         instruction: p.instruction,
         appVersion: getAppVersion(p.appVersion),
@@ -175,7 +177,7 @@ export async function runResumeJob(jobId: string): Promise<void> {
     if (row.currentStage === 'complete') return; // completion just hasn't been reconciled yet
 
     if (row.type === 'create') {
-        const state = rebuildCreateState(row);
+        const state = await rebuildCreateState(row);
         await persistState(jobId, state);
         emitProgress(jobId, state);
         const result = await driveInProcess(state, nextCreateStage, {
@@ -203,7 +205,7 @@ export async function runResumeJob(jobId: string): Promise<void> {
         const previousEdits = await db.getVersionsForApp(row.appId).then(vs =>
             vs.map(v => ({ version: v.version, instruction: v.instruction ?? '' })),
         );
-        const state = rebuildEditState(row, app.code, previousEdits);
+        const state = await rebuildEditState(row, app.code, previousEdits);
         await persistState(jobId, state);
         emitProgress(jobId, state);
         const result = await driveInProcess(state, nextEditStage, {
@@ -226,17 +228,17 @@ export async function runResumeJob(jobId: string): Promise<void> {
     throw new Error(`resume: unsupported pending_job type ${row.type}`);
 }
 
-function rebuildCreateState(row: PendingJob): CreateJobState {
-    const base = initCreateState({ prompt: row.promptText, appVersion: getAppVersion() });
+async function rebuildCreateState(row: PendingJob): Promise<CreateJobState> {
+    const base = await initCreateState({ prompt: row.promptText, appVersion: getAppVersion() });
     return overlayPersistedCursor(base, row) as CreateJobState;
 }
 
-function rebuildEditState(
+async function rebuildEditState(
     row: PendingJob,
     currentCode: string,
     previousEdits: { version: number; instruction: string }[],
-): EditJobState {
-    const base = initEditState({
+): Promise<EditJobState> {
+    const base = await initEditState({
         currentCode,
         instruction: row.promptText,
         appVersion: getAppVersion(),
@@ -339,7 +341,12 @@ async function persistCompletion(
     }
 }
 
-async function persistFailure(jobId: string, code: string, message: string): Promise<void> {
+async function persistFailure(
+    jobId: string,
+    code: string,
+    message: string,
+    modelId: string | null,
+): Promise<void> {
     try {
         const existing = await db.getPendingJob(jobId);
         if (!existing) return;
@@ -347,7 +354,11 @@ async function persistFailure(jobId: string, code: string, message: string): Pro
             ...existing,
             status: 'failed',
             lastErrorCode: code,
-            lastErrorMessage: message,
+            // For model-unavailable, stamp the modelId so the reconciler in
+            // store.ts can name the specific dead model when it dispatches
+            // ModelUnavailableModal after a background job failed while the
+            // main JS context was down.
+            lastErrorMessage: modelId ?? message,
             updatedAt: Date.now(),
         });
     } catch {

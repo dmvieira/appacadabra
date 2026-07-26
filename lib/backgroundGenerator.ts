@@ -53,6 +53,8 @@ export interface BgGenFailedEvent {
     jobId: string;
     code: string;
     message: string;
+    /** Present when code === 'byok.error.modelUnavailable'. */
+    modelId?: string | null;
 }
 
 export interface StartCreateParams {
