@@ -1275,7 +1275,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                 } catch {
                     // Treat status errors as "not running" — the row is stale.
                 }
-                const resumed = await bgGen.resume(j.jobId).catch(() => false);
+                const resumed = await bgGen.resume(j.jobId, t('generatingApp')).catch(() => false);
                 if (resumed) continue;
                 stale.push(j);
             }

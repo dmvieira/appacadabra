@@ -108,6 +108,12 @@ export async function runJobWithReporting(
         // not fire the resume path 20 min later. No-op on iOS (native side
         // does not expose clearWatchdog), which matches intent.
         clearWatchdog(jobId);
+        // Belt-and-suspenders: HeadlessJsTaskService.onHeadlessJsTaskFinish
+        // is unreliable on some OEM ROMs (see comment in
+        // BackgroundGeneratorModule.finishJob). The store's onCompleted/
+        // onFailed subscription also calls finishJob; both calls are
+        // idempotent, so double-firing is safe.
+        await finishFgsInline(jobId);
     }
 }
 
@@ -172,9 +178,27 @@ export async function runEditJob(p: EditParams): Promise<void> {
  */
 export async function runResumeJob(jobId: string): Promise<void> {
     const row = await db.getPendingJob(jobId);
-    if (!row) return;
-    if (row.status !== 'processing') return; // already terminal — nothing to do
-    if (row.currentStage === 'complete') return; // completion just hasn't been reconciled yet
+    if (!row) {
+        // No row — the FGS was spawned by a resume for a jobId that has
+        // already been deleted. Stop it so the ongoing notification does not
+        // linger on OEM ROMs where onHeadlessJsTaskFinish cleanup is flaky.
+        await finishFgsInline(jobId);
+        return;
+    }
+    if (row.status !== 'processing') {
+        // Row transitioned to a terminal state elsewhere — nothing to resume.
+        await finishFgsInline(jobId);
+        return;
+    }
+    if (row.currentStage === 'complete') {
+        // Pipeline had already finished but the completion handler in the
+        // store never ran (app killed/backgrounded before BGGenCompleted
+        // fired). Delete the orphan row so reconcile stops re-triggering
+        // resume, then tear down the FGS.
+        try { await db.deletePendingJob(jobId); } catch { /* best-effort */ }
+        await finishFgsInline(jobId);
+        return;
+    }
 
     if (row.type === 'create') {
         const state = await rebuildCreateState(row);
@@ -277,6 +301,28 @@ function clearWatchdog(jobId: string): void {
         | { clearWatchdog?: (jobId: string) => Promise<void> }
         | undefined;
     native?.clearWatchdog?.(jobId).catch(() => {});
+}
+
+/**
+ * Stop the Android FGS for a job without going through the store's
+ * subscription. Called from `runResumeJob` early-return paths where no
+ * BGGen* event is emitted, and from `runJobWithReporting`'s finally block as
+ * belt-and-suspenders against OEM ROMs that ignore
+ * `HeadlessJsTaskService.onHeadlessJsTaskFinish` cleanup.
+ *
+ * Inline (does not import from `backgroundGenerator.ts`) to avoid a circular
+ * dependency — that module already imports from this file.
+ */
+async function finishFgsInline(jobId: string): Promise<void> {
+    const native = (NativeModules as Record<string, unknown>).BackgroundGenerator as
+        | { finishJob?: (jobId: string) => Promise<void> }
+        | undefined;
+    try {
+        await native?.finishJob?.(jobId);
+    } catch {
+        // Best-effort. If the module is missing or the call fails, the RN
+        // task-finish path is still there as a fallback.
+    }
 }
 
 function emitProgress(jobId: string, state: CreateJobState | EditJobState): void {

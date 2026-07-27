@@ -176,10 +176,15 @@ export default function RootLayout() {
         // Reconcile pending_jobs on cold start: any 'processing' row past
         // the platform staleness floor (30s iOS / 15min Android) that this
         // process is not actively driving gets resumed from the last
-        // persisted stage or marked failed.
-        useAppStore.getState().reconcilePendingJobs().catch(err => {
-            console.warn('RootLayout: reconcilePendingJobs failed:', err);
-        });
+        // persisted stage or marked failed. After reconcile, reap any FGS
+        // notification that lingered from a previous session (OEM ROMs
+        // sometimes leave the ongoing "Appacadabra" notification pinned
+        // past its `stopForeground` teardown).
+        useAppStore.getState().reconcilePendingJobs()
+            .then(() => bgGen.stopServiceIfIdle())
+            .catch(err => {
+                console.warn('RootLayout: reconcilePendingJobs failed:', err);
+            });
 
         // Check for notification permissions
         (async () => {
@@ -242,22 +247,28 @@ export default function RootLayout() {
             const now = Date.now();
             if (now - lastReconcileAt < 5_000) return;
             lastReconcileAt = now;
-            useAppStore.getState().reconcilePendingJobs().catch(err => {
-                console.warn('AppState: reconcilePendingJobs failed:', err);
-            });
+            useAppStore.getState().reconcilePendingJobs()
+                .then(() => bgGen.stopServiceIfIdle())
+                .catch(err => {
+                    console.warn('AppState: reconcilePendingJobs failed:', err);
+                });
         };
         const appStateSub = AppState.addEventListener('change', (next) => {
             if (next === 'active') {
                 maybeSyncStoreState();
                 maybeReconcilePendingJobs();
             }
-            // iOS: when going to background with an in-flight generation,
-            // ask iOS to opportunistically wake us via BGProcessingTask.
-            // Non-Android because the FGS keeps the process alive without
-            // OS scheduling help. Safe even with no active jobs — the
-            // handler no-ops if reconcile finds nothing to do.
-            if (Platform.OS === 'ios' && (next === 'background' || next === 'inactive')) {
-                if (bgGen.activeInProcessJobCount() > 0) {
+            if (next === 'background' || next === 'inactive') {
+                // Android: reap any zombie FGS notification if no work is
+                // active. No-op when a generation is genuinely running.
+                if (Platform.OS === 'android') {
+                    bgGen.stopServiceIfIdle().catch(() => {});
+                }
+                // iOS: when going to background with an in-flight generation,
+                // ask iOS to opportunistically wake us via BGProcessingTask.
+                // Safe even with no active jobs — the handler no-ops if
+                // reconcile finds nothing to do.
+                if (Platform.OS === 'ios' && bgGen.activeInProcessJobCount() > 0) {
                     bgGen.scheduleBackgroundProcessing().catch(() => {});
                 }
             }

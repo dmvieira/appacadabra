@@ -101,8 +101,12 @@ interface NativeBackgroundGenerator {
      * Android only. Starts the FGS in resume mode for a job that is still
      * `processing` in the DB but no longer running in native. The JS-side
      * task reads pending_jobs and re-drives the state machine.
+     *
+     * `title` is the localized string shown in the ongoing FGS notification.
+     * Passing null falls back to the app label ("Appacadabra"), which the
+     * user sees as an untitled zombie notification — always pass a title.
      */
-    resume?(jobId: string): Promise<void>;
+    resume?(jobId: string, title: string | null): Promise<void>;
     /**
      * Android only. Cancels the WorkManager watchdog for a job. Called from
      * the JS task at terminal states so a completed happy-path job doesn't
@@ -117,6 +121,12 @@ interface NativeBackgroundGenerator {
      * the WebViewAiKeepAliveModule.release() pattern.
      */
     finishJob?(jobId: string): Promise<void>;
+    /**
+     * Android only. Idempotent reaper — stops the FGS iff the native side is
+     * not tracking any active job. Used by AppState handlers to clean up
+     * zombie notifications that lingered past a normal teardown on OEM ROMs.
+     */
+    stopServiceIfIdle?(): Promise<void>;
     /**
      * iOS only. Submits a BGProcessingTaskRequest to iOS for opportunistic
      * background wake-up while the app is suspended. Handler (in
@@ -222,13 +232,13 @@ export function activeInProcessJobCount(): number {
  * iOS resume; false when no path is available (e.g. neither native nor
  * a pending row).
  */
-export async function resume(jobId: string): Promise<boolean> {
+export async function resume(jobId: string, title?: string | null): Promise<boolean> {
     const native = getNativeModule();
 
     // Android — hand off to the FGS in resume mode.
     if (Platform.OS === 'android' && native?.resume) {
         try {
-            await native.resume(jobId);
+            await native.resume(jobId, title ?? null);
             return true;
         } catch {
             return false;
@@ -316,6 +326,22 @@ export async function finishJob(jobId: string): Promise<void> {
         await native.finishJob(jobId);
     } catch {
         // Best-effort — the RN task-finish path is still there as a fallback.
+    }
+}
+
+/**
+ * Reap the FGS if no job is being tracked as active by the native module.
+ * Called by AppState transitions and after reconcile so that a lingering
+ * "Appacadabra" ongoing notification (survived past teardown on OEM ROMs)
+ * gets cleaned up. No-op when a real job is running. Android only.
+ */
+export async function stopServiceIfIdle(): Promise<void> {
+    const native = getNativeModule();
+    if (!native?.stopServiceIfIdle) return;
+    try {
+        await native.stopServiceIfIdle();
+    } catch {
+        // Best-effort — a stuck FGS still eventually dies with the process.
     }
 }
 

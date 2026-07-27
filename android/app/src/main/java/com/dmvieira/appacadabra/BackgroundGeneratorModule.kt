@@ -54,7 +54,7 @@ class BackgroundGeneratorModule(private val reactContext: ReactApplicationContex
     }
 
     @ReactMethod
-    fun resume(jobId: String, promise: Promise) {
+    fun resume(jobId: String, title: String?, promise: Promise) {
         // Called from JS reconcile at boot when a `processing` pending_jobs
         // row exists but the native side no longer reports the job as
         // running. Starts the FGS with `taskKey='resume'` — the JS-side
@@ -68,10 +68,13 @@ class BackgroundGeneratorModule(private val reactContext: ReactApplicationContex
                     BackgroundGeneratorService.EXTRA_PARAMS_JSON,
                     org.json.JSONObject().put("jobId", jobId).toString(),
                 )
+                if (!title.isNullOrBlank()) {
+                    putExtra(BackgroundGeneratorService.EXTRA_TITLE, title)
+                }
             }
             reactContext.startForegroundService(intent)
             // Re-arm the watchdog so a killed resume also gets retried.
-            BackgroundGeneratorWorker.enqueue(reactContext, jobId, null)
+            BackgroundGeneratorWorker.enqueue(reactContext, jobId, title)
             promise.resolve(null)
         } catch (e: Exception) {
             promise.reject("BG_GEN_RESUME", e.message, e)
@@ -117,6 +120,26 @@ class BackgroundGeneratorModule(private val reactContext: ReactApplicationContex
         val intent = Intent(reactContext, BackgroundGeneratorService::class.java)
         reactContext.stopService(intent)
         promise.resolve(null)
+    }
+
+    /**
+     * Idempotent reaper — stops BackgroundGeneratorService iff nothing is
+     * being tracked as active on the native side (`activeJobIds.isEmpty()`).
+     * Covers the case where the FGS notification lingered as a zombie on an
+     * OEM ROM despite `stopForeground(STOP_FOREGROUND_REMOVE)`. Safe to call
+     * from AppState transitions; becomes a no-op when a real job is running.
+     */
+    @ReactMethod
+    fun stopServiceIfIdle(promise: Promise) {
+        try {
+            if (activeJobIds.isEmpty()) {
+                val intent = Intent(reactContext, BackgroundGeneratorService::class.java)
+                reactContext.stopService(intent)
+            }
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.resolve(null)
+        }
     }
 
     @ReactMethod
