@@ -186,25 +186,11 @@ No `ShareExtension/Info.plist`, verificar que `NSExtension → NSExtensionAttrib
 
 ---
 
-## 4. Google AdMob — Verificar iOS App ID
-
-**Quando fazer:** Antes do build de release.
-
-1. Aceder a [admob.google.com](https://admob.google.com)
-2. Verificar se existe uma app iOS configurada
-3. O `ios_app_id` em `app.json` está atualmente igual ao Android: `ca-app-pub-2256826632523784~6570613208`
-4. Se o AdMob tiver um ID separado para iOS, atualizar em `app.json`:
-   ```json
-   "iosAppId": "ca-app-pub-XXXXXXXXXX~XXXXXXXXXX"
-   ```
-
----
-
-## 5. App Store Connect — Criar App e Configurar IAP
+## 4. App Store Connect — Criar App
 
 **Quando fazer:** Antes de submeter o build.
 
-### 5a. Criar a app
+### 4a. Criar a app
 
 1. Aceder a [appstoreconnect.apple.com](https://appstoreconnect.apple.com)
 2. Apps → **+** → New App
@@ -215,20 +201,7 @@ No `ShareExtension/Info.plist`, verificar que `NSExtension → NSExtensionAttrib
    - Bundle ID: `ai.appacadabra.app`
    - SKU: `appacadabra-ios` (identificador interno)
 
-### 5b. Criar produtos IAP (Mana)
-
-1. Na app criada → Monetization → In-App Purchases → **+**
-2. Criar um produto para cada pacote de mana com o mesmo `productId` usado no Android
-3. Para cada produto:
-   - Type: **Consumable**
-   - Reference Name: nome descritivo (ex: "50 Mana")
-   - Product ID: usar o mesmo ID que o Google Play (ex: `mana_50`, `mana_200`, etc.)
-   - Price: definir na tabela de preços
-   - Display Name + Description: preencher em pelo menos inglês e português
-
-> ⚠️ Os produtos IAP precisam de estar em estado "Ready to Submit" antes de submeter o build.
-
-### 5c. Privacy Nutrition Labels
+### 4b. Privacy Nutrition Labels
 
 Em App Privacy, declarar o uso de:
 - **Location** — Precise Location (used for app functionality, not linked to identity)
@@ -239,7 +212,7 @@ Em App Privacy, declarar o uso de:
 
 ---
 
-## 6. Build iOS
+## 5. Build iOS
 
 **Quando fazer:** Após completar os passos 1–4.
 
@@ -264,7 +237,7 @@ expo run:ios
 
 ---
 
-## 7. TestFlight — Testar antes do Release
+## 6. TestFlight — Testar antes do Release
 
 1. Após upload do build via Xcode → App Store Connect → TestFlight
 2. Adicionar testadores internos
@@ -274,12 +247,11 @@ expo run:ios
    - [ ] Notificações e alarmes: disparam corretamente
    - [ ] Share Extension: partilhar texto/imagem de Safari → chega ao Appacadabra
    - [ ] Deep link `appacadabra://`: abre o app
-   - [ ] IAP (Mana): listar e comprar produtos em modo sandbox
    - [ ] Firebase: auth, Firestore, FCM funcionam
 
 ---
 
-## 8. Submissão App Store
+## 7. Submissão App Store
 
 1. App Store Connect → selecionar o build do TestFlight
 2. Preencher:
@@ -297,7 +269,6 @@ expo run:ios
 | 🔴 Crítico | Passo 1 — GoogleService-Info.plist | Sim |
 | 🔴 Crítico | Passo 2 — Apple Developer capabilities | Sim (entitlements) |
 | 🟡 Importante | Passo 3 — Share Extension | Não (app funciona sem ela) |
-| 🟡 Importante | Passo 4 — AdMob iOS ID | Não (ads apenas não funcionam) |
-| 🔴 Crítico | Passo 5 — App Store Connect + IAP | Sim (para submeter) |
-| 🔴 Crítico | Passo 6 — Build iOS | — |
-| 🟢 Recomendado | Passo 7 — TestFlight | Não (mas obrigatório por boas práticas) |
+| 🔴 Crítico | Passo 4 — App Store Connect | Sim (para submeter) |
+| 🔴 Crítico | Passo 5 — Build iOS | — |
+| 🟢 Recomendado | Passo 6 — TestFlight | Não (mas obrigatório por boas práticas) |
