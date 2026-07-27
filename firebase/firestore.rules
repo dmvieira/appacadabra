@@ -4,23 +4,11 @@ service cloud.firestore {
     // Users collection - each user can only access their own document
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      // clients may only write safe fields — credits is managed exclusively by Cloud Functions (Admin SDK)
       allow create: if request.auth != null && request.auth.uid == userId
         && request.resource.data.keys().hasOnly(['pushToken', 'locale']);
       allow update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pushToken', 'locale']);
       allow delete: if false;
-      
-      // Credit logs subcollection
-      match /creditLogs/{logId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        // Only functions can write (no client write)
-        allow write: if false;
-      }
-    }
-    // Install bonus dedup — somente Cloud Functions (Admin SDK) podem escrever
-    match /install_bonuses/{docId} {
-      allow read, write: if false;
     }
     // Jobs collection - Async Job Queue
     match /jobs/{jobId} {

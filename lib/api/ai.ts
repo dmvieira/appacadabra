@@ -63,7 +63,7 @@ export async function generateApp(description: string): Promise<ByokGenerationRe
     try {
         const result = await byokGenerateSpellCreate({ prompt: description, appVersion: getAppVersion() });
         const wrapped = toGenerationResult(result);
-        logAppCreated(0);
+        logAppCreated();
         return wrapped;
     } catch (err) {
         signalModelUnavailable(null, 'SPELL_S', err, await getPreferredModel('SPELL_S'));
@@ -84,7 +84,7 @@ export async function editApp(currentCode: string, instructions: string): Promis
             appVersion: getAppVersion(),
         });
         const wrapped = toGenerationResult(result);
-        logAppEdited(0);
+        logAppEdited();
         return wrapped;
     } catch (err) {
         signalModelUnavailable(null, 'SPELL_S', err, await getPreferredModel('SPELL_S'));
@@ -116,7 +116,7 @@ export async function editAppWithContext(
             selectedContext,
         });
         const wrapped = toGenerationResult(result);
-        logAppEdited(0);
+        logAppEdited();
         return wrapped;
     } catch (err) {
         signalModelUnavailable(null, 'SPELL_S', err, await getPreferredModel('SPELL_S'));
@@ -176,7 +176,7 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
         useSearch: search,
     });
 
-    logAiGenerate(0, !!(cleanImages?.length), !!(cleanAudios?.length));
+    logAiGenerate(!!(cleanImages?.length), !!(cleanAudios?.length));
     return {
         text: result.text,
         usage: result.usage,
@@ -261,7 +261,7 @@ export async function aiGenerateImage(prompt: string, imagesBase64?: string[], s
         ? (first.split(',')[1] ?? '')
         : first;
 
-    logAiGenerateImage(0);
+    logAiGenerateImage();
     const reportedCost = (usage as any)?.cost;
     const costUsd =
         typeof reportedCost === 'number' && reportedCost > 0

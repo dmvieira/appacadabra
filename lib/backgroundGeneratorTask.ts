@@ -130,7 +130,7 @@ export async function runCreateJob(p: CreateParams): Promise<void> {
     });
 
     await persistCompletion(p.jobId, result.html, result.usage, result.costUsd);
-    logAppCreated(0);
+    logAppCreated();
     DeviceEventEmitter.emit('BGGenCompleted', {
         jobId: p.jobId,
         html: result.html,
@@ -160,7 +160,7 @@ export async function runEditJob(p: EditParams): Promise<void> {
     });
 
     await persistCompletion(p.jobId, result.html, result.usage, result.costUsd);
-    logAppEdited(0);
+    logAppEdited();
     DeviceEventEmitter.emit('BGGenCompleted', {
         jobId: p.jobId,
         html: result.html,
@@ -211,7 +211,7 @@ export async function runResumeJob(jobId: string): Promise<void> {
             },
         });
         await persistCompletion(jobId, result.html, result.usage, result.costUsd);
-        logAppCreated(0);
+        logAppCreated();
         DeviceEventEmitter.emit('BGGenCompleted', {
             jobId,
             html: result.html,
@@ -239,7 +239,7 @@ export async function runResumeJob(jobId: string): Promise<void> {
             },
         });
         await persistCompletion(jobId, result.html, result.usage, result.costUsd);
-        logAppEdited(0);
+        logAppEdited();
         DeviceEventEmitter.emit('BGGenCompleted', {
             jobId,
             html: result.html,
