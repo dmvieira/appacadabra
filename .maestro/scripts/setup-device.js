@@ -48,7 +48,7 @@ const ADB = findAdb();
     // Preserving SharedPreferences keeps the Firebase auth session alive so
     // spell creation (which requires Firestore write access) works in tests.
     // PREREQUISITE: on first use, sign in manually with support@appacadabra.ai
-    // via the app's ManaShop → Google Sign-In flow to establish the Firebase session.
+    // via the app's Settings → BYOK → Google Sign-In flow to establish the Firebase session.
     try { adb(`shell am force-stop ${PACKAGE}`); } catch {}
     await sleep(500);
 
@@ -88,12 +88,11 @@ const ADB = findAdb();
 
     console.log('→ Writing AsyncStorage keys (skip onboarding)...');
     // @react-native-async-storage/async-storage v2 uses SQLite at databases/RKStorage
-    // DROP TABLE first so stale zustand-persist keys (e.g. isShopOpen:true) don't survive.
+    // DROP TABLE first so stale zustand-persist keys don't survive.
     const SQL = [
         `DROP TABLE IF EXISTS catalystLocalStorage;`,
         `CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL);`,
         `INSERT INTO catalystLocalStorage VALUES ('appacadabra_onboarding_seen','true');`,
-        `INSERT INTO catalystLocalStorage VALUES ('appacadabra_test_credits','100');`,
         `PRAGMA user_version = 1;`,
         `.quit`,
     ].join('\n');
@@ -131,7 +130,7 @@ const ADB = findAdb();
     // Launch app — first attempt may show black screen if Metro had a cold-start race.
     // If not rendering after 30s, force-stop and relaunch (retry always works).
     const DUMP_PATH = '/data/local/tmp/uidump.xml';
-    const APP_KEYWORDS = ['Fazer Fei', 'Cast Spell', 'Mana Acab', 'Out of Mana', 'Como funciona', 'Appacadabra'];
+    const APP_KEYWORDS = ['Fazer Fei', 'Cast Spell', 'Como funciona', 'Appacadabra'];
 
     function checkAppReady() {
         try {
