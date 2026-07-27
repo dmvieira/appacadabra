@@ -61,7 +61,6 @@ modules/*/ios/build/
 .gradle/
 local.properties
 *.hprof
-google-services.json
 .cxx/
 android/app/.cxx/
 android/app/build/generated/

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "901177243529",
+    "project_id": "appacadabra-bee0f",
+    "storage_bucket": "appacadabra-bee0f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:901177243529:android:1dc6d6618c9fb32d495358",
+        "android_client_info": {
+          "package_name": "ai.appacadabra.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "901177243529-25ssv32luh30j3ujd2qafvuum0md735f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.appacadabra.app",
+            "certificate_hash": "611c52ce8251c91742f3c847636c335b8bdcf83a"
+          }
+        },
+        {
+          "client_id": "901177243529-0vod4amdjigg9bvve0h1ebaa609hpdba.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCBAhy6QqwqRzrOTt0TXtyiRYDM89_JXc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "901177243529-0vod4amdjigg9bvve0h1ebaa609hpdba.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      },
+      "admob_app_id": "ca-app-pub-2256826632523784~6570613208"
+    }
+  ],
+  "configuration_version": "1"
+}

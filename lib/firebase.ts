@@ -98,19 +98,20 @@ async function initializeAppCheckWrapper() {
         // Debug tokens are only used in dev builds to avoid Play Integrity rate limits.
         // Production builds use Play Integrity (Android) / App Attest (iOS).
         if (__DEV__) {
+            const androidDebugToken = process.env.EXPO_PUBLIC_APPCHECK_ANDROID_DEBUG_TOKEN;
+            const appleDebugToken = process.env.EXPO_PUBLIC_APPCHECK_APPLE_DEBUG_TOKEN;
+            if (!androidDebugToken && !appleDebugToken) {
+                console.log('Firebase: App Check debug tokens not set — skipping App Check in dev. Set EXPO_PUBLIC_APPCHECK_ANDROID_DEBUG_TOKEN / _APPLE in .env to enable.');
+                return;
+            }
             provider.configure({
-                android: {
-                    provider: 'debug',
-                    debugToken: '11223344-5566-4778-8990-aabbccddeeff',
-                },
-                apple: {
-                    provider: 'debug',
-                    debugToken: 'aabbccdd-eeff-4112-8334-556677889900',
-                },
-                web: {
-                    provider: 'reCaptchaV3',
-                    siteKey: 'none',
-                },
+                android: androidDebugToken
+                    ? { provider: 'debug', debugToken: androidDebugToken }
+                    : { provider: 'playIntegrity' },
+                apple: appleDebugToken
+                    ? { provider: 'debug', debugToken: appleDebugToken }
+                    : { provider: 'appAttestWithDeviceCheckFallback' },
+                web: { provider: 'reCaptchaV3', siteKey: 'none' },
             });
         } else {
             provider.configure({
@@ -124,7 +125,7 @@ async function initializeAppCheckWrapper() {
             provider,
             isTokenAutoRefreshEnabled: true,
         });
-        console.log(`Firebase: App Check activated (debug provider with fixed tokens)`);
+        console.log('Firebase: App Check activated');
     } catch (e) {
         console.error('Firebase: App Check activation failed. Proceeding without App Check.', e);
     }
