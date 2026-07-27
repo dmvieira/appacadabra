@@ -170,7 +170,7 @@ const ADB = findAdb();
     if (!accounts.includes(TEST_ACCOUNT)) {
         console.warn(`
 ⚠️  Google account '${TEST_ACCOUNT}' not found on emulator.
-    Flow 03_login_logout.yaml will fail without it.
+    Flows that require Firebase auth will fail without it.
     To add: open emulator → Settings → Accounts → Add account → Google
     Sign in with ${TEST_ACCOUNT} once, then re-run this script.
 `);
