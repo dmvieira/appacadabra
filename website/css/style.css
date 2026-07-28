@@ -164,6 +164,21 @@ body {
     flex-wrap: wrap;
 }
 
+.hero-oss-link {
+    display: inline-block;
+    margin-top: 20px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-secondary);
+    transition: color 0.3s ease, border-bottom-color 0.3s ease;
+}
+
+.hero-oss-link:hover {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+}
+
 .cta-btn {
     display: inline-flex;
     align-items: center;
