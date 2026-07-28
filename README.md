@@ -1,6 +1,20 @@
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=ai.appacadabra.app">
+    <img src="./docs/images/hero.jpg" alt="Appacadabra — AI Tool Builder, No-Code Platform" width="820">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=ai.appacadabra.app">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="60">
+  </a>
+  &nbsp;&nbsp;
+  <img src="https://img.shields.io/badge/iOS-coming%20soon-lightgrey?style=for-the-badge&logo=apple" alt="iOS — coming soon" height="42">
+</p>
+
 # Appacadabra
 
-**Generate micro-apps with AI, run them on your phone.**
+**Generate micro-apps with AI, run them integrated with your phone.**
 
 Describe what you want, the AI writes a self-contained HTML/CSS/JS bundle, and Appacadabra runs it inside a WebView with access to native APIs — camera, sensors, contacts, calendar, notifications, file system, the works. Bring your own OpenRouter key, pay model providers directly.
 
