@@ -9,7 +9,6 @@ import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -106,7 +105,6 @@ class BackgroundGeneratorWorker(
             val req = OneTimeWorkRequestBuilder<BackgroundGeneratorWorker>()
                 .setInitialDelay(WATCHDOG_DELAY_MINUTES, TimeUnit.MINUTES)
                 .setInputData(data)
-                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 uniqueWorkName(jobId),
