@@ -227,15 +227,16 @@ export default function HomeScreen() {
         }
     }, [setupAppId, apps]);
 
-    // Backup: check if logged-in user needs backup setup
+    // Backup: prompt any user (anonymous or Google) to pick a backup destination
+    // once. Google Drive triggers linkWithGoogle() on-demand from the modal;
+    // Local Folder works without any sign-in.
     useEffect(() => {
         if (!backupHydrated) return;
-        if (!isAnonymous && (backupMode === null || backupMode === undefined)) {
-            // User is logged in with Google but has no backup preference — show sync modal
+        if (backupMode === null || backupMode === undefined) {
             setSyncModalMode('choose');
             setShowSyncModal(true);
         }
-    }, [backupHydrated, isAnonymous, backupMode]);
+    }, [backupHydrated, backupMode]);
 
     // Backup: restore on Google login
     useEffect(() => {
@@ -1370,21 +1371,51 @@ export default function HomeScreen() {
                                     </TouchableOpacity>
                                     */}
 
-                                    {!isAnonymous && (
-                                        <TouchableOpacity style={styles.sheetItem} onPress={() => {
+                                    <TouchableOpacity style={styles.sheetItem} onPress={() => {
+                                        setShowMenu(false);
+                                        setShowAdvanced(false);
+                                        setSyncModalMode('choose');
+                                        setShowSyncModal(true);
+                                    }} accessibilityLabel={t('syncSettings')} accessibilityRole="menuitem">
+                                        <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🔄</Text></View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('syncSettings')}</Text>
+                                            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('syncSettingsDesc')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
+                            {/* Sign In - only when anonymous */}
+                            {isAnonymous && (
+                                <>
+                                    <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginVertical: 8 }} />
+                                    <TouchableOpacity
+                                        style={styles.sheetItem}
+                                        onPress={async () => {
                                             setShowMenu(false);
                                             setShowAdvanced(false);
-                                            setSyncModalMode('choose');
-                                            setShowSyncModal(true);
-                                        }} accessibilityLabel={t('syncSettings')} accessibilityRole="menuitem">
-                                            <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🔄</Text></View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.sheetItemTitle}>{t('syncSettings')}</Text>
-                                                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('syncSettingsDesc')}</Text>
-                                            </View>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
+                                            try {
+                                                await firebase.linkWithGoogle();
+                                            } catch (e: any) {
+                                                const msg = String(e?.message ?? '');
+                                                if (!/cancelled/i.test(msg)) {
+                                                    Alert.alert(t('signInFailed'), msg);
+                                                }
+                                            }
+                                        }}
+                                        accessibilityLabel={t('signInGoogle')}
+                                        accessibilityRole="menuitem"
+                                    >
+                                        <View style={[styles.sheetItemIcon, { backgroundColor: 'rgba(96,165,250,0.15)' }]}>
+                                            <Text style={styles.sheetItemEmoji}>🔑</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sheetItemTitle}>{t('signInGoogle')}</Text>
+                                            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('signInGoogleSub')}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                </>
                             )}
 
                             {/* Sign Out - only when logged in */}

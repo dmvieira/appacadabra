@@ -6,12 +6,14 @@ import {
     Modal,
     StyleSheet,
     ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import { useBackupStore } from '../lib/backupStore';
 import { pickLocalFolder, performBackup, performRestore } from '../lib/backupSync';
+import * as firebase from '../lib/firebase';
 
 interface BackupSyncModalProps {
     visible: boolean;
@@ -28,6 +30,23 @@ export default function BackupSyncModal({ visible, mode, onClose }: BackupSyncMo
         setLoading(true);
         try {
             if (selected === 'google_drive') {
+                // Anonymous users must link with Google before a Drive backup
+                // can succeed. Otherwise performBackup() silently no-ops via
+                // isGoogleUser() gate in backupSync.ts.
+                if (!firebase.isGoogleUser()) {
+                    try {
+                        await firebase.linkWithGoogle();
+                    } catch (e: any) {
+                        const msg = String(e?.message ?? '');
+                        if (/cancelled/i.test(msg)) {
+                            setLoading(false);
+                            return; // keep modal open so user can pick again
+                        }
+                        Alert.alert(t('signInFailed'), msg);
+                        setLoading(false);
+                        return;
+                    }
+                }
                 setBackupMode('google_drive');
                 setLocalFolderUri(null);
                 onClose(); // Close immediately; restore/backup run in background
@@ -81,6 +100,20 @@ export default function BackupSyncModal({ visible, mode, onClose }: BackupSyncMo
     const handleReconnectSwitchToDrive = async () => {
         setLoading(true);
         try {
+            if (!firebase.isGoogleUser()) {
+                try {
+                    await firebase.linkWithGoogle();
+                } catch (e: any) {
+                    const msg = String(e?.message ?? '');
+                    if (/cancelled/i.test(msg)) {
+                        setLoading(false);
+                        return;
+                    }
+                    Alert.alert(t('signInFailed'), msg);
+                    setLoading(false);
+                    return;
+                }
+            }
             setBackupMode('google_drive');
             setLocalFolderUri(null);
             await performBackup();  // upload current (local) state to Drive
@@ -92,11 +125,30 @@ export default function BackupSyncModal({ visible, mode, onClose }: BackupSyncMo
         }
     };
 
-    const handleStartFresh = () => {
-        setBackupMode('google_drive');
-        setLocalFolderUri(null);
-        performBackup().catch(() => { });
-        onClose();
+    const handleStartFresh = async () => {
+        setLoading(true);
+        try {
+            if (!firebase.isGoogleUser()) {
+                try {
+                    await firebase.linkWithGoogle();
+                } catch (e: any) {
+                    const msg = String(e?.message ?? '');
+                    if (/cancelled/i.test(msg)) {
+                        setLoading(false);
+                        return;
+                    }
+                    Alert.alert(t('signInFailed'), msg);
+                    setLoading(false);
+                    return;
+                }
+            }
+            setBackupMode('google_drive');
+            setLocalFolderUri(null);
+            performBackup().catch(() => { });
+            onClose();
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (mode === 'reconnect') {

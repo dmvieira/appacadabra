@@ -378,6 +378,7 @@ export const translations = {
 
 
         signInGoogle: 'Sign in with Google',
+        signInGoogleSub: 'Enables Drive backup and Google apps in spells',
         linkError: 'Link failed. Try again.',
 
         signOut: 'Sign Out',
@@ -579,7 +580,7 @@ export const translations = {
         // ── BYOK (Phase 3) ──
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Welcome to Appacadabra',
-        obWelcomeSub: 'Magical mini-apps you create with AI. Sign in to sync your spells across devices, or continue without an account.',
+        obWelcomeSub: 'Magical mini-apps you create with AI. Sign in with Google to back up your spells and use Google Sheets, Docs and Forms inside them.',
         obWelcomeContinue: 'Continue without signing in',
 
         // Onboarding — Screen 1 (Discover)
@@ -996,6 +997,7 @@ export const translations = {
 
 
         signInGoogle: 'Entrar com Google',
+        signInGoogleSub: 'Permite backup no Drive e apps Google nos feitiços',
         linkError: 'Falha ao vincular. Tente novamente.',
 
         signOut: 'Sair da conta',
@@ -1325,7 +1327,7 @@ export const translations = {
         reportBugNoEmail: 'Nenhum app de email encontrado. Envie seu relato para:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Bem-vindo ao Appacadabra',
-        obWelcomeSub: 'Mini-apps mágicos que você cria com IA. Entre para sincronizar seus feitiços entre dispositivos, ou continue sem uma conta.',
+        obWelcomeSub: 'Mini-aplicativos mágicos que você cria com IA. Faça login com Google para fazer backup dos seus feitiços e usar Google Sheets, Docs e Forms dentro deles.',
         obWelcomeContinue: 'Continuar sem entrar',
 
         // Onboarding — Screen 1 (Discover)
@@ -1752,6 +1754,7 @@ export const translations = {
 
 
         signInGoogle: 'Iniciar sesión con Google',
+        signInGoogleSub: 'Permite copia de seguridad en Drive y apps de Google en hechizos',
         linkError: 'Error al vincular. Inténtalo de nuevo.',
 
         signOut: 'Cerrar sesión',
@@ -2000,7 +2003,7 @@ export const translations = {
         reportBugNoEmail: 'No se encontró app de email. Envía tu reporte a:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Bienvenido a Appacadabra',
-        obWelcomeSub: 'Mini-apps mágicas que creas con IA. Inicia sesión para sincronizar tus hechizos entre dispositivos, o continúa sin una cuenta.',
+        obWelcomeSub: 'Mini-aplicaciones mágicas que creas con IA. Inicia sesión con Google para respaldar tus hechizos y usar Google Sheets, Docs y Forms dentro de ellos.',
         obWelcomeContinue: 'Continuar sin iniciar sesión',
 
         // Onboarding — Screen 1 (Discover)
@@ -2424,6 +2427,7 @@ export const translations = {
 
 
         signInGoogle: 'Se connecter avec Google',
+        signInGoogleSub: 'Active la sauvegarde Drive et les applis Google dans les sorts',
         linkError: 'Échec de la liaison. Réessayez.',
 
         signOut: 'Se déconnecter',
@@ -2674,7 +2678,7 @@ export const translations = {
         reportBugNoEmail: 'Aucune app e-mail trouvée. Envoyez votre rapport à :',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Bienvenue dans Appacadabra',
-        obWelcomeSub: 'Des mini-apps magiques que vous créez avec l\'IA. Connectez-vous pour synchroniser vos sorts entre vos appareils, ou continuez sans compte.',
+        obWelcomeSub: 'Mini-applications magiques que vous créez avec l\'IA. Connectez-vous avec Google pour sauvegarder vos sorts et utiliser Google Sheets, Docs et Forms à l\'intérieur.',
         obWelcomeContinue: 'Continuer sans se connecter',
 
         // Onboarding — Screen 1 (Discover)
@@ -3061,6 +3065,7 @@ export const translations = {
 
 
         signInGoogle: 'Mit Google anmelden',
+        signInGoogleSub: 'Aktiviert Drive-Backup und Google-Apps in Zaubern',
         linkError: 'Verknüpfung fehlgeschlagen. Erneut versuchen.',
 
         signOut: 'Abmelden',
@@ -3280,7 +3285,7 @@ export const translations = {
         reportBugNoEmail: 'Keine E-Mail-App gefunden. Senden Sie Ihren Bericht an:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Willkommen bei Appacadabra',
-        obWelcomeSub: 'Magische Mini-Apps, die du mit KI erstellst. Melde dich an, um deine Zauber zwischen Geräten zu synchronisieren, oder fahre ohne Konto fort.',
+        obWelcomeSub: 'Magische Mini-Apps, die du mit KI erstellst. Melde dich mit Google an, um deine Zauber zu sichern und Google Sheets, Docs und Forms darin zu verwenden.',
         obWelcomeContinue: 'Ohne Anmeldung fortfahren',
 
         // Onboarding — Screen 1 (Discover)
@@ -3667,6 +3672,7 @@ export const translations = {
 
 
         signInGoogle: 'Accedi con Google',
+        signInGoogleSub: 'Abilita backup Drive e app Google negli incantesimi',
         linkError: 'Collegamento fallito. Riprova.',
 
         signOut: 'Esci',
@@ -3886,7 +3892,7 @@ export const translations = {
         reportBugNoEmail: 'Nessuna app email trovata. Invia la tua segnalazione a:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Benvenuto in Appacadabra',
-        obWelcomeSub: 'Mini-app magiche che crei con l\'IA. Accedi per sincronizzare i tuoi incantesimi tra i dispositivi, o continua senza un account.',
+        obWelcomeSub: 'Mini-app magiche che crei con l\'IA. Accedi con Google per eseguire il backup dei tuoi incantesimi e utilizzare Google Sheets, Docs e Forms al loro interno.',
         obWelcomeContinue: 'Continua senza accedere',
 
         // Onboarding — Screen 1 (Discover)
@@ -4275,6 +4281,7 @@ export const translations = {
 
 
         signInGoogle: 'Googleでサインイン',
+        signInGoogleSub: '呪文でDriveバックアップとGoogleアプリを有効化',
         linkError: '連携に失敗しました。もう一度お試しください。',
 
         signOut: 'サインアウト',
@@ -4472,7 +4479,7 @@ export const translations = {
         reportBugNoEmail: 'メールアプリが見つかりません。レポートを送信してください:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Appacadabraへようこそ',
-        obWelcomeSub: 'AIで作る魔法のミニアプリ。サインインして呪文をデバイス間で同期するか、アカウントなしで続行できます。',
+        obWelcomeSub: 'AIで作る魔法のミニアプリ。Googleでサインインして呪文をバックアップし、内部でGoogle Sheets、Docs、Formsを使用できます。',
         obWelcomeContinue: 'サインインせずに続行',
 
         // Onboarding — Screen 1 (Discover)
@@ -4862,6 +4869,7 @@ export const translations = {
 
 
         signInGoogle: '使用 Google 登录',
+        signInGoogleSub: '在咒语中启用 Drive 备份和 Google 应用',
         linkError: '关联失败。请重试。',
 
         signOut: '退出登录',
@@ -5065,7 +5073,7 @@ export const translations = {
         reportBugNoEmail: '未找到邮件应用。请将报告发送至:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: '欢迎使用 Appacadabra',
-        obWelcomeSub: '由您用 AI 创建的魔法小应用。登录以在设备之间同步您的咒语，或不登录继续使用。',
+        obWelcomeSub: '由您用 AI 创建的魔法小应用。使用 Google 登录以备份您的咒语，并在其中使用 Google Sheets、Docs 和 Forms。',
         obWelcomeContinue: '不登录继续',
 
         // Onboarding — Screen 1 (Discover)
@@ -5461,6 +5469,7 @@ export const translations = {
 
 
         signInGoogle: 'Google로 로그인',
+        signInGoogleSub: '주문에서 Drive 백업과 Google 앱 활성화',
         linkError: '연동 실패. 다시 시도해 주세요.',
 
         signOut: '로그아웃',
@@ -5658,7 +5667,7 @@ export const translations = {
         reportBugNoEmail: '이메일 앱을 찾을 수 없습니다. 보고서를 보내주세요:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Appacadabra에 오신 것을 환영합니다',
-        obWelcomeSub: 'AI로 만드는 마법 같은 미니 앱. 로그인하여 주문을 기기 간에 동기화하거나, 계정 없이 계속 사용할 수 있어요.',
+        obWelcomeSub: 'AI로 만드는 마법의 미니 앱. Google로 로그인하여 주문을 백업하고 그 안에서 Google Sheets, Docs, Forms를 사용하세요.',
         obWelcomeContinue: '로그인 없이 계속',
 
         // Onboarding — Screen 1 (Discover)
@@ -6054,6 +6063,7 @@ export const translations = {
 
 
         signInGoogle: 'تسجيل الدخول باستخدام Google',
+        signInGoogleSub: 'يفعّل نسخ Drive الاحتياطي وتطبيقات Google في التعويذات',
         linkError: 'فشل الربط. حاول مرة أخرى.',
 
         signOut: 'تسجيل الخروج',
@@ -6251,7 +6261,7 @@ export const translations = {
         reportBugNoEmail: 'لم يتم العثور على تطبيق بريد. أرسل تقريرك إلى:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'مرحبًا بك في Appacadabra',
-        obWelcomeSub: 'تطبيقات مصغّرة سحرية تنشئها بالذكاء الاصطناعي. سجّل الدخول لمزامنة تعويذاتك بين الأجهزة، أو تابع بدون حساب.',
+        obWelcomeSub: 'تطبيقات مصغّرة سحرية تنشئها بالذكاء الاصطناعي. سجّل الدخول باستخدام Google لحفظ نسخة احتياطية من تعويذاتك واستخدام Google Sheets وDocs وForms داخلها.',
         obWelcomeContinue: 'المتابعة بدون تسجيل الدخول',
 
         // Onboarding — Screen 1 (Discover)
@@ -6647,6 +6657,7 @@ export const translations = {
 
 
         signInGoogle: 'Google के साथ साइन इन करें',
+        signInGoogleSub: 'जादू में Drive बैकअप और Google ऐप्स सक्षम करें',
         linkError: 'लिंक विफल रहा. पुनः प्रयास करें।',
 
         signOut: 'साइन आउट',
@@ -6844,7 +6855,7 @@ export const translations = {
         reportBugNoEmail: 'कोई ईमेल ऐप नहीं मिला। अपनी रिपोर्ट यहाँ भेजें:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Appacadabra में आपका स्वागत है',
-        obWelcomeSub: 'जादुई मिनी-ऐप्स जिन्हें आप AI से बनाते हैं। डिवाइसों के बीच अपने जादू सिंक करने के लिए साइन इन करें, या बिना खाते के जारी रखें।',
+        obWelcomeSub: 'जादुई मिनी-ऐप्स जिन्हें आप AI से बनाते हैं। अपने जादू का बैकअप लेने और उनमें Google Sheets, Docs और Forms का उपयोग करने के लिए Google से साइन इन करें।',
         obWelcomeContinue: 'बिना साइन इन किए जारी रखें',
 
         // Onboarding — Screen 1 (Discover)
@@ -7240,6 +7251,7 @@ export const translations = {
 
 
         signInGoogle: 'Войти через Google',
+        signInGoogleSub: 'Включает бэкап Drive и Google-приложения в заклинаниях',
         linkError: 'Ошибка привязки. Попробуйте еще раз.',
 
         signOut: 'Выйти',
@@ -7437,7 +7449,7 @@ export const translations = {
         reportBugNoEmail: 'Почтовое приложение не найдено. Отправьте отчёт на:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Добро пожаловать в Appacadabra',
-        obWelcomeSub: 'Волшебные мини-приложения, которые вы создаёте с помощью ИИ. Войдите, чтобы синхронизировать ваши заклинания между устройствами, или продолжите без аккаунта.',
+        obWelcomeSub: 'Волшебные мини-приложения, которые вы создаёте с помощью ИИ. Войдите через Google, чтобы сохранить свои заклинания и использовать Google Sheets, Docs и Forms внутри них.',
         obWelcomeContinue: 'Продолжить без входа',
 
         // Onboarding — Screen 1 (Discover)
@@ -7833,6 +7845,7 @@ export const translations = {
 
 
         signInGoogle: 'Google ile oturum aç',
+        signInGoogleSub: 'Büyülerde Drive yedeği ve Google uygulamalarını etkinleştirir',
         linkError: 'Bağlama hatası. Tekrar deneyin.',
 
         signOut: 'Oturumu Kapat',
@@ -8028,7 +8041,7 @@ export const translations = {
         reportBugNoEmail: 'E-posta uygulaması bulunamadı. Raporunuzu gönderin:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Appacadabra\'ya hoş geldin',
-        obWelcomeSub: 'Yapay zekâ ile oluşturduğun büyülü mini uygulamalar. Büyülerini cihazlar arasında senkronize etmek için oturum aç ya da hesapsız devam et.',
+        obWelcomeSub: 'Yapay zekâ ile oluşturduğun büyülü mini uygulamalar. Büyülerini yedeklemek ve içlerinde Google Sheets, Docs ve Forms kullanmak için Google ile oturum aç.',
         obWelcomeContinue: 'Oturum açmadan devam et',
 
         // Onboarding — Screen 1 (Discover)
@@ -8424,6 +8437,7 @@ export const translations = {
 
 
         signInGoogle: 'Inloggen met Google',
+        signInGoogleSub: 'Schakelt Drive-back-up en Google-apps in spreuken in',
         linkError: 'Koppelen mislukt. Probeer het opnieuw.',
 
         signOut: 'Uitloggen',
@@ -8620,7 +8634,7 @@ export const translations = {
         reportBugNoEmail: 'Geen e-mailapp gevonden. Stuur je rapport naar:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Welkom bij Appacadabra',
-        obWelcomeSub: 'Magische mini-apps die je maakt met AI. Log in om je spreuken tussen apparaten te synchroniseren, of ga verder zonder account.',
+        obWelcomeSub: 'Magische mini-apps die je maakt met AI. Log in met Google om je spreuken te back-uppen en gebruik Google Sheets, Docs en Forms erin.',
         obWelcomeContinue: 'Doorgaan zonder inloggen',
 
         // Onboarding — Screen 1 (Discover)
@@ -9016,6 +9030,7 @@ export const translations = {
 
 
         signInGoogle: 'Zaloguj się przez Google',
+        signInGoogleSub: 'Włącza kopię zapasową Drive i aplikacje Google w zaklęciach',
         linkError: 'Połączenie nieudane. Spróbuj ponownie.',
 
         signOut: 'Wyloguj się',
@@ -9214,7 +9229,7 @@ export const translations = {
         reportBugNoEmail: 'Nie znaleziono aplikacji e-mail. Wyślij raport na:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Witaj w Appacadabra',
-        obWelcomeSub: 'Magiczne mini-aplikacje, które tworzysz z AI. Zaloguj się, aby synchronizować swoje zaklęcia między urządzeniami, lub kontynuuj bez konta.',
+        obWelcomeSub: 'Magiczne mini-aplikacje, które tworzysz z AI. Zaloguj się przez Google, aby wykonać kopię zapasową swoich zaklęć i używać w nich Google Sheets, Docs i Forms.',
         obWelcomeContinue: 'Kontynuuj bez logowania',
 
         // Onboarding — Screen 1 (Discover)
@@ -9610,6 +9625,7 @@ export const translations = {
 
 
         signInGoogle: 'Đăng nhập với Google',
+        signInGoogleSub: 'Kích hoạt sao lưu Drive và ứng dụng Google trong phép thuật',
         linkError: 'Liên kết thất bại. Hãy thử lại.',
 
         signOut: 'Đăng xuất',
@@ -9808,7 +9824,7 @@ export const translations = {
         reportBugNoEmail: 'Không tìm thấy ứng dụng email. Gửi báo cáo của bạn tới:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'Chào mừng đến với Appacadabra',
-        obWelcomeSub: 'Các mini-app ma thuật mà bạn tạo bằng AI. Đăng nhập để đồng bộ phép thuật của bạn giữa các thiết bị, hoặc tiếp tục mà không cần tài khoản.',
+        obWelcomeSub: 'Các mini-app ma thuật mà bạn tạo bằng AI. Đăng nhập bằng Google để sao lưu phép thuật của bạn và sử dụng Google Sheets, Docs và Forms bên trong chúng.',
         obWelcomeContinue: 'Tiếp tục mà không đăng nhập',
 
         // Onboarding — Screen 1 (Discover)
@@ -10204,6 +10220,7 @@ export const translations = {
 
 
         signInGoogle: 'ลงชื่อเข้าใช้ด้วย Google',
+        signInGoogleSub: 'เปิดใช้การสำรอง Drive และแอป Google ในคาถา',
         linkError: 'เชื่อมต่อไม่สำเร็จ ลองอีกครั้ง',
 
         signOut: 'ลงชื่อออก',
@@ -10402,7 +10419,7 @@ export const translations = {
         reportBugNoEmail: 'ไม่พบแอปอีเมล ส่งรายงานของคุณไปที่:',
         // Onboarding — Screen 0 (Welcome)
         obWelcomeTitle: 'ยินดีต้อนรับสู่ Appacadabra',
-        obWelcomeSub: 'มินิแอปแห่งเวทมนตร์ที่คุณสร้างด้วย AI ลงชื่อเข้าใช้เพื่อซิงค์คาถาของคุณระหว่างอุปกรณ์ หรือดำเนินการต่อโดยไม่มีบัญชี',
+        obWelcomeSub: 'มินิแอปแห่งเวทมนตร์ที่คุณสร้างด้วย AI ลงชื่อเข้าใช้ด้วย Google เพื่อสำรองคาถาของคุณและใช้ Google Sheets, Docs และ Forms ภายในแอป',
         obWelcomeContinue: 'ดำเนินการต่อโดยไม่ลงชื่อเข้าใช้',
 
         // Onboarding — Screen 1 (Discover)
