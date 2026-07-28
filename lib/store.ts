@@ -1183,7 +1183,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const processing = await db.listProcessingJobs();
             if (processing.length === 0) return;
 
-            const STALE_MS = Platform.OS === 'ios' ? 30 * 1000 : 15 * 60 * 1000;
+            const STALE_MS = Platform.OS === 'ios' ? 30 * 1000 : 2 * 60 * 1000;
             const now = Date.now();
             const staleCandidates = processing.filter((j: PendingJob) => {
                 // Never touch a row this process is actively driving.
