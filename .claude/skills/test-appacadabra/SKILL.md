@@ -35,7 +35,6 @@ Each test group validates a structural property of the AI pipeline (HTML validit
 Flows live in `.maestro/flows/`. Current flows:
 - `01_home_sanity.yaml` — app launches and home screen renders
 - `02_report_bug.yaml` — bug report menu item and form submission
-- `03_login_logout.yaml` — Google login via ManaShop + full logout flow
 
 ### Prerequisites
 

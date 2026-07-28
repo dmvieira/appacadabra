@@ -22,6 +22,32 @@ jest.mock('react-native', () => ({
         removeAllListeners: jest.fn(),
         emit: jest.fn(),
     },
+    // backgroundGeneratorTask.ts now imports i18n, which touches I18nManager
+    // at module load. Stub the two methods the module invokes.
+    I18nManager: {
+        allowRTL: jest.fn(),
+        forceRTL: jest.fn(),
+        isRTL: false,
+    },
+}));
+
+// The Notifications side of the new finalize helpers must be a no-op in the
+// iOS-facade tests — they exercise the resume/reconcile *contracts*, not the
+// full create/edit finalize path.
+jest.mock('expo-notifications', () => ({
+    scheduleNotificationAsync: jest.fn(() => Promise.resolve('mock-id')),
+    setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
+    AndroidImportance: { HIGH: 4 },
+}));
+
+jest.mock('../bridges/SharingShortcuts', () => ({
+    __esModule: true,
+    default: {
+        publishShortcut: jest.fn(() => Promise.resolve(true)),
+        removeShortcut: jest.fn(() => Promise.resolve(true)),
+        removeAllShortcuts: jest.fn(() => Promise.resolve(true)),
+        getMaxShortcutCount: jest.fn(() => Promise.resolve(4)),
+    },
 }));
 
 jest.mock('../api/openrouter', () => {

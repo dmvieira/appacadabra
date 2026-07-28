@@ -39,6 +39,13 @@ export interface BgGenProgressEvent {
 
 export interface BgGenCompletedEvent {
     jobId: string;
+    /**
+     * SQLite row id of the persisted spell — always present on create and
+     * edit. Populated by the headless task's finalize helpers (see
+     * `finalizeCreateInline`/`finalizeEditInline` in backgroundGeneratorTask.ts)
+     * so the store subscriber does not need to hit the DB to resolve it.
+     */
+    appId: number;
     html: string;
     usage: {
         promptTokens: number;

@@ -18,8 +18,9 @@
  * functions are also exported so iOS (which has no HeadlessJsTask) can
  * reuse the same persisted, resumable pipeline from the main JS context.
  */
-import { DeviceEventEmitter, NativeModules } from 'react-native';
+import { DeviceEventEmitter, NativeModules, Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
 import * as db from './database/db';
 import {
     initCreateState,
@@ -33,8 +34,10 @@ import {
     type EditStage,
 } from './api/generatorStages';
 import { logAppCreated, logAppEdited } from './analytics';
-import type { PendingJob } from './database/types';
+import type { PendingJob, NewGeneratedApp } from './database/types';
 import { extractUnavailableModelId } from './api/modelUnavailableSignal';
+import SharingShortcuts from './bridges/SharingShortcuts';
+import { t } from './i18n';
 
 interface TaskData {
     taskKey: string;
@@ -131,8 +134,21 @@ export async function runCreateJob(p: CreateParams): Promise<void> {
 
     await persistCompletion(p.jobId, result.html, result.usage, result.costUsd);
     logAppCreated();
+    // Persist the spell + fire the success notification here in the headless
+    // task so the notification cannot be dropped by the RN bridge tearing
+    // down before the store subscriber's async chain finishes. Store
+    // subscribers now only refresh UI state — DB write, notification post,
+    // and pending_jobs cleanup all happen synchronously below.
+    const appId = await finalizeCreateInline(
+        p.jobId,
+        result.html,
+        result.appName,
+        p.prompt,
+        result.costUsd ?? 0,
+    );
     DeviceEventEmitter.emit('BGGenCompleted', {
         jobId: p.jobId,
+        appId,
         html: result.html,
         usage: usageToWire(result.usage),
         costUsd: result.costUsd,
@@ -161,8 +177,16 @@ export async function runEditJob(p: EditParams): Promise<void> {
 
     await persistCompletion(p.jobId, result.html, result.usage, result.costUsd);
     logAppEdited();
+    await finalizeEditInline(
+        p.jobId,
+        p.appId,
+        result.html,
+        p.instruction,
+        result.costUsd ?? 0,
+    );
     DeviceEventEmitter.emit('BGGenCompleted', {
         jobId: p.jobId,
+        appId: p.appId,
         html: result.html,
         usage: usageToWire(result.usage),
         costUsd: result.costUsd,
@@ -212,8 +236,16 @@ export async function runResumeJob(jobId: string): Promise<void> {
         });
         await persistCompletion(jobId, result.html, result.usage, result.costUsd);
         logAppCreated();
+        const appId = await finalizeCreateInline(
+            jobId,
+            result.html,
+            result.appName,
+            row.promptText,
+            result.costUsd ?? 0,
+        );
         DeviceEventEmitter.emit('BGGenCompleted', {
             jobId,
+            appId,
             html: result.html,
             usage: usageToWire(result.usage),
             costUsd: result.costUsd,
@@ -240,8 +272,16 @@ export async function runResumeJob(jobId: string): Promise<void> {
         });
         await persistCompletion(jobId, result.html, result.usage, result.costUsd);
         logAppEdited();
+        await finalizeEditInline(
+            jobId,
+            row.appId,
+            result.html,
+            row.promptText,
+            result.costUsd ?? 0,
+        );
         DeviceEventEmitter.emit('BGGenCompleted', {
             jobId,
+            appId: row.appId,
             html: result.html,
             usage: usageToWire(result.usage),
             costUsd: result.costUsd,
@@ -410,4 +450,139 @@ async function persistFailure(
     } catch {
         // ignored
     }
+}
+
+/**
+ * Persist a completed spell + post the success notification synchronously
+ * from the headless task. The store subscriber used to own this work, but
+ * the RN bridge could be torn down mid-await when the FGS stopped — the
+ * notification scheduling call would then silently fail (`.catch(() => {})`
+ * swallowed the error) and the user would never see the "Spell Ready"
+ * banner. Running it here guarantees the notification fires before the
+ * task-finish path stops the service.
+ *
+ * All DB writes are idempotent on jobId, so running this again from the
+ * store subscriber (or a resume) is safe.
+ */
+async function finalizeCreateInline(
+    jobId: string,
+    html: string,
+    appName: string | undefined,
+    prompt: string,
+    costUsd: number,
+): Promise<number> {
+    const now = Date.now();
+    // Mirror the fallback the store subscriber used to apply — a truncated
+    // prompt is a better UX default than a generic "Untitled" label.
+    const resolvedName = (appName && appName.trim()) || prompt.slice(0, 40) || 'Spell';
+    const newApp: NewGeneratedApp = {
+        name: resolvedName,
+        code: html,
+        currentVersion: 1,
+        iconPath: null,
+        lastUpdated: now,
+        createdAt: now,
+        consoleLogs: '',
+        totalSpendUsd: costUsd,
+        jobId,
+        requiresBiometric: false,
+        shortDescription: prompt,
+        sortOrder: 0,
+    };
+    const appId = await db.insertApp(newApp);
+    await db.insertVersion({
+        appId,
+        version: 1,
+        code: html,
+        instruction: prompt || '',
+        selectedContext: null,
+        createdAt: now,
+        jobId,
+    });
+    try {
+        await SharingShortcuts.publishShortcut(String(appId), resolvedName, null);
+    } catch {
+        // Best-effort — ShortcutManagerCompat is upsert-by-id and failure is
+        // never user-visible on its own.
+    }
+    await postCreateSuccessNotification(appId, resolvedName, jobId);
+    await db.deletePendingJob(jobId).catch(() => {});
+    return appId;
+}
+
+async function finalizeEditInline(
+    jobId: string,
+    appId: number,
+    html: string,
+    instruction: string,
+    costUsd: number,
+): Promise<void> {
+    const app = await db.getAppById(appId);
+    if (!app) {
+        // Spell deleted mid-flight — drop the row and skip the notification.
+        await db.deletePendingJob(jobId).catch(() => {});
+        return;
+    }
+    const newVersion = app.currentVersion + 1;
+    const newTotal = (app.totalSpendUsd ?? 0) + (costUsd ?? 0);
+    await db.updateAppContent(appId, html, newVersion, newTotal, jobId);
+    await db.insertVersion({
+        appId,
+        version: newVersion,
+        code: html,
+        instruction: instruction || '',
+        selectedContext: null,
+        createdAt: Date.now(),
+        jobId,
+    });
+    await postEditSuccessNotification(appId, app.name, jobId);
+    await db.deletePendingJob(jobId).catch(() => {});
+}
+
+async function postCreateSuccessNotification(
+    appId: number,
+    appName: string,
+    jobId: string,
+): Promise<void> {
+    const channelId = `spell-${appId}`;
+    if (Platform.OS === 'android') {
+        try {
+            await Notifications.setNotificationChannelAsync(channelId, {
+                name: appName,
+                importance: Notifications.AndroidImportance.HIGH,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#FF9500',
+            });
+        } catch {
+            // Channel may already exist; the notification schedule below is
+            // still safe.
+        }
+    }
+    await Notifications.scheduleNotificationAsync({
+        identifier: `spell-created-${jobId}`,
+        content: {
+            title: t('appReadyTitle'),
+            body: t('appReadyBody', { name: appName }),
+            data: { appId, kind: 'create-success' },
+        },
+        trigger: Platform.OS === 'android'
+            ? ({ channelId } as unknown as null)
+            : null,
+    }).catch(() => {});
+}
+
+async function postEditSuccessNotification(
+    appId: number,
+    appName: string,
+    jobId: string,
+): Promise<void> {
+    await Notifications.scheduleNotificationAsync({
+        identifier: `spell-updated-${jobId}`,
+        content: {
+            title: t('appUpdatedTitle'),
+            body: t('appUpdatedBody', { name: appName }),
+            data: { appId, kind: 'edit-success' },
+        },
+        trigger: null,
+    }).catch(() => {});
 }

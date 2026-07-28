@@ -393,71 +393,23 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (e.jobId !== jobId) return;
             completedSub.remove();
             failedSub.remove();
-            // Dismiss the FGS ongoing notification immediately. Waiting on
-            // HeadlessJsTaskService.onHeadlessJsTaskFinish leaves it lingering
-            // on some OEM ROMs under the New Architecture.
-            void bgGen.finishJob(jobId);
+            // NOTE: DB insert, version write, shortcut publish, notification
+            // post, and pending_jobs cleanup all happen inside the headless
+            // task (see `finalizeCreateInline` in backgroundGeneratorTask.ts).
+            // This subscriber only refreshes UI state — if it never runs
+            // (app killed before this async callback lands), the spell is
+            // still saved and the success notification still fires.
             try {
                 const appName = (e.appName && e.appName.trim()) || description.slice(0, 40);
-                const now = Date.now();
-                const newApp: NewGeneratedApp = {
-                    name: appName,
-                    code: e.html,
-                    currentVersion: 1,
-                    iconPath: null,
-                    lastUpdated: now,
-                    createdAt: now,
-                    consoleLogs: '',
-                    totalSpendUsd: e.costUsd ?? 0,
-                    jobId,
-                    requiresBiometric: false,
-                    shortDescription: description,
-                    sortOrder: 0,
-                };
-
-                const id = await db.insertApp(newApp);
-
-                await Notifications.setNotificationChannelAsync(`spell-${id}`, {
-                    name: appName,
-                    importance: Notifications.AndroidImportance.HIGH,
-                    vibrationPattern: [0, 250, 250, 250],
-                    lightColor: '#FF9500',
+                await get().loadApps();
+                set({
+                    statusMessage: t('appReadyNotify', { name: appName }),
+                    statusActionAppId: e.appId,
+                    lastCreatedAppId: e.appId,
                 });
-
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: t('appReadyTitle'),
-                        body: t('appReadyBody', { name: appName }),
-                        data: { appId: id, kind: 'create-success' },
-                    },
-                    trigger: null,
-                }).catch(() => {});
-
-                const app = await db.getAppById(id);
-                if (app) {
-                    SharingShortcuts.publishShortcut(id.toString(), app.name, app.iconPath);
-                    await db.insertVersion({
-                        appId: id,
-                        version: 1,
-                        code: e.html,
-                        instruction: description || t('initialGeneration'),
-                        selectedContext: null,
-                        createdAt: Date.now(),
-                        jobId,
-                    });
-
-                    await get().loadApps();
-                    set({
-                        statusMessage: t('appReadyNotify', { name: appName }),
-                        statusActionAppId: id,
-                        lastCreatedAppId: id,
-                    });
-                    markBackupDirty();
-                }
-                await db.deletePendingJob(jobId).catch(() => {});
+                markBackupDirty();
             } catch (error) {
-                console.error('Failed to persist created spell:', error);
-                set({ error: t('errorSavingApp') });
+                console.error('Failed to refresh UI after spell create:', error);
             } finally {
                 set(state => ({
                     creatingApps: state.creatingApps.filter(a => a.jobId !== jobId),
@@ -469,7 +421,10 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (e.jobId !== jobId) return;
             completedSub.remove();
             failedSub.remove();
-            void bgGen.finishJob(jobId);
+            // FGS teardown happens in `runJobWithReporting`'s finally block
+            // (`finishFgsInline`). A second `finishJob` here was racing the
+            // subscriber's async work — remove it to avoid interrupting the
+            // failure-notification chain.
             const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
                 ? (e.code as OpenRouterErrorCode)
                 : 'unknown';
@@ -606,33 +561,14 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (e.jobId !== jobId) return;
             completedSub.remove();
             failedSub.remove();
-            void bgGen.finishJob(jobId);
+            // NOTE: DB updateAppContent, version write, notification post,
+            // and pending_jobs cleanup happen inside the headless task
+            // (`finalizeEditInline` in backgroundGeneratorTask.ts). Store
+            // subscriber only refreshes UI state.
             try {
-                const newVersion = app.currentVersion + 1;
-                const newTotalSpendUsd = (app.totalSpendUsd ?? 0) + (e.costUsd ?? 0);
-                await db.updateAppContent(app.id, e.html, newVersion, newTotalSpendUsd, jobId);
-                await db.insertVersion({
-                    appId: app.id,
-                    version: newVersion,
-                    code: e.html,
-                    instruction: instructions || t('aiEdit'),
-                    selectedContext: selectedContext ?? null,
-                    createdAt: Date.now(),
-                    jobId,
-                });
-
                 set({ statusMessage: t('appUpdatedNotify', { name: app.name }), statusActionAppId: app.id });
                 await get().loadApps();
                 markBackupDirty();
-
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: t('appUpdatedTitle'),
-                        body: t('appUpdatedBody', { name: app.name }),
-                        data: { appId: app.id, kind: 'edit-success' },
-                    },
-                    trigger: null,
-                }).catch(() => {});
 
                 set({ lastCompletedEditAppId: app.id });
                 setTimeout(() => {
@@ -640,10 +576,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                 }, 5000);
 
                 DeviceEventEmitter.emit('APP_UPDATED', { appId: app.id });
-                await db.deletePendingJob(jobId).catch(() => {});
             } catch (error) {
-                console.error('Failed to persist edited spell:', error);
-                set({ error: t('errorSavingApp') });
+                console.error('Failed to refresh UI after spell edit:', error);
             } finally {
                 set(state => ({
                     updatingAppIds: state.updatingAppIds.filter(id => id !== app.id),
@@ -655,7 +589,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (e.jobId !== jobId) return;
             completedSub.remove();
             failedSub.remove();
-            void bgGen.finishJob(jobId);
+            // FGS teardown handled by `runJobWithReporting`'s finally block.
             const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
                 ? (e.code as OpenRouterErrorCode)
                 : 'unknown';
