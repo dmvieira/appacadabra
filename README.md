@@ -4,7 +4,7 @@
 
 Describe what you want, the AI writes a self-contained HTML/CSS/JS bundle, and Appacadabra runs it inside a WebView with access to native APIs — camera, sensors, contacts, calendar, notifications, file system, the works. Bring your own OpenRouter key, pay model providers directly.
 
-> Open source under [Apache 2.0](./LICENSE). The monorepo includes the Android app, Firebase Functions for the optional public Spell Store, and the store website.
+> Open source under [MIT](./LICENSE). The monorepo includes the Android app, Firebase Functions for the optional public Spell Store, and the store website.
 
 ---
 
@@ -132,4 +132,4 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md). Security issues: [SECURITY.md](./SECUR
 
 ## License
 
-[Apache License 2.0](./LICENSE).
+[MIT License](./LICENSE).
