@@ -10,15 +10,6 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pushToken', 'locale']);
       allow delete: if false;
     }
-    // Jobs collection - Async Job Queue
-    match /jobs/{jobId} {
-      // User can create a job if they own it
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // User can read their own jobs
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      // No updates from client (status updates are server-side)
-      allow update, delete: if false;
-    }
     // Spell Store — published spells are public; writes go through Cloud Functions
     match /store_spells/{spellId} {
       allow read: if resource.data.status == 'active';

@@ -15,20 +15,6 @@
             ]
         },
         {
-            "collectionGroup": "jobs",
-            "queryScope": "COLLECTION_GROUP",
-            "fields": [
-                {
-                    "fieldPath": "userId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
             "collectionGroup": "store_spells",
             "queryScope": "COLLECTION",
             "fields": [
