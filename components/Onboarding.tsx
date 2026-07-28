@@ -114,9 +114,17 @@ export function Onboarding({ visible, onComplete }: OnboardingProps) {
         if (signingIn) return;
         setSigningIn(true);
         try {
-            await firebase.linkWithGoogle();
-            logObCompleted('signed_in');
-            onComplete(null);
+            const { isNewUser } = await firebase.linkWithGoogle();
+            if (isNewUser) {
+                // First-time Google account for this project — keep the user in
+                // the funnel so they still see Discover (screen 1) and BYOK
+                // (screen 2). The 'ob_completed' event fires when they finish
+                // or skip screen 2.
+                setScreen(1);
+            } else {
+                logObCompleted('signed_in');
+                onComplete(null);
+            }
         } catch (error: any) {
             const msg = String(error?.message ?? error ?? '');
             if (msg.includes('cancelled') || msg.includes('Cancelled')) {

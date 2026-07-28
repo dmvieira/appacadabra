@@ -357,7 +357,7 @@ export async function signInWithGoogle() {
     }
 }
 
-export async function linkWithGoogle() {
+export async function linkWithGoogle(): Promise<{ isNewUser: boolean }> {
     try {
         await GoogleSignin.hasPlayServices();
 
@@ -395,15 +395,19 @@ export async function linkWithGoogle() {
         // (sometimes surfaced as auth/unknown by the native module), but the
         // user's intent — "be signed in with Google" — is already satisfied.
         if (isGoogleUser()) {
-            return { user: user! } as any;
+            return { isNewUser: false };
         }
 
         try {
-            return await linkWithCredential(user!, googleCredential);
+            await linkWithCredential(user!, googleCredential);
+            // Linking succeeded — this Google account had never been bound to a
+            // Firebase user in this project, so treat as a first-time sign-in.
+            return { isNewUser: true };
         } catch (linkError: any) {
             if (linkError.code === 'auth/credential-already-in-use') {
                 // Account already exists — sign in directly with the same credential
-                return await signInWithCredential(firebaseAuth(), googleCredential);
+                await signInWithCredential(firebaseAuth(), googleCredential);
+                return { isNewUser: false };
             }
             // Provider is already linked to this user (race or surfaced as auth/unknown).
             // The intent is satisfied — treat as success rather than bubbling an error.
@@ -412,7 +416,7 @@ export async function linkWithGoogle() {
                 linkError.code === 'auth/provider-already-linked' ||
                 /already been linked to the given provider/i.test(linkMsg)
             ) {
-                return { user: firebaseAuth().currentUser! } as any;
+                return { isNewUser: false };
             }
             throw linkError;
         }
