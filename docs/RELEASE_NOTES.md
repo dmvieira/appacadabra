@@ -1,4 +1,104 @@
 ## Version Name
+Backup for Everyone, Smoother Start
+
+<en-US>
+• Anonymous backup: pick a local folder or Google Drive as your backup destination without signing in. Google login is only asked if you choose Drive.
+• Better first-time onboarding: new users now see the full Discover Spells and API key screens after signing in with Google. Existing users still go straight to the app.
+</en-US>
+
+<pt-BR>
+• Backup para todos: escolha uma pasta local ou o Google Drive como destino de backup sem fazer login. O login do Google só é pedido se você escolher o Drive.
+• Onboarding melhorado: novos usuários agora veem as telas de Descobrir Feitiços e chave de API após entrar com o Google. Usuários existentes continuam indo direto para o app.
+</pt-BR>
+
+<es-419>
+• Copia de seguridad para todos: elige una carpeta local o Google Drive como destino de copia de seguridad sin iniciar sesión. El acceso a Google solo se pide si eliges Drive.
+• Incorporación mejorada: los usuarios nuevos ahora ven las pantallas de Descubrir Hechizos y clave de API tras iniciar sesión con Google. Los existentes siguen yendo directo al app.
+</es-419>
+
+<es-ES>
+• Copia de seguridad para todos: elige una carpeta local o Google Drive sin iniciar sesión. El acceso a Google solo se solicita si eliges Drive.
+• Incorporación mejorada: los nuevos usuarios ven las pantallas de Descubrir Hechizos y clave API después de iniciar sesión con Google. Los usuarios existentes van directo al app.
+</es-ES>
+
+<fr-FR>
+• Sauvegarde pour tous : choisissez un dossier local ou Google Drive sans vous connecter. La connexion Google n'est demandée que si vous choisissez Drive.
+• Meilleure configuration initiale : les nouveaux utilisateurs voient désormais les écrans Découvrir les sorts et clé API après la connexion Google. Les utilisateurs existants vont directement dans l'app.
+</fr-FR>
+
+<fr-CA>
+• Sauvegarde pour tous : choisissez un dossier local ou Google Drive sans vous connecter. La connexion Google n'est demandée que si vous choisissez Drive.
+• Meilleure configuration initiale : les nouveaux utilisateurs voient maintenant les écrans Découvrir les sorts et clé API après la connexion Google. Les utilisateurs existants vont directement dans l'app.
+</fr-CA>
+
+<de-DE>
+• Backup für alle: Wähle einen lokalen Ordner oder Google Drive als Sicherungsziel, ohne dich anzumelden. Google-Login wird nur verlangt, wenn du Drive wählst.
+• Besseres Onboarding: Neue Nutzer sehen jetzt nach der Google-Anmeldung die Bildschirme Zauber entdecken und API-Schlüssel. Bestehende Nutzer gelangen weiterhin direkt zur App.
+</de-DE>
+
+<it-IT>
+• Backup per tutti: scegli una cartella locale o Google Drive come destinazione di backup senza accedere. Il login Google viene richiesto solo se scegli Drive.
+• Onboarding migliorato: i nuovi utenti vedono ora le schermate Scopri incantesimi e chiave API dopo l'accesso con Google. Gli utenti esistenti vanno direttamente all'app.
+</it-IT>
+
+<ja-JP>
+• 匿名バックアップ: サインインなしでローカルフォルダまたは Google Drive をバックアップ先として選択できます。Google ログインは Drive を選んだときだけ求められます。
+• 初回オンボーディング改善: Google でサインインした新規ユーザーにも「スペルを発見」と API キー画面が表示されるようになりました。既存ユーザーはこれまで通りすぐにアプリへ。
+</ja-JP>
+
+<zh-CN>
+• 匿名备份: 无需登录即可选择本地文件夹或 Google Drive 作为备份目标。只有选择 Drive 时才需要 Google 登录。
+• 更流畅的新手引导: 新用户通过 Google 登录后，现在可以看到完整的"发现法术"和 API 密钥设置页面。老用户仍然直接进入应用。
+</zh-CN>
+
+<ko-KR>
+• 익명 백업: 로그인 없이 로컬 폴더 또는 Google Drive를 백업 대상으로 선택할 수 있습니다. Google 로그인은 Drive를 선택할 때만 요청됩니다.
+• 더 나은 첫 시작: Google로 로그인한 신규 사용자도 이제 스펠 탐색 및 API 키 화면을 볼 수 있습니다. 기존 사용자는 이전처럼 바로 앱으로 이동합니다.
+</ko-KR>
+
+<ar>
+• نسخ احتياطي للجميع: اختر مجلدًا محليًا أو Google Drive وجهةً للنسخ الاحتياطي دون تسجيل الدخول. يُطلب تسجيل دخول Google فقط عند اختيار Drive.
+• تأهيل أولي أفضل: يرى المستخدمون الجدد الآن شاشتَي اكتشاف التعاويذ ومفتاح API بعد تسجيل الدخول بـ Google. يتوجه المستخدمون الحاليون مباشرةً إلى التطبيق كما من قبل.
+</ar>
+
+<hi-IN>
+• Anonymous backup: बिना sign in किए local folder या Google Drive को backup destination चुनें। Google login केवल Drive चुनने पर मांगा जाता है।
+• बेहतर onboarding: Google से sign in करने के बाद नए users को अब Discover Spells और API key स्क्रीन दिखती हैं। मौजूदा users सीधे app पर जाते हैं।
+</hi-IN>
+
+<ru-RU>
+• Резервная копия для всех: выберите локальную папку или Google Drive в качестве места для резервных копий без входа в аккаунт. Вход через Google запрашивается только при выборе Drive.
+• Улучшенное знакомство с приложением: новые пользователи теперь видят экраны «Открыть заклинания» и ключа API после входа через Google. Существующие пользователи по-прежнему сразу попадают в приложение.
+</ru-RU>
+
+<tr-TR>
+• Herkes için yedekleme: giriş yapmadan yedek hedefi olarak yerel klasör veya Google Drive seçin. Google girişi yalnızca Drive seçildiğinde istenir.
+• Daha iyi ilk kurulum: yeni kullanıcılar Google ile giriş yaptıktan sonra Sihirleri Keşfet ve API anahtarı ekranlarını görür. Mevcut kullanıcılar doğrudan uygulamaya gider.
+</tr-TR>
+
+<nl-NL>
+• Back-up voor iedereen: kies een lokale map of Google Drive als back-upbestemming zonder in te loggen. Google-aanmelding wordt alleen gevraagd als je Drive kiest.
+• Betere eerste start: nieuwe gebruikers zien nu de schermen Ontdek spreuken en API-sleutel na aanmelding met Google. Bestaande gebruikers gaan direct naar de app.
+</nl-NL>
+
+<pl-PL>
+• Kopia zapasowa dla wszystkich: wybierz lokalny folder lub Google Drive jako cel kopii zapasowej bez logowania. Logowanie przez Google jest wymagane tylko przy wyborze Drive.
+• Lepsze pierwsze uruchomienie: nowi użytkownicy widzą teraz ekrany Odkryj zaklęcia i klucza API po zalogowaniu przez Google. Obecni użytkownicy przechodzą bezpośrednio do aplikacji.
+</pl-PL>
+
+<vi>
+• Sao lưu cho mọi người: chọn thư mục cục bộ hoặc Google Drive làm đích sao lưu mà không cần đăng nhập. Đăng nhập Google chỉ được yêu cầu khi bạn chọn Drive.
+• Hướng dẫn ban đầu tốt hơn: người dùng mới giờ thấy màn hình Khám phá phép thuật và API key sau khi đăng nhập bằng Google. Người dùng hiện tại vẫn đi thẳng vào app.
+</vi>
+
+<th>
+• สำรองข้อมูลสำหรับทุกคน: เลือกโฟลเดอร์ในเครื่องหรือ Google Drive เป็นปลายทางสำรองข้อมูลโดยไม่ต้องลงชื่อเข้าใช้ Google login จะถูกขอเฉพาะเมื่อเลือก Drive เท่านั้น
+• การเริ่มต้นใช้งานที่ดีขึ้น: ผู้ใช้ใหม่จะเห็นหน้า Discover Spells และ API key หลังจากลงชื่อเข้าใช้ด้วย Google ผู้ใช้เดิมยังคงเข้าแอปได้ทันที
+</th>
+
+---
+
+## Version Name
 Music, Documents, and Your Model
 
 <en-US>
