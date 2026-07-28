@@ -1,154 +1,116 @@
 ## Version Name
-BYOK: Free AI Generation + Voice Notes Fix
+Background Generation Reliability Fix
 
 <en-US>
-• Appacadabra is now free — bring your own OpenRouter key and pay only for AI usage at cost
-• Real spend tracking: see exactly how much each spell costs in USD
-• Spell generation is now more resilient: automatic retry if a model returns a server error
-• WhatsApp voice notes and audio files (OGG, MP3, FLAC, AAC) now work correctly when shared to a spell
-• Shared files that can't be read now show a clear error instead of sending empty content
+• Spell generation now recovers in ~3 min if Android kills the background service (was up to 20 min on Xiaomi, Huawei, Samsung)
+• WorkManager retry now uses expedited scheduling with graceful downgrade under Doze mode
+• Stale job detection on re-open is now faster: 2 min threshold instead of 15 min
 </en-US>
 
 <pt-BR>
-• O Appacadabra agora é gratuito — traga sua própria chave OpenRouter e pague apenas pelo uso de IA pelo custo real
-• Rastreamento de gastos real: veja exatamente quanto cada feitiço custa em USD
-• A geração de feitiços ficou mais resiliente: nova tentativa automática se o modelo retornar erro do servidor
-• Mensagens de voz do WhatsApp e arquivos de áudio (OGG, MP3, FLAC, AAC) agora funcionam ao serem partilhados com um feitiço
-• Se um arquivo partilhado não puder ser lido, aparece uma mensagem clara em vez de conteúdo vazio
+• A geração de feitiços agora se recupera em ~3 min se o Android encerrar o serviço em segundo plano (antes podia demorar até 20 min em Xiaomi, Huawei, Samsung)
+• O WorkManager agora usa agendamento expedito com degradação graciosa no modo Doze
+• A deteção de tarefas paradas ao reabrir o app ficou mais rápida: limite de 2 min em vez de 15 min
 </pt-BR>
 
 <es-419>
-• Appacadabra ahora es gratis — trae tu propia clave de OpenRouter y paga solo por el uso de IA al costo real
-• Seguimiento real de gastos: ve exactamente cuánto cuesta cada hechizo en USD
-• La generación de hechizos es más resiliente: reintento automático si un modelo devuelve error del servidor
-• Las notas de voz de WhatsApp y archivos de audio (OGG, MP3, FLAC, AAC) ya funcionan al compartirlos con un hechizo
-• Si un archivo compartido no se puede leer, aparece un mensaje claro en vez de contenido vacío
+• La generación de hechizos se recupera en ~3 min si Android mata el servicio en segundo plano (antes hasta 20 min en Xiaomi, Huawei, Samsung)
+• WorkManager ahora usa programación expedita con degradación elegante en modo Doze
+• La detección de tareas colgadas al reabrir la app es más rápida: umbral de 2 min en lugar de 15 min
 </es-419>
 
 <es-ES>
-• Appacadabra ahora es gratuito — trae tu propia clave de OpenRouter y paga solo por el uso de IA al coste real
-• Seguimiento real de gastos: ve exactamente cuánto cuesta cada hechizo en USD
-• La generación de hechizos es más resiliente: reintento automático si un modelo devuelve un error del servidor
-• Las notas de voz de WhatsApp y archivos de audio (OGG, MP3, FLAC, AAC) ya funcionan al compartirlos con un hechizo
-• Si un archivo compartido no se puede leer, aparece un mensaje claro en lugar de contenido vacío
+• La generación de hechizos se recupera en ~3 min si Android mata el servicio en segundo plano (antes hasta 20 min en Xiaomi, Huawei, Samsung)
+• WorkManager ahora usa programación expedita con degradación elegante en modo Doze
+• La detección de tareas bloqueadas al reabrir la app es más rápida: umbral de 2 min en lugar de 15 min
 </es-ES>
 
 <fr-FR>
-• Appacadabra est maintenant gratuit — apportez votre propre clé OpenRouter et ne payez que l'usage IA au coût réel
-• Suivi des dépenses réel : voyez exactement combien coûte chaque sort en USD
-• La génération de sorts est plus résiliente : nouvel essai automatique si un modèle renvoie une erreur serveur
-• Les notes vocales WhatsApp et fichiers audio (OGG, MP3, FLAC, AAC) fonctionnent désormais correctement lors du partage avec un sort
-• Si un fichier partagé ne peut pas être lu, un message clair s'affiche au lieu d'envoyer un contenu vide
+• La génération de sorts se rétablit en ~3 min si Android tue le service en arrière-plan (jusqu'à 20 min avant sur Xiaomi, Huawei, Samsung)
+• WorkManager utilise désormais la planification expéditée avec dégradation gracieuse en mode Doze
+• La détection des tâches bloquées à la réouverture de l'app est plus rapide : seuil de 2 min au lieu de 15 min
 </fr-FR>
 
 <fr-CA>
-• Appacadabra est maintenant gratuit — apportez votre propre clé OpenRouter et payez seulement l'usage IA au coût réel
-• Suivi des dépenses réel : voyez exactement combien coûte chaque sort en USD
-• La génération de sorts est plus résiliente : nouvelle tentative automatique si un modèle retourne une erreur serveur
-• Les notes vocales WhatsApp et fichiers audio (OGG, MP3, FLAC, AAC) fonctionnent maintenant correctement quand partagés avec un sort
-• Si un fichier partagé ne peut pas être lu, un message clair s'affiche au lieu de contenu vide
+• La génération de sorts se rétablit en ~3 min si Android arrête le service en arrière-plan (pouvait prendre jusqu'à 20 min sur Xiaomi, Huawei, Samsung)
+• WorkManager utilise maintenant la planification expéditée avec dégradation gracieuse en mode Doze
+• La détection des tâches bloquées à la réouverture de l'app est plus rapide : seuil de 2 min au lieu de 15 min
 </fr-CA>
 
 <de-DE>
-• Appacadabra ist jetzt kostenlos — bring deinen eigenen OpenRouter-Schlüssel mit und zahle nur für die KI-Nutzung zum Selbstkostenpreis
-• Echtes Ausgaben-Tracking: sieh genau, wie viel jeder Zauber in USD kostet
-• Die Zaubergenerierung ist jetzt robuster: automatischer Wiederholungsversuch bei Server-Fehler
-• WhatsApp-Sprachnachrichten und Audiodateien (OGG, MP3, FLAC, AAC) funktionieren jetzt korrekt beim Teilen mit einem Zauber
-• Kann eine geteilte Datei nicht gelesen werden, erscheint eine klare Meldung statt leerer Inhalte
+• Die Zaubergenerierung erholt sich jetzt in ~3 Min., wenn Android den Hintergrunddienst beendet (vorher bis zu 20 Min. auf Xiaomi, Huawei, Samsung)
+• WorkManager nutzt jetzt expedited Scheduling mit graceful Downgrade im Doze-Modus
+• Erkennung hängender Aufgaben beim erneuten Öffnen der App ist schneller: 2 Min. statt 15 Min.
 </de-DE>
 
 <it-IT>
-• Appacadabra è ora gratuito — porta la tua chiave OpenRouter e paga solo per l'utilizzo AI al costo reale
-• Monitoraggio reale delle spese: vedi esattamente quanto costa ogni incantesimo in USD
-• La generazione degli incantesimi è più resiliente: nuovo tentativo automatico se un modello restituisce un errore del server
-• I messaggi vocali di WhatsApp e i file audio (OGG, MP3, FLAC, AAC) ora funzionano correttamente quando condivisi con un incantesimo
-• Se un file condiviso non può essere letto, appare un messaggio chiaro invece di contenuto vuoto
+• La generazione degli incantesimi ora si ripristina in ~3 min se Android termina il servizio in background (prima fino a 20 min su Xiaomi, Huawei, Samsung)
+• WorkManager ora usa la pianificazione spedita con degradazione elegante in modalità Doze
+• Il rilevamento dei job bloccati alla riapertura dell'app è più veloce: soglia di 2 min invece di 15 min
 </it-IT>
 
 <ja-JP>
-• Appacadabraが無料になった — 自分のOpenRouterキーを持ち込み、AI利用分だけ実費で支払う
-• リアルな支出追跡：各スペルのコストをUSDで正確に確認できる
-• スペル生成がより安定した：モデルがサーバーエラーを返した場合に自動リトライ
-• WhatsApp音声メモや音声ファイル（OGG・MP3・FLAC・AAC）をスペルに共有すると正しく動作するようになった
-• 共有ファイルが読み込めない場合、空のコンテンツではなく明確なエラーメッセージを表示
+• AndroidがバックグラウンドサービスをKillしてもスペル生成が約3分で復帰（Xiaomi・Huawei・Samsungでは以前最大20分かかっていた）
+• WorkManagerがDozeモード下でのグレースフルダウングレード付き優先スケジューリングを使用
+• アプリ再起動時の停止ジョブ検出が高速化：15分から2分に短縮
 </ja-JP>
 
 <zh-CN>
-• Appacadabra 现已免费 — 带上你自己的 OpenRouter 密钥，仅按实际 AI 用量付费
-• 真实费用追踪：精确查看每个法术的 USD 花费
-• 法术生成更稳定：模型返回服务器错误时自动重试
-• WhatsApp 语音消息和音频文件（OGG、MP3、FLAC、AAC）共享到法术时现已正常工作
-• 共享文件无法读取时，显示清晰提示而非发送空内容
+• 即使 Android 终止后台服务，法术生成现在约 3 分钟即可恢复（此前在小米、华为、三星设备上最长需 20 分钟）
+• WorkManager 现在使用优先调度，并在 Doze 模式下优雅降级
+• 重新打开 App 时停滞任务的检测速度更快：阈值从 15 分钟缩短至 2 分钟
 </zh-CN>
 
 <ko-KR>
-• Appacadabra가 이제 무료 — 본인의 OpenRouter 키를 사용하고 AI 이용료만 실비로 지불
-• 실제 지출 추적: 각 주문이 USD로 얼마나 드는지 정확히 확인
-• 주문 생성이 더 안정적: 모델이 서버 오류를 반환할 때 자동 재시도
-• WhatsApp 음성 메모와 오디오 파일(OGG, MP3, FLAC, AAC)을 주문에 공유하면 이제 정상 작동
-• 공유 파일을 읽을 수 없을 때 빈 내용 대신 명확한 오류 메시지 표시
+• Android가 백그라운드 서비스를 종료해도 주문 생성이 약 3분 내에 복구됩니다 (Xiaomi, Huawei, Samsung에서 이전에는 최대 20분 소요)
+• WorkManager가 Doze 모드에서 우아한 다운그레이드와 함께 신속 스케줄링을 사용
+• 앱 재실행 시 중단된 작업 감지 속도 향상: 15분에서 2분으로 단축
 </ko-KR>
 
 <ar>
-• أصبح Appacadabra مجانياً — أحضر مفتاح OpenRouter الخاص بك وادفع فقط مقابل استخدام الذكاء الاصطناعي بالتكلفة الفعلية
-• تتبع الإنفاق الحقيقي: شاهد بالضبط كم يكلف كل تعويذة بالدولار الأمريكي
-• توليد التعاويذ أصبح أكثر مرونة: إعادة محاولة تلقائية عند خطأ الخادم
-• رسائل الصوت على واتساب وملفات الصوت (OGG وMP3 وFLAC وAAC) تعمل الآن بشكل صحيح عند مشاركتها مع تعويذة
-• إذا تعذّر قراءة ملف مشارك، تظهر رسالة واضحة بدلاً من إرسال محتوى فارغ
+• يتعافى توليد التعاويذ الآن في ~3 دقائق إذا أوقف Android الخدمة في الخلفية (كان يستغرق حتى 20 دقيقة على Xiaomi وHuawei وSamsung)
+• يستخدم WorkManager الآن جدولة سريعة مع تخفيض سلس في وضع Doze
+• اكتشاف المهام المتوقفة عند إعادة فتح التطبيق أسرع: عتبة دقيقتين بدلاً من 15 دقيقة
 </ar>
 
 <hi-IN>
-• Appacadabra अब मुफ़्त है — अपनी खुद की OpenRouter key लाएं और केवल AI उपयोग की वास्तविक लागत चुकाएं
-• असली खर्च ट्रैकिंग: देखें कि हर स्पेल पर USD में कितना खर्च होता है
-• स्पेल जनरेशन अब अधिक मज़बूत: मॉडल सर्वर एरर देने पर स्वतः पुनः प्रयास
-• WhatsApp वॉयस नोट्स और ऑडियो फ़ाइलें (OGG, MP3, FLAC, AAC) किसी स्पेल के साथ शेयर करने पर अब सही काम करती हैं
-• शेयर की गई फ़ाइल न पढ़ी जा सके तो खाली डेटा भेजने के बजाय स्पष्ट संदेश दिखेगा
+• Android द्वारा बैकग्राउंड सर्विस बंद होने पर Spell generation ~3 मिनट में रिकवर हो जाती है (Xiaomi, Huawei, Samsung पर पहले 20 मिनट तक लगते थे)
+• WorkManager अब Doze मोड में graceful downgrade के साथ expedited scheduling का उपयोग करता है
+• App दोबारा खोलने पर रुके हुए jobs की पहचान तेज हुई: 15 मिनट की जगह 2 मिनट की सीमा
 </hi-IN>
 
 <ru-RU>
-• Appacadabra теперь бесплатен — используйте свой ключ OpenRouter и платите только за фактическое использование ИИ
-• Реальное отслеживание расходов: точно видите, сколько стоит каждое заклинание в USD
-• Генерация заклинаний стала надёжнее: автоматическая повторная попытка при ошибке сервера
-• Голосовые сообщения WhatsApp и аудиофайлы (OGG, MP3, FLAC, AAC) теперь корректно работают при отправке в заклинание
-• Если общий файл не удаётся прочитать, отображается понятное сообщение вместо пустого содержимого
+• Генерация заклинаний теперь восстанавливается за ~3 мин., если Android завершает фоновый сервис (ранее до 20 мин. на Xiaomi, Huawei, Samsung)
+• WorkManager теперь использует ускоренное планирование с плавным понижением в режиме Doze
+• Обнаружение зависших задач при повторном открытии приложения ускорено: порог 2 мин. вместо 15 мин.
 </ru-RU>
 
 <tr-TR>
-• Appacadabra artık ücretsiz — kendi OpenRouter anahtarını getir ve yalnızca gerçek maliyet üzerinden AI kullanımı öde
-• Gerçek harcama takibi: her büyünün USD cinsinden tam maliyetini görün
-• Büyü oluşturma daha dayanıklı hale geldi: model sunucu hatası döndürürse otomatik yeniden deneme
-• WhatsApp sesli notları ve ses dosyaları (OGG, MP3, FLAC, AAC) artık bir büyüyle paylaşıldığında doğru çalışıyor
-• Paylaşılan dosya okunamazsa boş içerik yerine net bir hata mesajı gösteriliyor
+• Android arka plan hizmetini sonlandırırsa büyü üretimi artık ~3 dakikada kurtarılıyor (Xiaomi, Huawei, Samsung'da önceden 20 dakikaya kadar sürebiliyordu)
+• WorkManager artık Doze modunda zarif düşürme ile hızlandırılmış zamanlama kullanıyor
+• Uygulamayı yeniden açarken takılı kalan görevlerin tespiti hızlandı: 15 dakika yerine 2 dakika eşiği
 </tr-TR>
 
 <nl-NL>
-• Appacadabra is nu gratis — breng je eigen OpenRouter-sleutel mee en betaal alleen voor AI-gebruik tegen kostprijs
-• Echte uitgaventracking: zie precies hoeveel elke spreuk in USD kost
-• Spreukcreatie is robuuster: automatische herpoging als een model een serverfout geeft
-• WhatsApp-voiceberichten en audiobestanden (OGG, MP3, FLAC, AAC) werken nu correct bij het delen met een spreuk
-• Als een gedeeld bestand niet gelezen kan worden, verschijnt er een duidelijke melding in plaats van lege inhoud
+• Spreukcreatie herstelt nu in ~3 min als Android de achtergrondservice beëindigt (was tot 20 min op Xiaomi, Huawei, Samsung)
+• WorkManager gebruikt nu versnelde planning met elegante downgrade in Doze-modus
+• Detectie van vastgelopen taken bij heropenen van de app is sneller: drempel van 2 min in plaats van 15 min
 </nl-NL>
 
 <pl-PL>
-• Appacadabra jest teraz bezpłatny — przynieś własny klucz OpenRouter i płać tylko za faktyczne użycie AI
-• Śledzenie rzeczywistych wydatków: sprawdź dokładnie, ile kosztuje każde zaklęcie w USD
-• Generowanie zaklęć jest teraz bardziej niezawodne: automatyczne ponowienie przy błędzie serwera
-• Wiadomości głosowe WhatsApp i pliki audio (OGG, MP3, FLAC, AAC) działają teraz poprawnie po udostępnieniu do zaklęcia
-• Jeśli udostępniony plik nie może zostać odczytany, wyświetlany jest wyraźny komunikat zamiast pustej zawartości
+• Generowanie zaklęć odtwarza się teraz w ~3 min, jeśli Android zatrzyma usługę w tle (wcześniej do 20 min na Xiaomi, Huawei, Samsung)
+• WorkManager używa teraz przyspieszonego planowania z elegancką degradacją w trybie Doze
+• Wykrywanie zawieszonych zadań przy ponownym otwarciu aplikacji jest szybsze: próg 2 min zamiast 15 min
 </pl-PL>
 
 <vi>
-• Appacadabra giờ miễn phí — mang khóa OpenRouter của riêng bạn và chỉ trả phí sử dụng AI theo giá thực
-• Theo dõi chi phí thực: xem chính xác mỗi phép thuật tốn bao nhiêu USD
-• Tạo phép thuật ổn định hơn: tự động thử lại khi mô hình trả về lỗi máy chủ
-• Tin nhắn thoại WhatsApp và tệp âm thanh (OGG, MP3, FLAC, AAC) giờ hoạt động đúng khi chia sẻ với một phép thuật
-• Nếu tệp được chia sẻ không đọc được, hiển thị thông báo rõ ràng thay vì gửi nội dung trống
+• Tạo phép thuật giờ phục hồi trong ~3 phút nếu Android tắt dịch vụ nền (trước đây lên đến 20 phút trên Xiaomi, Huawei, Samsung)
+• WorkManager sử dụng lịch trình ưu tiên với giảm cấp duyên dáng ở chế độ Doze
+• Phát hiện các công việc bị treo khi mở lại ứng dụng nhanh hơn: ngưỡng 2 phút thay vì 15 phút
 </vi>
 
 <th>
-• Appacadabra ฟรีแล้ว — นำคีย์ OpenRouter ของคุณมาเองและจ่ายเฉพาะค่าใช้จ่าย AI ตามต้นทุนจริง
-• ติดตามค่าใช้จ่ายจริง: ดูว่าแต่ละ Spell มีค่าใช้จ่ายเท่าไหร่เป็น USD
-• การสร้าง Spell เสถียรขึ้น: ลองใหม่อัตโนมัติหากโมเดลส่งคืนข้อผิดพลาดของเซิร์ฟเวอร์
-• ข้อความเสียง WhatsApp และไฟล์เสียง (OGG, MP3, FLAC, AAC) ใช้งานได้ถูกต้องแล้วเมื่อแชร์ให้ Spell
-• หากไม่สามารถอ่านไฟล์ที่แชร์ได้ จะแสดงข้อความที่ชัดเจนแทนที่จะส่งเนื้อหาว่าง
+• การสร้าง Spell ฟื้นตัวภายใน ~3 นาที หาก Android ปิด background service (เดิมอาจใช้เวลาถึง 20 นาทีบน Xiaomi, Huawei, Samsung)
+• WorkManager ใช้การจัดกำหนดการแบบเร่งด่วนพร้อม graceful downgrade ในโหมด Doze
+• การตรวจจับ job ที่ค้างเมื่อเปิดแอปอีกครั้งเร็วขึ้น: threshold 2 นาที แทนที่จะเป็น 15 นาที
 </th>
