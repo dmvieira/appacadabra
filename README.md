@@ -14,6 +14,10 @@
 
 # Appacadabra
 
+[![CI](https://github.com/dmvieira/appacadabra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmvieira/appacadabra/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+
 **Generate micro-apps with AI, run them integrated with your phone.**
 
 Describe what you want, the AI writes a self-contained HTML/CSS/JS bundle, and Appacadabra runs it inside a WebView with access to native APIs — camera, sensors, contacts, calendar, notifications, file system, the works. Bring your own OpenRouter key, pay model providers directly.
@@ -142,7 +146,7 @@ The Maestro emulator setup is documented in `.maestro/README.md`.
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Security issues: [SECURITY.md](./SECURITY.md).
+PRs are welcome. Read [CONTRIBUTING.md](./CONTRIBUTING.md) first — the short version is: open an issue before large work, one concern per PR, `npm test` green, no secrets. CI runs Jest and a secret sweep on every PR to `main`. Security issues: don't open a public issue — see [SECURITY.md](./SECURITY.md). Community standards: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 ## License
 

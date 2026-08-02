@@ -1,0 +1,145 @@
+# Runs on every PR to main and every push to main.
+# Deliberately excludes Maestro E2E (npm run test:e2e) — requires an Android emulator
+# and is not appropriate for GitHub-hosted Linux runners. Run those locally.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Jest (app)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run Jest
+        run: npm test -- --ci --reporters=default
+
+  typecheck:
+    name: TypeScript (baseline report)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      # Non-blocking on purpose: CONTRIBUTING.md documents a known baseline of
+      # pre-existing TS errors. Report them as a GitHub Actions warning but
+      # never fail the job — a follow-up will drive the baseline to zero and
+      # then this step can become strict.
+      - name: tsc --noEmit (report only)
+        shell: bash
+        run: |
+          if npx tsc --noEmit; then
+            echo "TypeScript check clean."
+          else
+            echo "::warning::tsc --noEmit reported errors. This job does not block merges yet; treat as a baseline report."
+          fi
+
+  functions-test:
+    name: Jest (firebase/functions)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firebase/functions
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: firebase/functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest
+        run: npm test -- --ci --reporters=default
+
+  secret-scan:
+    name: Secret sweep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # We only check for two things:
+      #   1. Banned files added (google-services.json, keystores, .env, service-account JSONs).
+      #      Matches on filename via --name-only --diff-filter=A.
+      #   2. Real PEM-encoded private key headers added to any file.
+      #      Matches on ADDED-lines only (grep '^+' minus the '+++' file-marker lines).
+      #
+      # We deliberately do NOT grep the diff for words like "google-services.json"
+      # or "sk-..." — every mention in docs, workflows, and PR templates would
+      # false-positive.
+      - name: Scan diff for banned files and real secret payloads
+        shell: bash
+        run: |
+          set -eo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+            range="$base..$head"
+          else
+            range="HEAD~1..HEAD"
+          fi
+
+          fail=0
+
+          # 1. Banned files being ADDED to the tree.
+          banned_files=$(git diff --name-only --diff-filter=AC "$range" \
+            | grep -E '(^|/)(google-services\.json|serviceAccountKey\.json|firebase-adminsdk-[A-Za-z0-9-]+\.json|\.env(\.[A-Za-z0-9]+)?|.*\.keystore|.*\.jks|.*\.p12|.*\.pfx)$' \
+            || true)
+          if [ -n "$banned_files" ]; then
+            echo "::error::These files must never be committed:"
+            printf '  - %s\n' $banned_files
+            fail=1
+          fi
+
+          # 2. Actual private-key payloads on ADDED lines.
+          added_lines=$(git diff "$range" -- . ':(exclude)package-lock.json' ':(exclude)firebase/functions/package-lock.json' \
+            | grep -E '^\+' \
+            | grep -v '^\+\+\+' \
+            || true)
+          if echo "$added_lines" | grep -EnI '^\+.*-----BEGIN [A-Z ]*PRIVATE KEY-----'; then
+            echo "::error::Private-key payload added in diff."
+            fail=1
+          fi
+
+          if [ "$fail" = "1" ]; then
+            exit 1
+          fi
+
+          echo "Secret sweep clean."

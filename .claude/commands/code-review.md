@@ -1,4 +1,4 @@
-Review the following code or diff for conformance with Appacadabra's architecture. If no argument is provided, review the current git diff (staged + unstaged).
+Review the following code or diff for conformance with Appacadabra's architecture. If no argument is provided, review the current git diff (staged + unstaged). This command is for **pre-PR** local review — if the changes are already on `main` or already on an open PR, surface that as a workflow gap and route to `QA Agent /pr-review` instead.
 
 **Target:** $ARGUMENTS
 
@@ -28,6 +28,7 @@ For each file changed:
 8. Are there TypeScript `any` types that could be narrowed?
 9. Does new async code handle errors at the right boundary?
 10. Are tests present or updated for changed logic?
+11. Is the current branch a feature branch (not `main`)? Direct changes on `main` are a workflow violation — flag with a recommendation to move the commits onto a branch and open a PR.
 
 Output: List each issue with file:line, severity (Critical / Warning / Suggestion), and a one-line fix.
 
