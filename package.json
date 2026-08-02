@@ -84,7 +84,7 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-view-shot": "4.0.3",
-    "react-native-webview": "13.15.0",
+    "react-native-webview": "14.0.1",
     "share-intent": "file:modules/share-intent",
     "shortcuts": "file:./modules/shortcuts",
     "turndown": "^7.2.4",
