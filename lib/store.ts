@@ -6,7 +6,7 @@ import * as db from './database/db';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Paths, File } from 'expo-file-system/next';
 import * as bgGen from './backgroundGenerator';
-import type { BgGenCompletedEvent, BgGenFailedEvent } from './backgroundGenerator';
+import type { BgGenCompletedEvent, BgGenFailedEvent, BgGenProgressEvent } from './backgroundGenerator';
 import * as openrouter from './api/openrouter';
 import type { OpenRouterErrorCode } from './api/openrouter';
 import { useBridgeUIStore } from './bridgeUIStore';
@@ -140,6 +140,19 @@ interface AppState {
     // Reconcile pending_jobs rows left behind by a previous app kill.
     // Called once at boot from app/_layout.tsx after loadApps().
     reconcilePendingJobs: () => Promise<void>;
+
+    // Rewrite `creatingApps`/`updatingAppIds` from the current `pending_jobs`
+    // rows. Idempotent; concurrent calls are deduped. This is the sole source
+    // of truth for in-flight UI once per-call subscribers are gone.
+    syncInFlightFromDb: () => Promise<void>;
+
+    // Global handlers for bgGen events, subscribed once from `app/_layout.tsx`.
+    // Replace the per-call subscribers that used to live in createApp/
+    // updateAppWithAI closures — those died when the RN bridge was torn down
+    // (OEM battery kill, WebView reload) leaving in-flight UI stale.
+    handleBgGenCompleted: (e: BgGenCompletedEvent) => Promise<void>;
+    handleBgGenFailed: (e: BgGenFailedEvent) => Promise<void>;
+    handleBgGenProgress: (e: BgGenProgressEvent) => Promise<void>;
 }
 
 function inferJsonSchema(value: any): object {
@@ -180,6 +193,33 @@ const KNOWN_OPENROUTER_ERROR_CODES: ReadonlySet<string> = new Set<OpenRouterErro
 function isKnownErrorCode(code: string): boolean {
     return KNOWN_OPENROUTER_ERROR_CODES.has(code);
 }
+
+// Age floor before we consider a `processing` row as possibly abandoned. Kept
+// generous on Android because the FGS can genuinely run for the full 8-min
+// pipeline; on iOS the OS window closes in ~30s so anything older than that
+// without an active driver is almost certainly stale.
+const JOB_ALIVE_MAX_AGE_MS = Platform.OS === 'ios' ? 30 * 1000 : 2 * 60 * 1000;
+
+// Guard used by the sweeper to skip placeholder rendering for backup-restored
+// or otherwise abandoned `pending_jobs` rows. A job is "likely alive" if this
+// process is driving it, the native FGS reports it running, or it is young
+// enough that either could still be true. Reconcile still handles resume for
+// jobs that fail this check.
+async function isJobLikelyAlive(job: PendingJob): Promise<boolean> {
+    if (bgGen.isJobActiveInProcess(job.jobId)) return true;
+    const age = Date.now() - Math.max(job.startedAt, job.updatedAt);
+    if (age <= JOB_ALIVE_MAX_AGE_MS) return true;
+    try {
+        const s = await bgGen.status(job.jobId);
+        if (s.state === 'running') return true;
+    } catch {
+        // Status probe failure means the native side does not know about the
+        // job — treat as stale.
+    }
+    return false;
+}
+
+let syncInFlightPromise: Promise<void> | null = null;
 
 export const useAppStore = create<AppState>((set, get) => ({
     apps: [],
@@ -389,85 +429,6 @@ export const useAppStore = create<AppState>((set, get) => ({
             statusMessage: t('jobStarted'),
         }));
 
-        const completedSub = bgGen.onCompleted(async (e: BgGenCompletedEvent) => {
-            if (e.jobId !== jobId) return;
-            completedSub.remove();
-            failedSub.remove();
-            // NOTE: DB insert, version write, shortcut publish, notification
-            // post, and pending_jobs cleanup all happen inside the headless
-            // task (see `finalizeCreateInline` in backgroundGeneratorTask.ts).
-            // This subscriber only refreshes UI state — if it never runs
-            // (app killed before this async callback lands), the spell is
-            // still saved and the success notification still fires.
-            try {
-                const appName = (e.appName && e.appName.trim()) || description.slice(0, 40);
-                await get().loadApps();
-                set({
-                    statusMessage: t('appReadyNotify', { name: appName }),
-                    statusActionAppId: e.appId,
-                    lastCreatedAppId: e.appId,
-                });
-                markBackupDirty();
-            } catch (error) {
-                console.error('Failed to refresh UI after spell create:', error);
-            } finally {
-                set(state => ({
-                    creatingApps: state.creatingApps.filter(a => a.jobId !== jobId),
-                }));
-            }
-        });
-
-        const failedSub = bgGen.onFailed(async (e: BgGenFailedEvent) => {
-            if (e.jobId !== jobId) return;
-            completedSub.remove();
-            failedSub.remove();
-            // FGS teardown happens in `runJobWithReporting`'s finally block
-            // (`finishFgsInline`). A second `finishJob` here was racing the
-            // subscriber's async work — remove it to avoid interrupting the
-            // failure-notification chain.
-            const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
-                ? (e.code as OpenRouterErrorCode)
-                : 'unknown';
-            if (code === 'byok.error.modelUnavailable' && e.modelId) {
-                useBridgeUIStore.getState().requestModelUnavailable(null, 'SPELL_S', e.modelId);
-            }
-            await db.upsertPendingJob({
-                jobId,
-                type: 'create',
-                appId: null,
-                promptText: description,
-                selectedContext: null,
-                status: 'failed',
-                startedAt,
-                updatedAt: Date.now(),
-                lastErrorCode: code,
-                lastErrorMessage: e.message,
-            }).catch(() => {});
-            await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: t('spellFailedTitle'),
-                    body: t('errorProcessingJob'),
-                    data: { jobId, kind: 'create-failure', errorMessage: e.message },
-                },
-                trigger: null,
-            }).catch(() => {});
-            set({
-                generationError: {
-                    jobId,
-                    type: 'create',
-                    code,
-                    message: e.message,
-                    promptText: description,
-                    appId: null,
-                    selectedContext: null,
-                },
-                lastFailedPrompt: { type: 'create', text: description },
-            });
-            set(state => ({
-                creatingApps: state.creatingApps.filter(a => a.jobId !== jobId),
-            }));
-        });
-
         try {
             await bgGen.startCreate({
                 jobId,
@@ -475,8 +436,6 @@ export const useAppStore = create<AppState>((set, get) => ({
                 notificationTitle: t('generatingApp'),
             });
         } catch (error) {
-            completedSub.remove();
-            failedSub.remove();
             const message = error instanceof Error ? error.message : String(error);
             console.error('Failed to schedule background create:', error);
             await db.upsertPendingJob({
@@ -557,82 +516,6 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
         });
 
-        const completedSub = bgGen.onCompleted(async (e: BgGenCompletedEvent) => {
-            if (e.jobId !== jobId) return;
-            completedSub.remove();
-            failedSub.remove();
-            // NOTE: DB updateAppContent, version write, notification post,
-            // and pending_jobs cleanup happen inside the headless task
-            // (`finalizeEditInline` in backgroundGeneratorTask.ts). Store
-            // subscriber only refreshes UI state.
-            try {
-                set({ statusMessage: t('appUpdatedNotify', { name: app.name }), statusActionAppId: app.id });
-                await get().loadApps();
-                markBackupDirty();
-
-                set({ lastCompletedEditAppId: app.id });
-                setTimeout(() => {
-                    if (get().lastCompletedEditAppId === app.id) get().clearLastCompletedEdit();
-                }, 5000);
-
-                DeviceEventEmitter.emit('APP_UPDATED', { appId: app.id });
-            } catch (error) {
-                console.error('Failed to refresh UI after spell edit:', error);
-            } finally {
-                set(state => ({
-                    updatingAppIds: state.updatingAppIds.filter(id => id !== app.id),
-                }));
-            }
-        });
-
-        const failedSub = bgGen.onFailed(async (e: BgGenFailedEvent) => {
-            if (e.jobId !== jobId) return;
-            completedSub.remove();
-            failedSub.remove();
-            // FGS teardown handled by `runJobWithReporting`'s finally block.
-            const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
-                ? (e.code as OpenRouterErrorCode)
-                : 'unknown';
-            if (code === 'byok.error.modelUnavailable' && e.modelId) {
-                useBridgeUIStore.getState().requestModelUnavailable(app.id, 'SPELL_S', e.modelId);
-            }
-            await db.upsertPendingJob({
-                jobId,
-                type: 'edit',
-                appId: app.id,
-                promptText: instructions,
-                selectedContext: selectedContext ?? null,
-                status: 'failed',
-                startedAt,
-                updatedAt: Date.now(),
-                lastErrorCode: code,
-                lastErrorMessage: e.message,
-            }).catch(() => {});
-            await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: t('spellEditFailedTitle'),
-                    body: t('errorProcessingJob'),
-                    data: { appId: app.id, jobId, kind: 'edit-failure', errorMessage: e.message },
-                },
-                trigger: null,
-            }).catch(() => {});
-            set({
-                generationError: {
-                    jobId,
-                    type: 'edit',
-                    code,
-                    message: e.message,
-                    promptText: instructions,
-                    appId: app.id,
-                    selectedContext: selectedContext ?? null,
-                },
-                lastFailedPrompt: { type: 'edit', text: instructions, appId: app.id },
-            });
-            set(state => ({
-                updatingAppIds: state.updatingAppIds.filter(id => id !== app.id),
-            }));
-        });
-
         try {
             await bgGen.startEdit({
                 jobId,
@@ -644,8 +527,6 @@ export const useAppStore = create<AppState>((set, get) => ({
                 notificationTitle: t('updatingApp'),
             });
         } catch (error) {
-            completedSub.remove();
-            failedSub.remove();
             const message = error instanceof Error ? error.message : String(error);
             console.error('Failed to schedule background edit:', error);
             await db.upsertPendingJob({
@@ -1252,6 +1133,114 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
         } catch (e) {
             console.warn('[Store] reconcilePendingJobs failed:', e);
+        } finally {
+            await get().syncInFlightFromDb();
         }
+    },
+
+    syncInFlightFromDb: async () => {
+        if (syncInFlightPromise) return syncInFlightPromise;
+        syncInFlightPromise = (async () => {
+            try {
+                const processing = await db.listProcessingJobs();
+                const alive: PendingJob[] = [];
+                for (const j of processing) {
+                    if (await isJobLikelyAlive(j)) alive.push(j);
+                }
+                const creating = alive
+                    .filter(j => j.type === 'create')
+                    .sort((a, b) => b.startedAt - a.startedAt)
+                    .map(j => ({
+                        jobId: j.jobId,
+                        description: j.promptText,
+                        timestamp: j.startedAt,
+                    }));
+                const updating = alive
+                    .filter(j => j.type === 'edit' && j.appId != null)
+                    .sort((a, b) => b.startedAt - a.startedAt)
+                    .map(j => j.appId as number);
+                set({ creatingApps: creating, updatingAppIds: updating });
+            } catch (e) {
+                console.warn('[Store] syncInFlightFromDb failed:', e);
+            }
+        })();
+        try {
+            await syncInFlightPromise;
+        } finally {
+            syncInFlightPromise = null;
+        }
+    },
+
+    handleBgGenCompleted: async (e: BgGenCompletedEvent) => {
+        // Determine kind by inspecting current in-flight UI state before the
+        // sync rewrite drops the entry.
+        const before = get();
+        const wasEdit = before.updatingAppIds.includes(e.appId);
+        try {
+            await get().loadApps();
+        } catch (err) {
+            console.error('handleBgGenCompleted: loadApps failed:', err);
+        }
+        markBackupDirty();
+        const appName = (e.appName && e.appName.trim()) || '';
+        if (wasEdit) {
+            set({
+                statusMessage: t('appUpdatedNotify', { name: appName }),
+                statusActionAppId: e.appId,
+                lastCompletedEditAppId: e.appId,
+            });
+            setTimeout(() => {
+                if (get().lastCompletedEditAppId === e.appId) get().clearLastCompletedEdit();
+            }, 5000);
+            DeviceEventEmitter.emit('APP_UPDATED', { appId: e.appId });
+        } else {
+            set({
+                statusMessage: t('appReadyNotify', { name: appName }),
+                statusActionAppId: e.appId,
+                lastCreatedAppId: e.appId,
+            });
+        }
+        await get().syncInFlightFromDb();
+    },
+
+    handleBgGenFailed: async (e: BgGenFailedEvent) => {
+        const job = await db.getPendingJob(e.jobId).catch(() => null);
+        if (!job) {
+            await get().syncInFlightFromDb();
+            return;
+        }
+        const code: OpenRouterErrorCode | 'unknown' = isKnownErrorCode(e.code)
+            ? (e.code as OpenRouterErrorCode)
+            : 'unknown';
+        if (code === 'byok.error.modelUnavailable' && e.modelId) {
+            useBridgeUIStore.getState().requestModelUnavailable(job.appId ?? null, 'SPELL_S', e.modelId);
+        }
+        set({
+            generationError: {
+                jobId: e.jobId,
+                type: job.type,
+                code,
+                message: e.message,
+                promptText: job.promptText,
+                appId: job.appId,
+                selectedContext: job.selectedContext,
+            },
+            lastFailedPrompt: job.type === 'edit' && job.appId != null
+                ? { type: 'edit', text: job.promptText, appId: job.appId }
+                : { type: 'create', text: job.promptText },
+        });
+        await get().syncInFlightFromDb();
+    },
+
+    handleBgGenProgress: async (e: BgGenProgressEvent) => {
+        // Heartbeat: if a job posts progress but this process has no UI entry
+        // (cold-start bridge woke up mid-generation), rehydrate from DB.
+        const s = get();
+        const inCreating = s.creatingApps.some(c => c.jobId === e.jobId);
+        if (inCreating) return;
+        const job = await db.getPendingJob(e.jobId).catch(() => null);
+        if (!job) return;
+        if (job.type === 'edit' && job.appId != null && s.updatingAppIds.includes(job.appId)) return;
+        await s.syncInFlightFromDb();
     },
 }));

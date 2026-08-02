@@ -8,6 +8,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
+import java.util.concurrent.ConcurrentHashMap
 import org.json.JSONObject
 
 /**
@@ -22,8 +23,6 @@ import org.json.JSONObject
  */
 class BackgroundGeneratorModule(private val reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
-
-    private val activeJobIds = mutableSetOf<String>()
 
     override fun getName(): String = "BackgroundGenerator"
 
@@ -169,5 +168,15 @@ class BackgroundGeneratorModule(private val reactContext: ReactApplicationContex
         // stage. Cancelled from the JS task via `clearWatchdog` on
         // completion/failure so happy-path jobs never hit it.
         BackgroundGeneratorWorker.enqueue(reactContext, jobId, titleHint)
+    }
+
+    companion object {
+        // Static so the WorkManager watchdog can early-exit when the FGS is
+        // still driving the job — without this the watchdog spawns a parallel
+        // HeadlessJS task and success notifications double-fire.
+        val activeJobIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+        @JvmStatic
+        fun isJobActive(jobId: String): Boolean = activeJobIds.contains(jobId)
     }
 }

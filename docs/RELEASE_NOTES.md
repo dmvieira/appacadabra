@@ -1,4 +1,161 @@
 ## Version Name
+Quieter, Tougher, Always Tracking
+
+<en-US>
+Bug fixes and resilience improvements.
+
+• No more duplicate "Spell Ready" notifications.
+• Android no longer shows a raw technical error when it stops the app mid-generation. You get a clean message instead.
+• Spell cards always show what is being generated, even after closing and reopening the app.
+</en-US>
+
+<pt-BR>
+Correções de bugs e melhorias de estabilidade.
+
+• Chega de notificações duplicadas de "Feitiço pronto".
+• O Android não exibe mais um erro técnico bruto quando encerra o app no meio de uma geração. No lugar, você vê uma mensagem limpa.
+• Os cards de feitiço sempre mostram o que está sendo gerado, mesmo após fechar e reabrir o app.
+</pt-BR>
+
+<es-419>
+Correcciones de errores y mejoras de estabilidad.
+
+• Se acabaron las notificaciones duplicadas de "Hechizo listo".
+• Android ya no muestra un error técnico crudo cuando detiene la app en medio de una generación. Ahora ves un mensaje claro.
+• Las tarjetas de hechizo siempre muestran lo que se está generando, incluso al cerrar y volver a abrir la app.
+</es-419>
+
+<es-ES>
+Correcciones de errores y mejoras de estabilidad.
+
+• No más notificaciones duplicadas de "Hechizo listo".
+• Android ya no muestra un error técnico en bruto cuando detiene la app a mitad de una generación. Ves un mensaje limpio.
+• Las tarjetas de hechizo siempre muestran lo que se está generando, incluso tras cerrar y reabrir la app.
+</es-ES>
+
+<fr-FR>
+Corrections de bugs et améliorations de stabilité.
+
+• Plus de notifications en double pour "Sort prêt".
+• Android n'affiche plus d'erreur technique brute quand il arrête l'app en cours de génération. Un message clair apparaît à la place.
+• Les cartes de sort montrent toujours ce qui est en cours de génération, même après avoir fermé et rouvert l'app.
+</fr-FR>
+
+<fr-CA>
+Corrections de bugs et améliorations de stabilité.
+
+• Plus de notifications en double pour "Sort prêt".
+• Android n'affiche plus d'erreur technique brute quand il arrête l'app en pleine génération. Vous voyez un message clair à la place.
+• Les cartes de sort affichent toujours ce qui est en cours de génération, même après avoir fermé et rouvert l'app.
+</fr-CA>
+
+<de-DE>
+Fehlerbehebungen und Stabilitätsverbesserungen.
+
+• Keine doppelten „Zauber fertig"-Benachrichtigungen mehr.
+• Android zeigt keinen rohen technischen Fehler mehr an, wenn es die App mitten in einer Generierung beendet. Stattdessen erscheint eine klare Meldung.
+• Zauberkarten zeigen immer an, was gerade generiert wird, auch nach dem Schließen und erneuten Öffnen der App.
+</de-DE>
+
+<it-IT>
+Correzioni di bug e miglioramenti di stabilità.
+
+• Niente più notifiche duplicate di "Incantesimo pronto".
+• Android non mostra più un errore tecnico grezzo quando interrompe l'app a metà generazione. Al suo posto appare un messaggio chiaro.
+• Le schede degli incantesimi mostrano sempre cosa è in corso di generazione, anche dopo aver chiuso e riaperto l'app.
+</it-IT>
+
+<ja-JP>
+バグ修正と安定性の改善。
+
+• 「スペル完成」の重複通知が届かなくなりました。
+• 生成中に Android がアプリを停止しても、生の技術的エラーではなくわかりやすいメッセージが表示されます。
+• アプリを閉じて再度開いた後も、スペルカードには常に生成中のコンテンツが表示されます。
+</ja-JP>
+
+<zh-CN>
+错误修复与稳定性改进。
+
+• 不再出现重复的"法术完成"通知。
+• Android 在生成过程中强制停止应用时，不再显示原始技术错误，改为显示简洁提示。
+• 即使关闭并重新打开应用，法术卡片也始终显示正在生成的内容。
+</zh-CN>
+
+<ko-KR>
+버그 수정 및 안정성 개선.
+
+• "스펠 완성" 알림이 중복으로 오지 않습니다.
+• Android가 생성 중 앱을 종료해도 원시 기술 오류 대신 깔끔한 메시지가 표시됩니다.
+• 앱을 닫았다가 다시 열어도 스펠 카드에 항상 생성 중인 내용이 표시됩니다.
+</ko-KR>
+
+<ar>
+إصلاحات للأخطاء وتحسينات في الاستقرار.
+
+• لن تصلك إشعارات مكررة بـ"جاهز التعويذة" بعد الآن.
+• لم يعد Android يعرض رسالة خطأ تقني خام عند إيقاف التطبيق أثناء التوليد، بل يظهر رسالة واضحة عوضاً عن ذلك.
+• تعرض بطاقات التعويذات دائماً ما يجري توليده، حتى بعد إغلاق التطبيق وإعادة فتحه.
+</ar>
+
+<hi-IN>
+बग फिक्स और स्थिरता सुधार।
+
+• अब "Spell Ready" की duplicate notifications नहीं आएंगी।
+• Android अब mid-generation में app बंद होने पर raw technical error नहीं दिखाता, बजाय एक साफ संदेश आता है।
+• App बंद करके दोबारा खोलने पर भी Spell cards हमेशा दिखाते हैं कि क्या generate हो रहा है।
+</hi-IN>
+
+<ru-RU>
+Исправление ошибок и повышение стабильности.
+
+• Больше нет дублирующихся уведомлений «Заклинание готово».
+• Android больше не показывает сырую техническую ошибку, когда останавливает приложение в ходе генерации. Вместо этого отображается понятное сообщение.
+• Карточки заклинаний всегда показывают, что генерируется, даже после закрытия и повторного открытия приложения.
+</ru-RU>
+
+<tr-TR>
+Hata düzeltmeleri ve kararlılık iyileştirmeleri.
+
+• Artık "Büyü hazır" bildirimi iki kez gelmiyor.
+• Android, üretim sırasında uygulamayı durdurduğunda ham teknik hata göstermiyor; bunun yerine anlaşılır bir mesaj çıkıyor.
+• Uygulama kapatılıp yeniden açılsa bile büyü kartları her zaman neyin üretildiğini gösteriyor.
+</tr-TR>
+
+<nl-NL>
+Bugfixes en stabiliteitverbeteringen.
+
+• Geen dubbele "Spreuk klaar"-meldingen meer.
+• Android toont geen ruwe technische foutmelding meer wanneer het de app stopt tijdens een generatie. Je krijgt een duidelijk bericht.
+• Spreukkaarten tonen altijd wat er wordt gegenereerd, ook na het sluiten en opnieuw openen van de app.
+</nl-NL>
+
+<pl-PL>
+Poprawki błędów i ulepszenia stabilności.
+
+• Koniec z podwójnymi powiadomieniami „Zaklęcie gotowe".
+• Android nie wyświetla już surowego błędu technicznego, gdy zatrzymuje aplikację w trakcie generowania. Zamiast tego pojawia się czytelny komunikat.
+• Karty zaklęć zawsze pokazują, co jest generowane, nawet po zamknięciu i ponownym otwarciu aplikacji.
+</pl-PL>
+
+<vi>
+Sửa lỗi và cải thiện độ ổn định.
+
+• Không còn nhận thông báo "Phép thuật sẵn sàng" trùng lặp nữa.
+• Android không còn hiển thị lỗi kỹ thuật thô khi dừng ứng dụng giữa chừng. Thay vào đó là thông báo rõ ràng.
+• Thẻ phép thuật luôn hiển thị nội dung đang được tạo, kể cả sau khi đóng và mở lại ứng dụng.
+</vi>
+
+<th>
+แก้ไขข้อบกพร่องและปรับปรุงความเสถียร
+
+• ไม่มีการแจ้งเตือน "Spell พร้อมแล้ว" ซ้ำกันอีกต่อไป
+• Android ไม่แสดงข้อผิดพลาดทางเทคนิคดิบอีกต่อไปเมื่อหยุดแอปกลางคัน แต่จะแสดงข้อความที่เข้าใจง่ายแทน
+• การ์ด Spell แสดงสิ่งที่กำลังสร้างอยู่เสมอ แม้หลังจากปิดและเปิดแอปใหม่
+</th>
+
+---
+
+## Version Name
 Backup for Everyone, Smoother Start
 
 <en-US>

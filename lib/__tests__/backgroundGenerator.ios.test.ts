@@ -22,6 +22,10 @@ jest.mock('react-native', () => ({
         removeAllListeners: jest.fn(),
         emit: jest.fn(),
     },
+    AppState: {
+        currentState: 'active',
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+    },
     // backgroundGeneratorTask.ts now imports i18n, which touches I18nManager
     // at module load. Stub the two methods the module invokes.
     I18nManager: {
@@ -37,6 +41,7 @@ jest.mock('react-native', () => ({
 jest.mock('expo-notifications', () => ({
     scheduleNotificationAsync: jest.fn(() => Promise.resolve('mock-id')),
     setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
+    getPresentedNotificationsAsync: jest.fn(() => Promise.resolve([])),
     AndroidImportance: { HIGH: 4 },
 }));
 
