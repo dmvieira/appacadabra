@@ -258,3 +258,21 @@ describe('nextEditStage', () => {
         if (!out.done) expect(out.state.stage).toBe('patch');
     });
 });
+
+describe('raceTimeout error shape', () => {
+    // Issue #1 / #2 fix: pipeline timeouts and DB tears must both hit the
+    // localized "aborted" modal, not the raw unknown-code fallback.
+    it('rejects with .code = byok.error.aborted on timeout', async () => {
+        jest.useFakeTimers();
+        // chat never resolves — race against the 480s timeout.
+        mChat.mockImplementation(() => new Promise(() => {}));
+        const state = await initCreateState({ prompt: 'p', appVersion: '3.0.0' });
+        const pending = nextCreateStage(state);
+        jest.advanceTimersByTime(481_000);
+        const captured = await pending.catch(e => e);
+        expect(captured).toBeInstanceOf(Error);
+        expect((captured as Error & { code?: string }).code).toBe('byok.error.aborted');
+        expect((captured as Error).message).toMatch(/Timeout/);
+        jest.useRealTimers();
+    });
+});
