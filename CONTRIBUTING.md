@@ -41,6 +41,29 @@ npm run android
 - **Lint:** no `console.log` in production paths, no `any` where a real type fits.
 - **Localization:** any user-facing string must go through `lib/i18n.ts`. Add the EN key in your PR; the rest of the locales are batched separately via the `/add-locale-string` flow.
 - **No secrets:** never commit API keys, service accounts, keystores, or `google-services.json`. CI does a regex sweep for the usual patterns.
+- **CI must be green:** GitHub Actions runs Jest (app + `firebase/functions/`), a TypeScript check, and the secret sweep on every PR. See `.github/workflows/ci.yml`. Maintainers won't merge a red build.
+
+## Running tests locally
+
+Run the same suites CI runs before you push:
+
+```bash
+npm test                          # Jest for the React Native app
+cd firebase/functions && npm test # Jest for Cloud Functions
+npx tsc --noEmit                  # TypeScript check (non-blocking baseline in CI)
+```
+
+E2E Maestro tests (`npm run test:e2e`) require an Android emulator and are **not** run in CI. Run them locally when you touch UI flows.
+
+## Firebase Functions is a separate package
+
+Anything under `firebase/functions/` has its own `package.json`, its own tests, and its own deploy story. If your change touches Cloud Functions:
+
+1. `cd firebase/functions && npm install`
+2. Add or update tests under `firebase/functions/src/__tests__/`
+3. Run `npm test` before committing
+
+CI runs the Functions test suite as a separate job — a Functions-only regression will fail the PR even if the app suite passes.
 
 ## Capability authoring
 
