@@ -32,6 +32,7 @@ Always read `CLAUDE.md` before making architectural decisions. It is the authori
 - All DB access via `lib/database/db.ts` — never raw SQLite from components
 - All capability handlers stateless — no global side-effects outside the bridge
 - No comments unless the WHY is non-obvious (hidden constraint, workaround, subtle invariant)
+- **PR workflow only.** All changes land via a pull request. Never `git commit` or `git push` directly to `main`. The flow is: feature branch → PR → CI green → review (`QA Agent /pr-review`) → merge. If a user asks for a direct push to `main`, push back and open a PR instead. The only exceptions are explicit maintainer overrides — the user must literally say "commit directly to main" (e.g., release version bumps, emergency hotfix on the maintainer's own machine). Absent that phrase, always branch.
 
 ## Engineering Commands
 
@@ -43,7 +44,7 @@ Run before merging any significant change. Reviews against:
 - Spend-tracking invariant (`incrementSpendUsd` only after successful response with `costUsd > 0`)
 - TypeScript `any` usage, `console.log` leftovers, missing error boundaries
 
-**Invoke when:** Before any PR, after AI-generated code, when reviewing a large diff.
+**Invoke when:** Before opening any PR, after AI-generated code, when reviewing a large diff on your local branch. For reviewing an already-open PR (yours or a contributor's), route to `QA Agent /pr-review` instead — that command adds the PR-template and cross-file checks.
 
 ### `/gen-tests <file or function>`
 Generate Jest unit test scaffolding following patterns in `lib/capabilities/__tests__/` and `lib/bridges/__tests__/`. Always tests the spend-not-incremented-on-failure path for any function that calls `incrementSpendUsd`.

@@ -50,6 +50,11 @@ Generates a complete Maestro YAML flow for the described journey. Reads existing
 - Section comments (`#`) for readability
 - Suggested filename as comment at the top
 
+### `/pr-review [PR number]`
+Reviews an open pull request (or the current branch's PR) against Appacadabra's architecture, tests, and open-source contribution standards. Fetches the diff via `gh pr diff`, verifies the PR template checklist matches the actual diff, runs the 10-rule architecture pass from `/code-review`, and adds PR-specific checks: capability sync drift, i18n coverage on new keys, Firebase Functions test coverage, security-touchpoint flags, secret-shaped-string sweep, and Conventional-Commits title. Ends with a **Merge recommendation** (APPROVE / COMMENT / REQUEST CHANGES).
+
+**Invoke when:** Any incoming PR from a contributor lands in the queue, any large internal diff before merge, or any time an external reviewer asks "is this safe to merge?" Use this as the default gate on PRs — not `/code-review`, which is for pre-PR local review.
+
 ### `/security-scan [scope]`
 Security audit covering Appacadabra's specific attack surface:
 
