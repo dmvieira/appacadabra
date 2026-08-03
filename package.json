@@ -83,7 +83,7 @@
     "react-native-nitro-modules": "^0.31.10",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-view-shot": "4.0.3",
+    "react-native-view-shot": "5.1.1",
     "react-native-webview": "13.15.0",
     "share-intent": "file:modules/share-intent",
     "shortcuts": "file:./modules/shortcuts",
