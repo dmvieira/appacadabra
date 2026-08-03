@@ -32,7 +32,7 @@
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
-        "@types/jsdom": "^21.0.0",
+        "@types/jsdom": "^28.0.3",
         "firebase-functions-test": "^3.5.0",
         "jest": "^30.4.2",
         "ts-jest": "^29.4.12",
