@@ -28,7 +28,7 @@
         "firebase-functions": "^6.3.0",
         "google-auth-library": "^9.15.1",
         "jsdom": "^30.0.1",
-        "openai": "^4.104.0"
+        "openai": "^7.3.0"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
