@@ -12,6 +12,53 @@
  * the whole reason we persist state.
  */
 
+jest.mock('react-native', () => ({
+    Platform: { OS: 'android' },
+    NativeModules: {},
+    DeviceEventEmitter: {
+        addListener: jest.fn(),
+        removeAllListeners: jest.fn(),
+        emit: jest.fn(),
+    },
+    AppState: {
+        currentState: 'active',
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+    },
+    I18nManager: {
+        allowRTL: jest.fn(),
+        forceRTL: jest.fn(),
+        isRTL: false,
+    },
+}));
+
+jest.mock('expo-notifications', () => ({
+    scheduleNotificationAsync: jest.fn(() => Promise.resolve('mock-id')),
+    setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
+    getPresentedNotificationsAsync: jest.fn(() => Promise.resolve([])),
+    AndroidImportance: { HIGH: 4 },
+}));
+
+jest.mock('../bridges/SharingShortcuts', () => ({
+    __esModule: true,
+    default: {
+        publishShortcut: jest.fn(() => Promise.resolve(true)),
+        removeShortcut: jest.fn(() => Promise.resolve(true)),
+    },
+}));
+
+jest.mock('../database/db', () => ({
+    getPendingJob: jest.fn(),
+    upsertPendingJob: jest.fn(() => Promise.resolve()),
+    getAppById: jest.fn(),
+    getVersionsForApp: jest.fn(() => Promise.resolve([])),
+    deletePendingJob: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('../analytics', () => ({
+    logAppCreated: jest.fn(),
+    logAppEdited: jest.fn(),
+}));
+
 jest.mock('../api/openrouter', () => ({
     chat: jest.fn(),
 }));
@@ -145,5 +192,45 @@ describe('backgroundGeneratorTask (resume)', () => {
         expect(base.instruction).toBe('add dark mode');
         expect(base.normalizedCode).toBe('<html>light</html>');
         expect(base.kind).toBe('edit');
+    });
+});
+
+describe('runBackgroundGeneratorTask (dedup)', () => {
+    // Regression bar for issue #3: watchdog + FGS could spawn two headless
+    // tasks for the same jobId, doubling the success notification.
+    it('early-exits the second concurrent invocation for the same jobId', async () => {
+        const db = require('../database/db');
+        // Slow down the initial task's DB read so the second call races in.
+        let releaseFirst: () => void = () => {};
+        const firstBlocker = new Promise<null>((res) => {
+            releaseFirst = () => res(null);
+        });
+        (db.getPendingJob as jest.Mock).mockImplementationOnce(() => firstBlocker);
+
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const data = { taskKey: 'resume', paramsJson: JSON.stringify({ jobId: 'job_dup' }) };
+        const first = taskModule.runBackgroundGeneratorTask(data);
+        const second = taskModule.runBackgroundGeneratorTask(data);
+
+        await second;
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('duplicate task for jobId=job_dup'),
+        );
+
+        releaseFirst();
+        await first;
+
+        warnSpy.mockRestore();
+    });
+
+    it('releases the running-set entry so a later call for same jobId proceeds', async () => {
+        const db = require('../database/db');
+        (db.getPendingJob as jest.Mock).mockResolvedValue(null);
+
+        const data = { taskKey: 'resume', paramsJson: JSON.stringify({ jobId: 'job_seq' }) };
+        await taskModule.runBackgroundGeneratorTask(data);
+        // Second call runs to completion — proves the Set was cleaned in finally.
+        await expect(taskModule.runBackgroundGeneratorTask(data)).resolves.toBeUndefined();
     });
 });

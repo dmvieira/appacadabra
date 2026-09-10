@@ -370,6 +370,7 @@ export function applyPatches(sourceCode: string, patches: Patch[]): string {
 export function makeRetryableEmptyResponseError(reason: string | null | undefined): Error {
     const err = new Error(`Empty AI response (finish_reason: ${reason ?? 'unknown'})`);
     (err as any).retryable = true;
+    (err as any).code = 'byok.error.parse';
     return err;
 }
 

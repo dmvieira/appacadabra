@@ -281,6 +281,35 @@ export default function RootLayout() {
             maybeReconcilePendingJobs();
         });
 
+        // Global bg-generation event handlers. Replaces the per-call
+        // subscribers that used to live in createApp/updateAppWithAI — those
+        // closures died when the RN bridge was torn down, leaving
+        // creatingApps/updatingAppIds stale. Global subscribers + the store's
+        // syncInFlightFromDb keep the UI aligned with `pending_jobs`.
+        const bgCompletedSub = bgGen.onCompleted((e) => {
+            useAppStore.getState().handleBgGenCompleted(e).catch((err) => {
+                console.warn('handleBgGenCompleted failed:', err);
+            });
+        });
+        const bgFailedSub = bgGen.onFailed((e) => {
+            useAppStore.getState().handleBgGenFailed(e).catch((err) => {
+                console.warn('handleBgGenFailed failed:', err);
+            });
+        });
+        const bgProgressSub = bgGen.onProgress((e) => {
+            useAppStore.getState().handleBgGenProgress(e).catch(() => {});
+        });
+
+        // Sweeper: catches lost terminal events (bridge died between headless
+        // finalize and UI subscriber). DB is authoritative, so re-deriving
+        // creatingApps/updatingAppIds every 30s self-cleans in ≤30s.
+        const sweeperInterval = setInterval(() => {
+            const s = useAppStore.getState();
+            if (s.creatingApps.length + s.updatingAppIds.length > 0) {
+                s.syncInFlightFromDb().catch(() => {});
+            }
+        }, 30_000);
+
         // Deep link: appacadabra://store?spellId=xxx
         // Invariant: Firebase Auth may not be ready when getInitialURL() resolves on cold start.
         // We buffer the deep link until the first auth state callback fires.
@@ -331,6 +360,10 @@ export default function RootLayout() {
             notifSubscription.remove();
             appStateSub.remove();
             bgReconcileSub.remove();
+            bgCompletedSub.remove();
+            bgFailedSub.remove();
+            bgProgressSub.remove();
+            clearInterval(sweeperInterval);
             linkingSub.remove();
             try { unsubscribeAuth(); } catch {}
         };

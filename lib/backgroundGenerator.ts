@@ -277,7 +277,7 @@ export async function resume(jobId: string, title?: string | null): Promise<bool
     activeInProcessJobs.add(jobId);
     void (async () => {
         try {
-            await runJobWithReporting(jobId, () => runResumeJob(jobId));
+            await runJobWithReporting(jobId, (signal) => runResumeJob(jobId, signal));
         } finally {
             activeInProcessJobs.delete(jobId);
             await endNativeJob(jobId);
@@ -405,12 +405,12 @@ export function onFailed(listener: (e: BgGenFailedEvent) => void): EmitterSubscr
 async function runCreateInProcess(params: StartCreateParams): Promise<void> {
     activeInProcessJobs.add(params.jobId);
     try {
-        await runJobWithReporting(params.jobId, () =>
+        await runJobWithReporting(params.jobId, (signal) =>
             runCreateJob({
                 jobId: params.jobId,
                 prompt: params.prompt,
                 appVersion: params.appVersion,
-            }),
+            }, signal),
         );
     } finally {
         activeInProcessJobs.delete(params.jobId);
@@ -421,7 +421,7 @@ async function runCreateInProcess(params: StartCreateParams): Promise<void> {
 async function runEditInProcess(params: StartEditParams): Promise<void> {
     activeInProcessJobs.add(params.jobId);
     try {
-        await runJobWithReporting(params.jobId, () =>
+        await runJobWithReporting(params.jobId, (signal) =>
             runEditJob({
                 jobId: params.jobId,
                 appId: params.appId,
@@ -430,7 +430,7 @@ async function runEditInProcess(params: StartEditParams): Promise<void> {
                 selectedContext: params.selectedContext,
                 previousEdits: params.previousEdits,
                 appVersion: params.appVersion,
-            }),
+            }, signal),
         );
     } finally {
         activeInProcessJobs.delete(params.jobId);

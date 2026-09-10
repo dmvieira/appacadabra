@@ -18,7 +18,7 @@
  * functions are also exported so iOS (which has no HeadlessJsTask) can
  * reuse the same persisted, resumable pipeline from the main JS context.
  */
-import { DeviceEventEmitter, NativeModules, Platform } from 'react-native';
+import { AppState, DeviceEventEmitter, NativeModules, Platform, type NativeEventSubscription } from 'react-native';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import * as db from './database/db';
@@ -69,20 +69,47 @@ function getAppVersion(hint?: string): string {
     return hint ?? Constants.expoConfig?.version ?? '2.0.15';
 }
 
+// Guards against duplicate task launches for the same jobId — the Android
+// watchdog can still race the FGS on OEMs that hold the intent even after
+// isJobActive check, and iOS foreground+resume can double-trigger.
+const runningJobIds = new Set<string>();
+
+const jobAbortControllers = new Map<string, AbortController>();
+
+export function abortJob(jobId: string): void {
+    jobAbortControllers.get(jobId)?.abort();
+}
+
 export async function runBackgroundGeneratorTask(data: TaskData): Promise<void> {
     const params = JSON.parse(data.paramsJson) as CreateParams | EditParams | ResumeParams;
-    await runJobWithReporting(params.jobId, async () => {
-        if (data.taskKey === 'create') {
-            await runCreateJob(params as CreateParams);
-        } else if (data.taskKey === 'edit') {
-            await runEditJob(params as EditParams);
-        } else if (data.taskKey === 'resume') {
-            await runResumeJob((params as ResumeParams).jobId);
-        } else {
-            throw new Error(`Unknown BackgroundGenerator taskKey: ${data.taskKey}`);
-        }
-    });
+    if (runningJobIds.has(params.jobId)) {
+        console.warn(`[backgroundGeneratorTask] duplicate task for jobId=${params.jobId}; skipping`);
+        return;
+    }
+    runningJobIds.add(params.jobId);
+    try {
+        await runJobWithReporting(params.jobId, async (signal) => {
+            if (data.taskKey === 'create') {
+                await runCreateJob(params as CreateParams, signal);
+            } else if (data.taskKey === 'edit') {
+                await runEditJob(params as EditParams, signal);
+            } else if (data.taskKey === 'resume') {
+                await runResumeJob((params as ResumeParams).jobId, signal);
+            } else {
+                throw new Error(`Unknown BackgroundGenerator taskKey: ${data.taskKey}`);
+            }
+        });
+    } finally {
+        runningJobIds.delete(params.jobId);
+    }
 }
+
+const IOS_BACKGROUND_ABORT_MS = 25_000;
+
+// Matches expo-sqlite's "NativeDatabase.<method> ... rejected" and the
+// "Database ... is closed" surface when the JSI runtime is torn down by
+// aggressive OEM Doze mid-persist.
+const DB_HANDLE_REJECTION_RE = /NativeDatabase\.\w+.*rejected|Database.*is closed/i;
 
 /**
  * Wraps a pipeline invocation with the standard failure-reporting +
@@ -93,20 +120,44 @@ export async function runBackgroundGeneratorTask(data: TaskData): Promise<void> 
  */
 export async function runJobWithReporting(
     jobId: string,
-    work: () => Promise<void>,
+    work: (signal: AbortSignal) => Promise<void>,
 ): Promise<void> {
+    const controller = new AbortController();
+    jobAbortControllers.set(jobId, controller);
+
+    let appStateSub: NativeEventSubscription | null = null;
+    let backgroundAbortTimer: ReturnType<typeof setTimeout> | null = null;
+    if (Platform.OS === 'ios') {
+        appStateSub = AppState.addEventListener('change', (state) => {
+            if (state === 'background') {
+                if (backgroundAbortTimer) clearTimeout(backgroundAbortTimer);
+                backgroundAbortTimer = setTimeout(() => controller.abort(), IOS_BACKGROUND_ABORT_MS);
+            } else if (state === 'active' && backgroundAbortTimer) {
+                clearTimeout(backgroundAbortTimer);
+                backgroundAbortTimer = null;
+            }
+        });
+    }
+
     try {
-        await work();
+        await work(controller.signal);
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const code =
+        const rawCode =
             error instanceof Error && 'code' in error
                 ? String((error as Error & { code: unknown }).code)
                 : 'unknown';
+        const isDbRejection = DB_HANDLE_REJECTION_RE.test(message);
+        const isSuspendedIos = Platform.OS === 'ios' && AppState.currentState !== 'active';
+        const isAborted = controller.signal.aborted;
+        const code = (isDbRejection || isSuspendedIos || isAborted) ? 'byok.error.aborted' : rawCode;
         const modelId = extractUnavailableModelId(error);
         await persistFailure(jobId, code, message, modelId);
         DeviceEventEmitter.emit('BGGenFailed', { jobId, code, message, modelId });
     } finally {
+        if (backgroundAbortTimer) clearTimeout(backgroundAbortTimer);
+        appStateSub?.remove();
+        jobAbortControllers.delete(jobId);
         // Android: clears the WorkManager watchdog so a completed job does
         // not fire the resume path 20 min later. No-op on iOS (native side
         // does not expose clearWatchdog), which matches intent.
@@ -120,12 +171,13 @@ export async function runJobWithReporting(
     }
 }
 
-export async function runCreateJob(p: CreateParams): Promise<void> {
+export async function runCreateJob(p: CreateParams, signal?: AbortSignal): Promise<void> {
     const state = await initCreateState({ prompt: p.prompt, appVersion: getAppVersion(p.appVersion) });
     await persistState(p.jobId, state);
     emitProgress(p.jobId, state);
 
     const result = await driveInProcess(state, nextCreateStage, {
+        signal,
         onState: async (s) => {
             await persistState(p.jobId, s);
             emitProgress(p.jobId, s);
@@ -156,7 +208,7 @@ export async function runCreateJob(p: CreateParams): Promise<void> {
     });
 }
 
-export async function runEditJob(p: EditParams): Promise<void> {
+export async function runEditJob(p: EditParams, signal?: AbortSignal): Promise<void> {
     const state = await initEditState({
         currentCode: p.currentCode,
         instruction: p.instruction,
@@ -169,6 +221,7 @@ export async function runEditJob(p: EditParams): Promise<void> {
     emitProgress(p.jobId, state);
 
     const result = await driveInProcess(state, nextEditStage, {
+        signal,
         onState: async (s) => {
             await persistState(p.jobId, s);
             emitProgress(p.jobId, s);
@@ -200,7 +253,7 @@ export async function runEditJob(p: EditParams): Promise<void> {
  * overlays the persisted stage/plan/html/usage cursor so the state machine
  * picks up from the last completed stage instead of the planner.
  */
-export async function runResumeJob(jobId: string): Promise<void> {
+export async function runResumeJob(jobId: string, signal?: AbortSignal): Promise<void> {
     const row = await db.getPendingJob(jobId);
     if (!row) {
         // No row — the FGS was spawned by a resume for a jobId that has
@@ -229,6 +282,7 @@ export async function runResumeJob(jobId: string): Promise<void> {
         await persistState(jobId, state);
         emitProgress(jobId, state);
         const result = await driveInProcess(state, nextCreateStage, {
+            signal,
             onState: async (s) => {
                 await persistState(jobId, s);
                 emitProgress(jobId, s);
@@ -265,6 +319,7 @@ export async function runResumeJob(jobId: string): Promise<void> {
         await persistState(jobId, state);
         emitProgress(jobId, state);
         const result = await driveInProcess(state, nextEditStage, {
+            signal,
             onState: async (s) => {
                 await persistState(jobId, s);
                 emitProgress(jobId, s);
@@ -539,11 +594,22 @@ async function finalizeEditInline(
     await db.deletePendingJob(jobId).catch(() => {});
 }
 
+async function isNotificationAlreadyPresented(identifier: string): Promise<boolean> {
+    try {
+        const presented = await Notifications.getPresentedNotificationsAsync();
+        return presented.some(n => n.request.identifier === identifier);
+    } catch {
+        return false;
+    }
+}
+
 async function postCreateSuccessNotification(
     appId: number,
     appName: string,
     jobId: string,
 ): Promise<void> {
+    const identifier = `spell-created-${jobId}`;
+    if (await isNotificationAlreadyPresented(identifier)) return;
     const channelId = `spell-${appId}`;
     if (Platform.OS === 'android') {
         try {
@@ -559,7 +625,7 @@ async function postCreateSuccessNotification(
         }
     }
     await Notifications.scheduleNotificationAsync({
-        identifier: `spell-created-${jobId}`,
+        identifier,
         content: {
             title: t('appReadyTitle'),
             body: t('appReadyBody', { name: appName }),
@@ -576,8 +642,10 @@ async function postEditSuccessNotification(
     appName: string,
     jobId: string,
 ): Promise<void> {
+    const identifier = `spell-updated-${jobId}`;
+    if (await isNotificationAlreadyPresented(identifier)) return;
     await Notifications.scheduleNotificationAsync({
-        identifier: `spell-updated-${jobId}`,
+        identifier,
         content: {
             title: t('appUpdatedTitle'),
             body: t('appUpdatedBody', { name: appName }),

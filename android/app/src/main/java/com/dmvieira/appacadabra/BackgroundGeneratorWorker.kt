@@ -42,6 +42,13 @@ class BackgroundGeneratorWorker(
         val jobId = inputData.getString(KEY_JOB_ID) ?: return Result.failure()
         val title = inputData.getString(KEY_TITLE)
 
+        // Dedup: if the FGS-driven HeadlessJS task is still active for this
+        // jobId, firing a resume intent would spawn a parallel task and the
+        // success notification would double-post.
+        if (BackgroundGeneratorModule.isJobActive(jobId)) {
+            return Result.success()
+        }
+
         val intent = Intent(applicationContext, BackgroundGeneratorService::class.java).apply {
             putExtra(BackgroundGeneratorService.EXTRA_TASK_KEY, "resume")
             putExtra(
@@ -93,7 +100,7 @@ class BackgroundGeneratorWorker(
     companion object {
         const val KEY_JOB_ID = "jobId"
         const val KEY_TITLE = "title"
-        private const val WATCHDOG_DELAY_MINUTES = 3L
+        private const val WATCHDOG_DELAY_MINUTES = 10L
 
         fun uniqueWorkName(jobId: String): String = "bggen-watchdog-$jobId"
 

@@ -220,7 +220,11 @@ function makeSystemContent(text: string): ChatMessage {
 async function raceTimeout<T>(promise: Promise<T>): Promise<T> {
     const timeout = new Promise<never>((_, reject) =>
         setTimeout(
-            () => reject(new Error(`AI Generation Timeout (${GENERATION_TIMEOUT_MS / 1000}s)`)),
+            () => {
+                const err = new Error(`AI Generation Timeout (${GENERATION_TIMEOUT_MS / 1000}s)`);
+                (err as Error & { code: string }).code = 'byok.error.aborted';
+                reject(err);
+            },
             GENERATION_TIMEOUT_MS,
         ),
     );
