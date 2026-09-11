@@ -43,6 +43,7 @@ import {
     calculateCostUsd,
     MODELS,
 } from '../api/pricing';
+import { getPreferredModel } from '../api/modelPreferences';
 
 const mGenerateImage = openrouter.generateImage as jest.MockedFunction<typeof openrouter.generateImage>;
 const mTts = openrouter.tts as jest.MockedFunction<typeof openrouter.tts>;
@@ -182,7 +183,10 @@ describe('aiSimilarity cost fallback', () => {
         });
         const items = ['hello', 'world foo bar'];
         const r = await aiSimilarity(items);
-        const expected = calculateCostUsd(MODELS.EMBED, {
+        // Resolve via the same chain aiSimilarity uses so both sides agree
+        // even after TIER_MODELS/MODELS recalibrations.
+        const resolvedModel = await getPreferredModel('EMBED');
+        const expected = calculateCostUsd(resolvedModel, {
             promptTokens: items.reduce((s, i) => s + Math.ceil(i.length / 4), 0),
             responseTokens: 0,
         });

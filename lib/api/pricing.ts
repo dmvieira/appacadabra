@@ -1,24 +1,20 @@
 /**
  * OpenRouter model identifiers and USD cost calculation.
  *
- * Port byte-a-byte de:
- *   firebase/functions/src/config.ts:3-13   (MODELS, OR_REASONING_HIGH, OR_WEB_SEARCH)
- *   firebase/functions/src/utils.ts:59-120  (calculateCostUsd, calcImageMana, calcVideoMana)
- *
- * Mesmos IDs e mesma fórmula do servidor — qualquer divergência quebra paridade
- * de qualidade pós-refactor BYOK.
+ * Modeis default calibrados contra `GET /api/v1/models` (+ slices de
+ * modalidade) em 2026-09-10. Preços em USD_PRICING_SEED idem.
  */
 
 export const OR_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export const MODELS = {
-    SPELL_S: 'deepseek/deepseek-v4-flash',
-    WEBVIEW: 'google/gemini-3-flash-preview',
-    IMAGE: 'google/gemini-3.1-flash-image-preview',
-    IMAGE_EDIT: 'google/gemini-2.5-flash-image',
+    SPELL_S: 'deepseek/deepseek-v4.1-flash',
+    WEBVIEW: 'google/gemini-3.8-flash',
+    IMAGE: 'google/gemini-3.1-flash-image',
+    IMAGE_EDIT: 'google/gemini-3.1-flash-image',
     TTS: 'google/gemini-3.1-flash-tts-preview',
     MUSIC: 'google/lyria-3-pro-preview',
-    EMBED: 'google/gemini-embedding-001',
+    EMBED: 'google/gemini-embedding-2',
     VIDEO_FAST: 'google/veo-3.1-lite',
     VIDEO_STD: 'google/veo-3.1-fast',
 } as const;
@@ -45,7 +41,7 @@ type TaskKey = keyof typeof MODELS;
  */
 export const TIER_MODELS: Record<AiTier, Record<TaskKey, string>> = {
     apprentice: {
-        SPELL_S: 'deepseek/deepseek-v4-flash',
+        SPELL_S: 'deepseek/deepseek-v4.1-flash',
         WEBVIEW: 'google/gemini-3.5-flash-lite',
         IMAGE: 'google/gemini-3.1-flash-lite-image',
         IMAGE_EDIT: 'google/gemini-3.1-flash-lite-image',
@@ -57,7 +53,7 @@ export const TIER_MODELS: Record<AiTier, Record<TaskKey, string>> = {
     },
     sorcerer: {
         SPELL_S: 'deepseek/deepseek-v4-pro',
-        WEBVIEW: 'google/gemini-3.6-flash',
+        WEBVIEW: 'google/gemini-3.8-flash',
         IMAGE: 'google/gemini-3.1-flash-image',
         IMAGE_EDIT: 'google/gemini-3.1-flash-image',
         TTS: 'google/gemini-3.1-flash-tts-preview',
@@ -67,7 +63,7 @@ export const TIER_MODELS: Record<AiTier, Record<TaskKey, string>> = {
         VIDEO_STD: 'google/veo-3.1-fast',
     },
     archmage: {
-        SPELL_S: 'z-ai/glm-5.2',
+        SPELL_S: 'z-ai/glm-5.3',
         WEBVIEW: 'google/gemini-3.1-pro-preview',
         IMAGE: 'google/gemini-3-pro-image',
         IMAGE_EDIT: 'google/gemini-3-pro-image',
@@ -109,25 +105,28 @@ export interface CatalogPricing {
  * prefers Cache B via `resolvePricingForModel` in `modelCatalog.ts`.
  */
 export const USD_PRICING_SEED: Record<string, CatalogPricing> = {
-    'deepseek/deepseek-v4-flash': { inputPerMToken: 0.14, outputPerMToken: 0.28, audioInputPerMToken: 0.0, searchPerQuery: 0.014 },
+    'deepseek/deepseek-v4.1-flash': { inputPerMToken: 0.15, outputPerMToken: 0.60, searchPerQuery: 0.014 },
+    'deepseek/deepseek-v4-flash': { inputPerMToken: 0.084, outputPerMToken: 0.168, audioInputPerMToken: 0.0, searchPerQuery: 0.014 },
+    'deepseek/deepseek-v4-pro': { inputPerMToken: 0.87, outputPerMToken: 1.74, searchPerQuery: 0.014 },
+    'z-ai/glm-5.3': { inputPerMToken: 1.40, outputPerMToken: 4.40, searchPerQuery: 0.014 },
+    'z-ai/glm-5.2': { inputPerMToken: 0.28, outputPerMToken: 0.88, searchPerQuery: 0.014 },
+    'google/gemini-3.8-flash': { inputPerMToken: 0.75, outputPerMToken: 3.75, searchPerQuery: 0.014 },
+    'google/gemini-3.6-flash': { inputPerMToken: 0.75, outputPerMToken: 3.75, searchPerQuery: 0.014 },
     'google/gemini-3-flash-preview': { inputPerMToken: 0.50, outputPerMToken: 3.00, searchPerQuery: 0.014 },
-    'google/gemini-3.1-flash-image-preview': { inputPerMToken: 0.10, outputPerMToken: 0.40 },
+    'google/gemini-3.5-flash-lite': { inputPerMToken: 0.30, outputPerMToken: 2.50, searchPerQuery: 0.014 },
+    'google/gemini-3.1-pro-preview': { inputPerMToken: 2.00, outputPerMToken: 12.00, searchPerQuery: 0.014 },
+    'google/gemini-3.1-flash-image': { inputPerMToken: 0.50, outputPerMToken: 3.00, searchPerQuery: 0.014 },
+    'google/gemini-3.1-flash-image-preview': { inputPerMToken: 0.50, outputPerMToken: 3.00 },
+    'google/gemini-3.1-flash-lite-image': { inputPerMToken: 0.25, outputPerMToken: 1.50, searchPerQuery: 0.014 },
+    'google/gemini-3-pro-image': { inputPerMToken: 2.00, outputPerMToken: 12.00, searchPerQuery: 0.014 },
     'google/gemini-2.5-flash-image': { inputPerMToken: 0.30, outputPerMToken: 2.50 },
-    'google/gemini-3.1-flash-tts-preview': { inputPerMToken: 0.50, outputPerMToken: 10.00 },
+    'google/gemini-3.1-flash-tts-preview': { inputPerMToken: 1.00, outputPerMToken: 20.00 },
+    // Embedding não está no catálogo OpenRouter — preço aproximado com base em modelos similares.
+    'google/gemini-embedding-2': { inputPerMToken: 0.20, outputPerMToken: 0 },
+    'google/gemini-embedding-001': { inputPerMToken: 0.15, outputPerMToken: 0 },
+    'intfloat/multilingual-e5-large': { inputPerMToken: 0.01, outputPerMToken: 0 },
     // Lyria cobra por música ($0.08/song), não por token — calcMusicUsd() é a fonte da verdade.
     'google/lyria-3-pro-preview': { inputPerMToken: 0, outputPerMToken: 0 },
-    'google/gemini-embedding-001': { inputPerMToken: 0.15, outputPerMToken: 0 },
-    // Tier defaults — calibrados contra OpenRouter /models em 2026-07-26.
-    'deepseek/deepseek-v4-pro': { inputPerMToken: 0.435, outputPerMToken: 0.87, searchPerQuery: 0.014 },
-    'z-ai/glm-5.2': { inputPerMToken: 0.6692, outputPerMToken: 2.1032, searchPerQuery: 0.014 },
-    'google/gemini-3.5-flash-lite': { inputPerMToken: 0.30, outputPerMToken: 2.50, searchPerQuery: 0.014 },
-    'google/gemini-3.6-flash': { inputPerMToken: 1.50, outputPerMToken: 7.50, searchPerQuery: 0.014 },
-    'google/gemini-3.1-pro-preview': { inputPerMToken: 2.00, outputPerMToken: 12.00, searchPerQuery: 0.014 },
-    'google/gemini-3.1-flash-lite-image': { inputPerMToken: 0.25, outputPerMToken: 1.50, searchPerQuery: 0.014 },
-    'google/gemini-3.1-flash-image': { inputPerMToken: 0.50, outputPerMToken: 3.00, searchPerQuery: 0.014 },
-    'google/gemini-3-pro-image': { inputPerMToken: 2.00, outputPerMToken: 12.00, searchPerQuery: 0.014 },
-    // Embedding não está no catálogo OpenRouter — preço aproximado com base em modelos similares.
-    'intfloat/multilingual-e5-large': { inputPerMToken: 0.10, outputPerMToken: 0 },
     // Video price-per-second lives in USD_VIDEO_PER_SECOND_* — token entries are informational only.
     'google/veo-3.1-lite': { inputPerMToken: 0, outputPerMToken: 0 },
     'google/veo-3.1-fast': { inputPerMToken: 0, outputPerMToken: 0 },

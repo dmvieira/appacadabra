@@ -235,9 +235,9 @@ describe('driveInProcess cost accounting', () => {
             await initCreateState({ prompt: 'p', appVersion: '3.0.0' }),
             nextCreateStage,
         );
-        // deepseek-v4-flash: 0.14 in / 0.28 out per M tokens.
-        // (4000/1M)*0.14 + (7000/1M)*0.28 = 0.00056 + 0.00196 = 0.00252
-        expect(result.costUsd).toBeCloseTo(0.00252, 6);
+        // deepseek-v4-flash (USD_PRICING_SEED): 0.084 in / 0.168 out por M tokens.
+        // (4000/1M)*0.084 + (7000/1M)*0.168 = 0.000336 + 0.001176 = 0.001512
+        expect(result.costUsd).toBeCloseTo(0.001512, 6);
         expect(result.costUsd).toBeGreaterThan(0);
     });
 });
