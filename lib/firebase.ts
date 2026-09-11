@@ -7,7 +7,10 @@ import { getApp } from '@react-native-firebase/app';
 import { initializeAppCheck, ReactNativeFirebaseAppCheckProvider } from '@react-native-firebase/app-check';
 import firebaseCrashlytics, { setCrashlyticsCollectionEnabled } from '@react-native-firebase/crashlytics';
 import firebaseAnalytics, { setAnalyticsCollectionEnabled } from '@react-native-firebase/analytics';
-import pako from 'pako';
+// Named imports (não default): com `unstable_enablePackageExports` no Metro,
+// 'pako' resolve para dist/pako.mjs (ESM) que não tem default export — o
+// `import pako from 'pako'` virava undefined e o pako.gzip quebrava o share link.
+import { gzip, ungzip } from 'pako';
 
 import * as Notifications from 'expo-notifications';
 import * as Localization from 'expo-localization';
@@ -36,7 +39,7 @@ function base64ToUint8Array(base64: string): Uint8Array {
 
 export function compressContent(text: string): string {
     if (!text) return '';
-    const compressed = pako.gzip(text);
+    const compressed = gzip(text);
     return `GZIP:${uint8ArrayToBase64(compressed)}`;
 }
 
@@ -45,8 +48,15 @@ export function decompressContent(input: string): string {
     if (input.startsWith('GZIP:')) {
         const base64 = input.substring(5);
         try {
-            const decompressed = pako.ungzip(base64ToUint8Array(base64), { to: 'string' });
-            return decompressed;
+            const bytes = ungzip(base64ToUint8Array(base64));
+            // Decode utf-8 em chunks (sem depender da option `to: 'string'`,
+            // que o @types/pako não expõe para ungzip, nem do TextDecoder).
+            let result = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                result += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+            }
+            return result;
         } catch (e) {
             console.error('Decompression failed', e);
             return input;
