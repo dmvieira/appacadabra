@@ -142,6 +142,7 @@ Pacote: `ai.appacadabra.app` (pasta física: `com/dmvieira/appacadabra/`)
 | `npm run sync-capabilities` | Sincroniza capabilities → Firebase + AndroidManifest |
 | `npm run prebuild:clean` | Expo prebuild + setup-android.js (gera local.properties) |
 | `npm test` | Jest (605/605 passando em 21 suites) |
+| `cmd.exe /c "android\_build2.bat"` | APK debug local (WSL→Windows); instalar no celular via adb — ver `docs/DEBUG_BUILD.md` |
 
 ---
 

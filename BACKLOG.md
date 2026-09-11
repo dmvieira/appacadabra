@@ -72,4 +72,4 @@ Estes recursos funcionam nativamente usando tags HTML padrão:
 
 ## 🔧 MELHORIAS TÉCNICAS
 
-- [ ] **Padronizar contrato de bridges**: Criar `bridgeRegistry.ts` como source of truth para métodos, parâmetros e docs. `prompts.ts` e `messageHandlers.ts` derivam dele.
+- [x] **Padronizar contrato de bridges**: ~~Criar `bridgeRegistry.ts` como source of truth para métodos, parâmetros e docs~~ Resolvido pelo **capability system** — `lib/capabilities/types.ts` (`CapabilityModule`) + `lib/capabilities/index.ts` (`ALL_CAPABILITIES`) são o registry; `systemPrompt.ts` deriva as docs dele e `messageHandlers.ts` despacha via `cap.handleMessage()` (ver `lib/bridges/messageHandlers.ts:442`).

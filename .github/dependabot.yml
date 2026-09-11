@@ -25,6 +25,17 @@ updates:
       - dependency-name: react
       - dependency-name: react-test-renderer
       - dependency-name: '@react-native-*'
+      # Native modules coupled to the Expo SDK / RN version. A standalone major
+      # bump can break the Android/iOS native build without CI catching it (CI
+      # only runs Jest) — bump manually alongside the SDK and validate with a
+      # device build (android/_build2.bat).
+      - dependency-name: react-native-screens
+      - dependency-name: react-native-safe-area-context
+      - dependency-name: react-native-nitro-modules
+      - dependency-name: react-native-view-shot
+      # jest-expo preset must match the Expo SDK major — bump together with the
+      # SDK migration, never standalone.
+      - dependency-name: jest-expo
 
   - package-ecosystem: npm
     directory: /firebase/functions
@@ -44,6 +55,10 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # TS 7 is the native-port rewrite; ts-jest / firebase tooling is not
+      # ready. Bump manually after validating the toolchain.
+      - dependency-name: typescript
 
   - package-ecosystem: github-actions
     directory: /
