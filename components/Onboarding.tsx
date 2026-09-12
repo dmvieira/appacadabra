@@ -27,9 +27,9 @@ import {
     Modal,
     ActivityIndicator,
     ScrollView,
-    Image,
     Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius } from '../lib/theme';
