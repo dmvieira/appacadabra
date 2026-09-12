@@ -13,10 +13,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#0A0A1A"
     },
-    "notification": {
-      "icon": "./assets/notification_icon.png",
-      "color": "#023c69"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.appacadabra.app",
@@ -134,6 +130,8 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/notification_icon.png",
+          "color": "#023c69",
           "sounds": []
         }
       ],
