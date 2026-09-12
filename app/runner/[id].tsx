@@ -22,7 +22,6 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import AiLoadingBar from '../../components/AiLoadingBar';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
-import { Audio } from 'expo-av';
 import { useBridgeUIStore } from '../../lib/bridgeUIStore';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';

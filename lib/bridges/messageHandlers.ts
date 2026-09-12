@@ -9,7 +9,7 @@ import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Speech from 'expo-speech';
-import { Audio } from 'expo-av';
+import type { AudioPlayer } from 'expo-audio';
 import { WebView } from 'react-native-webview';
 import { useBridgeUIStore } from '../bridgeUIStore';
 import { markBackupDirty } from '../backupSync';
@@ -21,7 +21,7 @@ import { ExpandedStorageItem } from './injectedJS';
 import { updateStorageCache, removeFromStorageCache, getStorageFromCache } from '../storageCache';
 import { logCapabilityUsed } from '../analytics';
 
-let currentVideoSound: Audio.Sound | null = null;
+let currentVideoSound: AudioPlayer | null = null;
 let scannerTimeout: NodeJS.Timeout | null = null;
 let pedometerSubscription: any | null = null;
 
@@ -46,8 +46,8 @@ export async function cleanupAllMedia(): Promise<void> {
     // Stop video playback (generic)
     if (currentVideoSound) {
         try {
-            await currentVideoSound.stopAsync();
-            await currentVideoSound.unloadAsync();
+            currentVideoSound.pause();
+            currentVideoSound.remove();
         } catch (e) {
             console.warn('[Bridge] Error stopping video playback:', e);
         }

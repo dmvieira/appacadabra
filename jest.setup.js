@@ -49,21 +49,51 @@ jest.mock('expo-notifications', () => ({
     scheduleNotificationAsync: jest.fn()
 }));
 
-jest.mock('expo-av', () => ({
-    Audio: {
-        Recording: jest.fn().mockImplementation(() => ({
-            prepareToRecordAsync: jest.fn(),
-            startAsync: jest.fn(),
-            stopAndUnloadAsync: jest.fn(),
-            getURI: jest.fn(() => null),
+jest.mock('expo-audio', () => ({
+    createAudioPlayer: jest.fn(() => ({
+        play: jest.fn(),
+        pause: jest.fn(),
+        remove: jest.fn(),
+        isLoaded: true,
+        playing: false,
+        addListener: jest.fn(() => ({ remove: jest.fn() })),
+    })),
+    setAudioModeAsync: jest.fn(),
+    requestRecordingPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+    getRecordingPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+    AudioModule: {
+        requestRecordingPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+        getRecordingPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+        AudioRecorder: jest.fn().mockImplementation(() => ({
+            prepareToRecordAsync: jest.fn(() => Promise.resolve()),
+            record: jest.fn(),
+            stop: jest.fn(() => Promise.resolve()),
+            release: jest.fn(),
+            uri: null,
         })),
-        Sound: {
-            createAsync: jest.fn(() => Promise.resolve({ sound: { playAsync: jest.fn(), stopAsync: jest.fn(), unloadAsync: jest.fn(), setOnPlaybackStatusUpdate: jest.fn() }, status: {} })),
-        },
-        setAudioModeAsync: jest.fn(),
-        RecordingOptionsPresets: { HIGH_QUALITY: {} },
     },
-    Video: jest.fn(),
+    RecordingPresets: {
+        HIGH_QUALITY: {
+            extension: '.m4a',
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            bitRate: 128000,
+            android: { outputFormat: 'mpeg4', audioEncoder: 'aac' },
+            ios: { outputFormat: 'aac ', audioQuality: 127 },
+            web: { mimeType: 'audio/webm', bitsPerSecond: 128000 },
+        },
+        LOW_QUALITY: { extension: '.m4a' },
+    },
+}));
+
+jest.mock('expo-video', () => ({
+    useVideoPlayer: jest.fn(() => ({
+        play: jest.fn(),
+        pause: jest.fn(),
+        addListener: jest.fn(() => ({ remove: jest.fn() })),
+    })),
+    VideoView: jest.fn(() => null),
+    createVideoPlayer: jest.fn(),
 }));
 
 jest.mock('expo-sqlite', () => ({

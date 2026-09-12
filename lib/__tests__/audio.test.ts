@@ -1,5 +1,5 @@
 import { audioCapability } from '../capabilities/audio';
-import { Audio } from 'expo-av';
+import { AudioModule, createAudioPlayer, setAudioModeAsync, RecordingPresets } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { HandlerContext } from '../capabilities/types';
 
@@ -61,30 +61,58 @@ const createMockCtx = (appId: number | null = 1, callbackName: string = 'onDone'
     callbackName,
 });
 
+const createMockRecorder = (overrides: Record<string, unknown> = {}) => {
+    const instance = {
+        prepareToRecordAsync: jest.fn(() => Promise.resolve()),
+        record: jest.fn(),
+        stop: jest.fn(() => Promise.resolve()),
+        release: jest.fn(),
+        uri: 'file://mock/recording.m4a' as string | null,
+        ...overrides,
+    };
+    (AudioModule.AudioRecorder as jest.Mock).mockImplementation(() => instance);
+    return instance;
+};
+
+const createMockPlayer = () => {
+    const instance = {
+        play: jest.fn(),
+        pause: jest.fn(),
+        remove: jest.fn(),
+        isLoaded: true,
+        playing: true,
+        addListener: jest.fn(() => ({ remove: jest.fn() })),
+    };
+    (createAudioPlayer as jest.Mock).mockReturnValue(instance);
+    return instance;
+};
+
 describe('audioCapability', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
     describe('AUDIO_RECORD_START', () => {
-        it('should request permissions and start recording', async () => {
+        it('should request permissions, prepare and start recording', async () => {
             const ctx = createMockCtx();
-            const mockRequestPermissions = jest.fn(() => Promise.resolve({ granted: true }));
-            (Audio.requestPermissionsAsync as jest.Mock) = mockRequestPermissions;
-
-            const mockCreateAsync = jest.fn(() => Promise.resolve({ recording: { stopAndUnloadAsync: jest.fn() } }));
-            (Audio.Recording.createAsync as jest.Mock) = mockCreateAsync;
+            (AudioModule.requestRecordingPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true });
+            const recorder = createMockRecorder();
 
             const result = await audioCapability.handleMessage('AUDIO_RECORD_START', {}, ctx);
 
-            expect(mockRequestPermissions).toHaveBeenCalled();
-            expect(mockCreateAsync).toHaveBeenCalledWith(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+            expect(AudioModule.requestRecordingPermissionsAsync).toHaveBeenCalled();
+            expect(recorder.prepareToRecordAsync).toHaveBeenCalled();
+            expect(recorder.record).toHaveBeenCalled();
+            // Platform options must be flattened for the native constructor
+            expect(AudioModule.AudioRecorder).toHaveBeenCalledWith(
+                expect.objectContaining({ extension: RecordingPresets.HIGH_QUALITY.extension })
+            );
             expect(result).toEqual({ success: true, result: 'Recording started' });
         });
 
         it('should return error if permission denied', async () => {
             const ctx = createMockCtx();
-            (Audio.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: false });
+            (AudioModule.requestRecordingPermissionsAsync as jest.Mock).mockResolvedValue({ granted: false });
 
             const result = await audioCapability.handleMessage('AUDIO_RECORD_START', {}, ctx);
 
@@ -96,22 +124,18 @@ describe('audioCapability', () => {
     describe('AUDIO_RECORD_STOP', () => {
         it('should stop recording and return base64 or marker', async () => {
             const ctx = createMockCtx(1, 'onAudio');
-            const mockStopAndUnload = jest.fn();
-            const mockGetURI = jest.fn(() => 'file://mock/recording.m4a');
+            const recorder = createMockRecorder();
 
             // Set the module-level currentRecording by starting it first
-            (Audio.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true });
-            (Audio.Recording.createAsync as jest.Mock).mockResolvedValue({
-                recording: { stopAndUnloadAsync: mockStopAndUnload, getURI: mockGetURI }
-            });
+            (AudioModule.requestRecordingPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true });
             await audioCapability.handleMessage('AUDIO_RECORD_START', {}, ctx);
 
             (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue('mock-b64-data');
 
             const result = await audioCapability.handleMessage('AUDIO_RECORD_STOP', {}, ctx);
 
-            expect(mockStopAndUnload).toHaveBeenCalled();
-            expect(mockGetURI).toHaveBeenCalled();
+            expect(recorder.stop).toHaveBeenCalled();
+            expect(recorder.release).toHaveBeenCalled();
             expect(result?.success).toBe(true);
             expect(result?.result).toContain('__appblob__:audio/mp4|onAudio|');
         });
@@ -129,20 +153,13 @@ describe('audioCapability', () => {
             const ctx = createMockCtx();
             const data = { base64: 'data:audio/mp4;base64,mockdata' };
 
-            const mockCreateSound = jest.fn(() => Promise.resolve({
-                sound: {
-                    playAsync: jest.fn(),
-                    stopAsync: jest.fn(),
-                    unloadAsync: jest.fn(),
-                    setOnPlaybackStatusUpdate: jest.fn(),
-                }
-            }));
-            (Audio.Sound.createAsync as jest.Mock) = mockCreateSound;
+            const player = createMockPlayer();
 
             const result = await audioCapability.handleMessage('AUDIO_PLAY', data, ctx);
 
             expect(FileSystem.writeAsStringAsync).toHaveBeenCalled();
-            expect(mockCreateSound).toHaveBeenCalled();
+            expect(createAudioPlayer).toHaveBeenCalledWith({ uri: expect.stringContaining('audio_play_') });
+            expect(player.play).toHaveBeenCalled();
             expect(result).toEqual({ success: true, result: 'Playing' });
         });
 
@@ -150,49 +167,50 @@ describe('audioCapability', () => {
             const ctx = createMockCtx();
             const data = { url: 'https://example.com/audio.mp3' };
 
-            const mockCreateSound = jest.fn(() => Promise.resolve({
-                sound: {
-                    playAsync: jest.fn(),
-                    stopAsync: jest.fn(),
-                    unloadAsync: jest.fn(),
-                    setOnPlaybackStatusUpdate: jest.fn(),
-                }
-            }));
-            (Audio.Sound.createAsync as jest.Mock) = mockCreateSound;
+            const player = createMockPlayer();
 
             const result = await audioCapability.handleMessage('AUDIO_PLAY', data, ctx);
 
-            expect(mockCreateSound).toHaveBeenCalledWith({ uri: data.url }, { shouldPlay: true });
+            expect(createAudioPlayer).toHaveBeenCalledWith({ uri: data.url });
+            expect(player.play).toHaveBeenCalled();
             expect(result).toEqual({ success: true, result: 'Playing' });
+        });
+
+        it('removes the player when playback finishes (didJustFinish)', async () => {
+            const ctx = createMockCtx();
+            let statusListener: ((status: { isLoaded: boolean; didJustFinish: boolean }) => void) | undefined;
+            const player = createMockPlayer();
+            (player.addListener as jest.Mock).mockImplementation((_event: string, listener: typeof statusListener) => {
+                statusListener = listener;
+                return { remove: jest.fn() };
+            });
+
+            await audioCapability.handleMessage('AUDIO_PLAY', { url: 'https://example.com/audio.mp3' }, ctx);
+
+            statusListener?.({ isLoaded: true, didJustFinish: true });
+
+            expect(player.remove).toHaveBeenCalled();
         });
     });
 
     describe('AUDIO_SPEAK_AI', () => {
-        it('sets the audio session mode before creating the Sound', async () => {
+        it('sets the audio session mode before creating the player', async () => {
             // Regression bar: without setAudioModeAsync a prior recordStart (or
             // another capability) leaves the session in a mode where MediaPlayer
             // silently drops playback on Android. Mirrors AUDIO_PLAY.
             const ctx = createMockCtx(1, 'onSpeak');
 
-            (Audio.setAudioModeAsync as jest.Mock).mockClear();
-            const mockCreateSound = jest.fn(() => Promise.resolve({
-                sound: {
-                    playAsync: jest.fn(),
-                    stopAsync: jest.fn(),
-                    unloadAsync: jest.fn(),
-                    setOnPlaybackStatusUpdate: jest.fn(),
-                },
-            }));
-            (Audio.Sound.createAsync as jest.Mock) = mockCreateSound;
+            (setAudioModeAsync as jest.Mock).mockClear();
+            const player = createMockPlayer();
 
             await audioCapability.handleMessage('AUDIO_SPEAK_AI', { text: 'hello' }, ctx);
 
-            expect(Audio.setAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({
-                allowsRecordingIOS: false,
-                playsInSilentModeIOS: true,
+            expect(setAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({
+                allowsRecording: false,
+                playsInSilentMode: true,
             }));
-            const modeOrder = (Audio.setAudioModeAsync as jest.Mock).mock.invocationCallOrder[0];
-            const createOrder = mockCreateSound.mock.invocationCallOrder[0];
+            const modeOrder = (setAudioModeAsync as jest.Mock).mock.invocationCallOrder[0];
+            const createOrder = (createAudioPlayer as jest.Mock).mock.invocationCallOrder[0];
             expect(modeOrder).toBeLessThan(createOrder);
         });
 
@@ -216,35 +234,17 @@ describe('audioCapability', () => {
             expect(requestModelUnavailable).toHaveBeenCalledWith(1, 'TTS', 'x/dead-tts');
         });
 
-        it('stops and unloads the previous TTS Sound before creating a new one', async () => {
+        it('stops and removes the previous TTS player before creating a new one', async () => {
             const ctx = createMockCtx(1, 'onSpeak');
 
-            const firstStop = jest.fn();
-            const firstUnload = jest.fn();
-            (Audio.Sound.createAsync as jest.Mock) = jest.fn(() => Promise.resolve({
-                sound: {
-                    playAsync: jest.fn(),
-                    stopAsync: firstStop,
-                    unloadAsync: firstUnload,
-                    setOnPlaybackStatusUpdate: jest.fn(),
-                },
-            }));
+            const firstPlayer = createMockPlayer();
             await audioCapability.handleMessage('AUDIO_SPEAK_AI', { text: 'first' }, ctx);
 
-            const secondStop = jest.fn();
-            const secondUnload = jest.fn();
-            (Audio.Sound.createAsync as jest.Mock) = jest.fn(() => Promise.resolve({
-                sound: {
-                    playAsync: jest.fn(),
-                    stopAsync: secondStop,
-                    unloadAsync: secondUnload,
-                    setOnPlaybackStatusUpdate: jest.fn(),
-                },
-            }));
+            const secondPlayer = createMockPlayer();
             await audioCapability.handleMessage('AUDIO_SPEAK_AI', { text: 'second' }, ctx);
 
-            expect(firstStop).toHaveBeenCalled();
-            expect(firstUnload).toHaveBeenCalled();
+            expect(firstPlayer.pause).toHaveBeenCalled();
+            expect(firstPlayer.remove).toHaveBeenCalled();
         });
     });
 
@@ -371,21 +371,13 @@ describe('audioCapability', () => {
             const ctx = createMockCtx();
 
             // First start playing to set currentAITTS
-            const mockStopAsync = jest.fn();
-            const mockUnloadAsync = jest.fn();
-            (Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
-                sound: {
-                    stopAsync: mockStopAsync,
-                    unloadAsync: mockUnloadAsync,
-                    setOnPlaybackStatusUpdate: jest.fn(),
-                }
-            });
+            const player = createMockPlayer();
             await audioCapability.handleMessage('AUDIO_PLAY', { url: '...' }, ctx);
 
             const result = await audioCapability.handleMessage('AUDIO_STOP', {}, ctx);
 
-            expect(mockStopAsync).toHaveBeenCalled();
-            expect(mockUnloadAsync).toHaveBeenCalled();
+            expect(player.pause).toHaveBeenCalled();
+            expect(player.remove).toHaveBeenCalled();
             expect(result).toEqual({ success: true, result: 'Stopped' });
         });
     });
@@ -395,25 +387,20 @@ describe('audioCapability', () => {
             const ctx = createMockCtx();
 
             // Set up state
-            const mockStopRecording = jest.fn();
-            (Audio.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true });
-            (Audio.Recording.createAsync as jest.Mock).mockResolvedValue({
-                recording: { stopAndUnloadAsync: mockStopRecording, getURI: jest.fn() }
-            });
+            const recorder = createMockRecorder();
+            (AudioModule.requestRecordingPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true });
             await audioCapability.handleMessage('AUDIO_RECORD_START', {}, ctx);
 
-            const mockStopSound = jest.fn();
-            (Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
-                sound: { stopAsync: mockStopSound, unloadAsync: jest.fn(), setOnPlaybackStatusUpdate: jest.fn() }
-            });
+            const player = createMockPlayer();
             await audioCapability.handleMessage('AUDIO_PLAY', { url: '...' }, ctx);
 
             if (audioCapability.cleanup) {
                 await audioCapability.cleanup();
             }
 
-            expect(mockStopRecording).toHaveBeenCalled();
-            expect(mockStopSound).toHaveBeenCalled();
+            expect(recorder.stop).toHaveBeenCalled();
+            expect(player.pause).toHaveBeenCalled();
+            expect(player.remove).toHaveBeenCalled();
         });
     });
 });

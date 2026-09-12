@@ -1,5 +1,6 @@
 import * as Speech from 'expo-speech';
-import { Audio } from 'expo-av';
+import { AudioModule, createAudioPlayer, setAudioModeAsync, RecordingPresets, type AudioPlayer, type AudioRecorder, type RecordingOptions } from 'expo-audio';
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ai from '../api/ai';
 import { useBridgeUIStore } from '../bridgeUIStore';
@@ -13,9 +14,28 @@ import { withKeepAlive } from '../webviewAiKeepAlive';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
 
 // Module-level state
-let currentRecording: Audio.Recording | null = null;
+let currentRecording: AudioRecorder | null = null;
 let audioRecordingTimeout: NodeJS.Timeout | null = null;
-let currentAITTS: Audio.Sound | null = null;
+let currentAITTS: AudioPlayer | null = null;
+
+// Mirrors expo-audio's internal createRecordingOptions() (not exported): the
+// native AudioRecorder constructor expects platform-flattened options, so the
+// android/ios/web sub-objects of a preset must be hoisted to the top level.
+function flattenRecordingOptions(options: Partial<RecordingOptions>): Partial<RecordingOptions> {
+    const commonOptions = {
+        extension: options.extension,
+        sampleRate: options.sampleRate,
+        numberOfChannels: options.numberOfChannels,
+        bitRate: options.bitRate,
+        isMeteringEnabled: options.isMeteringEnabled ?? false,
+    };
+    const platformOptions = Platform.OS === 'ios'
+        ? options.ios
+        : Platform.OS === 'android'
+            ? options.android
+            : options.web;
+    return { ...commonOptions, ...platformOptions };
+}
 
 async function checkAndMarkFirstAiUse(): Promise<boolean> {
     const hasUsed = await db.getSetting('has_used_ai_ever');
@@ -228,14 +248,14 @@ window.onAudioResult = function(success, base64) {
                     // Mirror AUDIO_PLAY (~line 316) — without this a prior
                     // recordStart or another capability leaves the audio
                     // session in a mode that silences MediaPlayer on Android.
-                    await Audio.setAudioModeAsync({
-                        allowsRecordingIOS: false,
-                        playsInSilentModeIOS: true,
-                        staysActiveInBackground: false,
+                    await setAudioModeAsync({
+                        allowsRecording: false,
+                        playsInSilentMode: true,
+                        shouldPlayInBackground: false,
                     });
 
                     if (currentAITTS) {
-                        try { await currentAITTS.stopAsync(); await currentAITTS.unloadAsync(); } catch (_) { }
+                        try { currentAITTS.pause(); currentAITTS.remove(); } catch (_) { }
                         currentAITTS = null;
                     }
 
@@ -244,17 +264,15 @@ window.onAudioResult = function(success, base64) {
                         encoding: FileSystem.EncodingType.Base64,
                     });
 
-                    const { sound } = await Audio.Sound.createAsync(
-                        { uri: fileUri },
-                        { shouldPlay: true }
-                    );
-                    currentAITTS = sound;
+                    const player = createAudioPlayer({ uri: fileUri });
+                    player.play();
+                    currentAITTS = player;
 
-                    sound.setOnPlaybackStatusUpdate(async (status) => {
+                    player.addListener('playbackStatusUpdate', (status) => {
                         if (status.isLoaded && status.didJustFinish) {
-                            if (currentAITTS === sound) currentAITTS = null;
-                            await sound.unloadAsync();
-                            try { await FileSystem.deleteAsync(fileUri, { idempotent: true }); } catch (_) { }
+                            if (currentAITTS === player) currentAITTS = null;
+                            player.remove();
+                            try { FileSystem.deleteAsync(fileUri, { idempotent: true }); } catch (_) { }
                         }
                     });
 
@@ -327,21 +345,28 @@ window.onAudioResult = function(success, base64) {
             case 'AUDIO_RECORD_START': {
                 console.log('[Bridge] Starting audio recording...');
                 try {
-                    const perm = await Audio.requestPermissionsAsync();
+                    const perm = await AudioModule.requestRecordingPermissionsAsync();
                     if (!perm.granted) throw new Error('Audio permission denied');
 
-                    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-                    if (currentRecording) { await currentRecording.stopAndUnloadAsync(); currentRecording = null; }
+                    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+                    if (currentRecording) {
+                        await currentRecording.stop();
+                        currentRecording.release();
+                        currentRecording = null;
+                    }
 
-                    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-                    currentRecording = recording;
+                    const recorder = new AudioModule.AudioRecorder(flattenRecordingOptions(RecordingPresets.HIGH_QUALITY));
+                    await recorder.prepareToRecordAsync();
+                    recorder.record();
+                    currentRecording = recorder;
 
                     if (audioRecordingTimeout) clearTimeout(audioRecordingTimeout);
                     audioRecordingTimeout = setTimeout(async () => {
                         console.log('[Bridge] Auto-stopping audio recording due to timeout');
                         if (currentRecording) {
                             try {
-                                await currentRecording.stopAndUnloadAsync();
+                                await currentRecording.stop();
+                                currentRecording.release();
                             } catch (e) {
                                 console.warn('Error auto-stopping audio:', e);
                             }
@@ -360,14 +385,15 @@ window.onAudioResult = function(success, base64) {
                 console.log('[Bridge] Stopping audio recording...');
                 try {
                     if (!currentRecording) throw new Error('No recording active');
-                    await currentRecording.stopAndUnloadAsync();
+                    await currentRecording.stop();
 
                     if (audioRecordingTimeout) {
                         clearTimeout(audioRecordingTimeout);
                         audioRecordingTimeout = null;
                     }
 
-                    const uri = currentRecording.getURI();
+                    const uri = currentRecording.uri;
+                    currentRecording.release();
                     currentRecording = null;
 
                     if (uri) {
@@ -392,10 +418,10 @@ window.onAudioResult = function(success, base64) {
             case 'AUDIO_PLAY': {
                 console.log('[Bridge] Playing audio...');
                 try {
-                    await Audio.setAudioModeAsync({
-                        allowsRecordingIOS: false,
-                        playsInSilentModeIOS: true,
-                        staysActiveInBackground: false,
+                    await setAudioModeAsync({
+                        allowsRecording: false,
+                        playsInSilentMode: true,
+                        shouldPlayInBackground: false,
                     });
 
                     if (!data.base64 && !data.url) throw new Error('No audio data provided');
@@ -416,20 +442,18 @@ window.onAudioResult = function(success, base64) {
                     }
 
                     if (currentAITTS) {
-                        try { await currentAITTS.stopAsync(); await currentAITTS.unloadAsync(); } catch (_) { }
+                        try { currentAITTS.pause(); currentAITTS.remove(); } catch (_) { }
                         currentAITTS = null;
                     }
 
-                    const { sound } = await Audio.Sound.createAsync(
-                        { uri: audioFileUri },
-                        { shouldPlay: true }
-                    );
-                    currentAITTS = sound;
+                    const player = createAudioPlayer({ uri: audioFileUri });
+                    player.play();
+                    currentAITTS = player;
 
-                    sound.setOnPlaybackStatusUpdate(async (status) => {
+                    player.addListener('playbackStatusUpdate', (status) => {
                         if (status.isLoaded && status.didJustFinish) {
-                            if (currentAITTS === sound) currentAITTS = null;
-                            await sound.unloadAsync();
+                            if (currentAITTS === player) currentAITTS = null;
+                            player.remove();
                         }
                     });
 
@@ -444,8 +468,8 @@ window.onAudioResult = function(success, base64) {
                 console.log('[Bridge] Stopping audio playback...');
                 try {
                     if (currentAITTS) {
-                        await currentAITTS.stopAsync();
-                        await currentAITTS.unloadAsync();
+                        currentAITTS.pause();
+                        currentAITTS.remove();
                         currentAITTS = null;
                     }
                     return { success: true, result: 'Stopped' };
@@ -458,8 +482,7 @@ window.onAudioResult = function(success, base64) {
             case 'AUDIO_IS_PLAYING': {
                 try {
                     if (currentAITTS) {
-                        const status = await currentAITTS.getStatusAsync();
-                        return { success: true, result: status.isLoaded && status.isPlaying ? 'true' : 'false' };
+                        return { success: true, result: currentAITTS.isLoaded && currentAITTS.playing ? 'true' : 'false' };
                     }
                     return { success: true, result: 'false' };
                 } catch (e) {
@@ -475,7 +498,7 @@ window.onAudioResult = function(success, base64) {
     cleanup: async () => {
         console.log('[AudioCapability] Cleaning up...');
         if (currentRecording) {
-            try { await currentRecording.stopAndUnloadAsync(); } catch (_) { }
+            try { await currentRecording.stop(); currentRecording.release(); } catch (_) { }
             currentRecording = null;
         }
         if (audioRecordingTimeout) {
@@ -483,7 +506,7 @@ window.onAudioResult = function(success, base64) {
             audioRecordingTimeout = null;
         }
         if (currentAITTS) {
-            try { await currentAITTS.stopAsync(); await currentAITTS.unloadAsync(); } catch (_) { }
+            try { currentAITTS.pause(); currentAITTS.remove(); } catch (_) { }
             currentAITTS = null;
         }
         try { Speech.stop(); } catch (_) { }

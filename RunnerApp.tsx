@@ -20,7 +20,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { getInjectedJavaScript, createCallbackScript, createStorageRestoreScript, createSharedContentSetupScript, getScrollDetectionScript, createMediaCallbackScript, createMediaChunkScript, createDomSnapshotScript, createDomSnapshotRestoreScript, ExpandedStorageItem } from './lib/bridges/injectedJS';
 import { handleBridgeMessage, cleanupAllMedia, expandStorageBlobMarkers, migrateStorageBlobsToFiles, registerPendingMediaBlob, AI_MEDIA_MIME, buildBlobMarker } from './lib/bridges/messageHandlers';
 import { saveAiResultToCache } from './lib/bridges/aiCacheUtils';
@@ -88,6 +88,34 @@ function RunnerContent({ appId }: Props) {
     // Video Playback — use selector so store changes in other RunnerContent instances don't cause re-renders here
     const closeVideoPlayer = useBridgeUIStore(state => state.closeVideoPlayer);
     const videoPlayback = useBridgeUIStore(state => state.videoPlayback);
+
+    // expo-av → expo-video: player decoupled from the view; a fresh player is
+    // created whenever videoPlayback.uri changes (null = modal closed).
+    const videoPlaybackUri = videoPlayback?.uri ?? null;
+    const videoPlayer = useVideoPlayer(videoPlaybackUri, (player) => {
+        if (videoPlaybackUri) player.play();
+    });
+
+    // Read playback state from the store inside the listener so the callback
+    // name is never stale (the listener survives across modal open/close).
+    useEffect(() => {
+        const endSubscription = videoPlayer.addListener('playToEnd', () => {
+            const playback = useBridgeUIStore.getState().videoPlayback;
+            if (playback?.callback && webViewRef.current) {
+                webViewRef.current.injectJavaScript(
+                    createCallbackScript(playback.callback, true, 'Finished')
+                );
+            }
+            closeVideoPlayer();
+        });
+        const statusSubscription = videoPlayer.addListener('statusChange', ({ error }) => {
+            if (error) console.error('[VideoPlayer] Playback error:', error);
+        });
+        return () => {
+            endSubscription.remove();
+            statusSubscription.remove();
+        };
+    }, [videoPlayer, closeVideoPlayer]);
 
     // Check drop-box file for pending shared content
     const checkDropBox = useCallback(async () => {
@@ -893,26 +921,11 @@ function RunnerContent({ appId }: Props) {
                     }}
                 >
                     <View style={styles.videoModalContainer}>
-                        <Video
-                            source={{ uri: videoPlayback.uri }}
-                            rate={1.0}
-                            volume={1.0}
-                            isMuted={false}
-                            resizeMode={ResizeMode.CONTAIN}
-                            shouldPlay
-                            useNativeControls
+                        <VideoView
+                            player={videoPlayer}
+                            contentFit="contain"
+                            nativeControls
                             style={styles.fullVideo}
-                            onError={(error) => console.error('[VideoPlayer] Playback error:', error)}
-                            onPlaybackStatusUpdate={(status) => {
-                                if (status.isLoaded && status.didJustFinish) {
-                                    if (videoPlayback.callback && webViewRef.current) {
-                                        webViewRef.current.injectJavaScript(
-                                            createCallbackScript(videoPlayback.callback, true, 'Finished')
-                                        );
-                                    }
-                                    closeVideoPlayer();
-                                }
-                            }}
                         />
                         <TouchableOpacity
                             style={styles.closeVideoButton}

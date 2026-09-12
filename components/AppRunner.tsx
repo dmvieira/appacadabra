@@ -22,7 +22,7 @@ import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import * as Sharing from 'expo-sharing';
 import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -111,6 +111,25 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
     const { videoPlayback, closeVideoPlayer } = useBridgeUIStore();
     const [lastUrl, setLastUrl] = useState<string | null>(null);
     const router = useRouter();
+
+    // expo-av → expo-video: player decoupled from the view; a fresh player is
+    // created whenever videoPlayback.uri changes (null = modal closed).
+    const videoPlaybackUri = videoPlayback?.uri ?? null;
+    const videoPlayer = useVideoPlayer(videoPlaybackUri, (player) => {
+        if (videoPlaybackUri) player.play();
+    });
+
+    // Read playback state from the store inside the listener so the callback
+    // name is never stale (the listener survives across modal open/close).
+    useEffect(() => {
+        const subscription = videoPlayer.addListener('playToEnd', () => {
+            const playback = useBridgeUIStore.getState().videoPlayback;
+            if (playback?.callback && webViewRef.current) {
+                webViewRef.current.injectJavaScript(createCallbackScript(playback.callback, true, 'Finished'));
+            }
+        });
+        return () => subscription.remove();
+    }, [videoPlayer]);
 
     useEffect(() => {
         async function loadApp() {
@@ -1247,24 +1266,13 @@ export default function AppRunner({ appId, isVisible, mode = 'edit' }: AppRunner
                     onRequestClose={closeVideoPlayer}
                 >
                     <View style={styles.videoModalContainer}>
-                        <Video
-                            source={{ uri: videoPlayback.uri }}
-                            rate={1.0}
-                            volume={1.0}
-                            isMuted={false}
-                            resizeMode={ResizeMode.CONTAIN}
-                            shouldPlay
-                            useNativeControls
+                        <VideoView
+                            player={videoPlayer}
+                            contentFit="contain"
+                            nativeControls
                             style={styles.fullVideo}
-                            onPlaybackStatusUpdate={(status) => {
-                                if (status.isLoaded && status.didJustFinish) {
-                                    if (videoPlayback.callback && webViewRef.current) {
-                                        webViewRef.current.injectJavaScript(createCallbackScript(videoPlayback.callback, true, 'Finished'));
-                                    }
-                                }
-                            }}
                         />
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.closeVideoButton} 
                             onPress={closeVideoPlayer}
                         >

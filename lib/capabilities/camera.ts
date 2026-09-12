@@ -1,13 +1,13 @@
 import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Audio } from 'expo-av';
+import { AudioModule, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useBridgeUIStore } from '../bridgeUIStore';
 import { saveAiMediaToFile, buildBlobMarker } from './mediaHelpers';
 import { CapabilityModule, HandlerContext, HandlerResult } from './types';
 
 // Module-level state
-let currentVideoSound: Audio.Sound | null = null;
+let currentVideoSound: AudioPlayer | null = null;
 let scannerTimeout: NodeJS.Timeout | null = null;
 
 export const cameraCapability: CapabilityModule = {
@@ -141,7 +141,7 @@ export const cameraCapability: CapabilityModule = {
                     const camPerm = await ImagePicker.requestCameraPermissionsAsync();
                     if (!camPerm.granted) throw new Error('Camera permission denied');
 
-                    const audioPerm = await Audio.requestPermissionsAsync();
+                    const audioPerm = await AudioModule.requestRecordingPermissionsAsync();
                     if (!audioPerm.granted) {
                         console.warn('[Bridge] Audio permission denied, recording video without audio');
                     }
@@ -190,10 +190,10 @@ export const cameraCapability: CapabilityModule = {
             case 'VIDEO_PLAY': {
                 console.log('[Bridge] Playing video...');
                 try {
-                    await Audio.setAudioModeAsync({
-                        allowsRecordingIOS: false,
-                        playsInSilentModeIOS: true,
-                        staysActiveInBackground: false,
+                    await setAudioModeAsync({
+                        allowsRecording: false,
+                        playsInSilentMode: true,
+                        shouldPlayInBackground: false,
                     });
 
                     if (!data.base64 && !data.url) throw new Error('No video data provided');
@@ -215,7 +215,7 @@ export const cameraCapability: CapabilityModule = {
                     }
 
                     if (currentVideoSound) {
-                        try { await currentVideoSound.unloadAsync(); } catch (_) { }
+                        try { currentVideoSound.remove(); } catch (_) { }
                         currentVideoSound = null;
                     }
 
@@ -233,8 +233,8 @@ export const cameraCapability: CapabilityModule = {
                 console.log('[Bridge] Stopping video playback...');
                 try {
                     if (currentVideoSound) {
-                        await currentVideoSound.stopAsync();
-                        await currentVideoSound.unloadAsync();
+                        currentVideoSound.pause();
+                        currentVideoSound.remove();
                         currentVideoSound = null;
                     }
                     return { success: true, result: 'Stopped' };
@@ -248,8 +248,7 @@ export const cameraCapability: CapabilityModule = {
                 console.log('[Bridge] Checking video playback status...');
                 try {
                     if (currentVideoSound) {
-                        const status = await currentVideoSound.getStatusAsync();
-                        return { success: true, result: status.isLoaded && status.isPlaying ? 'true' : 'false' };
+                        return { success: true, result: currentVideoSound.isLoaded && currentVideoSound.playing ? 'true' : 'false' };
                     } else {
                         return { success: true, result: 'false' };
                     }

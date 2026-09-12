@@ -334,7 +334,7 @@ describe('openrouter.tts', () => {
     it('wraps PCM bytes with a valid WAV header (RIFF/WAVE, 24kHz mono 16-bit)', async () => {
         // OpenRouter returns raw PCM; we must prepend a 44-byte RIFF header
         // before handing the base64 to the WebView `<audio>` element or to
-        // expo-av's Audio.Sound.createAsync. Constants (24kHz/mono/16-bit LE)
+        // expo-audio's createAudioPlayer. Constants (24kHz/mono/16-bit LE)
         // come from the endpoint's own Content-Type header on live responses.
         const pcm = new Uint8Array(1000); // 1000 zero-bytes as fake PCM payload
         (global as any).fetch = jest.fn().mockResolvedValue(binaryResponse(pcm));
