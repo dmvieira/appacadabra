@@ -1,4 +1,4 @@
-import { Paths, File, Directory } from 'expo-file-system/next';
+import { Paths, File, Directory } from 'expo-file-system';
 import { readAsStringAsync, copyAsync, cacheDirectory, writeAsStringAsync, makeDirectoryAsync, EncodingType } from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';

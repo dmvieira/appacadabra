@@ -26,7 +26,7 @@ import { useBridgeUIStore } from '../../lib/bridgeUIStore';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Paths } from 'expo-file-system/next';
+import { Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Contacts from 'expo-contacts';
 import * as LocalAuthentication from 'expo-local-authentication';

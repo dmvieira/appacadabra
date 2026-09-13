@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { File } from 'expo-file-system/next';
+import { File } from 'expo-file-system';
 import { t } from './i18n';
 
 export interface ExtractedFile {

@@ -9,8 +9,8 @@ jest.mock('../i18n', () => ({
     t: (key: string) => key
 }));
 
-// Mock expo-file-system/next
-jest.mock('expo-file-system/next', () => ({
+// Mock expo-file-system
+jest.mock('expo-file-system', () => ({
     File: jest.fn()
 }));
 

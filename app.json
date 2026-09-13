@@ -9,7 +9,7 @@
     "scheme": "appacadabra",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-icon.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#0A0A1A"
     },
@@ -82,7 +82,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a2e"
       },
-      "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
       "intentFilters": [
         {
@@ -175,7 +174,16 @@
       "./plugins/withAppacadabraNative",
       "./plugins/withIosShareExtension",
       "./plugins/withIosQuickActions",
-      "./plugins/withIosLocalizedInfoPlist"
+      "./plugins/withIosLocalizedInfoPlist",
+      "expo-audio",
+      "expo-image",
+      "expo-localization",
+      "expo-mail-composer",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-video",
+      "expo-font",
+      "expo-asset"
     ]
   }
 }

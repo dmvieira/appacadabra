@@ -1,5 +1,11 @@
 // Jest setup file for mocks
 
+// SDK 55: expo's winter URL runtime (whatwg-url-minimum) requires TextEncoder/TextDecoder
+// globals, which are missing in the jsdom test environment.
+const { TextEncoder: __NodeTextEncoder, TextDecoder: __NodeTextDecoder } = require('node:util');
+if (!global.TextEncoder) global.TextEncoder = __NodeTextEncoder;
+if (!global.TextDecoder) global.TextDecoder = __NodeTextDecoder;
+
 // Override expo winter runtime lazy getters that crash in Node test environment.
 // expo/src/winter/runtime.native.ts installs these as lazy getters during the react-native
 // jest preset's setupFiles phase. When triggered from within a test module they run in the

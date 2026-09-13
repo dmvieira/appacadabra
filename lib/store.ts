@@ -4,7 +4,7 @@ import { DeviceEventEmitter, Platform, ToastAndroid } from 'react-native';
 import { GeneratedApp, NewGeneratedApp, PendingJob } from './database/types';
 import * as db from './database/db';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Paths, File } from 'expo-file-system/next';
+import { Paths, File } from 'expo-file-system';
 import * as bgGen from './backgroundGenerator';
 import type { BgGenCompletedEvent, BgGenFailedEvent, BgGenProgressEvent } from './backgroundGenerator';
 import * as openrouter from './api/openrouter';

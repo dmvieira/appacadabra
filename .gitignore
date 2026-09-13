@@ -119,3 +119,4 @@ website/.firebase/
 
 # Claude Code
 .claude/worktrees/
+.expo/
