@@ -120,3 +120,5 @@ website/.firebase/
 # Claude Code
 .claude/worktrees/
 .expo/
+android/_*.bat
+android/_*.txt

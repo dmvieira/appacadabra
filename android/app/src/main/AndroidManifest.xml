@@ -1,38 +1,31 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
-  <!-- System permissions — not managed by capability sync -->
-  <uses-permission android:name="android.permission.INTERNET"/>
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-  <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
-  <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
-  <!-- READ_MEDIA_IMAGES is injected by expo-screen-capture for its Android 13-only screenshot
-       detection path, which the app does not use. Removing it clears the Play Console
-       Photo/Video Permissions flag. DETECT_SCREEN_CAPTURE stays: expo-screen-capture registers
-       registerScreenCaptureCallback unconditionally in OnCreate on Android 14+, so removing it
-       crashes the app on launch. -->
-  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
-  <!-- CAPABILITY_PERMISSIONS:start -->
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
   <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
   <uses-permission android:name="android.permission.CAMERA"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+  <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
   <uses-permission android:name="android.permission.READ_CALENDAR"/>
   <uses-permission android:name="android.permission.READ_CONTACTS"/>
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+  <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+  <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_CALENDAR"/>
   <uses-permission android:name="android.permission.WRITE_CONTACTS"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
   <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
   <uses-permission android:name="android.permission.health.READ_SLEEP"/>
   <uses-permission android:name="android.permission.health.READ_STEPS"/>
   <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
-  <!-- CAPABILITY_PERMISSIONS:end -->
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
@@ -46,11 +39,9 @@
       <action android:name="android.speech.RecognitionService"/>
     </intent>
   </queries>
-  <!-- CAPABILITY:health:start -->
   <queries>
     <package android:name="com.google.android.apps.healthdata"/>
   </queries>
-  <!-- CAPABILITY:health:end -->
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:fullBackupContent="@xml/backup_rules" android:dataExtractionRules="@xml/data_extraction_rules" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false" android:largeHeap="true">
     <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_icon_color" tools:replace="android:resource"/>
     <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/notification_icon"/>
@@ -59,7 +50,15 @@
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
-    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustPan" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="fullUser">
+    <service android:name=".BackgroundGeneratorService" android:foregroundServiceType="dataSync" android:exported="false"/>
+    <service android:name=".WebViewAiKeepAliveService" android:foregroundServiceType="dataSync" android:exported="false"/>
+    <service android:name="androidx.work.impl.foreground.SystemForegroundService" android:foregroundServiceType="dataSync" tools:node="merge"/>
+    <service android:name="expo.modules.audio.service.AudioControlsService" android:exported="false" android:foregroundServiceType="mediaPlayback">
+      <intent-filter>
+        <action android:name="androidx.media3.session.MediaSessionService"/>
+      </intent-filter>
+    </service>
+    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|locale|layoutDirection" android:launchMode="singleTask" android:windowSoftInputMode="adjustPan" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="unspecified">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
@@ -70,27 +69,23 @@
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="appacadabra"/>
       </intent-filter>
-      <!-- Handler for .spell files (Mime Type Specific) -->
       <intent-filter>
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="file"/>
         <data android:scheme="content"/>
-        <data android:mimeType="*/*" />
-        <data android:pathPattern=".*\\.spell" />
+        <data android:mimeType="*/*"/>
+        <data android:pathPattern=".*\\.spell"/>
       </intent-filter>
-
+      <intent-filter>
+        <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
+      </intent-filter>
       <intent-filter data-generated="true">
         <action android:name="android.intent.action.SEND"/>
         <data android:mimeType="*/*"/>
         <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
-  <!-- CAPABILITY:health:start -->
-      <intent-filter>
-        <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
-      </intent-filter>
-  <!-- CAPABILITY:health:end -->
     </activity>
     <activity android:name=".RunnerActivity" android:taskAffinity=".runner_task" android:launchMode="singleTop" android:documentLaunchMode="intoExisting" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode">
       <intent-filter>
@@ -100,35 +95,16 @@
         <data android:scheme="runapp"/>
       </intent-filter>
     </activity>
-    <!-- Override ML Kit barcode scanner to allow all orientations (Android 16 large screen requirement) -->
-    <activity
-        android:name="com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity"
-        android:screenOrientation="fullUser"
-        tools:replace="android:screenOrientation"/>
-    <!-- Suppress manifest merger warnings from expo-image-picker -->
-    <activity
-        android:name="expo.modules.imagepicker.ExpoCropImageActivity"
-        android:exported="false"/>
-    <!-- Suppress manifest merger warnings from expo-file-system -->
-    <provider
-        android:name="expo.modules.filesystem.FileSystemFileProvider"
-        android:authorities="${applicationId}.FileSystemFileProvider"
-        android:exported="false"
-        android:grantUriPermissions="true"/>
+    <activity android:name="com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity" android:screenOrientation="fullUser" tools:replace="android:screenOrientation"/>
+    <activity android:name="expo.modules.imagepicker.ExpoCropImageActivity" android:exported="false"/>
+    <activity android:name="com.yalantis.ucrop.UCropActivity" android:theme="@style/UCropOptOut"/>
+    <provider android:name="expo.modules.filesystem.FileSystemFileProvider" android:authorities="${applicationId}.FileSystemFileProvider" android:exported="false" android:grantUriPermissions="true"/>
     <receiver android:name=".AlarmReceiver" android:exported="false"/>
-    <service android:name=".BackgroundGeneratorService" android:foregroundServiceType="dataSync" android:exported="false"/>
-    <service android:name=".WebViewAiKeepAliveService" android:foregroundServiceType="dataSync" android:exported="false"/>
-    <service
-        android:name="androidx.work.impl.foreground.SystemForegroundService"
-        android:foregroundServiceType="dataSync"
-        tools:node="merge"/>
-  <!-- CAPABILITY:health:start -->
     <activity-alias android:name="ViewPermissionUsageActivity" android:exported="true" android:targetActivity=".MainActivity" android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
       <intent-filter>
         <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>
         <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>
       </intent-filter>
     </activity-alias>
-  <!-- CAPABILITY:health:end -->
   </application>
 </manifest>

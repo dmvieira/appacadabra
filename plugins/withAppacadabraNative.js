@@ -95,11 +95,22 @@ const withNativeFiles = (config) => {
             await fs.ensureDir(packagePath);
             await fs.ensureDir(resXmlPath);
 
-            // Files to copy
+            // Files to copy — all custom Kotlin modules (MainApplication is NOT here:
+            // it comes from the SDK template + withMainApplicationPackageInjection below)
             const filesToCopy = [
                 { src: 'RunnerActivity.kt', dest: 'RunnerActivity.kt' },
                 { src: 'SharingShortcutsModule.kt', dest: 'SharingShortcutsModule.kt' },
                 { src: 'SharingShortcutsPackage.kt', dest: 'SharingShortcutsPackage.kt' },
+                { src: 'AlarmModule.kt', dest: 'AlarmModule.kt' },
+                { src: 'AlarmPackage.kt', dest: 'AlarmPackage.kt' },
+                { src: 'AlarmReceiver.kt', dest: 'AlarmReceiver.kt' },
+                { src: 'BackgroundGeneratorModule.kt', dest: 'BackgroundGeneratorModule.kt' },
+                { src: 'BackgroundGeneratorPackage.kt', dest: 'BackgroundGeneratorPackage.kt' },
+                { src: 'BackgroundGeneratorService.kt', dest: 'BackgroundGeneratorService.kt' },
+                { src: 'BackgroundGeneratorWorker.kt', dest: 'BackgroundGeneratorWorker.kt' },
+                { src: 'MainActivity.kt', dest: 'MainActivity.kt' },
+                { src: 'WebViewAiKeepAliveModule.kt', dest: 'WebViewAiKeepAliveModule.kt' },
+                { src: 'WebViewAiKeepAliveService.kt', dest: 'WebViewAiKeepAliveService.kt' },
             ];
 
             for (const file of filesToCopy) {
@@ -139,24 +150,26 @@ const withNativeFiles = (config) => {
     ]);
 };
 
-// Inject SharingShortcutsPackage into MainApplication.kt
+// Inject custom packages into MainApplication.kt
 const withMainApplicationPackageInjection = (config) => {
     return withMainApplication(config, async (config) => {
         let contents = config.modResults.contents;
-        const packageImport = 'add(SharingShortcutsPackage())';
+        const anchor = 'PackageList(this).packages.apply {';
+        const injections = [
+            'add(SharingShortcutsPackage())',
+            'add(AlarmPackage())',
+            'add(BackgroundGeneratorPackage())',
+        ];
 
-        if (!contents.includes(packageImport)) {
-            // Look for the PackageList(this).packages.apply { block
-            // and inject the add() call
-            if (contents.includes('PackageList(this).packages.apply {')) {
-                contents = contents.replace(
-                    'PackageList(this).packages.apply {',
-                    `PackageList(this).packages.apply {\n              add(SharingShortcutsPackage())`
-                );
-                console.log('✅ Injected SharingShortcutsPackage into MainApplication.kt');
-            } else {
-                console.warn('⚠️ Could not find PackageList block in MainApplication.kt');
+        if (contents.includes(anchor)) {
+            for (const inject of injections) {
+                if (!contents.includes(inject)) {
+                    contents = contents.replace(anchor, `${anchor}\n          ${inject}`);
+                    console.log(`✅ Injected ${inject} into MainApplication.kt`);
+                }
             }
+        } else {
+            console.warn('⚠️ Could not find PackageList block in MainApplication.kt');
         }
         config.modResults.contents = contents;
         return config;
