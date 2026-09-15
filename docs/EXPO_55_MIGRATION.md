@@ -58,3 +58,15 @@ Não afetados: `removeSubscription` (não usamos), `expo-video-thumbnails` (não
 A Expo mantém skills oficiais de upgrade (github.com/expo/skills → `plugins/upgrading-expo`). Podemos instalá-las em `.opencode/skill/` no dia da migração e executar o upgrade com o `engineering-agent`.
 
 Estimativa: 1–2 dias de trabalho (o item expo-av domina o esforço).
+
+## Lições da execução (2026-09-15 — migração aplicada)
+
+- `expo-file-system/next` foi removido no SDK 55: a API "next" é o root (`import { File, Directory, Paths } from 'expo-file-system'`). `/legacy` continua existindo.
+- Jest/jsdom: o runtime "winter" do expo 55 exige `TextEncoder`/`TextDecoder` — polyfill adicionado no início do `jest.setup.js`.
+- `.npmrc` com `legacy-peer-deps=true` é obrigatório (conflito de peer do @react-native-firebase bloqueia o `expo install --fix`).
+- `sucrase` virou devDependency explícita (era transitiva; `sync-capabilities` depende dela).
+- `expo prebuild` (sem `--clean`) realoca os Kotlin custom de `com/dmvieira/appacadabra` para `ai/appacadabra/app` e reseta `versionCode` para 1 — sempre revisar o diff e restaurar o versionCode.
+- **MainApplication.kt SDK 55**: `ReactNativeHostWrapper` não existe mais; o padrão novo é `reactHost` via `expo.modules.ExpoReactHostFactory.getDefaultReactHost` + `loadReactNative(this)`.
+- O plugin `withAppacadabraNative` agora copia TODOS os 13 módulos custom de `native-assets/.../ai/appacadabra/app/` e injeta os 3 pacotes custom no MainApplication (template) — `prebuild --clean` voltou a ser seguro para o Kotlin. ⚠️ O manifest ainda exige revisão manual pós-`--clean` (permissões manuais, `fullUser`, `versionCode`).
+- **hermesc**: RN 0.83 não embarca mais `sdks/hermesc`; o `hermesCommand` do `app/build.gradle` aponta para o pacote npm `hermes-compiler`. Re-aplicar se o build.gradle for regenerado.
+- Status final: unit 828/828 ✓, functions 17/17 ✓, `assembleDebug` ✓, `bundleRelease` ✓ (AAB 82MB assinado v1/APPACADA). Pendente: e2e Maestro no emulador + rollout.
