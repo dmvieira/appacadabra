@@ -26,6 +26,7 @@ import {
     buildPlannerSystemInstructions,
     getCapabilitiesByApiNames,
 } from './systemPrompt';
+import { getMcpPromptBlock, getMcpPlannerLine, hydrateMcpGenerationContext } from '../mcp/generationContext';
 import { ALL_CAPABILITIES } from '../capabilities';
 import {
     extractHtml,
@@ -157,6 +158,7 @@ export interface CreateParams {
  */
 export async function generateSpellCreate(params: CreateParams): Promise<CreateResult> {
     const { prompt, appVersion, signal, onProgress } = params;
+    void hydrateMcpGenerationContext().catch(() => undefined);
     const spellModel = await getPreferredModel('SPELL_S');
     let lastError: unknown;
 
@@ -225,7 +227,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
 
             // Stage 1: Planning
             onProgress?.({ type: 'plan_started' });
-            const plannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
+            const plannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES, getMcpPlannerLine());
             const planResult = await callModel(
                 `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${prompt}`,
                 plannerSys,
@@ -241,7 +243,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
                 appVersion,
                 ALL_CAPABILITIES,
             );
-            const coderSys = buildSystemInstructions(appVersion, selectedCaps);
+            const coderSys = buildSystemInstructions(appVersion, selectedCaps, getMcpPromptBlock());
             const codeResult = await callModel(
                 `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(appPlan, null, 2)}`,
                 coderSys,
@@ -368,6 +370,8 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
         onProgress,
     } = params;
 
+    void hydrateMcpGenerationContext().catch(() => undefined);
+
     // Pre-compute inputs that don't change between retries
     let rawCode = currentCode;
     if (rawCode && !rawCode.trimStart().startsWith('<')) {
@@ -390,8 +394,8 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
         ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(s => `- localStorage["${s.key}"]: ${JSON.stringify(s.schema)}`).join('\n')}\n`
         : '';
 
-    const editPlannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES);
-    const editPatcherSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+    const editPlannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES, getMcpPlannerLine());
+    const editPatcherSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES, getMcpPromptBlock());
     const spellModel = await getPreferredModel('SPELL_S');
 
     let lastError: unknown;
@@ -539,7 +543,7 @@ export interface ConvertResult {
 export async function generateConvert(params: ConvertParams): Promise<ConvertResult> {
     const { sourceCode, frameworkHint, appVersion, signal } = params;
     const usage = emptyUsage();
-    const sys = buildSystemInstructions(appVersion, ALL_CAPABILITIES);
+    const sys = buildSystemInstructions(appVersion, ALL_CAPABILITIES, getMcpPromptBlock());
     const spellModel = await getPreferredModel('SPELL_S');
 
     const userMsg = `${CONVERT_PROJECT_PROMPT}\n\n--- SOURCE${frameworkHint ? ` (${frameworkHint})` : ''} ---\n\`\`\`\n${sourceCode}\n\`\`\``;
@@ -582,6 +586,10 @@ export interface WebviewAIParams {
     requestedModel?: string;
     requestedTools?: string[];
     signal?: AbortSignal;
+    /** MCP tools exposed to the model for this call (Phase 5 tool loop). */
+    mcpTools?: Array<{ name: string; description?: string; inputSchema?: unknown }>;
+    /** Executes an MCP tool call. Provided by the caller (bridge capability). */
+    mcpExecute?: (tool: string, args: Record<string, unknown>) => Promise<{ text: string; isError: boolean }>;
 }
 
 export interface WebviewAIResult {
@@ -628,6 +636,87 @@ function normalizeSchemaForStrictMode(schema: any): any {
     }
     if (schema.type === 'array' && schema.items) normalizeSchemaForStrictMode(schema.items);
     return schema;
+}
+
+/** Sanitizes an MCP tool name into the OpenAI function-name charset. */
+function sanitizeToolName(name: string): string {
+    return name.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+}
+
+/**
+ * Phase 5: exposes MCP tools to the model and runs a bounded tool-calling loop.
+ * Returns the final chat response plus accumulated usage.
+ */
+async function runMcpToolLoop(params: {
+    model: string;
+    messages: ChatMessage[];
+    mcpTools: Array<{ name: string; description?: string; inputSchema?: unknown }>;
+    mcpExecute: (tool: string, args: Record<string, unknown>) => Promise<{ text: string; isError: boolean }>;
+    useWebSearch: boolean;
+    signal?: AbortSignal;
+    maxRounds?: number;
+}): Promise<{ result: ChatResponse; usage: GenerationUsage; reportedCostUsd: number }> {
+    const { model, messages, mcpTools, mcpExecute, useWebSearch, signal } = params;
+    const maxRounds = params.maxRounds ?? 4;
+
+    const nameMap = new Map<string, string>();
+    const toolDefs = mcpTools.map(t => {
+        const safe = sanitizeToolName(t.name);
+        nameMap.set(safe, t.name);
+        return {
+            type: 'function',
+            function: {
+                name: safe,
+                description: t.description || t.name,
+                parameters: t.inputSchema ?? { type: 'object', properties: {} },
+            },
+        };
+    });
+
+    const msgs: ChatMessage[] = [...messages];
+    const usage = emptyUsage();
+    let reportedCostUsd = 0;
+    let lastResult: ChatResponse | null = null;
+
+    for (let round = 0; round < maxRounds; round++) {
+        const res = await openrouterChat({
+            model,
+            messages: msgs,
+            max_tokens: 65536,
+            noCache: true,
+            ...OR_REASONING_HIGH,
+            ...(useWebSearch ? OR_WEB_SEARCH : {}),
+            tools: toolDefs,
+            tool_choice: 'auto',
+            signal,
+        });
+        accUsage(usage, res);
+        const reported = (res.usage as any)?.cost;
+        if (typeof reported === 'number' && reported > 0) reportedCostUsd += reported;
+        lastResult = res;
+
+        const message = res.choices?.[0]?.message as any;
+        const toolCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
+        if (toolCalls.length === 0) break;
+
+        msgs.push({ role: 'assistant', content: message?.content ?? '', tool_calls: toolCalls } as any);
+        for (const tc of toolCalls) {
+            const fnName = tc?.function?.name ?? '';
+            const original = nameMap.get(fnName) ?? fnName;
+            let args: Record<string, unknown> = {};
+            try { args = JSON.parse(tc?.function?.arguments ?? '{}'); } catch { args = {}; }
+            let out: { text: string; isError: boolean };
+            try {
+                out = await mcpExecute(original, args);
+            } catch (e) {
+                out = { text: e instanceof Error ? e.message : 'tool error', isError: true };
+            }
+            msgs.push({ role: 'tool', tool_call_id: tc?.id, name: fnName, content: out.text || (out.isError ? 'error' : 'ok') } as any);
+        }
+    }
+
+    if (!lastResult) throw new Error('AI returned empty response');
+    return { result: lastResult, usage, reportedCostUsd };
 }
 
 export async function generateWebviewAI(params: WebviewAIParams): Promise<WebviewAIResult> {
@@ -700,35 +789,54 @@ export async function generateWebviewAI(params: WebviewAIParams): Promise<Webvie
     }
     messages.push({ role: 'user', content: userContent });
 
-    const result = await withRetry(() =>
-        openrouterChat({
+    const useMcpTools = !!(params.mcpTools?.length && params.mcpExecute);
+
+    let result: ChatResponse;
+    let usage: GenerationUsage;
+    let reportedCostFromLoop = 0;
+
+    if (useMcpTools) {
+        const loop = await runMcpToolLoop({
             model: effectiveModel,
             messages,
-            max_tokens: 65536,
-            noCache: true,
-            ...OR_REASONING_HIGH,
-            ...(useWebSearch ? OR_WEB_SEARCH : {}),
-            ...(resolvedSchema
-                ? {
-                      extra: {
-                          response_format: {
-                              type: 'json_schema',
-                              json_schema: {
-                                  name: 'response',
-                                  schema: normalizeSchemaForStrictMode(resolvedSchema) as any,
-                                  strict: true,
-                              },
-                          },
-                          provider: { require_parameters: true },
-                      },
-                  }
-                : {}),
+            mcpTools: params.mcpTools!,
+            mcpExecute: params.mcpExecute!,
+            useWebSearch,
             signal,
-        }),
-    );
-
-    const usage = emptyUsage();
-    accUsage(usage, result);
+        });
+        result = loop.result;
+        usage = loop.usage;
+        reportedCostFromLoop = loop.reportedCostUsd;
+    } else {
+        result = await withRetry(() =>
+            openrouterChat({
+                model: effectiveModel,
+                messages,
+                max_tokens: 65536,
+                noCache: true,
+                ...OR_REASONING_HIGH,
+                ...(useWebSearch ? OR_WEB_SEARCH : {}),
+                ...(resolvedSchema
+                    ? {
+                          extra: {
+                              response_format: {
+                                  type: 'json_schema',
+                                  json_schema: {
+                                      name: 'response',
+                                      schema: normalizeSchemaForStrictMode(resolvedSchema) as any,
+                                      strict: true,
+                                  },
+                              },
+                              provider: { require_parameters: true },
+                          },
+                      }
+                    : {}),
+                signal,
+            }),
+        );
+        usage = emptyUsage();
+        accUsage(usage, result);
+    }
 
     let text = extractText(result);
 
@@ -746,7 +854,7 @@ export async function generateWebviewAI(params: WebviewAIParams): Promise<Webvie
     // Best-effort: OpenRouter doesn't expose web-search request count today, so
     // we approximate. The server used the same approximation.
     const searchQueriesUsed = useWebSearch ? 1 : 0;
-    const reportedCost = (result.usage as any)?.cost;
+    const reportedCost = reportedCostFromLoop > 0 ? reportedCostFromLoop : (result.usage as any)?.cost;
     const costUsd =
         typeof reportedCost === 'number' && reportedCost > 0
             ? reportedCost

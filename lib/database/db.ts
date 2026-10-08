@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { GeneratedApp, AppVersion, AppStorage, NewGeneratedApp, NewAppVersion, PendingJob } from './types';
+import { deriveRequirements, serializeRequirements } from '../mcp/deriveRequirements';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -40,7 +41,9 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       storeSpellSlug TEXT,
       storeAuthorUid TEXT,
       forkOfStoreSpellId TEXT,
-      storeVisibility TEXT
+      storeVisibility TEXT,
+      required_capabilities TEXT,
+      required_mcps TEXT
     );
 
     CREATE TABLE IF NOT EXISTS app_versions (
@@ -152,6 +155,32 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       firstSeenAt INTEGER NOT NULL,
       updatedAt INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS mcp_connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT,
+      mcp_url TEXT NOT NULL,
+      transport TEXT NOT NULL DEFAULT 'streamable-http',
+      auth_strategy TEXT NOT NULL DEFAULT 'none',
+      status TEXT NOT NULL DEFAULT 'needs_auth',
+      account_label TEXT,
+      token_ref TEXT,
+      client_id TEXT,
+      auth_meta TEXT,
+      icon_url TEXT,
+      source TEXT NOT NULL DEFAULT 'manual',
+      created_at INTEGER NOT NULL,
+      last_used_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_connections_slug ON mcp_connections(slug);
+
+    CREATE TABLE IF NOT EXISTS mcp_tool_cache (
+      slug TEXT PRIMARY KEY NOT NULL,
+      tools_json TEXT NOT NULL,
+      fetched_at INTEGER NOT NULL
+    );
   `);
 
     // Defensive column add for users upgrading from a schema without storeAuthorUid.
@@ -160,6 +189,15 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
         await database.execAsync(`ALTER TABLE generated_apps ADD COLUMN storeAuthorUid TEXT;`);
     } catch {
         // Column already exists — ignore.
+    }
+
+    // Spell requirements (capabilities + MCP connectors used), derived from code.
+    for (const col of ['required_capabilities TEXT', 'required_mcps TEXT']) {
+        try {
+            await database.execAsync(`ALTER TABLE generated_apps ADD COLUMN ${col};`);
+        } catch {
+            // Column already exists — ignore.
+        }
     }
 
     // Defensive column adds for the background-generation state machine on
@@ -193,18 +231,37 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
 export async function getAllApps(): Promise<GeneratedApp[]> {
     const database = await getDatabase();
-    return database.getAllAsync<GeneratedApp>(
+    const rows = await database.getAllAsync<GeneratedApp & { required_capabilities?: string | null; required_mcps?: string | null }>(
         `SELECT * FROM generated_apps
          ORDER BY CASE WHEN sortOrder = 0 THEN 0 ELSE 1 END, sortOrder ASC, lastUpdated DESC`
     );
+    return rows.map(attachRequirements);
+}
+
+function attachRequirements<T extends { required_capabilities?: string | null; required_mcps?: string | null }>(row: T): T & GeneratedApp {
+    const parse = (s: string | null | undefined): string[] => {
+        if (!s) return [];
+        try {
+            const v = JSON.parse(s);
+            return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+        } catch {
+            return [];
+        }
+    };
+    return {
+        ...row,
+        requiredCapabilities: parse(row.required_capabilities),
+        requiredMcps: parse(row.required_mcps),
+    } as T & GeneratedApp;
 }
 
 export async function getAppById(id: number): Promise<GeneratedApp | null> {
     const database = await getDatabase();
-    return database.getFirstAsync<GeneratedApp>(
+    const row = await database.getFirstAsync<GeneratedApp & { required_capabilities?: string | null; required_mcps?: string | null }>(
         'SELECT * FROM generated_apps WHERE id = ?',
         [id]
     );
+    return row ? attachRequirements(row) : null;
 }
 
 export async function getAppByJobId(jobId: string): Promise<GeneratedApp | null> {
@@ -235,6 +292,7 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
     }
 
     const now = Date.now();
+    const reqs = serializeRequirements(deriveRequirements(app.code));
     const bindings = [
         String(app.name ?? 'Untitled'),
         String(app.code ?? ''),
@@ -254,11 +312,13 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         app.storeAuthorUid ?? null,
         app.forkOfStoreSpellId ?? null,
         app.storeVisibility ?? null,
+        reqs.capabilities,
+        reqs.mcps,
     ];
 
     const result = await database.runAsync(
-        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalSpendUsd, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, storeAuthorUid, forkOfStoreSpellId, storeVisibility)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalSpendUsd, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, storeAuthorUid, forkOfStoreSpellId, storeVisibility, required_capabilities, required_mcps)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         bindings as any[]
     );
     return result.lastInsertRowId;
@@ -266,8 +326,9 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
 
 export async function updateApp(app: GeneratedApp): Promise<void> {
     const database = await getDatabase();
+    const reqs = serializeRequirements(deriveRequirements(app.code));
     await database.runAsync(
-        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalSpendUsd = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?, sortOrder = ?
+        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalSpendUsd = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?, sortOrder = ?, required_capabilities = ?, required_mcps = ?
      WHERE id = ?`,
         [
             app.name ?? 'Untitled',
@@ -281,10 +342,31 @@ export async function updateApp(app: GeneratedApp): Promise<void> {
             app.requiresBiometric ? 1 : 0,
             app.shortDescription ?? '',
             app.sortOrder ?? 0,
+            reqs.capabilities,
+            reqs.mcps,
             app.id
         ]
     );
     // Note: createdAt is intentionally never updated — it is set once at insert time.
+}
+
+/** Reads the derived requirements for a spell (capabilities + MCP slugs). */
+export async function getAppRequirements(appId: number): Promise<{ capabilities: string[]; mcps: string[] }> {
+    const database = await getDatabase();
+    const row = await database.getFirstAsync<{ required_capabilities: string | null; required_mcps: string | null }>(
+        'SELECT required_capabilities, required_mcps FROM generated_apps WHERE id = ?',
+        [appId],
+    );
+    const parse = (s: string | null | undefined): string[] => {
+        if (!s) return [];
+        try {
+            const v = JSON.parse(s);
+            return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+        } catch {
+            return [];
+        }
+    };
+    return { capabilities: parse(row?.required_capabilities), mcps: parse(row?.required_mcps) };
 }
 
 export async function deleteApp(id: number): Promise<void> {

@@ -52,6 +52,13 @@ interface VideoPlayback {
     callback?: string;
 }
 
+/** Consent dialog shown when a spell needs to connect to an MCP server. */
+interface McpConnectRequest {
+    slug: string;
+    name: string;
+    resolve: (agreed: boolean) => void;
+}
+
 interface BridgeUIState {
     isScannerOpen: boolean;
     scannerCallback: string | null;
@@ -62,6 +69,7 @@ interface BridgeUIState {
     modelUnavailableRequest: ModelUnavailableRequest | null;
     largePayloadConfirmRequest: LargePayloadConfirmRequest | null;
     videoPlayback: VideoPlayback | null;
+    mcpConnectRequest: McpConnectRequest | null;
     openScanner: (callback: string) => void;
     closeScanner: (scannedData?: string) => void;
     setWebViewRef: (ref: React.RefObject<WebView>) => void;
@@ -76,6 +84,8 @@ interface BridgeUIState {
     resolveLargePayloadConfirmation: (confirmed: boolean) => void;
     openVideoPlayer: (uri: string, callback?: string) => void;
     closeVideoPlayer: () => void;
+    requestMcpConnect: (slug: string, name: string) => Promise<boolean>;
+    resolveMcpConnect: (agreed: boolean) => void;
 }
 
 export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
@@ -88,6 +98,7 @@ export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
     modelUnavailableRequest: null,
     largePayloadConfirmRequest: null,
     videoPlayback: null,
+    mcpConnectRequest: null,
     openScanner: (callback) => set({ isScannerOpen: true, scannerCallback: callback, isNativeActivityActive: true }),
     closeScanner: () => set({ isScannerOpen: false, scannerCallback: null, isNativeActivityActive: false }),
     setWebViewRef: (ref) => set({ webViewRef: ref }),
@@ -135,6 +146,16 @@ export const useBridgeUIStore = create<BridgeUIState>((set, get) => ({
         if (req) {
             req.resolve(confirmed);
             set({ largePayloadConfirmRequest: null });
+        }
+    },
+    requestMcpConnect: (slug, name) => new Promise<boolean>((resolve) => {
+        set({ mcpConnectRequest: { slug, name, resolve } });
+    }),
+    resolveMcpConnect: (agreed) => {
+        const req = get().mcpConnectRequest;
+        if (req) {
+            req.resolve(agreed);
+            set({ mcpConnectRequest: null });
         }
     },
 }));

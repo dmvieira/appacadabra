@@ -1324,6 +1324,13 @@ export default function HomeScreen() {
                                     <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('reportBugSub')}</Text>
                                 </View>
                             </TouchableOpacity>
+                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowAdvanced(false); router.push('/settings/mcp'); }} accessibilityLabel={t('mcpSettingsTitle')} accessibilityRole="menuitem">
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🔌</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('mcpSettingsTitle')}</Text>
+                                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('mcpSettingsSubtitle')}</Text>
+                                </View>
+                            </TouchableOpacity>
                             <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowAdvanced(false); setShowLegal(true); }} accessibilityLabel={t('legal')} accessibilityRole="menuitem">
                                 <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📜</Text></View>
                                 <View style={{ flex: 1 }}>

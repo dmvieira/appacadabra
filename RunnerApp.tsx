@@ -38,6 +38,7 @@ import { cleanupWatchersForApp as cleanupDocsWatchers } from './lib/capabilities
 import { cleanupWatchersForApp as cleanupFormsWatchers } from './lib/capabilities/forms';
 import { CostEstimateModal } from './components/CostEstimateModal';
 import { LargePayloadConfirmModal } from './components/LargePayloadConfirmModal';
+import { McpConnectModal } from './components/McpConnectModal';
 
 function isLargeAiPayload(type: string, data: any): boolean {
     if (type === 'AI_GENERATE_VIDEO') return true;
@@ -1013,6 +1014,7 @@ export default function RunnerApp(props: RunnerAppProps) {
                 <RunnerContent key={appId} appId={appId} />
             </SafeAreaView>
             <CostEstimateModal />
+            <McpConnectModal />
         </SafeAreaProvider>
     );
 }

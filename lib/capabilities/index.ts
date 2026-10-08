@@ -32,6 +32,7 @@ import { formsCapability } from './forms';
 import { docsCapability } from './docs';
 import { sheetsCapability } from './sheets';
 import { aiCapability } from './ai';
+import { mcpCapability } from './mcp';
 
 export const ALL_CAPABILITIES: CapabilityModule[] = [
     clipboardCapability,
@@ -50,6 +51,7 @@ export const ALL_CAPABILITIES: CapabilityModule[] = [
     docsCapability,
     sheetsCapability,
     aiCapability,
+    mcpCapability,
 ].filter(cap => !DISABLED_CAPABILITIES.has(cap.id));
 
 /**

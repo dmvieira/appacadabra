@@ -20,6 +20,9 @@ export interface GeneratedApp {
     storeVisibility?: 'public' | 'unlisted' | null; // Visibility mode used when publishing
     source?: 'local' | 'store'; // Whether this spell was created locally or learned from the Store
     forkOfStoreSpellId?: string | null; // store_spells ID this spell was learned from (for variant publishing)
+    // Derived from the generated code (see lib/mcp/deriveRequirements.ts).
+    requiredCapabilities?: string[]; // Capability display names, e.g. ["Camera","Contacts"]
+    requiredMcps?: string[]; // MCP connector slugs, e.g. ["picpay"]
 }
 
 export interface AppVersion {

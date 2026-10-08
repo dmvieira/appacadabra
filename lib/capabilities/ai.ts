@@ -108,6 +108,7 @@ export const aiCapability: CapabilityModule = {
 - **Builder Methods** (chainable — call \`generate()\` last):
     - \`generate(prompt, callback)\`: Execute the AI request with the configured options.
     - \`withSearch()\`: Enable Google Search grounding for real-time info.
+    - \`withMCP(slug)\`: Expose an MCP connector's tools (e.g. \`withMCP("picpay")\`) so the model can call them automatically. The user is asked to connect on first use.
     - \`withSchema(jsonSchemaObj)\`: Force structured JSON output matching the schema.
     - \`fromImage(input)\`: Attach image(s) for vision analysis or image generation. Accepts a single Base64 string OR an array (up to 14). Typically the base64 comes from \`AppacadabraCamera.takePhoto()\`.
     - \`fromVideo(input)\`: Attach video(s) for analysis/summarization. Accepts a single Base64 string OR an array. Typically the base64 comes from \`AppacadabraCamera.recordVideo()\`.
@@ -121,6 +122,7 @@ export const aiCapability: CapabilityModule = {
 - **Examples**:
     - Basic: \`AppacadabraAI.generate("Hello", callback)\`
     - Search: \`AppacadabraAI.withSearch().generate("Who won the game?", callback)\`
+    - MCP: \`AppacadabraAI.withMCP("picpay").generate("Quanto gastei no cartão esse mês?", callback)\`
     - JSON: \`AppacadabraAI.withSchema({ type: "object", properties: { ... } }).generate("Extract data", callback)\`
     - Single image: \`AppacadabraAI.fromImage(base64).generate("Describe this", callback)\`
     - Multiple images: \`AppacadabraAI.fromImage([img1, img2, img3]).generate("Compare these images", callback)\`
@@ -158,6 +160,7 @@ export const aiCapability: CapabilityModule = {
         var builder = {
             withSchema: function(s) { return makeAIBuilder(s); },
             withSearch: function() { return this; },
+            withMCP: function() { return this; },
             fromImage: function() { return this; },
             fromVideo: function() { return this; },
             fromAudio: function() { return this; },
@@ -173,6 +176,7 @@ export const aiCapability: CapabilityModule = {
     window.AppacadabraAI = {
         withSchema: function(s) { return makeAIBuilder(s); },
         withSearch: function() { return makeAIBuilder(null); },
+        withMCP: function() { return makeAIBuilder(null); },
         fromImage: function() { return makeAIBuilder(null); },
         fromVideo: function() { return makeAIBuilder(null); },
         fromAudio: function() { return makeAIBuilder(null); },
@@ -213,12 +217,18 @@ export const aiCapability: CapabilityModule = {
         schema: null,
         images: null,
         videos: null,
-        audios: null
+        audios: null,
+        mcp: null
       };
     }
 
     AIBuilder.prototype.withSearch = function() {
       this.options.search = true;
+      return this;
+    };
+
+    AIBuilder.prototype.withMCP = function(slug) {
+      this.options.mcp = slug;
       return this;
     };
 
@@ -424,13 +434,15 @@ export const aiCapability: CapabilityModule = {
         schema: this.options.schema,
         images: this.options.images,
         videos: this.options.videos,
-        audios: this.options.audios
+        audios: this.options.audios,
+        mcp: this.options.mcp
       }, callbackName);
     };
 
     return {
       withSearch: function() { return new AIBuilder().withSearch(); },
       withSchema: function(s) { return new AIBuilder().withSchema(s); },
+      withMCP: function(slug) { return new AIBuilder().withMCP(slug); },
       fromImage: function(input, opts) { return new AIBuilder().fromImage(input, opts); },
       fromVideo: function(input, opts) { return new AIBuilder().fromVideo(input, opts); },
       fromAudio: function(input, opts) { return new AIBuilder().fromAudio(input, opts); },
@@ -510,6 +522,20 @@ export const aiCapability: CapabilityModule = {
             case 'AI_GENERATE': {
                 const gate = await gateAiOperation('generate', ctx.appId, data);
                 if (!gate.ok) return { success: false, result: gate.result };
+                // Phase 5: ensure the requested MCP connector is authorized before
+                // exposing its tools to the model (prompts the user if needed).
+                if (data.mcp) {
+                    const manager = require('../mcp/manager');
+                    const { useBridgeUIStore } = require('../bridgeUIStore');
+                    const conn = await manager.ensureConnectionForSlug(String(data.mcp));
+                    if (!conn) return { success: false, result: `Conector desconhecido: ${data.mcp}` };
+                    if (!(await manager.isConnected(String(data.mcp)))) {
+                        const agreed = await useBridgeUIStore.getState().requestMcpConnect(String(data.mcp), conn.name);
+                        if (!agreed) return { success: false, result: 'Conexão cancelada.' };
+                        const connectRes = await manager.connectProvider(conn);
+                        if (!connectRes.success) return { success: false, result: connectRes.error || 'Falha ao conectar.' };
+                    }
+                }
                 console.log(`[Bridge] AI Generate request: ${data.prompt?.substring(0, 50)}...`);
                 try {
                     const genResult = await withKeepAlive('generate', () => ai.aiGenerate({
@@ -519,6 +545,7 @@ export const aiCapability: CapabilityModule = {
                         images: data.images,
                         videos: data.videos,
                         audios: data.audios,
+                        mcp: data.mcp,
                     }));
                     const result = genResult.text;
                     const costUsd = genResult.costUsd || 0;

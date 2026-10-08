@@ -38,6 +38,7 @@ import {
     buildPlannerSystemInstructions,
     getCapabilitiesByApiNames,
 } from './systemPrompt';
+import { getMcpPromptBlock, getMcpPlannerLine, hydrateMcpGenerationContext } from '../mcp/generationContext';
 import { ALL_CAPABILITIES } from '../capabilities';
 import {
     extractHtml,
@@ -383,7 +384,8 @@ export async function nextCreateStage(
 ): Promise<StageOutcome<CreateJobState>> {
     switch (state.stage) {
         case 'planner': {
-            const sys = buildPlannerSystemInstructions(state.appVersion, ALL_CAPABILITIES);
+            void hydrateMcpGenerationContext().catch(() => undefined);
+            const sys = buildPlannerSystemInstructions(state.appVersion, ALL_CAPABILITIES, getMcpPlannerLine());
             const res = await callModel(
                 `${UNIFIED_CREATE_PLANNER_PROMPT}\n\nUser Request: ${state.prompt}`,
                 sys,
@@ -406,7 +408,7 @@ export async function nextCreateStage(
                 state.appVersion,
                 ALL_CAPABILITIES,
             );
-            const sys = buildSystemInstructions(state.appVersion, selectedCaps);
+            const sys = buildSystemInstructions(state.appVersion, selectedCaps, getMcpPromptBlock());
             const res = await callModel(
                 `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(state.plan, null, 2)}`,
                 sys,
@@ -460,7 +462,7 @@ export async function nextCreateStage(
                 state.appVersion,
                 ALL_CAPABILITIES,
             );
-            const sys = buildSystemInstructions(state.appVersion, selectedCaps);
+            const sys = buildSystemInstructions(state.appVersion, selectedCaps, getMcpPromptBlock());
             const res = await callModel(
                 generateFixPrompt(state.lastErrors, state.html!),
                 sys,
@@ -499,7 +501,8 @@ export async function nextEditStage(
 ): Promise<StageOutcome<EditJobState>> {
     switch (state.stage) {
         case 'planner': {
-            const sys = buildPlannerSystemInstructions(state.appVersion, ALL_CAPABILITIES);
+            void hydrateMcpGenerationContext().catch(() => undefined);
+            const sys = buildPlannerSystemInstructions(state.appVersion, ALL_CAPABILITIES, getMcpPlannerLine());
             const userMsg = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${state.instruction}${state.historyContext}${state.selectionPart}${state.storageKeysPart}\n\nFull code:\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
             const res = await callModel(userMsg, sys, state.outerAttempt, state.spellModel, opts?.signal);
             const usage = { ...state.usage };
@@ -509,7 +512,7 @@ export async function nextEditStage(
         }
 
         case 'patch': {
-            const sys = buildSystemInstructions(state.appVersion, ALL_CAPABILITIES);
+            const sys = buildSystemInstructions(state.appVersion, ALL_CAPABILITIES, getMcpPromptBlock());
             const userMsg = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(state.plan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
             const res = await callModel(userMsg, sys, state.outerAttempt, state.spellModel, opts?.signal);
             const usage = { ...state.usage };

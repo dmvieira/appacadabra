@@ -10,6 +10,7 @@ import { t } from '../lib/i18n';
 import ShareReceiver from '../components/ShareReceiver';
 import { CostEstimateModal } from '../components/CostEstimateModal';
 import { KeyMissingModal } from '../components/KeyMissingModal';
+import { McpConnectModal } from '../components/McpConnectModal';
 import { ModelUnavailableModal } from '../components/ModelUnavailableModal';
 import { GenerationErrorModal } from '../components/GenerationErrorModal';
 import { LargePayloadConfirmModal } from '../components/LargePayloadConfirmModal';
@@ -425,6 +426,7 @@ export default function RootLayout() {
             <ShareReceiver />
             <CostEstimateModal />
             <KeyMissingModal />
+            <McpConnectModal />
             <ModelUnavailableModal />
             <GenerationErrorModal />
             <LargePayloadConfirmModal />

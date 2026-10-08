@@ -148,13 +148,15 @@ export interface AIGenerateOptions {
     videos?: string[]; // base64 array
     audios?: string[]; // base64 array
     pdfs?: string[]; // base64 array (application/pdf)
+    /** Optional MCP connector slug to expose its tools to the model (Phase 5). */
+    mcp?: string;
 }
 
 // Used by WebView Bridge
 export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: string, usage: any, creditsUsed: number, costUsd: number }> {
     console.log('[AI] aiGenerate (BYOK)', JSON.stringify({ ...options, images: options.images?.length || 0, videos: options.videos?.length || 0, audios: options.audios?.length || 0, pdfs: options.pdfs?.length || 0 }));
 
-    const { prompt, search, schema, images, audios, pdfs } = options;
+    const { prompt, search, schema, images, audios, pdfs, mcp } = options;
 
     // Strip any leading data URI header — including MIME parameters like
     // "; codecs=opus" that WhatsApp attaches to voice notes (mimeType comes
@@ -167,6 +169,23 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
     const cleanAudios = audios?.map(cleanPrefix);
     const cleanPdfs = pdfs?.map(cleanPrefix);
 
+    // Phase 5: if an MCP connector is requested, expose its tools to the model
+    // and let it call them in a bounded loop.
+    let mcpTools: Array<{ name: string; description?: string; inputSchema?: unknown }> | undefined;
+    let mcpExecute: ((tool: string, args: Record<string, unknown>) => Promise<{ text: string; isError: boolean }>) | undefined;
+    if (mcp) {
+        const manager = require('../mcp/manager');
+        try {
+            mcpTools = await manager.listProviderTools(mcp, { forceRefresh: false });
+            mcpExecute = async (tool: string, args: Record<string, unknown>) => {
+                const r = await manager.callProviderTool(mcp, tool, args);
+                return { text: r.text, isError: r.isError };
+            };
+        } catch (e) {
+            console.warn('[AI] Failed to load MCP tools for', mcp, e);
+        }
+    }
+
     const result = await byokGenerateWebviewAI({
         prompt,
         schema: schema as Record<string, unknown> | undefined,
@@ -174,6 +193,8 @@ export async function aiGenerate(options: AIGenerateOptions): Promise<{ text: st
         audios: cleanAudios,
         pdfs: cleanPdfs,
         useSearch: search,
+        mcpTools,
+        mcpExecute,
     });
 
     logAiGenerate(!!(cleanImages?.length), !!(cleanAudios?.length));

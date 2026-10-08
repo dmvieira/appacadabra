@@ -25,6 +25,7 @@ import * as db from '../../lib/database/db';
 import { getStoreSpellStatus } from '../../lib/firebase';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
+import { SpellRequirements } from '../../components/SpellRequirements';
 
 type MediaType = 'text' | 'image' | 'video' | 'audio';
 type FilterType = 'all' | 'text' | 'image' | 'video' | 'audio';
@@ -567,7 +568,8 @@ export default function SpellDataScreen() {
 
                 {/* ═══════════ Section 2: Essence (LocalStorage) ═══════════ */}
                 <View style={[styles.sectionWrapper, { flex: 1, marginTop: spacing.sm }]}>
-                    <Text style={styles.sectionLabel}>{t('spellEssence')}</Text>
+                    <SpellRequirements capabilities={app?.requiredCapabilities} mcps={app?.requiredMcps} />
+                    <Text style={[styles.sectionLabel, { marginTop: spacing.sm }]}>{t('spellEssence')}</Text>
                     <View style={[styles.card, { flex: 1, paddingHorizontal: spacing.sm }]}>
                         {storageItems.length === 0 ? (
                             <Text style={styles.emptyText}>{t('noEssence')}</Text>

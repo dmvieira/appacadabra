@@ -131,15 +131,17 @@ export function versionGte(appVersion: string, minVersion: string): boolean {
 export function buildSystemInstructions(
     appVersion: string,
     caps: CapabilityModule[] = ALL_CAPABILITIES,
+    extraDocs?: string,
 ): string {
+    const suffix = extraDocs && extraDocs.trim().length > 0 ? `\n\n${extraDocs}` : '';
     if (caps.length === 0) {
-        return SYSTEM_PREAMBLE;
+        return SYSTEM_PREAMBLE + suffix;
     }
     const available = caps.filter(c => versionGte(appVersion, c.minVersion));
     if (available.length === 0) {
-        return SYSTEM_PREAMBLE;
+        return SYSTEM_PREAMBLE + suffix;
     }
-    return SYSTEM_PREAMBLE + '\n\n--- API DOCUMENTATION ---\n\n' + available.map(c => c.docs).join('\n\n');
+    return SYSTEM_PREAMBLE + '\n\n--- API DOCUMENTATION ---\n\n' + available.map(c => c.docs).join('\n\n') + suffix;
 }
 
 /** Maps an API name like "AppacadabraAI" → id "ai". */
@@ -172,9 +174,11 @@ export function getCapabilitiesByApiNames(
 export function buildPlannerSystemInstructions(
     appVersion: string,
     allCaps: CapabilityModule[] = ALL_CAPABILITIES,
+    extraApiLine?: string,
 ): string {
     const available = allCaps.filter(c => versionGte(appVersion, c.minVersion));
     const lines = available.map(c => `- **Appacadabra${c.displayName}**: ${c.description}`);
+    if (extraApiLine) lines.push(extraApiLine);
     const list = [
         '## Available Native APIs',
         '',
