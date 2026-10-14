@@ -10,6 +10,7 @@ Generate user-facing release notes for the next Play Store release in Appacadabr
 - Read `package.json` for current `version`.
 - Run `git describe --tags --abbrev=0` to find the last tag.
 - Run `git log {last_tag}..HEAD --oneline` to get commits since last tag.
+- Run `gh issue list --state closed --limit 20 --json number,title,closedAt --jq '.[] | "\(.number)\t\(.closedAt[:10])\t\(.title)"'` and keep only issues closed **after the last release date** (read issue bodies with `gh issue view {number}` when needed). These document user-facing bugs fixed in this release range.
 - Read `docs/RELEASE_NOTES.md` for the existing format and tone.
 - Read `docs/PLAY_STORE_TRANSLATIONS.md` for the 20 supported locale codes.
 
@@ -26,7 +27,9 @@ Update all three files with the new version:
 - `android/app/build.gradle` → `versionCode` and `versionName`
 
 ### 4. Generate release notes
-Based on the git log since last tag, produce user-facing release notes.
+Based on the git log since last tag and the closed GitHub issues in that range, produce user-facing release notes.
+
+**Issue-driven bullets (highest value):** each GitHub issue closed in this release range maps to one plain-language user-impact bullet ("gremlins banished"). Only include issues whose fix landed in this range — if the issue was closed by a commit already shipped in a previous release, exclude it. Reference the issue number internally for traceability, but the notes themselves never mention issue numbers.
 
 **Brand voice rules:**
 - Tone: magical, playful, empowering — matches the "spell casting" metaphor
