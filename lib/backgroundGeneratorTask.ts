@@ -38,6 +38,7 @@ import type { PendingJob, NewGeneratedApp } from './database/types';
 import { extractUnavailableModelId } from './api/modelUnavailableSignal';
 import SharingShortcuts from './bridges/SharingShortcuts';
 import { t } from './i18n';
+import { isMcpFixInstruction } from './mcp/pendingFix';
 
 interface TaskData {
     taskKey: string;
@@ -197,6 +198,7 @@ export async function runCreateJob(p: CreateParams, signal?: AbortSignal): Promi
         result.appName,
         p.prompt,
         result.costUsd ?? 0,
+        result.mcpPendingFix ?? [],
     );
     DeviceEventEmitter.emit('BGGenCompleted', {
         jobId: p.jobId,
@@ -236,6 +238,7 @@ export async function runEditJob(p: EditParams, signal?: AbortSignal): Promise<v
         result.html,
         p.instruction,
         result.costUsd ?? 0,
+        result.mcpPendingFix ?? [],
     );
     DeviceEventEmitter.emit('BGGenCompleted', {
         jobId: p.jobId,
@@ -296,6 +299,7 @@ export async function runResumeJob(jobId: string, signal?: AbortSignal): Promise
             result.appName,
             row.promptText,
             result.costUsd ?? 0,
+            result.mcpPendingFix ?? [],
         );
         DeviceEventEmitter.emit('BGGenCompleted', {
             jobId,
@@ -333,6 +337,7 @@ export async function runResumeJob(jobId: string, signal?: AbortSignal): Promise
             result.html,
             row.promptText,
             result.costUsd ?? 0,
+            result.mcpPendingFix ?? [],
         );
         DeviceEventEmitter.emit('BGGenCompleted', {
             jobId,
@@ -525,6 +530,7 @@ async function finalizeCreateInline(
     appName: string | undefined,
     prompt: string,
     costUsd: number,
+    mcpPendingFix: string[] = [],
 ): Promise<number> {
     const now = Date.now();
     // Mirror the fallback the store subscriber used to apply — a truncated
@@ -543,6 +549,7 @@ async function finalizeCreateInline(
         requiresBiometric: false,
         shortDescription: prompt,
         sortOrder: 0,
+        mcpPendingFix,
     };
     const appId = await db.insertApp(newApp);
     await db.insertVersion({
@@ -571,6 +578,7 @@ async function finalizeEditInline(
     html: string,
     instruction: string,
     costUsd: number,
+    mcpPendingFix: string[] = [],
 ): Promise<void> {
     const app = await db.getAppById(appId);
     if (!app) {
@@ -590,6 +598,9 @@ async function finalizeEditInline(
         createdAt: Date.now(),
         jobId,
     });
+    // A targeted "update integration" edit clears the pendência; any other
+    // edit refreshes it with the recomputed value (usually unchanged).
+    await db.setMcpPendingFix(appId, isMcpFixInstruction(instruction) ? [] : mcpPendingFix).catch(() => {});
     await postEditSuccessNotification(appId, app.name, jobId);
     await db.deletePendingJob(jobId).catch(() => {});
 }

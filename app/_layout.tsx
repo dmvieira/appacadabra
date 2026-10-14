@@ -187,6 +187,12 @@ export default function RootLayout() {
                 console.warn('RootLayout: reconcilePendingJobs failed:', err);
             });
 
+        // Retroactively flag legacy spells (pre-shape-capture) whose MCP
+        // integrations were coded blind. One evaluation per spell, then quiet.
+        import('../lib/mcp/pendingFix')
+            .then(m => m.backfillPendingFixFlags())
+            .catch(() => {});
+
         // Check for notification permissions
         (async () => {
             const { status } = await Notifications.getPermissionsAsync();

@@ -1,4 +1,4 @@
-import { listTools, callTool, parseResourceMetadataUrl, resetSession } from '../client';
+import { listTools, callTool, parseResourceMetadataUrl, resetSession, extractPayload } from '../client';
 import { McpAuthRequiredError } from '../types';
 
 function fakeResponse(opts: {
@@ -33,6 +33,37 @@ describe('parseResourceMetadataUrl', () => {
     it('returns undefined when absent', () => {
         expect(parseResourceMetadataUrl('Bearer')).toBeUndefined();
         expect(parseResourceMetadataUrl(null)).toBeUndefined();
+    });
+});
+
+describe('extractPayload (server payload unwrap)', () => {
+    it('prefers structuredContent from the envelope', () => {
+        const envelope = {
+            content: [{ type: 'text', text: '{"legacy":true}' }],
+            structuredContent: { dias: [{ movimentacoes: [] }] },
+            isError: false,
+        };
+        expect(extractPayload(envelope)).toEqual({ dias: [{ movimentacoes: [] }] });
+    });
+
+    it('parses a JSON text content block into an object', () => {
+        const envelope = { content: [{ type: 'text', text: '{"dias":[{"dia":"Dom"}]}' }], isError: false };
+        expect(extractPayload(envelope)).toEqual({ dias: [{ dia: 'Dom' }] });
+    });
+
+    it('exposes plain text as a string when it is not JSON', () => {
+        const envelope = { content: [{ type: 'text', text: 'R$ 42,00' }], isError: false };
+        expect(extractPayload(envelope)).toBe('R$ 42,00');
+    });
+
+    it('falls back to the content array for non-text blocks', () => {
+        const envelope = { content: [{ type: 'image', data: 'abc' }], isError: false };
+        expect(extractPayload(envelope)).toEqual([{ type: 'image', data: 'abc' }]);
+    });
+
+    it('returns the envelope as-is when it has no content', () => {
+        expect(extractPayload({ isError: false })).toEqual({ isError: false });
+        expect(extractPayload(null)).toBeNull();
     });
 });
 
@@ -93,6 +124,8 @@ describe('MCP client over streamable HTTP', () => {
     it('calls a tool and extracts text', async () => {
         const res = await callTool(url, 'get_balance', {}, { headers: {} });
         expect(res.text).toBe('R$ 42,00');
+        // Non-JSON text is unwrapped to the string itself, not the envelope.
+        expect(res.raw).toBe('R$ 42,00');
         expect(res.isError).toBe(false);
     });
 

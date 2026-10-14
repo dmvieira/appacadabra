@@ -35,6 +35,19 @@ export interface McpProvider {
     source: McpProviderSource;
     /** OAuth scopes the server advertises (from RFC 9728 metadata). */
     scopes?: string[];
+    /**
+     * Overrides the app's custom-scheme redirect URI in the OAuth flow.
+     * Some servers reject custom schemes at DCR and require an https
+     * redirect — the website hosts a relay page for those.
+     */
+    redirectUri?: string;
+    /**
+     * Uses a loopback http redirect (http://127.0.0.1:{port}/callback served
+     * by the native LoopbackServerModule) — the RFC 8252 pattern desktop
+     * clients use. Servers like PicPay reject custom schemes but accept
+     * loopback http. Takes precedence over `redirectUri`.
+     */
+    useLoopbackRedirect?: boolean;
 }
 
 /** A tool exposed by an MCP server. Mirrors the MCP `tools/list` shape. */
@@ -44,6 +57,8 @@ export interface McpTool {
     description?: string;
     /** JSON Schema for the tool arguments. */
     inputSchema?: unknown;
+    /** Optional JSON Schema for the result, when the server publishes one. */
+    outputSchema?: unknown;
 }
 
 /** Persisted connection (row in `mcp_connections`). */

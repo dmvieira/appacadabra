@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { GeneratedApp, AppVersion, AppStorage, NewGeneratedApp, NewAppVersion, PendingJob } from './types';
-import { deriveRequirements, serializeRequirements } from '../mcp/deriveRequirements';
+import { deriveRequirements, serializeRequirements, parseRequirements } from '../mcp/deriveRequirements';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -181,6 +181,14 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       tools_json TEXT NOT NULL,
       fetched_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS mcp_shape_cache (
+      slug TEXT NOT NULL,
+      tool TEXT NOT NULL,
+      shape TEXT NOT NULL,
+      observed_at INTEGER NOT NULL,
+      PRIMARY KEY (slug, tool)
+    );
   `);
 
     // Defensive column add for users upgrading from a schema without storeAuthorUid.
@@ -192,7 +200,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     }
 
     // Spell requirements (capabilities + MCP connectors used), derived from code.
-    for (const col of ['required_capabilities TEXT', 'required_mcps TEXT']) {
+    for (const col of ['required_capabilities TEXT', 'required_mcps TEXT', 'mcp_pending_fix TEXT']) {
         try {
             await database.execAsync(`ALTER TABLE generated_apps ADD COLUMN ${col};`);
         } catch {
@@ -231,14 +239,14 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
 export async function getAllApps(): Promise<GeneratedApp[]> {
     const database = await getDatabase();
-    const rows = await database.getAllAsync<GeneratedApp & { required_capabilities?: string | null; required_mcps?: string | null }>(
+    const rows = await database.getAllAsync<GeneratedApp & { required_capabilities?: string | null; required_mcps?: string | null; mcp_pending_fix?: string | null }>(
         `SELECT * FROM generated_apps
          ORDER BY CASE WHEN sortOrder = 0 THEN 0 ELSE 1 END, sortOrder ASC, lastUpdated DESC`
     );
     return rows.map(attachRequirements);
 }
 
-function attachRequirements<T extends { required_capabilities?: string | null; required_mcps?: string | null }>(row: T): T & GeneratedApp {
+function attachRequirements<T extends { required_capabilities?: string | null; required_mcps?: string | null; mcp_pending_fix?: string | null }>(row: T): T & GeneratedApp {
     const parse = (s: string | null | undefined): string[] => {
         if (!s) return [];
         try {
@@ -252,12 +260,13 @@ function attachRequirements<T extends { required_capabilities?: string | null; r
         ...row,
         requiredCapabilities: parse(row.required_capabilities),
         requiredMcps: parse(row.required_mcps),
+        mcpPendingFix: parse(row.mcp_pending_fix),
     } as T & GeneratedApp;
 }
 
 export async function getAppById(id: number): Promise<GeneratedApp | null> {
     const database = await getDatabase();
-    const row = await database.getFirstAsync<GeneratedApp & { required_capabilities?: string | null; required_mcps?: string | null }>(
+    const row = await database.getFirstAsync<GeneratedApp & { required_capabilities?: string | null; required_mcps?: string | null; mcp_pending_fix?: string | null }>(
         'SELECT * FROM generated_apps WHERE id = ?',
         [id]
     );
@@ -314,11 +323,12 @@ export async function insertApp(app: NewGeneratedApp): Promise<number> {
         app.storeVisibility ?? null,
         reqs.capabilities,
         reqs.mcps,
+        JSON.stringify(app.mcpPendingFix ?? []),
     ];
 
     const result = await database.runAsync(
-        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalSpendUsd, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, storeAuthorUid, forkOfStoreSpellId, storeVisibility, required_capabilities, required_mcps)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalSpendUsd, jobId, requiresBiometric, shortDescription, sortOrder, source, storeSpellId, storeSpellSlug, storeAuthorUid, forkOfStoreSpellId, storeVisibility, required_capabilities, required_mcps, mcp_pending_fix)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         bindings as any[]
     );
     return result.lastInsertRowId;
@@ -328,7 +338,7 @@ export async function updateApp(app: GeneratedApp): Promise<void> {
     const database = await getDatabase();
     const reqs = serializeRequirements(deriveRequirements(app.code));
     await database.runAsync(
-        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalSpendUsd = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?, sortOrder = ?, required_capabilities = ?, required_mcps = ?
+        `UPDATE generated_apps SET name = ?, code = ?, currentVersion = ?, iconPath = ?, lastUpdated = ?, consoleLogs = ?, totalSpendUsd = ?, jobId = ?, requiresBiometric = ?, shortDescription = ?, sortOrder = ?, required_capabilities = ?, required_mcps = ?, mcp_pending_fix = ?
      WHERE id = ?`,
         [
             app.name ?? 'Untitled',
@@ -344,10 +354,39 @@ export async function updateApp(app: GeneratedApp): Promise<void> {
             app.sortOrder ?? 0,
             reqs.capabilities,
             reqs.mcps,
+            JSON.stringify(app.mcpPendingFix ?? []),
             app.id
         ]
     );
     // Note: createdAt is intentionally never updated — it is set once at insert time.
+}
+
+/** Replaces the spell's MCP pending-fix flag (empty array clears it). */
+export async function setMcpPendingFix(appId: number, slugs: string[]): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync(
+        'UPDATE generated_apps SET mcp_pending_fix = ? WHERE id = ?',
+        [JSON.stringify(slugs), appId],
+    );
+}
+
+/**
+ * Legacy spells never evaluated for the MCP pendência flag: `mcp_pending_fix`
+ * is NULL (rows written as '[]' were already evaluated and clean). Only rows
+ * that actually reference MCP connectors are returned.
+ */
+export async function getAppsWithoutMcpFixEvaluation(): Promise<{ id: number; createdAt: number; mcps: string[]; code: string }[]> {
+    const database = await getDatabase();
+    const rows = await database.getAllAsync<{ id: number; createdAt: number; required_mcps: string | null; code: string }>(
+        `SELECT id, createdAt, required_mcps, code FROM generated_apps
+         WHERE mcp_pending_fix IS NULL AND required_mcps IS NOT NULL AND required_mcps != '[]'`,
+    );
+    return rows.map(r => ({
+        id: r.id,
+        createdAt: r.createdAt,
+        mcps: parseRequirements(null, r.required_mcps).mcps,
+        code: r.code ?? '',
+    }));
 }
 
 /** Reads the derived requirements for a spell (capabilities + MCP slugs). */

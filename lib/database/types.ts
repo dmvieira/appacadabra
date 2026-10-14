@@ -23,6 +23,10 @@ export interface GeneratedApp {
     // Derived from the generated code (see lib/mcp/deriveRequirements.ts).
     requiredCapabilities?: string[]; // Capability display names, e.g. ["Camera","Contacts"]
     requiredMcps?: string[]; // MCP connector slugs, e.g. ["picpay"]
+    // MCP slugs whose integration was coded blind (server not connected / no
+    // observed shapes at generation time). Cleared after a successful
+    // "update integration" edit. See lib/mcp/pendingFix.ts.
+    mcpPendingFix?: string[];
 }
 
 export interface AppVersion {

@@ -10,6 +10,7 @@ import {
     ensureSession,
 } from './client';
 import { runOAuthFlow, resolveAuthServerMeta } from './auth';
+import { t } from '../i18n';
 import {
     getConnection,
     upsertConnection,
@@ -24,6 +25,9 @@ import {
     deleteConnection,
 } from './store';
 import { saveTokens, getTokens, clearTokens, tokenRefFor } from './tokenStorage';
+import { missingRequiredArgs } from './toolArgs';
+import { extractShape } from './payloadShape';
+import { saveToolShape } from './store';
 import type { McpCallResult, McpConnection, McpProvider, McpTokenBundle, McpTool } from './types';
 import { McpAuthRequiredError } from './types';
 
@@ -141,7 +145,7 @@ export async function connectProvider(
     }
     let connection = await getConnection(slug);
     if (!connection) {
-        return { success: false, slug, error: 'Connection not found' };
+        return { success: false, slug, error: t('mcpErrorConnectionNotFound') };
     }
 
     try {
@@ -151,7 +155,7 @@ export async function connectProvider(
         }
 
         if (connection.authStrategy === 'bearer') {
-            if (!opts.bearerToken) return { success: false, slug, error: 'Token required' };
+            if (!opts.bearerToken) return { success: false, slug, error: t('mcpErrorTokenRequired') };
             await saveTokens(slug, { accessToken: opts.bearerToken, tokenType: 'Bearer' });
             await setConnectionTokenRef(slug, tokenRefFor(slug));
             await setConnectionStatus(slug, 'connected', opts.accountLabel ?? null);
@@ -171,16 +175,33 @@ export async function connectProvider(
             } catch (probeErr) {
                 if (probeErr instanceof McpAuthRequiredError) {
                     await setConnectionStatus(slug, 'needs_auth');
-                    return { success: false, slug, error: 'Authentication required' };
+                    return { success: false, slug, error: t('mcpErrorAuthRequired') };
                 }
                 await setConnectionStatus(slug, 'error');
-                return { success: false, slug, error: probeErr instanceof Error ? probeErr.message : 'Connection failed' };
+                return { success: false, slug, error: probeErr instanceof Error ? probeErr.message : t('mcpErrorConnectionFailed') };
             }
         }
         await setConnectionAuthMeta(slug, authMeta);
         connection = (await getConnection(slug))!;
 
-        const bundle = await runOAuthFlow(connection, { scopes: opts.scopes });
+        // OAuth redirect strategy — generic for ANY MCP server:
+        // default is the loopback http redirect (RFC 8252 §7.3), the same
+        // mechanism desktop MCP clients use; servers that reject custom
+        // URI schemes at DCR accept it. A provider descriptor may instead
+        // register an https relay (`redirectUri`) or opt out of loopback
+        // (`useLoopbackRedirect: false`) to fall back to the custom scheme.
+        const descriptor = providerOrConnection as McpProvider;
+        let redirectUri = descriptor.redirectUri;
+        if (!redirectUri) {
+            try {
+                redirectUri = require('./curatedCatalog').getCuratedProvider(slug)?.redirectUri;
+            } catch {
+                // ignore
+            }
+        }
+        const loopback = redirectUri ? false : descriptor.useLoopbackRedirect ?? true;
+
+        const bundle = await runOAuthFlow(connection, { scopes: opts.scopes, redirectUri, loopback });
         await saveTokens(slug, bundle);
         await setConnectionTokenRef(slug, tokenRefFor(slug));
         if (bundle.clientId) await setConnectionClientId(slug, bundle.clientId);
@@ -248,6 +269,19 @@ export async function callProviderTool(
     const connection = await getConnection(slug);
     if (!connection) throw new McpAuthRequiredError(slug, 'Unknown provider');
 
+    // Guardrail: when the schema is cached, fail fast on missing required
+    // arguments with an actionable message instead of an opaque server error.
+    // Lenient: unknown/schema-less tools pass through (stale cache must not
+    // break working calls).
+    const cached = await getCachedTools(slug).catch(() => []);
+    const cachedTool = cached.find(t => t?.name === tool);
+    if (cachedTool) {
+        const missing = missingRequiredArgs(cachedTool, args ?? {});
+        if (missing.length) {
+            throw new Error(t('mcpErrorMissingArgs', { tool, args: missing.join(', ') }));
+        }
+    }
+
     const headers = await buildAuthHeaders(connection);
     if (connection.authStrategy !== 'none' && !headers.Authorization) {
         throw new McpAuthRequiredError(slug, 'Authentication required');
@@ -260,7 +294,26 @@ export async function callProviderTool(
 
     const result = await clientCallTool(connection.mcpUrl, tool, args ?? {}, { headers });
     await touchConnection(slug);
+    // Learn the observed response shape for future spell generations.
+    // Fire-and-forget: never blocks or fails the tool call.
+    recordToolShape(slug, tool, result);
     return result;
+}
+
+/** Persists a compact shape of a successful payload (best-effort). */
+function recordToolShape(slug: string, tool: string, result: McpCallResult): void {
+    if (result.isError) return;
+    const raw = result.raw;
+    if (!raw || typeof raw !== 'object') return; // only structural payloads are useful
+    try {
+        saveToolShape(slug, tool, extractShape(raw))
+            .then(() => {
+                if (__DEV__) console.warn(`[MCP shape] ${slug}.${tool} → ${extractShape(raw).slice(0, 160)}`);
+            })
+            .catch(() => undefined);
+    } catch {
+        // Never surface shape-recording failures.
+    }
 }
 
 export { parseScopes };

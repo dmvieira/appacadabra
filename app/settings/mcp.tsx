@@ -210,7 +210,7 @@ export default function McpSettings() {
                         />
                         <TextInput
                             style={[styles.input, { marginTop: spacing.xs }]}
-                            placeholder="Token (opcional)"
+                            placeholder={t('mcpTokenPlaceholder')}
                             placeholderTextColor="#8b8aad"
                             value={tokenInput}
                             onChangeText={setTokenInput}

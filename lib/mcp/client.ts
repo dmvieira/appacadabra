@@ -207,6 +207,38 @@ function extractText(result: any): string {
     try { return JSON.stringify(result); } catch { return ''; }
 }
 
+/**
+ * Unwraps the server PAYLOAD from an MCP tools/call result envelope
+ * (`{content:[{type:'text',text}], structuredContent?, isError}`).
+ *
+ * Spells should see the server's data — e.g. `{dias:[...]}` — not protocol
+ * plumbing. Precedence: `structuredContent` (MCP spec) → JSON-parsed first
+ * text block → plain text string → content array → envelope as-is.
+ */
+export function extractPayload(result: any): unknown {
+    if (!result || typeof result !== 'object') return result;
+
+    const structured = result.structuredContent;
+    if (structured !== undefined && structured !== null) return structured;
+
+    const content = Array.isArray(result.content) ? result.content : [];
+    const textBlock = content.find((c: any) => c?.type === 'text' && typeof c.text === 'string');
+    if (textBlock) {
+        const trimmed = (textBlock.text as string).trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try {
+                return JSON.parse(trimmed);
+            } catch {
+                // Not JSON — fall through and expose the text itself.
+            }
+        }
+        return textBlock.text;
+    }
+
+    if (content.length) return content;
+    return result;
+}
+
 export async function callTool(
     url: string,
     name: string,
@@ -218,7 +250,7 @@ export async function callTool(
     const result = res.result ?? {};
     return {
         text: extractText(result),
-        raw: result,
+        raw: extractPayload(result),
         isError: !!result.isError,
     };
 }

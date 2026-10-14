@@ -4,6 +4,14 @@ const { getDefaultConfig } = require('expo/metro-config');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+// Exclude tooling dirs from Metro's file watcher — they contain symlinks
+// (e.g. .opencode/node_modules/.bin) that Windows node cannot lstat, which
+// crashes Metro with EACCES at startup.
+config.resolver.blockList = [
+  ...(config.resolver.blockList || []),
+  /\/\.opencode\/.*/,
+];
+
 // Enable package exports resolution so @react-native-firebase/app v23+ modules
 // (functions, app-check, etc.) resolve to dist/commonjs/ instead of lib/,
 // which ensures a single FirebaseModule instance and prevents "module could not

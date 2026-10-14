@@ -133,6 +133,7 @@ export async function deleteConnection(slug: string): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('DELETE FROM mcp_connections WHERE slug = ?', [slug]);
     await db.runAsync('DELETE FROM mcp_tool_cache WHERE slug = ?', [slug]);
+    await db.runAsync('DELETE FROM mcp_shape_cache WHERE slug = ?', [slug]);
 }
 
 export async function cacheTools(slug: string, tools: McpTool[]): Promise<void> {
@@ -156,6 +157,76 @@ export async function getCachedTools(slug: string): Promise<McpTool[]> {
         return Array.isArray(parsed) ? (parsed as McpTool[]) : [];
     } catch {
         return [];
+    }
+}
+
+/** Cached tools plus fetch time (epoch ms), for staleness checks. Null when never cached. */
+export async function getToolCacheMeta(slug: string): Promise<{ tools: McpTool[]; fetchedAt: number } | null> {
+    try {
+        const db = await getDatabase();
+        const row = await db.getFirstAsync<{ tools_json: string; fetched_at: number }>(
+            'SELECT tools_json, fetched_at FROM mcp_tool_cache WHERE slug = ?',
+            [slug],
+        );
+        if (!row) return null;
+        const parsed = JSON.parse(row.tools_json);
+        return { tools: Array.isArray(parsed) ? (parsed as McpTool[]) : [], fetchedAt: row.fetched_at };
+    } catch {
+        return null;
+    }
+}
+
+/** Persists (or refreshes) the observed response shape of one tool. */
+export async function saveToolShape(slug: string, tool: string, shape: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+        `INSERT INTO mcp_shape_cache (slug, tool, shape, observed_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(slug, tool) DO UPDATE SET shape = excluded.shape, observed_at = excluded.observed_at`,
+        [slug, tool, shape, Date.now()],
+    );
+}
+
+/** Observed response shapes for a slug, keyed by tool name. Empty when none. */
+export async function getShapesForSlug(slug: string): Promise<Record<string, string>> {
+    try {
+        const db = await getDatabase();
+        const rows = await db.getAllAsync<{ tool: string; shape: string }>(
+            'SELECT tool, shape FROM mcp_shape_cache WHERE slug = ?',
+            [slug],
+        );
+        const out: Record<string, string> = {};
+        for (const r of rows) out[r.tool] = r.shape;
+        return out;
+    } catch {
+        return {};
+    }
+}
+
+/** Earliest moment a shape was observed for this slug (epoch ms). Null when none. */
+export async function getEarliestShapeObservedAt(slug: string): Promise<number | null> {
+    try {
+        const db = await getDatabase();
+        const row = await db.getFirstAsync<{ observed_at: number }>(
+            'SELECT MIN(observed_at) AS observed_at FROM mcp_shape_cache WHERE slug = ?',
+            [slug],
+        );
+        return row?.observed_at ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/** When the shape of one specific tool was first observed (epoch ms). Null when never. */
+export async function getToolShapeObservedAt(slug: string, tool: string): Promise<number | null> {
+    try {
+        const db = await getDatabase();
+        const row = await db.getFirstAsync<{ observed_at: number }>(
+            'SELECT observed_at FROM mcp_shape_cache WHERE slug = ? AND tool = ?',
+            [slug, tool],
+        );
+        return row?.observed_at ?? null;
+    } catch {
+        return null;
     }
 }
 

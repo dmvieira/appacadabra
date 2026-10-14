@@ -97,4 +97,51 @@ describe('i18n', () => {
             expect(t('importBackup').length).toBeGreaterThan(0);
         });
     });
+
+    describe('MCP keys', () => {
+        const LOCALES = ['en', 'pt', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ko', 'ar', 'hi', 'ru', 'tr', 'nl', 'pl', 'vi', 'th'];
+        const MCP_KEYS = Object.keys(translations.en).filter(k => k.startsWith('mcp'));
+
+        it('should define every mcp key in every locale (parity)', () => {
+            expect(MCP_KEYS.length).toBeGreaterThanOrEqual(25);
+            for (const locale of LOCALES) {
+                for (const key of MCP_KEYS) {
+                    expect(translations[locale][key]).toBeDefined();
+                }
+            }
+        });
+
+        it('should use %{...} interpolation syntax in parameterized mcp values', () => {
+            const parameterized = [
+                'mcpToolsCount',
+                'mcpConnectTitle',
+                'mcpConnectBody',
+                'mcpConnectedToast',
+                'mcpDisconnectedToast',
+                'mcpErrorUnknownServer',
+                'mcpErrorMissingArgs',
+            ];
+            for (const locale of LOCALES) {
+                for (const key of parameterized) {
+                    const value = translations[locale][key];
+                    expect(value).toMatch(/%\{/);
+                    // i18n-js only interpolates %{...} or {{...}} — a bare {name}/{count}
+                    // would render literally in the UI.
+                    expect(value).not.toMatch(/(?<!%)\{(name|count)\}/);
+                }
+            }
+        });
+
+        it('should interpolate mcpConnectTitle and mcpToolsCount', () => {
+            expect(t('mcpConnectTitle', { name: 'Notion', locale: 'en' })).toBe('Connect Notion?');
+            expect(t('mcpToolsCount', { count: 3, locale: 'en' })).toBe('3 tools');
+            for (const locale of LOCALES) {
+                const title = t('mcpConnectTitle', { name: 'Notion', locale });
+                expect(title).toContain('Notion');
+                expect(title).not.toContain('{name}');
+                const count = t('mcpToolsCount', { count: 5, locale });
+                expect(count).toContain('5');
+            }
+        });
+    });
 });

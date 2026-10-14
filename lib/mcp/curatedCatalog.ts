@@ -24,6 +24,10 @@ export const CURATED_PROVIDERS: McpProvider[] = [
         authStrategy: 'oauth',
         websiteUrl: 'https://picpay.com',
         source: 'curated',
+        // PicPay's DCR rejects custom URI schemes but accepts loopback http
+        // (RFC 8252 §7.3) — same pattern desktop clients (Claude Code,
+        // opencode) use. A native loopback server catches the redirect.
+        useLoopbackRedirect: true,
         scopes: [
             'openid',
             'offline_access',

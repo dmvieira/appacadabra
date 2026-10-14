@@ -20,6 +20,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import AiLoadingBar from '../../components/AiLoadingBar';
+import McpPendingFixBanner from '../../components/McpPendingFixBanner';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
 import { useBridgeUIStore } from '../../lib/bridgeUIStore';
@@ -1473,6 +1474,7 @@ export default function RunnerScreen() {
                     <Text style={styles.updateBannerText}>🗑️ {t('dataCleared')}</Text>
                 </TouchableOpacity>
             )}
+            {app && <McpPendingFixBanner app={app} onFixStarted={() => router.back()} />}
 
             {/* WebView wrapped in ScrollView for Pull-to-Refresh */}
             <View ref={viewContainerRef} style={{ flex: 1 }} collapsable={false}>

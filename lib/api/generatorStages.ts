@@ -39,6 +39,18 @@ import {
     getCapabilitiesByApiNames,
 } from './systemPrompt';
 import { getMcpPromptBlock, getMcpPlannerLine, hydrateMcpGenerationContext } from '../mcp/generationContext';
+import { probeShapesForGeneration } from '../mcp/probe';
+import { computeMcpPendingFix } from '../mcp/pendingFix';
+
+/** Probes MCP response shapes between planner and coder stages. Never throws or blocks on failure. */
+async function warmMcpShapes(prompt: string, plan: unknown, code?: string): Promise<void> {
+    try {
+        await probeShapesForGeneration({ prompt, plan, code });
+        await hydrateMcpGenerationContext();
+    } catch {
+        // Shape learning is opportunistic — generation proceeds regardless.
+    }
+}
 import { ALL_CAPABILITIES } from '../capabilities';
 import {
     extractHtml,
@@ -127,6 +139,8 @@ export interface CompleteResult {
     costUsd: number;
     appName?: string;
     initialValidationErrors: ValidationError[];
+    /** MCP slugs the spell references whose integration was coded blind. */
+    mcpPendingFix: string[];
 }
 
 export type StageOutcome<S> =
@@ -323,7 +337,7 @@ function resolveCostUsd(usage: GenerationUsage, modelId: string): number {
         : calculateCostUsd(modelId, usage);
 }
 
-function completeCreate(state: CreateJobState): CompleteResult {
+async function completeCreate(state: CreateJobState): Promise<CompleteResult> {
     const html = state.html!;
     return {
         kind: 'create',
@@ -332,10 +346,11 @@ function completeCreate(state: CreateJobState): CompleteResult {
         costUsd: resolveCostUsd(state.usage, state.spellModel),
         appName: extractTitle(html),
         initialValidationErrors: state.initialErrors,
+        mcpPendingFix: await computeMcpPendingFix({ prompt: state.prompt, plan: state.plan, code: html }),
     };
 }
 
-function completeEdit(state: EditJobState): CompleteResult {
+async function completeEdit(state: EditJobState): Promise<CompleteResult> {
     const html = state.html!;
     return {
         kind: 'edit',
@@ -343,6 +358,7 @@ function completeEdit(state: EditJobState): CompleteResult {
         usage: state.usage,
         costUsd: resolveCostUsd(state.usage, state.spellModel),
         initialValidationErrors: state.initialErrors,
+        mcpPendingFix: await computeMcpPendingFix({ prompt: state.instruction, plan: state.plan, code: html }),
     };
 }
 
@@ -408,6 +424,7 @@ export async function nextCreateStage(
                 state.appVersion,
                 ALL_CAPABILITIES,
             );
+            await warmMcpShapes(state.prompt, state.plan);
             const sys = buildSystemInstructions(state.appVersion, selectedCaps, getMcpPromptBlock());
             const res = await callModel(
                 `${UNIFIED_CREATE_CODE_PROMPT}\n\n--- APP PLAN ---\n${JSON.stringify(state.plan, null, 2)}`,
@@ -433,7 +450,7 @@ export async function nextCreateStage(
 
             if (errors.length === 0) {
                 const done = { ...state, stage: 'complete' as const, initialErrors, lastErrors: [] };
-                return { done: true, result: completeCreate(done) };
+                return { done: true, result: await completeCreate(done) };
             }
 
             const hasFixable = errors.some(e => e.fixable);
@@ -487,7 +504,7 @@ export async function nextCreateStage(
         }
 
         case 'complete':
-            return { done: true, result: completeCreate(state) };
+            return { done: true, result: await completeCreate(state) };
     }
 }
 
@@ -512,6 +529,7 @@ export async function nextEditStage(
         }
 
         case 'patch': {
+            await warmMcpShapes(state.instruction, state.plan, state.normalizedCode);
             const sys = buildSystemInstructions(state.appVersion, ALL_CAPABILITIES, getMcpPromptBlock());
             const userMsg = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(state.plan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
             const res = await callModel(userMsg, sys, state.outerAttempt, state.spellModel, opts?.signal);
@@ -534,7 +552,7 @@ export async function nextEditStage(
 
             if (errors.length === 0) {
                 const done = { ...state, stage: 'complete' as const, initialErrors, lastErrors: [] };
-                return { done: true, result: completeEdit(done) };
+                return { done: true, result: await completeEdit(done) };
             }
 
             const hasFixable = errors.some(e => e.fixable);
@@ -578,7 +596,7 @@ export async function nextEditStage(
         }
 
         case 'complete':
-            return { done: true, result: completeEdit(state) };
+            return { done: true, result: await completeEdit(state) };
     }
 }
 

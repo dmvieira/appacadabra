@@ -27,6 +27,8 @@ import {
     getCapabilitiesByApiNames,
 } from './systemPrompt';
 import { getMcpPromptBlock, getMcpPlannerLine, hydrateMcpGenerationContext } from '../mcp/generationContext';
+import { probeShapesForGeneration } from '../mcp/probe';
+import { computeMcpPendingFix } from '../mcp/pendingFix';
 import { ALL_CAPABILITIES } from '../capabilities';
 import {
     extractHtml,
@@ -139,6 +141,8 @@ export interface CreateResult {
     appName?: string;
     /** Validation errors found before the fix loop ran. Empty = first-pass was valid. */
     initialValidationErrors: ValidationError[];
+    /** MCP slugs the spell references whose integration was coded blind. */
+    mcpPendingFix: string[];
 }
 
 export interface CreateParams {
@@ -236,6 +240,14 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
             const appPlan = extractJson(extractText(planResult));
             onProgress?.({ type: 'plan_completed', planSummary: appPlan?.appName });
 
+            // Learn MCP response shapes before the coder prompt is built.
+            try {
+                await probeShapesForGeneration({ prompt, plan: appPlan });
+                await hydrateMcpGenerationContext();
+            } catch {
+                // Shape learning is opportunistic — never blocks generation.
+            }
+
             // Stage 2: Coding
             onProgress?.({ type: 'code_started' });
             const selectedCaps = getCapabilitiesByApiNames(
@@ -304,6 +316,7 @@ export async function generateSpellCreate(params: CreateParams): Promise<CreateR
                 costUsd,
                 appName: titleMatch?.[1]?.trim(),
                 initialValidationErrors: initErrors,
+                mcpPendingFix: await computeMcpPendingFix({ prompt, plan: appPlan, code: html }),
             };
         } catch (err) {
             lastError = err;
@@ -348,6 +361,8 @@ export interface EditResult {
     usage: GenerationUsage;
     costUsd: number;
     initialValidationErrors: ValidationError[];
+    /** MCP slugs the spell references whose integration is still coded blind. */
+    mcpPendingFix: string[];
 }
 
 /**
@@ -393,6 +408,15 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
     const storageKeysPart = storageStructure?.length
         ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(s => `- localStorage["${s.key}"]: ${JSON.stringify(s.schema)}`).join('\n')}\n`
         : '';
+
+    // Learn MCP response shapes before the patcher prompt is built. The
+    // current code is scanned so slugs referenced only by the code count.
+    try {
+        await probeShapesForGeneration({ prompt: instruction, plan: null, code: normalizedCode });
+        await hydrateMcpGenerationContext();
+    } catch {
+        // Shape learning is opportunistic — never blocks generation.
+    }
 
     const editPlannerSys = buildPlannerSystemInstructions(appVersion, ALL_CAPABILITIES, getMcpPlannerLine());
     const editPatcherSys = buildSystemInstructions(appVersion, ALL_CAPABILITIES, getMcpPromptBlock());
@@ -508,7 +532,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
 
             const costUsd = resolveCostUsd(usage, spellModel);
             onProgress?.({ type: 'completed' });
-            return { html, usage, costUsd, initialValidationErrors: initErrors };
+            return { html, usage, costUsd, initialValidationErrors: initErrors, mcpPendingFix: await computeMcpPendingFix({ prompt: instruction, code: html }) };
         } catch (err) {
             lastError = err;
             if (attempt < 2) {
@@ -543,6 +567,12 @@ export interface ConvertResult {
 export async function generateConvert(params: ConvertParams): Promise<ConvertResult> {
     const { sourceCode, frameworkHint, appVersion, signal } = params;
     const usage = emptyUsage();
+    try {
+        await probeShapesForGeneration({ prompt: frameworkHint ?? '', plan: null, code: sourceCode });
+        await hydrateMcpGenerationContext();
+    } catch {
+        // Shape learning is opportunistic — never blocks generation.
+    }
     const sys = buildSystemInstructions(appVersion, ALL_CAPABILITIES, getMcpPromptBlock());
     const spellModel = await getPreferredModel('SPELL_S');
 

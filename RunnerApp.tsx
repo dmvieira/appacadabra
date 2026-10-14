@@ -12,6 +12,7 @@ import {
     TouchableOpacity,
     Modal,
     Platform,
+    BackHandler,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -39,6 +40,7 @@ import { cleanupWatchersForApp as cleanupFormsWatchers } from './lib/capabilitie
 import { CostEstimateModal } from './components/CostEstimateModal';
 import { LargePayloadConfirmModal } from './components/LargePayloadConfirmModal';
 import { McpConnectModal } from './components/McpConnectModal';
+import McpPendingFixBanner from './components/McpPendingFixBanner';
 
 function isLargeAiPayload(type: string, data: any): boolean {
     if (type === 'AI_GENERATE_VIDEO') return true;
@@ -762,6 +764,7 @@ function RunnerContent({ appId }: Props) {
                         <Text style={styles.updateBannerText}>✨ {t('newVersionAvailable')}</Text>
                     </TouchableOpacity>
                 )}
+                <McpPendingFixBanner app={app} onFixStarted={() => BackHandler.exitApp()} />
                 <AiLoadingBar visible={isAiLoading} elapsedSeconds={aiElapsedSeconds} isLargePayload={aiIsLargePayload} />
                 <ScrollView
                     contentContainerStyle={{ flex: 1 }}

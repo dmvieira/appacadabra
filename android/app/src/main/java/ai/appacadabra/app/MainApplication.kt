@@ -24,6 +24,7 @@ class MainApplication : Application(), ReactApplication {
           add(SharingShortcutsPackage())
           add(AlarmPackage())
           add(BackgroundGeneratorPackage())
+          add(LoopbackServerPackage())
           // Packages that cannot be autolinked yet can be added manually here, for example:
           // add(MyReactNativePackage())
         }

@@ -2,7 +2,7 @@
  * Shared WebView message handlers
  * 
  * This module provides a unified handler for WebView bridge messages,
- * reducing code duplication across [id].tsx, RunnerApp.tsx, and AppRunner.tsx
+ * reducing code duplication across [id].tsx and RunnerApp.tsx
  */
 
 import * as Notifications from 'expo-notifications';
