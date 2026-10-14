@@ -11,11 +11,114 @@
     <!-- Open Graph -->
     <meta property="og:title" content="Appacadabra - AI Tool Generator">
     <meta property="og:description" content="What do you need help with? Describe it. The AI creates it.">
-    <meta property="og:image" content="img/icon.png">
+    <meta property="og:image" content="https://appacadabra.ai/img/og-image.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:url" content="https://appacadabra.ai/">
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Appacadabra">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Appacadabra - AI Tool Generator">
+    <meta name="twitter:description" content="What do you need help with? Describe it. The AI creates it.">
+    <meta name="twitter:image" content="https://appacadabra.ai/img/og-image.jpg">
 
     <!-- Canonical -->
     <link rel="canonical" href="https://appacadabra.ai/">
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "@id": "https://appacadabra.ai/#org",
+                "name": "Appacadabra",
+                "url": "https://appacadabra.ai/",
+                "logo": "https://appacadabra.ai/img/icon.png"
+            },
+            {
+                "@type": "WebSite",
+                "@id": "https://appacadabra.ai/#site",
+                "url": "https://appacadabra.ai/",
+                "name": "Appacadabra",
+                "publisher": { "@id": "https://appacadabra.ai/#org" },
+                "inLanguage": ["en", "pt", "es", "fr", "de", "it", "ja", "zh", "ko", "ar", "hi", "ru", "tr", "nl", "pl", "vi", "th"]
+            },
+            {
+                "@type": "SoftwareApplication",
+                "@id": "https://appacadabra.ai/#app",
+                "name": "Appacadabra",
+                "applicationCategory": "UtilitiesApplication",
+                "operatingSystem": "Android",
+                "description": "Generate personal micro-apps (spells) with AI: describe what you need and get a working tool in minutes. Includes a free Spell Store and MCP support.",
+                "url": "https://appacadabra.ai/",
+                "image": "https://appacadabra.ai/img/og-image.jpg",
+                "publisher": { "@id": "https://appacadabra.ai/#org" },
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                },
+                "featureList": [
+                    "AI tool generation from natural language",
+                    "Native device capabilities (calendar, notifications, contacts, camera, sensors, voice)",
+                    "Spell Store: free community spell sharing",
+                    "MCP support: spells can call tools from remote MCP servers",
+                    "Works offline; 17 languages"
+                ]
+            },
+            {
+                "@type": "FAQPage",
+                "@id": "https://appacadabra.ai/#faq",
+                "mainEntity": [
+                    {
+                        "@type": "Question",
+                        "name": "What is a \"spell\"?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "A spell is a personalized tool you create with AI. From task organizers to expense trackers — every tool you create is called a spell." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "Do I need internet to use the tools I create?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Most tools work completely offline. Internet is only needed when creating with AI — and if the tool uses AI internally (e.g., image generation, web search)." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "Does my data stay on my phone?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Both the tools and the data you enter are stored locally. Only the creation prompt goes to the AI. Optionally, you can fully back up — tools and data — to your Google Drive." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "How do I get my OpenRouter key?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Sign up at openrouter.ai (about 2 minutes, free). Add credit — $5 gets you hundreds of spells. Copy your API key and paste it into Appacadabra's settings. That's it." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "Does it work on iOS?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Android is available now. iOS is coming soon — join the waitlist above." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "What kind of tool can I create?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Any personal tool: organizers, calculators, trackers, camera tools, QR scanners, voice assistants, games, and much more. If you can describe it, the AI creates it." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "Does the Store cost anything?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Browsing and learning any spell from the Store is completely free. Publishing your own only costs a few cents in OpenRouter fees, just to translate the spell's name and description into other languages. No listing fee, no revenue share." }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "What is MCP?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "MCP (Model Context Protocol) is like a portal that lets your spells summon tools from remote MCP servers — Notion, Stripe, Context7 and more. You connect each server just once, logging in through your browser on a secure connection screen, so your spells never see your password and never carry hard-coded tokens. MCP calls aren't AI calls, so they don't spend your AI tokens. Only remote servers are supported." }
+                    }
+                ]
+            }
+        ]
+    }
+    </script>
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="img/favicon.png">
@@ -206,11 +309,12 @@
                 <p data-i18n="feature10Desc">Receive text, images, videos, and files shared from any app, or extract
                     text from PDFs, DOCX and TXT so your tool can read documents directly.</p>
             </div>
-            <div class="feature-card">
+            <a href="/store/" class="feature-card feature-card-link">
                 <div class="feature-icon">📤</div>
-                <h3 data-i18n="feature6Title">Share Your Spells</h3>
-                <p data-i18n="feature6Desc">Export your creations to share with friends—your data stays private.</p>
-            </div>
+                <h3 data-i18n="feature6Title">Spell Store</h3>
+                <p data-i18n="feature6Desc">Publish your spells to the Store or learn any spell from the community for free.</p>
+                <span class="feature-link-arrow" aria-hidden="true">→</span>
+            </a>
             <div class="feature-card">
                 <div class="feature-icon">🔒</div>
                 <h3 data-i18n="feature5Title">Private & Offline</h3>
@@ -235,6 +339,12 @@
                 <p data-i18n="feature9Desc">Record audio, transcribe speech, use 7 AI voices, and generate original
                     music and soundtracks. Build voice assistants or add sound to any tool.</p>
             </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔮</div>
+                <h3 data-i18n="feature11Title">Summon Any Tool</h3>
+                <p data-i18n="feature11Desc">Your spells can now summon tools from remote MCP servers — Notion, Stripe,
+                    Context7 and more. Connect once and the magic flows, no passwords inside your spells.</p>
+            </div>
         </div>
     </section>
 
@@ -258,6 +368,7 @@
             <div class="integration-item"><span>📊</span> <span data-i18n="intSheets">Planilhas</span></div>
             <div class="integration-item"><span>📄</span> <span data-i18n="intDocs">Documentos</span></div>
             <div class="integration-item"><span>📋</span> <span data-i18n="intForms">Formulários</span></div>
+            <div class="integration-item"><span>🔌</span> <span data-i18n="intMCP">MCP Tools</span></div>
         </div>
         <p class="integrations-more" data-i18n="intMore">...and more coming!</p>
     </section>
@@ -373,6 +484,15 @@
                 </button>
                 <div class="faq-answer" hidden>
                     <p data-i18n="faq7A">Browsing and learning any spell from the Store is completely free. Publishing your own only costs a few cents in OpenRouter fees, just to translate the spell's name and description into other languages. No listing fee, no revenue share.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+                    <span data-i18n="faq8Q">What is MCP?</span>
+                    <span class="faq-arrow">▼</span>
+                </button>
+                <div class="faq-answer" hidden>
+                    <p data-i18n="faq8A">MCP (Model Context Protocol) is like a portal that lets your spells summon tools from remote MCP servers — Notion, Stripe, Context7 and more. You connect each server just once, logging in through your browser on a secure connection screen, so your spells never see your password and never carry hard-coded tokens. MCP calls aren't AI calls, so they don't spend your AI tokens. Only remote servers are supported.</p>
                 </div>
             </div>
         </div>

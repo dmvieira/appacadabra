@@ -1,0 +1,26 @@
+# Appacadabra
+
+> Appacadabra is an Android app that generates personal micro-apps ("spells") with AI: the user describes what they need in plain language, and the app builds a complete, working HTML/CSS/JS tool that runs on the phone with native capabilities. Includes a free public Spell Store and MCP support so spells can call external tools. Bring Your Own Key (OpenRouter) — the app is free.
+
+## What it does
+
+- **Describe & create**: type what you need ("a Pomodoro timer with a space theme") and AI builds it in minutes.
+- **Native powers**: calendar, notifications, location, contacts, health data, sensors, camera, QR, files, voice, music.
+- **MCP (Model Context Protocol)**: spells can summon tools from remote MCP servers (Notion, Stripe, Context7, and more). The user connects each server once in the browser; spells never handle passwords. MCP calls are not AI calls and don't spend AI tokens.
+- **Spell Store**: browse and learn community spells for free; publishing has no listing fee and no revenue share. Spells are available in 17 languages.
+- **Private & offline**: spells and their data live on the device; optional Google Drive backup.
+- **Pricing**: the app is free; users pay only the AI usage of their own OpenRouter key.
+
+## Pages
+
+- [Home](https://appacadabra.ai/): product overview, features, FAQ.
+- [Spell Store](https://appacadabra.ai/store/): public directory of community spells. Each spell has a page at https://appacadabra.ai/store/{spellId}/{slug}.
+- [Privacy Policy](https://appacadabra.ai/privacy.html)
+- [Terms of Service](https://appacadabra.ai/terms.html)
+- [Google Play listing](https://play.google.com/store/apps/details?id=ai.appacadabra.app)
+
+## For agents
+
+- Store pages are server-rendered static HTML: no JavaScript needed to read spell names, descriptions and authors.
+- All published-spell URLs are listed in [spell sitemap](https://appacadabra.ai/sitemap-spells.xml).
+- Content is authored in English and localized to 17 languages client-side; server-rendered content is in English.

@@ -284,6 +284,29 @@ body {
     font-size: 0.95rem;
 }
 
+.feature-card-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.feature-card-link:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 4px;
+}
+
+.feature-link-arrow {
+    display: inline-block;
+    margin-top: 12px;
+    color: var(--accent-primary);
+    font-weight: 600;
+    transition: transform 0.3s ease;
+}
+
+.feature-card-link:hover .feature-link-arrow {
+    transform: translateX(4px);
+}
+
 /* ============================================
    Showcase Section
    ============================================ */
