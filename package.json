@@ -75,7 +75,7 @@
     "expo-status-bar": "~55.0.6",
     "expo-video": "~55.0.21",
     "expo-web-browser": "~55.0.20",
-    "i18n-js": "^4.5.3",
+    "i18n-js": "^4.5.4",
     "jszip": "^3.10.2",
     "mammoth": "^1.12.3",
     "marked": "^18.0.14",
@@ -95,8 +95,8 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@google/genai": "^2.24.0",
-    "@testing-library/react-native": "^14.0.1",
+    "@google/genai": "^2.28.0",
+    "@testing-library/react-native": "^14.1.0",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.10",
     "@types/turndown": "^5.0.6",
