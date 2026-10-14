@@ -122,3 +122,8 @@ website/.firebase/
 .expo/
 android/_*.bat
 android/_*.txt
+
+# Local tooling (opencode) & scratch
+opencode.json
+.opencode/
+tmp/
