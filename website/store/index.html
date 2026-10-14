@@ -6,6 +6,12 @@
   <title>Spell Store — Appacadabra</title>
   <script>document.documentElement.lang = (navigator.language || 'en').split('-')[0];</script>
   <meta name="description" content="Discover and learn spells created by the Appacadabra community.">
+  <link rel="canonical" href="https://appacadabra.ai/store/">
+  <meta property="og:title" content="Spell Store — Appacadabra">
+  <meta property="og:description" content="Discover and learn spells created by the Appacadabra community. Free to learn, no listing fee to publish.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://appacadabra.ai/store/">
+  <meta property="og:image" content="https://appacadabra.ai/img/og-image.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -24,21 +30,17 @@
     </nav>
   </header>
 
-  <div id="preview-notice" style="display:none;" class="preview-notice-page" role="status">
-    <p>✨ Store coming soon</p>
-  </div>
-
   <main id="store-content">
     <div class="store-hero">
       <h1>Spell Store</h1>
-      <p>Descubra e aprenda feitiços criados pela comunidade</p>
+      <p>Discover and learn spells created by the community</p>
       <p class="store-free-badge" data-store-i18n="storeFreeBadge"></p>
     </div>
 
     <div class="tabs-container">
       <nav class="tabs" aria-label="Sort spells">
-        <button class="tab-btn active" data-sort="new" type="button">✨ Novos</button>
-        <button class="tab-btn" data-sort="popular" type="button">🔥 Populares</button>
+        <button class="tab-btn active" data-sort="new" type="button">✨ New</button>
+        <button class="tab-btn" data-sort="popular" type="button">🔥 Popular</button>
       </nav>
     </div>
 
@@ -46,7 +48,7 @@
 
     <div class="load-more-container">
       <button id="load-more" class="load-more-btn" type="button" style="display:none">
-        Carregar mais
+        Load more
       </button>
     </div>
 

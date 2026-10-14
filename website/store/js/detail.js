@@ -40,7 +40,7 @@ async function initDetail() {
   }
 
   if (!spellSnap.exists() || spellSnap.data().status !== 'active') {
-    showError('Este feitiço foi removido ou não existe.');
+    showError('This spell was removed or does not exist.');
     return;
   }
 
@@ -81,7 +81,7 @@ function renderSpellMeta(spell, spellId) {
   const ogTitle = document.getElementById('og-title');
   if (ogTitle) ogTitle.setAttribute('content', pageTitle);
   const ogDesc = document.getElementById('og-description');
-  if (ogDesc) ogDesc.setAttribute('content', meta.description || 'Aprenda este feitiço no Appacadabra.');
+  if (ogDesc) ogDesc.setAttribute('content', meta.description || 'Learn this spell in Appacadabra.');
 
   // Show original-language note when the spell was published in a different locale
   if (meta.originalLang && meta.originalLang !== meta.userLang) {

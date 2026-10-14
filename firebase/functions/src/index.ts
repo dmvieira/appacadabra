@@ -374,3 +374,5 @@ export const syncLearnedSpells = onCall<{ lastSyncedAt?: number; forceSpellId?: 
         return { spells: results.filter((s): s is SyncedSpellItem => s !== null) };
     },
 );
+
+export { storeSSR, storeSitemap } from "./storeSSR";

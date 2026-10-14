@@ -4,12 +4,13 @@
         "ignore": [
             "firebase.json",
             "**/.*",
-            "**/node_modules/**"
+            "**/node_modules/**",
+            "store/index.html"
         ],
         "rewrites": [
-            { "source": "/store/*/*", "destination": "/store/spell.html" },
-            { "source": "/store/*", "destination": "/store/spell.html" },
-            { "source": "/store", "destination": "/store/index.html" }
+            { "source": "/store", "function": "storeSSR", "region": "southamerica-east1" },
+            { "source": "/store/**", "function": "storeSSR", "region": "southamerica-east1" },
+            { "source": "/sitemap-spells.xml", "function": "storeSitemap", "region": "southamerica-east1" }
         ]
     }
 }

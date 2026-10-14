@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spell — Appacadabra Store</title>
   <meta id="og-title" property="og:title" content="Spell Store — Appacadabra">
-  <meta id="og-description" property="og:description" content="Aprenda este feitiço no Appacadabra.">
+  <meta id="og-description" property="og:description" content="Learn this spell in Appacadabra.">
   <meta property="og:type" content="website">
+  <meta property="og:image" content="https://appacadabra.ai/img/og-image.jpg">
+  <meta property="og:site_name" content="Appacadabra">
   <script>document.documentElement.lang = (navigator.language || 'en').split('-')[0];</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,10 +27,6 @@
       <button id="auth-btn" class="auth-btn" type="button">Sign in with Google</button>
     </nav>
   </header>
-
-  <div id="preview-notice" style="display:none;" class="preview-notice-page" role="status">
-    <p>✨ Store coming soon</p>
-  </div>
 
   <main id="detail-content" class="spell-detail-layout">
     <!-- Left column: metadata + actions -->
@@ -54,14 +52,14 @@
       <p id="spell-description" class="spell-description"></p>
 
       <div class="action-row">
-        <button id="copy-link-btn" class="btn-ghost" type="button">Copiar link</button>
-        <button id="share-btn" class="btn-ghost" type="button">Partilhar</button>
+        <button id="copy-link-btn" class="btn-ghost" type="button">Copy link</button>
+        <button id="share-btn" class="btn-ghost" type="button">Share</button>
       </div>
 
       <div class="learn-section">
         <div id="app-cta-block" class="app-cta-block" role="note" aria-label="App context" style="display:none"></div>
         <button id="learn-btn" class="learn-btn" type="button">
-          Aprender este feitiço ✨
+          Learn this spell ✨
         </button>
         <p class="spell-free-inline" data-store-i18n="spellFreeInline"></p>
         <p id="learn-status" class="learn-status" role="status" aria-live="polite"></p>
@@ -76,7 +74,7 @@
       <div id="owner-controls" class="owner-controls" style="display:none" aria-label="Owner controls">
         <hr class="divider">
         <button id="unpublish-btn" class="btn-danger" type="button">
-          ⛔ Despublicar da Loja
+          ⛔ Unpublish from Store
         </button>
       </div>
     </section>
@@ -93,7 +91,7 @@
         ></iframe>
       </div>
       <p class="preview-notice-text">
-        ⚠️ Funcionalidades nativas (câmera, contatos, sensores, etc.) requerem o app
+        ⚠️ Native features (camera, contacts, sensors, etc.) require the app
       </p>
     </section>
   </main>
@@ -102,8 +100,8 @@
   <div id="app-banner" class="app-banner" style="display:none" role="complementary" aria-label="Download app">
     <div class="app-banner-inner">
       <div>
-        <p class="app-banner-title">Use este feitiço no seu Android</p>
-        <p class="app-banner-sub">O feitiço ficará salvo na sua conta quando você instalar o app.</p>
+        <p class="app-banner-title">Use this spell on your Android</p>
+        <p class="app-banner-sub">The spell will be saved to your account when you install the app.</p>
       </div>
       <a href="https://play.google.com/store/apps/details?id=ai.appacadabra.app"
          target="_blank" rel="noopener noreferrer"
@@ -111,7 +109,7 @@
         <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
              alt="Get it on Google Play" height="48">
       </a>
-      <button class="app-banner-close" type="button" aria-label="Fechar">×</button>
+      <button class="app-banner-close" type="button" aria-label="Close">×</button>
     </div>
   </div>
 

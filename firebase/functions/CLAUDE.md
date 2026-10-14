@@ -6,7 +6,7 @@ A pipeline de geração de AI foi **removida** na refactor 3.0.0 — agora o cli
 
 ---
 
-## Funções Exportadas (5 callables)
+## Funções Exportadas (5 callables + 2 onRequest)
 
 | Função | Descrição |
 |--------|-----------|
@@ -15,8 +15,16 @@ A pipeline de geração de AI foi **removida** na refactor 3.0.0 — agora o cli
 | `learnSpell` | Registra que um usuário aprendeu um spell (alimenta contadores de discovery) |
 | `unlearnSpell` | Remove o registro de `learned_spells` para um usuário |
 | `syncLearnedSpells` | Reconcilia a biblioteca local com os spells aprendidos no servidor |
+| `storeSSR` | SSR da Spell Store (`/store/**`): listagem e páginas de spell legíveis por agentes/previews sem JS. `invoker: public` |
+| `storeSitemap` | Gera `/sitemap-spells.xml` com as spells públicas. `invoker: public` |
 
-Todas exigem autenticação Google (`requireGoogleAuth()` no início de cada handler).
+Os callables exigem autenticação Google (`requireGoogleAuth()` no início de cada handler).
+Os dois onRequest são públicos (só leem spells `status == active && visibility == public`).
+
+**Deploy de function nova sem apagar as 11 antigas fora do código** (addCredits, suggestSpells,
+translateStoreSpell etc. — ainda referenciadas por versões antigas do app): usar filtro
+`firebase deploy --only functions:storeSSR,functions:storeSitemap`. Um deploy sem filtro tenta
+deletá-las em produção.
 
 ---
 
