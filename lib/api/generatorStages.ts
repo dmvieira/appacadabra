@@ -62,6 +62,7 @@ import {
     makeRetryableEmptyResponseError,
     accUsage,
     emptyUsage,
+    boundDebugLogs,
     type GenerationUsage,
 } from './generationUtils';
 import {
@@ -122,6 +123,7 @@ export interface EditJobState {
     historyContext: string;
     selectionPart: string;
     storageKeysPart: string;
+    debugLogsPart: string;
     outerAttempt: number;
     stage: EditStage;
     fixAttempt: number;
@@ -175,6 +177,8 @@ export interface InitEditParams {
     previousEdits?: { version: number; instruction: string }[];
     selectedContext?: string;
     storageStructure?: { key: string; schema: unknown }[];
+    /** Raw console log of the spell's last run (bounded internally). */
+    debugLogs?: string | null;
 }
 
 export async function initEditState(params: InitEditParams): Promise<EditJobState> {
@@ -198,6 +202,12 @@ export async function initEditState(params: InitEditParams): Promise<EditJobStat
     const storageKeysPart = params.storageStructure?.length
         ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${params.storageStructure.map(s => `- localStorage["${s.key}"]: ${JSON.stringify(s.schema)}`).join('\n')}\n`
         : '';
+    // Recent console output — [MCP] lines carry the RAW tool responses with
+    // the exact structure to parse, which beats guessing field names.
+    const boundedLogs = boundDebugLogs(params.debugLogs);
+    const debugLogsPart = boundedLogs
+        ? `\nRecent debug output from the last run of this spell (console log; [MCP] lines show RAW tool responses):\n"""\n${boundedLogs}\n"""\nWhen calling MCP tools, read response fields EXACTLY as they appear in the [MCP] lines above — never guess field names.\n`
+        : '';
 
     return {
         kind: 'edit',
@@ -209,6 +219,7 @@ export async function initEditState(params: InitEditParams): Promise<EditJobStat
         historyContext,
         selectionPart,
         storageKeysPart,
+        debugLogsPart,
         outerAttempt: 0,
         stage: 'planner',
         fixAttempt: 0,
@@ -520,7 +531,7 @@ export async function nextEditStage(
         case 'planner': {
             void hydrateMcpGenerationContext().catch(() => undefined);
             const sys = buildPlannerSystemInstructions(state.appVersion, ALL_CAPABILITIES, getMcpPlannerLine());
-            const userMsg = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${state.instruction}${state.historyContext}${state.selectionPart}${state.storageKeysPart}\n\nFull code:\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
+            const userMsg = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${state.instruction}${state.historyContext}${state.selectionPart}${state.storageKeysPart}${state.debugLogsPart}\n\nFull code:\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
             const res = await callModel(userMsg, sys, state.outerAttempt, state.spellModel, opts?.signal);
             const usage = { ...state.usage };
             accUsage(usage, res);
@@ -531,7 +542,7 @@ export async function nextEditStage(
         case 'patch': {
             await warmMcpShapes(state.instruction, state.plan, state.normalizedCode);
             const sys = buildSystemInstructions(state.appVersion, ALL_CAPABILITIES, getMcpPromptBlock());
-            const userMsg = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(state.plan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
+            const userMsg = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(state.plan, null, 2)}\n${state.debugLogsPart}\n--- CODE CONTEXT ---\n\`\`\`html\n${state.numberedCode}\n\`\`\``;
             const res = await callModel(userMsg, sys, state.outerAttempt, state.spellModel, opts?.signal);
             const usage = { ...state.usage };
             accUsage(usage, res);

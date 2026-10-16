@@ -444,11 +444,15 @@ export async function updateAppContent(
     jobId: string
 ): Promise<void> {
     const database = await getDatabase();
+    // Requirements are derived from the code — an edit that adds/removes an
+    // MCP connector or capability must refresh them or the spell's "uses"
+    // data stays stale.
+    const reqs = serializeRequirements(deriveRequirements(code));
     await database.runAsync(
         `UPDATE generated_apps
-         SET code = ?, currentVersion = ?, lastUpdated = ?, totalSpendUsd = ?, jobId = ?
+         SET code = ?, currentVersion = ?, lastUpdated = ?, totalSpendUsd = ?, jobId = ?, required_capabilities = ?, required_mcps = ?
          WHERE id = ?`,
-        [code, currentVersion, Date.now(), totalSpendUsd, jobId, id]
+        [code, currentVersion, Date.now(), totalSpendUsd, jobId, reqs.capabilities, reqs.mcps, id]
     );
 }
 

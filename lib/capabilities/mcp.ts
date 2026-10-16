@@ -88,20 +88,60 @@ window.onload = async function() {
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
   window.AppacadabraMCP = (function() {
     var seq = 0;
+    var LOG_MAX = 1500;
+    function preview(s, max) {
+      s = String(s);
+      return s.length > max ? s.slice(0, max) + '…[' + s.length + ' chars]' : s;
+    }
+    // Mandatory observability: every MCP response is echoed to the spell's
+    // console (debug panel) so the user — and the NEXT AI edit, which
+    // receives the console log — sees the EXACT raw structure to parse.
+    function logResult(type, payload, success, data) {
+      try {
+        var ok = !!success && !(data && data.isError);
+        var msg;
+        if (type === 'MCP_CALL_TOOL') {
+          var body = (data && data.raw !== undefined) ? JSON.stringify(data.raw) : JSON.stringify(data);
+          msg = (ok ? '' : '✗ ') + payload.slug + '.' + payload.tool + ' → ' + body;
+        } else if (type === 'MCP_LIST_TOOLS') {
+          msg = payload.slug + '.listTools → ' + (success && Array.isArray(data)
+            ? data.length + ' tools: ' + data.slice(0, 10).map(function(t) { return t && t.name; }).join(', ')
+            : String(data));
+        } else if (type === 'MCP_READ_RESOURCE') {
+          msg = (ok ? '' : '✗ ') + payload.slug + '.readResource(' + payload.uri + ') → ' + JSON.stringify(data && data.contents);
+        } else {
+          return;
+        }
+        console.log('[MCP] ' + preview(msg, LOG_MAX));
+      } catch (e) { /* a log must never break the app */ }
+    }
+    function deliver(type, payload, name, onResult) {
+      window[name] = function(success, data) {
+        logResult(type, payload, success, data);
+        try { delete window[name]; } catch (e) { window[name] = undefined; }
+        onResult(success, data);
+      };
+    }
     // Callback style: invoke(type, payload, 'cbName') → cb(success, data).
     // Promise style: invoke(type, payload) → Promise<{ success, data }> —
     // enables direct API use (await AppacadabraMCP.callTool(...)).
     function invoke(type, payload, callbackName) {
       if (typeof callbackName === 'string' && callbackName) {
-        sendMessage(type, payload, callbackName);
+        // Wrap the user's callback so the response is logged first.
+        var userCb = callbackName;
+        var wrap = '__appacadabraMcpLog' + (++seq) + '_' + Date.now();
+        deliver(type, payload, wrap, function(success, data) {
+          var cb = window[userCb];
+          if (typeof cb === 'function') cb(success, data);
+        });
+        sendMessage(type, payload, wrap);
         return undefined;
       }
       return new Promise(function(resolve) {
         var name = '__appacadabraMcpCb' + (++seq) + '_' + Date.now();
-        window[name] = function(success, data) {
-          try { delete window[name]; } catch (e) { window[name] = undefined; }
+        deliver(type, payload, name, function(success, data) {
           resolve({ success: !!success, data: data });
-        };
+        });
         sendMessage(type, payload, name);
       });
     }

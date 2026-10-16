@@ -83,19 +83,21 @@ function referencedSlugs(ctx: { prompt: string; plan?: unknown; code?: string })
 }
 
 /**
- * Slugs whose integration was coded blind, i.e.:
- * - server not connected at generation time, OR
- * - connected but planner-declared tools exist in cache and NONE has an
- *   observed shape yet, OR
- * - connected, undeclared, and the slug has no observed shapes at all.
+ * Slugs whose integration was coded blind, i.e. the server was NOT usable at
+ * generation time:
+ * - not connected at all, OR
+ * - connected but with an empty tool cache (the coder saw no tool schemas).
  *
- * Never flags when at least one declared tool already has a shape — partial
- * knowledge is not a blind guess.
+ * Missing OBSERVED SHAPES are deliberately NOT a reason to flag: with the
+ * tool list in the prompt the inputs are correct, and many tools need real
+ * arguments before any response shape can be observed (the shape probe only
+ * covers argument-less tools). Flagging those produced a false "integration
+ * may be outdated" banner on virtually every new MCP integration.
  */
 export async function computeMcpPendingFix(ctx: { prompt: string; plan?: unknown; code?: string }): Promise<string[]> {
     try {
         const { isConnected } = require('./manager');
-        const { getShapesForSlug, getCachedTools } = require('./store');
+        const { getCachedTools } = require('./store');
         const planTools = (require('./probe') as typeof import('./probe')).extractPlanMcpTools(ctx.plan);
 
         const flagged: string[] = [];
@@ -106,18 +108,8 @@ export async function computeMcpPendingFix(ctx: { prompt: string; plan?: unknown
                 flagged.push(slug);
                 continue;
             }
-            const shapes = await getShapesForSlug(slug).catch(() => ({}) as Record<string, string>);
-            if (declared?.length) {
-                const anyShape = declared.some(t => !!shapes[t]);
-                if (!anyShape) flagged.push(slug);
-                continue;
-            }
-            if (Object.keys(shapes).length === 0) {
-                // Only flag when the tool cache confirms the server publishes
-                // tools at all — an unreachable/empty catalog slug is noise.
-                const tools = await getCachedTools(slug).catch(() => [] as { name?: string }[]);
-                if (tools.length > 0) flagged.push(slug);
-            }
+            const tools = await getCachedTools(slug).catch(() => [] as { name?: string }[]);
+            if (tools.length === 0) flagged.push(slug);
         }
         return flagged;
     } catch {

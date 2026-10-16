@@ -85,27 +85,27 @@ describe('computeMcpPendingFix', () => {
         expect(pending).toEqual(['picpay']);
     });
 
-    it('flags connected slug with declared tools but zero shapes', async () => {
+    it('does NOT flag connected slug with cached tools but zero observed shapes (shapes are not a criterion)', async () => {
         reset(['picpay'], {});
+        const plan = { technicalRequirements: { mcpTools: [{ server: 'picpay', tools: ['statements_list'] }] } };
+        const pending = await computeMcpPendingFix({ prompt: 'picpay', plan });
+        expect(pending).toEqual([]);
+    });
+
+    it('flags connected slug when the tool cache is empty (coder saw no schemas)', async () => {
+        reset(['picpay'], {}, []);
         const plan = { technicalRequirements: { mcpTools: [{ server: 'picpay', tools: ['statements_list'] }] } };
         const pending = await computeMcpPendingFix({ prompt: 'picpay', plan });
         expect(pending).toEqual(['picpay']);
     });
 
-    it('does not flag when at least one declared tool has a shape', async () => {
-        reset(['picpay'], { statements_list: '{dias:[]}' });
-        const plan = { technicalRequirements: { mcpTools: [{ server: 'picpay', tools: ['statements_list', 'get_balance'] }] } };
-        const pending = await computeMcpPendingFix({ prompt: 'picpay', plan });
-        expect(pending).toEqual([]);
-    });
-
-    it('flags code-referenced undeclared slug with tools but zero shapes', async () => {
+    it('does not flag code-referenced connected slug with cached tools but zero shapes', async () => {
         reset(['picpay'], {});
         const pending = await computeMcpPendingFix({
             prompt: 'transações do picpay',
             code: 'AppacadabraMCP.callTool("picpay", "statements_list", {}, "cb");',
         });
-        expect(pending).toEqual(['picpay']);
+        expect(pending).toEqual([]);
     });
 
     it('does not flag code-referenced slug that already has shapes', async () => {

@@ -40,6 +40,7 @@ import {
     makeRetryableEmptyResponseError,
     accUsage,
     emptyUsage,
+    boundDebugLogs,
     type GenerationUsage,
 } from './generationUtils';
 import {
@@ -352,6 +353,8 @@ export interface EditParams {
     previousEdits?: PreviousEdit[];
     selectedContext?: string;
     storageStructure?: StorageKey[];
+    /** Raw console log of the spell's last run (bounded internally). */
+    debugLogs?: string | null;
     signal?: AbortSignal;
     onProgress?: (e: ProgressEvent) => void;
 }
@@ -381,6 +384,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
         previousEdits,
         selectedContext,
         storageStructure,
+        debugLogs,
         signal,
         onProgress,
     } = params;
@@ -407,6 +411,12 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
         : '';
     const storageKeysPart = storageStructure?.length
         ? `\n⚠️ STORAGE STRUCTURE GUARDRAIL: This spell already has user data persisted in localStorage. You MUST NOT rename keys, remove keys, or change data types — doing so causes permanent data loss:\n${storageStructure.map(s => `- localStorage["${s.key}"]: ${JSON.stringify(s.schema)}`).join('\n')}\n`
+        : '';
+    // Recent console output — [MCP] lines carry the RAW tool responses with
+    // the exact structure to parse, which beats guessing field names.
+    const boundedLogs = boundDebugLogs(debugLogs);
+    const debugLogsPart = boundedLogs
+        ? `\nRecent debug output from the last run of this spell (console log; [MCP] lines show RAW tool responses):\n"""\n${boundedLogs}\n"""\nWhen calling MCP tools, read response fields EXACTLY as they appear in the [MCP] lines above — never guess field names.\n`
         : '';
 
     // Learn MCP response shapes before the patcher prompt is built. The
@@ -480,7 +490,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
 
             // Stage 1: Plan
             onProgress?.({ type: 'plan_started' });
-            const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
+            const planPrompt = `${UNIFIED_EDIT_PLANNER_PROMPT}\n\nUser's edit request: ${instruction}${historyContext}${selectionPart}${storageKeysPart}${debugLogsPart}\n\nFull code:\n\`\`\`html\n${numberedCode}\n\`\`\``;
             const planResult = await callEditModel(planPrompt, editPlannerSys);
             accUsage(usage, planResult);
             const editPlan = extractJson(extractText(planResult));
@@ -488,7 +498,7 @@ export async function generateSpellEdit(params: EditParams): Promise<EditResult>
 
             // Stage 2: Patch
             onProgress?.({ type: 'code_started' });
-            const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
+            const patchPrompt = `${UNIFIED_EDIT_MIGRATE_PROMPT}\n\n--- EDIT PLAN ---\n${JSON.stringify(editPlan, null, 2)}\n${debugLogsPart}\n--- CODE CONTEXT ---\n\`\`\`html\n${numberedCode}\n\`\`\``;
             const patchResult = await callEditModel(patchPrompt, editPatcherSys);
             accUsage(usage, patchResult);
             const patchResponse = extractJson(extractText(patchResult));

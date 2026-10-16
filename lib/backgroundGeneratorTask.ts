@@ -218,6 +218,8 @@ export async function runEditJob(p: EditParams, signal?: AbortSignal): Promise<v
         previousEdits: p.previousEdits,
         selectedContext: p.selectedContext,
         storageStructure: p.storageStructure,
+        // Console of the last run — [MCP] lines carry raw tool responses.
+        debugLogs: await fetchConsoleLogs(p.appId),
     });
     await persistState(p.jobId, state);
     emitProgress(p.jobId, state);
@@ -368,8 +370,20 @@ async function rebuildEditState(
         appVersion: getAppVersion(),
         previousEdits,
         selectedContext: row.selectedContext ?? undefined,
+        debugLogs: await fetchConsoleLogs(row.appId),
     });
     return overlayPersistedCursor(base, row) as EditJobState;
+}
+
+/** Console log of the spell's last run (best-effort; '' when unavailable). */
+async function fetchConsoleLogs(appId: number | null): Promise<string> {
+    if (appId == null) return '';
+    try {
+        const app = await db.getAppById(appId);
+        return app?.consoleLogs ?? '';
+    } catch {
+        return '';
+    }
 }
 
 /**

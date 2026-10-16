@@ -421,3 +421,24 @@ export async function withRetry<T>(
     }
     throw lastError;
 }
+
+// ============= DEBUG LOG CONTEXT =============
+
+/**
+ * Bounds a spell's console log for inclusion in edit prompts: keeps the
+ * last `maxLines` non-empty lines and caps the total at `maxChars`
+ * (preserving the tail — the most recent run). Empty input → ''.
+ */
+export function boundDebugLogs(
+    logs: string | null | undefined,
+    maxLines = 100,
+    maxChars = 8000,
+): string {
+    if (!logs) return '';
+    const lines = logs.split('\n').filter(l => l.trim().length > 0).slice(-maxLines);
+    let out = lines.join('\n');
+    if (out.length > maxChars) {
+        out = `… [older lines truncated]\n${out.slice(out.length - maxChars)}`;
+    }
+    return out.trim();
+}
