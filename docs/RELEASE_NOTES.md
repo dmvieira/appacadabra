@@ -1,149 +1,191 @@
 ## Version Name
-🔌 Connect Spells to Remote Tools
+✨ Remote Connections That Just Work
 
 <en-US>
-• Spells can now reach beyond the veil: connect remote MCP servers and let them call outside tools.
-• Link your accounts securely — you sign in through your browser, and we never see your password.
-• Manage every connection from Settings, and see which powers each spell actually uses.
-• Under the hood: new engine foundations for smoother, faster casting.
+• Remote MCP servers: paste a URL and it just works — smarter OAuth discovery, optional access-token field.
+• Expired tokens reconnect automatically: silent renewal, or sign in again inside the spell.
+• New connectors: Zapier, Canva, PayPal, Asana, Figma.
+• New readResource() API; callTool works with await.
+• MCP responses show in the debug panel — edits use the exact fields seen.
+• Fixed: false "outdated integration" banner; MCP added by editing now listed in spell requirements.
 </en-US>
 
 <ar>
-• التعاويذ تصل الآن إلى ما هو أبعد: اربط خوادم MCP البعيدة ودعها تستدعي أدوات خارجية.
-• اربط حساباتك بأمان — تسجّل الدخول عبر المتصفح، ولا نرى كلمة المرور أبدًا.
-• أدِر كل الاتصالات من الإعدادات واطّلع على القوى التي تستخدمها كل تعويذة فعلًا.
-• من الداخل: أساسات محرّك جديدة لتعويذ أكثر سلاسة وسرعة.
+• خوادم MCP البعيدة: الصق الرابط وستعمل من البداية للنهاية — اكتشاف OAuth أذكى، ورمز وصول اختياري.
+• الرموز المنتهية تعيد الاتصال تلقائيًا: تجديد صامت أو تسجيل دخول جديد داخل التعويذة.
+• موصّلات جديدة: Zapier وCanva وPayPal وAsana وFigma.
+• واجهة readResource() جديدة؛ وcallTool تعمل مع await.
+• ردود MCP تظهر في لوحة التصحيح — التعديلات تستخدم الحقول الملاحظة بدقة.
+• أُصلح تنبيه «تكامل قديم» خاطئ؛ وMCP المضاف بالتحرير يظهر في متطلبات التعويذة.
 </ar>
 
 <de-DE>
-• Zauber reichen jetzt über den Schleier hinaus: Verbinde entfernte MCP-Server und lass sie externe Werkzeuge aufrufen.
-• Verknüpfe deine Konten sicher — die Anmeldung läuft im Browser, dein Passwort sehen wir nie.
-• Verwalte alle Verbindungen in den Einstellungen und sieh, welche Kräfte jeder Zauber wirklich nutzt.
-• Unter der Haube: neue Fundament-Engine für flüssigeres, schnelleres Zaubern.
+• Remote-MCP-Server: URL einfügen und es funktioniert — schlauere OAuth-Erkennung, optionaler Access-Token.
+• Abgelaufene Tokens verbinden sich selbst neu — stille Erneuerung oder Login im Zauber.
+• Neue Konnektoren: Zapier, Canva, PayPal, Asana, Figma.
+• Neue readResource()-API; callTool funktioniert mit await.
+• MCP-Antworten im Debug-Panel — Bearbeitungen nutzen die exakten Felder.
+• Behoben: falsches „Integration veraltet“-Banner; MCP aus Bearbeitungen jetzt in den Anforderungen.
 </de-DE>
 
 <es-419>
-• Los hechizos ahora llegan más allá del velo: conecta servidores MCP remotos y deja que llamen a herramientas externas.
-• Vincula tus cuentas de forma segura: inicias sesión en el navegador y nunca vemos tu contraseña.
-• Administra todas las conexiones desde Ajustes y mira qué poderes usa realmente cada hechizo.
-• Bajo el capó: nuevos cimientos del motor para conjurar más fluido y rápido.
+• Servidores MCP remotos: pega la URL y funciona, con mejor OAuth y token opcional.
+• Tokens vencidos se reconectan solos: renovación silenciosa o nuevo login en el hechizo.
+• Conectores nuevos: Zapier, Canva, PayPal, Asana y Figma.
+• Nueva API readResource(); callTool funciona con await.
+• Las respuestas MCP salen en el panel de depuración; las ediciones usan los campos vistos.
+• Corregido el falso banner de "integración desactualizada"; el MCP agregado al editar ya está en requisitos.
 </es-419>
 
 <es-ES>
-• Los hechizos ahora alcanzan más allá del velo: conecta servidores MCP remotos y deja que llamen a herramientas externas.
-• Vincula tus cuentas de forma segura: inicias sesión en el navegador y nunca vemos tu contraseña.
-• Gestiona todas las conexiones desde Ajustes y mira qué poderes usa realmente cada hechizo.
-• Bajo el capó: nuevos cimientos del motor para conjurar más fluido y rápido.
+• Servidores MCP remotos: pega la URL y funciona, con mejor OAuth y token opcional.
+• Tokens expirados se reconectan solos: renovación silenciosa o nuevo login en el hechizo.
+• Nuevos conectores: Zapier, Canva, PayPal, Asana y Figma.
+• Nueva API readResource(); callTool funciona con await.
+• Las respuestas MCP salen en el panel de depuración; las ediciones usan los campos vistos.
+• Corregido el falso banner de "integración desactualizada"; el MCP añadido al editar ya está en requisitos.
 </es-ES>
 
 <es-US>
-• Los hechizos ahora llegan más allá del velo: conecta servidores MCP remotos y deja que llamen a herramientas externas.
-• Vincula tus cuentas de forma segura: inicias sesión en el navegador y nunca vemos tu contraseña.
-• Administra todas las conexiones desde Ajustes y mira qué poderes usa realmente cada hechizo.
-• Bajo el capó: nuevos cimientos del motor para conjurar más fluido y rápido.
+• Servidores MCP remotos: pega la URL y funciona, con mejor OAuth y token opcional.
+• Tokens vencidos se reconectan solos: renovación silenciosa o nuevo login en el hechizo.
+• Nuevos conectores: Zapier, Canva, PayPal, Asana y Figma.
+• Nueva API readResource(); callTool funciona con await.
+• Las respuestas MCP salen en el panel de depuración; las ediciones usan los campos vistos.
+• Corregido el falso banner de "integración desactualizada"; el MCP agregado al editar ya está en requisitos.
 </es-US>
 
 <fr-CA>
-• Les sorts atteignent désormais au-delà du voile : connectez des serveurs MCP distants et laissez-les appeler des outils externes.
-• Associez vos comptes en toute sécurité — vous vous connectez via le navigateur, nous ne voyons jamais votre mot de passe.
-• Gérez toutes les connexions depuis les Paramètres et voyez quels pouvoirs chaque sort utilise vraiment.
-• En coulisses : de nouvelles fondations pour incanter plus fluide et plus vite.
+• Serveurs MCP distants : collez l'URL, ça marche — découverte OAuth améliorée, jeton optionnel.
+• Jetons expirés reconnectés tout seuls — renouvellement silencieux ou nouveau login dans le sort.
+• Nouveaux connecteurs : Zapier, Canva, PayPal, Asana et Figma.
+• Nouvelle API readResource() ; callTool accepte await.
+• Réponses MCP visibles dans le panneau de débogage — retouches avec les champs exacts vus.
+• Corrigé : faux bandeau « intégration obsolète » ; MCP de retouche dans les exigences.
 </fr-CA>
 
 <fr-FR>
-• Les sorts atteignent désormais au-delà du voile : connectez des serveurs MCP distants et laissez-les appeler des outils externes.
-• Associez vos comptes en toute sécurité — vous vous connectez via le navigateur, nous ne voyons jamais votre mot de passe.
-• Gérez toutes les connexions depuis les Réglages et voyez quels pouvoirs chaque sort utilise vraiment.
-• En coulisses : de nouvelles fondations pour incanter plus fluide et plus vite.
+• Serveurs MCP distants : collez l'URL, ça marche — découverte OAuth améliorée, jeton optionnel.
+• Jetons expirés reconnectés tout seuls — renouvellement silencieux ou nouveau login dans le sort.
+• Nouveaux connecteurs : Zapier, Canva, PayPal, Asana et Figma.
+• Nouvelle API readResource() ; callTool accepte await.
+• Réponses MCP visibles dans le panneau de debug — retouches avec les champs exacts.
+• Corrigé : faux bandeau « intégration obsolète » ; MCP ajouté en édition dans les exigences.
 </fr-FR>
 
 <hi-IN>
-• Spells अब और दूर तक पहुँचते हैं: remote MCP servers जोड़ें और उन्हें external tools बुलाने दें।
-• अपने accounts सुरक्षित तरीके से जोड़ें — login browser में होता है, password हम कभी नहीं देखते।
-• Settings से सभी connections संभालें और देखें कि हर spell असल में कौन-सी powers इस्तेमाल करता है।
-• अंदर से: ज़्यादा smooth और तेज़ casting के लिए नई engine नींव।
+• Remote MCP servers: बस URL पेस्ट करें और काम करेगा — बेहतर OAuth डिस्कवरी, विकल्प के तौर पर access token।
+• Expired tokens अपने आप दोबारा जुड़ते हैं — चुपचाप renewal, या spell के अंदर फिर से login।
+• नए connectors: Zapier, Canva, PayPal, Asana, Figma।
+• नया readResource() API; callTool अब await के साथ चलता है।
+• MCP responses debug panel में दिखते हैं — edits वही fields इस्तेमाल करती हैं जो देखे।
+• ठीक किया: ग़लत "integration पुराना" banner; edit में जोड़ा MCP अब requirements में।
 </hi-IN>
 
 <it-IT>
-• Gli incantesimi ora raggiungono oltre il velo: collega server MCP remoti e lascia che chiamino strumenti esterni.
-• Collega i tuoi account in sicurezza: accedi dal browser e la password non ci viene mai mostrata.
-• Gestisci tutte le connessioni dalle Impostazioni e scopri quali poteri usa davvero ogni incantesimo.
-• Sotto il cofano: nuove fondamenta per evocare più fluido e veloce.
+• Server MCP remoti: incolla l'URL e funziona — scoperta OAuth più smart, token opzionale.
+• I token scaduti si riconnettono da soli: rinnovo silenzioso o nuovo login nell'incantesimo.
+• Nuovi connettori: Zapier, Canva, PayPal, Asana e Figma.
+• Nuova API readResource(); callTool funziona con await.
+• Le risposte MCP appaiono nel pannello di debug — le modifiche usano i campi esatti.
+• Corretto il falso banner "integrazione non aggiornata"; l'MCP aggiunto in modifica ora è nei requisiti.
 </it-IT>
 
 <ja-JP>
-• スペルが新たな領域へ: リモートMCPサーバーに接続し、外部ツールを呼び出せるようになりました。
-• アカウント連携は安全 — ログインはブラウザで行い、パスワードをアプリが知ることはありません。
-• 設定から接続を一括管理し、各スペルが実際に使う能力を確認できます。
-• 内部: より滑らかで速い詠唱のための新しい基盤エンジン。
+• URLを貼り付けるだけでリモートMCPサーバーを追加できるように。OAuth検出の強化、公開サーバーの自動検出、アクセストークンにも対応。
+• 期限切れトークンは自動再接続 — 静かに更新、またはスペル内で再ログイン。
+• 新規コネクター: Zapier、Canva、PayPal、Asana、Figma。
+• 新API readResource()。callToolもawaitに対応。
+• MCP応答はデバッグパネルに表示 — 編集は実際に観測したフィールドを正確に使用。
+• 誤った「統合が古い」バナーを修正。編集で追加したMCPがスペルの要件に表示されるように。
 </ja-JP>
 
 <ko-KR>
-• 스펠이 이제 더 멀리 닿습니다. 원격 MCP 서버를 연결해 외부 도구를 호출하세요.
-• 계정을 안전하게 연결하세요. 브라우저에서 로그인하며 비밀번호는 앱이 알지 못합니다.
-• 설정에서 모든 연결을 관리하고 각 스펠이 실제로 쓰는 힘을 확인하세요.
-• 내부: 더 부드럽고 빠른 시전을 위한 새 엔진 기반.
+• URL만 붙여넣어 원격 MCP 서버 추가가 이제 처음부터 끝까지 작동합니다. 더 스마트한 OAuth 탐색, 공개 서버 자동 감지, 선택적 액세스 토큰.
+• 만료된 토큰은 자동으로 다시 연결됩니다 — 조용한 갱신 또는 스펠 안에서 다시 로그인.
+• 새 커넥터: Zapier, Canva, PayPal, Asana, Figma.
+• 새 readResource() API. callTool도 이제 await 지원.
+• MCP 응답이 디버그 패널에 표시되어 편집 시 실제 관찰된 필드를 정확히 사용합니다.
+• 잘못된 "통합 만료" 배너를 수정하고, 편집 중 추가한 MCP가 스펠 요구 사항에 표시됩니다.
 </ko-KR>
 
 <nl-NL>
-• Spreuken reiken nu voorbij de sluier: verbind externe MCP-servers en laat ze externe tools aanroepen.
-• Koppel je accounts veilig — je logt in via de browser en we zien je wachtwoord nooit.
-• Beheer alle verbindingen in Instellingen en zie welke krachten elke spreuk echt gebruikt.
-• Onder de motorkap: nieuwe engine-fundamenten voor soepeler en sneller spreuken.
+• Externe MCP-servers: plak de URL en het werkt — slimmere OAuth-detectie, optionele access token.
+• Verlopen tokens verbinden zichzelf opnieuw — stille vernieuwing of opnieuw inloggen in de spreuk.
+• Nieuwe connectors: Zapier, Canva, PayPal, Asana en Figma.
+• Nieuwe readResource()-API; callTool werkt met await.
+• MCP-antwoorden in het debugpaneel — bewerkingen gebruiken exact de waargenomen velden.
+• Gerepareerd: valse "verouderde integratie"-banner; MCP via bewerking nu vermeld.
 </nl-NL>
 
 <pl-PL>
-• Zaklęcia sięgają teraz dalej: połącz zdalne serwery MCP i pozwól im wywoływać zewnętrzne narzędzia.
-• Bezpiecznie łącz konta — logujesz się przez przeglądarkę, a my nigdy nie widzimy hasła.
-• Zarządzaj wszystkimi połączeniami w Ustawieniach i sprawdź, jakich mocy naprawdę używa każde zaklęcie.
-• Pod maską: nowe podstawy silnika dla płynniejszego i szybszego rzucania.
+• Zdalne serwery MCP: wklej URL i działa — sprytniejsze wykrywanie OAuth, opcjonalny token dostępu.
+• Wygasłe tokeny łączą się ponownie same — ciche odnowienie lub ponowny login w zaklęciu.
+• Nowe łączniki: Zapier, Canva, PayPal, Asana i Figma.
+• Nowe API readResource(); callTool działa z await.
+• Odpowiedzi MCP widać w panelu debugowania — edycje używają dokładnie zaobserwowanych pól.
+• Naprawiono fałszywy baner „nieaktualna integracja"; MCP dodany przy edycji jest w wymaganiach.
 </pl-PL>
 
 <pt-BR>
-• Feitiços agora alcançam além do véu: conecte servidores MCP remotos e deixe-os chamar ferramentas externas.
-• Vincule suas contas com segurança — você entra pelo navegador e nunca vemos sua senha.
-• Gerencie todas as conexões nas Configurações e veja quais poderes cada feitiço realmente usa.
-• Nos bastidores: novas bases de motor para conjurar mais suave e rápido.
+• Servidores MCP remotos: cole a URL e funciona — descoberta OAuth mais inteligente, token de acesso opcional.
+• Tokens expirados reconectam sozinhos: renovação silenciosa, ou novo login dentro do feitiço.
+• Novos conectores: Zapier, Canva, PayPal, Asana e Figma.
+• Nova API readResource(); callTool funciona com await.
+• Respostas MCP aparecem no painel de debug — edições usam os campos exatos.
+• Corrigido o banner falso de "integração desatualizada"; MCP da edição entra nos requisitos.
 </pt-BR>
 
 <pt-PT>
-• Os feitiços agora alcançam para além do véu: ligue servidores MCP remotos e deixe-os chamar ferramentas externas.
-• Associe as suas contas em segurança — entra pelo navegador e nunca vemos a sua palavra-passe.
-• Faça a gestão de todas as ligações nas Definições e veja que poderes cada feitiço usa.
-• Nos bastidores: novas bases de motor para conjurar mais suave e rapidamente.
+• Servidores MCP remotos: cole o URL e funciona — melhor descoberta OAuth, token opcional.
+• Os tokens expirados reconectam-se sozinhos: renovação silenciosa ou nova sessão no feitiço.
+• Novos conectores: Zapier, Canva, PayPal, Asana e Figma.
+• Nova API readResource(); callTool funciona com await.
+• As respostas MCP aparecem no painel de depuração — as edições usam os campos exatos.
+• Corrigido o banner falso de "integração desatualizada"; o MCP da edição figura nos requisitos.
 </pt-PT>
 
 <ru-RU>
-• Заклинания теперь достигают большего: подключайте удалённые MCP-серверы и позволяйте им вызывать внешние инструменты.
-• Безопасно связывайте аккаунты — вход через браузер, и мы никогда не видим ваш пароль.
-• Управляйте всеми подключениями в Настройках и смотрите, какие силы использует каждое заклинание.
-• Внутри: новые основы движка для более плавного и быстрого колдовства.
+• Удалённые MCP-серверы: вставьте URL — и работает. Умнее OAuth-обнаружение, необязательный токен доступа.
+• Истёкшие токены переподключаются сами — тихое обновление или повторный вход в заклинании.
+• Новые коннекторы: Zapier, Canva, PayPal, Asana и Figma.
+• Новый API readResource(); callTool работает и с await.
+• Ответы MCP видны в панели отладки — правки используют именно наблюдаемые поля.
+• Исправлено ложное «интеграция устарела»; MCP из правки виден в требованиях заклинания.
 </ru-RU>
 
 <th>
-• Spell ตอนนี้เอื้อมไปไกลกว่าเดิม: เชื่อมต่อเซิร์ฟเวอร์ MCP ระยะไกลและให้เรียกใช้เครื่องมือภายนอกได้
-• เชื่อมบัญชีอย่างปลอดภัย — ล็อกอินผ่านเบราว์เซอร์ เราไม่เห็นรหัสผ่านของคุณ
-• จัดการทุกการเชื่อมต่อในตั้งค่า และดูว่าทุก Spell ใช้พลังใดจริง ๆ
-• ภายใน: ฐานเอนจินใหม่สำหรับการร่ายที่ลื่นไหลและเร็วขึ้น
+• เพิ่มเซิร์ฟเวอร์ MCP ระยะไกลด้วยการวาง URL เท่านั้น — ค้นพบ OAuth แบบฉลาดขึ้น และมี access token เพิ่มเติม
+• token หมดอายุเชื่อมต่อใหม่อัตโนมัติ — ต่ออายุเงียบ ๆ หรือล็อกอินใหม่ใน spell
+• connector ใหม่: Zapier, Canva, PayPal, Asana และ Figma
+• API ใหม่ readResource() และ callTool ใช้กับ await ได้
+• ผลตอบกลับ MCP แสดงในแผง debug — แก้ไขโดยใช้ฟิลด์ที่เห็นจริง
+• แก้ banner "อินทิเกรชันล้าสมัย" ที่ขึ้นผิด และ MCP ที่เพิ่มตอนแก้ไขแสดงใน requirements แล้ว
 </th>
 
 <tr-TR>
-• Büyüler artık perdenin ötesine ulaşıyor: uzak MCP sunucularını bağlayın ve dış araçları çağırmalarına izin verin.
-• Hesaplarınızı güvenle bağlayın — tarayıcıdan giriş yaparsınız, parolanızı asla görmeyiz.
-• Tüm bağlantıları Ayarlar'dan yönetin ve her büyünün gerçekte hangi güçleri kullandığını görün.
-• Kaputun altında: daha akıcı ve hızlı büyü için yeni motor temelleri.
+• Uzak MCP sunucuları: URL'yi yapıştır, çalışır — daha akıllı OAuth keşfi, isteğe bağlı token.
+• Süresi dolan token'lar kendi kendine yeniden bağlanır — sessiz yenileme veya büyü içinde yeniden giriş.
+• Yeni bağlayıcılar: Zapier, Canva, PayPal, Asana ve Figma.
+• Yeni readResource() API'si; callTool await ile de çalışıyor.
+• MCP yanıtları debug panelinde görünür — düzenlemeler gözlemlenen alanları kullanır.
+• Düzeltildi: yanlış "entegrasyon güncel değil" bandı; eklenen MCP gereksinimlerde.
 </tr-TR>
 
 <vi>
-• Phép thuật giờ vươn xa hơn: kết nối máy chủ MCP từ xa và để chúng gọi công cụ bên ngoài.
-• Liên kết tài khoản an toàn — bạn đăng nhập qua trình duyệt, chúng tôi không bao giờ thấy mật khẩu.
-• Quản lý mọi kết nối trong Cài đặt và xem mỗi phép thuật thật sự dùng năng lực nào.
-• Bên dưới: nền tảng engine mới cho việc niệm phép mượt và nhanh hơn.
+• Máy chủ MCP từ xa: dán URL là chạy — phát hiện OAuth thông minh hơn, token truy cập tùy chọn.
+• Token hết hạn tự kết nối lại — gia hạn im lặng hoặc đăng nhập lại trong phép thuật.
+• Connector mới: Zapier, Canva, PayPal, Asana và Figma.
+• API mới readResource(); callTool chạy được với await.
+• Phản hồi MCP hiện trong bảng debug — chỉnh sửa dùng đúng các trường đã thấy.
+• Sửa banner sai "tích hợp lỗi thời"; MCP thêm khi chỉnh sửa có trong yêu cầu của phép.
 </vi>
 
 <zh-CN>
-• 法术现在能触及更远：连接远程 MCP 服务器，让它们调用外部工具。
-• 安全关联账号——通过浏览器登录，我们绝不接触你的密码。
-• 在设置中管理所有连接，查看每个法术实际使用的力量。
-• 内部：全新引擎基础，施法更流畅、更快速。
+• 粘贴 URL 即可添加远程 MCP 服务器，现已全程贯通：更智能的 OAuth 发现、公共服务器自动识别、可选访问令牌。
+• 令牌过期会自动重连——静默续期，或在法术内重新登录。
+• 新增连接器：Zapier、Canva、PayPal、Asana、Figma。
+• 新增 readResource() API；callTool 现已支持 await。
+• MCP 响应显示在调试面板中——编辑时使用观测到的确切字段。
+• 修复误报的"集成已过期"横幅；编辑时添加的 MCP 现已显示在法术要求中。
 </zh-CN>
