@@ -51,6 +51,9 @@ jest.mock('../../lib/i18n', () => ({
 
 import { ModelPicker } from '../ModelPicker';
 
+// Slow environments (e.g. WSL on /mnt/c) exceed the default 5s on first render.
+jest.setTimeout(30000);
+
 const modelA = {
     id: 'anthropic/claude-3-opus',
     name: 'Claude 3 Opus',

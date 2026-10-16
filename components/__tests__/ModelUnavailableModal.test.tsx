@@ -64,6 +64,9 @@ jest.mock('../../lib/i18n', () => ({
 
 import { ModelUnavailableModal } from '../ModelUnavailableModal';
 
+// Slow environments (e.g. WSL on /mnt/c) exceed the default 5s on first render.
+jest.setTimeout(30000);
+
 beforeEach(() => {
     jest.clearAllMocks();
     mockBridgeState = {
