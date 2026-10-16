@@ -191,7 +191,7 @@ export function getMcpPromptBlock(): string {
     }
     return [
         '--- MCP CONNECTORS ---',
-        'The user can connect external MCP servers. Prefer the slugs below when the request needs an external service. Use `AppacadabraMCP.listTools(slug, cb)` to discover tool names, then `AppacadabraMCP.callTool(slug, tool, args, cb)`. If a needed connector is not connected yet, the app will ask the user to log in automatically on first use.',
+        'The user can connect external MCP servers. Prefer the slugs below when the request needs an external service. Use `AppacadabraMCP.listTools(slug, cb)` to discover tool names, then `AppacadabraMCP.callTool(slug, tool, args, cb)`. These are DIRECT data APIs for the app itself — call them from the app\'s own JavaScript (page load, button taps, timers) to fetch and render external data; no AI call is needed at runtime. Callbacks and Promises both work: `await AppacadabraMCP.callTool(...)` resolves `{ success, data }`. `AppacadabraMCP.readResource(slug, uri, cb)` reads resources published by that server. If a needed connector is not connected yet, the app will ask the user to log in automatically on first use.',
         'When a tool lists an observed return structure below, its `raw` result matches EXACTLY that structure — read fields from it (dates, amounts) instead of guessing. Amounts may be strings (e.g. "123.45"); parse with parseFloat before math.',
         'Each observed return structure below applies ONLY to its own tool — never reuse one tool\'s field names for another. To group by day, prefer a container-level date field when present (e.g. the payload is already split per day: iterate `dias[]` and read `dias[].dia` instead of parsing each movement\'s datetime).',
         '',

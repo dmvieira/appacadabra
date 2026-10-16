@@ -87,58 +87,148 @@ function wellKnownUrl(baseUrl: string, wellKnown: string): string {
 }
 
 /**
- * Detects the protected-resource metadata URL. Prefers the `resource_metadata`
- * advertised on the 401 response; falls back to the well-known path.
+ * Ordered, de-duplicated `.well-known` candidates: the RFC path-inserted form
+ * first, then the origin root — many servers only publish at the root.
  */
-export async function discoverProtectedResource(mcpUrl: string): Promise<ProtectedResourceMetadata | null> {
-    let resourceMetadataUrl: string | undefined;
+function wellKnownCandidates(baseUrl: string, wellKnown: string): string[] {
+    const origin = new URL(baseUrl).origin;
+    return [...new Set([wellKnownUrl(baseUrl, wellKnown), `${origin}/.well-known/${wellKnown}`])];
+}
 
-    // Probe: unauthenticated initialize surfaces the WWW-Authenticate header.
+/** First candidate that answers with JSON accepted by `accept`; null when none. */
+async function fetchFirstJson<T>(urls: string[], accept: (value: T) => boolean): Promise<T | null> {
+    for (const url of urls) {
+        try {
+            const value = await fetchJson<T>(url);
+            if (value && accept(value)) return value;
+        } catch {
+            // Try the next candidate.
+        }
+    }
+    return null;
+}
+
+/** Outcome of the unauthenticated `initialize` probe against the MCP endpoint. */
+export interface McpEndpointProbe {
+    /** HTTP status, or null when the request failed at the network level. */
+    status: number | null;
+    /** `resource_metadata` advertised in `WWW-Authenticate`, when present. */
+    resourceMetadataUrl?: string;
+}
+
+/** Unauthenticated initialize — a 401 surfaces the `WWW-Authenticate` header. */
+export async function probeMcpEndpoint(mcpUrl: string): Promise<McpEndpointProbe> {
     try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), DISCOVERY_TIMEOUT_MS);
-        const res = await fetch(mcpUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
-            body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'initialize',
-                params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'appacadabra', version: '1.0.0' } },
-            }),
-            signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        resourceMetadataUrl = parseResourceMetadataUrl(res.headers.get('www-authenticate'));
+        try {
+            const res = await fetch(mcpUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'initialize',
+                    params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'appacadabra', version: '1.0.0' } },
+                }),
+                signal: controller.signal,
+            });
+            let header: string | null = null;
+            try {
+                header = res.headers?.get?.('www-authenticate') ?? null;
+            } catch {
+                header = null;
+            }
+            return { status: typeof res.status === 'number' ? res.status : null, resourceMetadataUrl: parseResourceMetadataUrl(header) };
+        } finally {
+            clearTimeout(timeout);
+        }
     } catch {
-        // Network error — try the well-known fallback below.
-    }
-
-    if (!resourceMetadataUrl) {
-        resourceMetadataUrl = wellKnownUrl(mcpUrl, 'oauth-protected-resource');
-    }
-
-    try {
-        return await fetchJson<ProtectedResourceMetadata>(resourceMetadataUrl);
-    } catch {
-        return null;
+        return { status: null };
     }
 }
 
+/**
+ * Protected-resource metadata (RFC 9728). Tries, in order: the
+ * `resource_metadata` URL advertised on the 401, the path-inserted
+ * well-known, and the origin-root well-known. Only metadata that actually
+ * names an authorization server is accepted.
+ */
+export async function discoverProtectedResource(
+    mcpUrl: string,
+    probe?: McpEndpointProbe,
+): Promise<ProtectedResourceMetadata | null> {
+    const p = probe ?? (await probeMcpEndpoint(mcpUrl));
+    const candidates = [
+        ...(p.resourceMetadataUrl ? [p.resourceMetadataUrl] : []),
+        ...wellKnownCandidates(mcpUrl, 'oauth-protected-resource'),
+    ];
+    return fetchFirstJson<ProtectedResourceMetadata>(
+        [...new Set(candidates)],
+        v => Array.isArray(v.authorization_servers) && v.authorization_servers.length > 0,
+    );
+}
+
+/**
+ * Authorization-server metadata. Tries RFC 8414 (path-inserted, then root),
+ * then OpenID discovery (path-inserted, root, and the OIDC-style appended
+ * `{issuer}/.well-known/openid-configuration`). Only metadata with both an
+ * authorization and a token endpoint is accepted.
+ */
 export async function fetchAuthorizationServerMetadata(authServerUrl: string): Promise<AuthorizationServerMetadata | null> {
+    let candidates: string[];
     try {
-        return await fetchJson<AuthorizationServerMetadata>(
-            wellKnownUrl(authServerUrl, 'oauth-authorization-server'),
-        );
+        candidates = [
+            ...wellKnownCandidates(authServerUrl, 'oauth-authorization-server'),
+            ...wellKnownCandidates(authServerUrl, 'openid-configuration'),
+            `${authServerUrl.replace(/\/+$/, '')}/.well-known/openid-configuration`,
+        ];
     } catch {
-        try {
-            return await fetchJson<AuthorizationServerMetadata>(
-                wellKnownUrl(authServerUrl, 'openid-configuration'),
-            );
-        } catch {
-            return null;
-        }
+        return null; // invalid URL
     }
+    return fetchFirstJson<AuthorizationServerMetadata>(
+        [...new Set(candidates)],
+        v => !!v.authorization_endpoint && !!v.token_endpoint,
+    );
+}
+
+export interface ResolvedAuthServer {
+    authorizationServer: string;
+    meta: AuthorizationServerMetadata;
+    /** Scopes advertised by the protected resource (null when not published). */
+    resourceScopes: string[] | null;
+    /** True for MCP 2025-03-26 servers: the MCP origin IS the authorization server. */
+    legacy: boolean;
+}
+
+/**
+ * Resolves the authorization server for an MCP endpoint.
+ *
+ * 1. Current spec: protected-resource metadata → `authorization_servers[0]`.
+ * 2. Legacy spec (2025-03-26): no protected-resource metadata, the MCP
+ *    server's own origin hosts the authorization-server metadata. Only tried
+ *    when the endpoint actually answered 401 — a public server whose origin
+ *    happens to publish unrelated OAuth metadata must stay public.
+ */
+export async function resolveAuthorizationServer(mcpUrl: string): Promise<ResolvedAuthServer | null> {
+    const probe = await probeMcpEndpoint(mcpUrl);
+    const resource = await discoverProtectedResource(mcpUrl, probe);
+    if (resource) {
+        const authorizationServer = resource.authorization_servers[0];
+        const meta = await fetchAuthorizationServerMetadata(authorizationServer);
+        if (!meta) return null;
+        return { authorizationServer, meta, resourceScopes: resource.scopes_supported ?? null, legacy: false };
+    }
+    if (probe.status !== 401) return null;
+    let origin: string;
+    try {
+        origin = new URL(mcpUrl).origin;
+    } catch {
+        return null;
+    }
+    const meta = await fetchAuthorizationServerMetadata(origin);
+    if (!meta) return null;
+    return { authorizationServer: origin, meta, resourceScopes: null, legacy: true };
 }
 
 interface DcrClient {
@@ -222,15 +312,11 @@ export async function runOAuthFlow(
     const loopback = opts.loopback && LoopbackServer ? await LoopbackServer!.start() : null;
     const redirectUri = loopback ? `http://127.0.0.1:${loopback.port}/callback` : opts.redirectUri ?? REDIRECT_URI;
     try {
-    const resource = await discoverProtectedResource(connection.mcpUrl);
-    if (!resource || !resource.authorization_servers?.length) {
+    const resolved = await resolveAuthorizationServer(connection.mcpUrl);
+    if (!resolved) {
         throw new McpAuthRequiredError(connection.slug, 'No OAuth metadata published by server');
     }
-    const authServerUrl = resource.authorization_servers[0];
-    const meta = await fetchAuthorizationServerMetadata(authServerUrl);
-    if (!meta || !meta.authorization_endpoint || !meta.token_endpoint) {
-        throw new McpAuthRequiredError(connection.slug, 'No authorization-server metadata');
-    }
+    const { meta } = resolved;
 
     // DCR — register a public client if the server supports it and we don't
     // have one. Loopback ports are ephemeral: a stored client_id is bound to
@@ -255,8 +341,11 @@ export async function runOAuthFlow(
     );
     const state = base64url(await Crypto.getRandomBytesAsync(16));
 
-    const defaultScopes = resource.scopes_supported?.filter(s => /\.read$|openid|offline_access/.test(s));
-    const scopes = opts.scopes ?? defaultScopes ?? resource.scopes_supported ?? [];
+    // Prefer the resource's advertised scopes; legacy servers only advertise
+    // them on the authorization server.
+    const advertised = resolved.resourceScopes ?? (resolved.legacy ? meta.scopes_supported ?? null : null);
+    const defaultScopes = advertised?.filter(s => /\.read$|openid|offline_access/.test(s));
+    const scopes = opts.scopes ?? defaultScopes ?? advertised ?? [];
 
     const authUrl =
         `${meta.authorization_endpoint}?` +
@@ -341,15 +430,15 @@ export async function runOAuthFlow(
 
 /** Serializes auth-server metadata for persistence in the connection row. */
 export async function resolveAuthServerMeta(connection: McpConnection): Promise<string | null> {
-    const resource = await discoverProtectedResource(connection.mcpUrl);
-    if (!resource?.authorization_servers?.length) return null;
-    const meta = await fetchAuthorizationServerMetadata(resource.authorization_servers[0]);
-    if (!meta) return null;
+    const resolved = await resolveAuthorizationServer(connection.mcpUrl);
+    if (!resolved) return null;
+    const { meta } = resolved;
     return JSON.stringify({
-        authorizationServer: resource.authorization_servers[0],
+        authorizationServer: resolved.authorizationServer,
         authorizationEndpoint: meta.authorization_endpoint,
         tokenEndpoint: meta.token_endpoint,
         registrationEndpoint: meta.registration_endpoint ?? null,
-        scopesSupported: resource.scopes_supported ?? meta.scopes_supported ?? [],
+        scopesSupported: resolved.resourceScopes ?? meta.scopes_supported ?? [],
+        legacy: resolved.legacy,
     });
 }

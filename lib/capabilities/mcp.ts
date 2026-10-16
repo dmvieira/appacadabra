@@ -6,7 +6,7 @@ export const mcpCapability: CapabilityModule = {
     displayName: 'MCP',
     minVersion: '3.1.6',
     description:
-        'Connect to external remote MCP servers (PicPay, Notion, Stripe, Context7, etc.) and call their tools. Use `listTools` to discover tools, then `callTool` to run them. Login/consent is handled automatically by the app.',
+        'Connect to external remote MCP servers (PicPay, Notion, Stripe, Context7, etc.) and call their tools. Use `listTools` to discover tools, then `callTool` to run them. These are direct data APIs for the app — no AI call involved. Login/consent is handled automatically by the app.',
 
     docs: `🔌 MCP — Model Context Protocol connectors (AppacadabraMCP)
 Appacadabra can call external tools exposed by remote MCP servers the user has connected (e.g. PicPay, Notion, Stripe, Context7). Only **remote** servers work (no local/stdio).
@@ -29,11 +29,16 @@ Appacadabra can call external tools exposed by remote MCP servers the user has c
     - \`args\` is a plain object matching the tool's \`inputSchema\`.
     - **Return**: \`{ text, raw, isError }\` — \`text\` is the human-readable result; \`raw\` is the server's payload already unwrapped (structured object when the server returns JSON — never the MCP protocol envelope).
     - **Result structure**: when the system prompt shows \`Returns (observed)\` for a tool, \`raw\` matches EXACTLY that structure — read date and amount fields from the shown paths (e.g. \`raw.dias[0].movimentacoes\`), never invent field names. Amounts may be strings ("123.45") — use parseFloat before math. Group lists by the exact date field shown.
+- \`AppacadabraMCP.readResource(slug, uri, callback)\` — Read a resource published by that server (when it publishes any).
+    - **Return**: \`{ uri, contents }\` — \`contents\` is the server's array of resource content blocks.
 
 - **Server slugs**: use the requested server's slug (lowercase), e.g. \`"picpay"\`, \`"notion"\`, \`"context7"\`. If unsure of a slug, prefer the ones listed for this app; otherwise call listTools and show a clear error if it fails.
 - **Identifiers**: NEVER invent IDs. If a tool requires an identifier in its \`inputSchema\` (often in \`required\`), that ID comes from another tool — find the list/search tool that returns it, call it first, then chain LIST → DETAIL. Pass identifiers exactly as returned: they are opaque server-side values; never format, trim, decode or rebuild them. An "identifier not found" error almost always means the list step was skipped.
 - **Arguments**: build args strictly from the tool's \`inputSchema\` — respect \`required\`, enums and formats (dates are usually \`YYYY-MM-DD\`; send start and end together) and omit optional fields you don't need.
 - **Economics**: MCP calls are NOT AI calls — they do not consume AI tokens. Use them freely for deterministic operations.
+- **Direct API access — no AI involved**: AppacadabraMCP is a plain data API for the app's OWN JavaScript. Fetch external data on load, on button taps or on timers and render it directly — no AI call needed at runtime. Both styles work:
+    - Callback: \`AppacadabraMCP.callTool("slug", "tool", args, "onResult");\`
+    - Promise (recommended for direct data access): \`var res = await AppacadabraMCP.callTool("slug", "tool", args);\` → resolves \`{ success, data }\` where \`data\` is exactly what the callback would receive.
 - **Auth**: NEVER ask the user for a password inside the app. Login happens in the browser via the connection screen. Never hard-code tokens.
 - **Errors**: always handle \`success === false\` (e.g. user cancelled login or the network failed) with a clear message.
 
@@ -55,42 +60,81 @@ window.onBalance = function(success, result) {
     if (!success) { AppacadabraUI.toast(result, "error"); return; }
     document.getElementById("output").innerText = result.text;
 };
+\`\`\`
+
+\`\`\`javascript
+// Direct API (Promise) — fetch and render external data yourself, no AI:
+window.onload = async function() {
+    var res = await AppacadabraMCP.callTool("picpay", "get_balance", {});
+    if (!res.success) { document.getElementById("output").innerText = "Indisponível"; return; }
+    document.getElementById("output").innerText = res.data.text;
+};
 \`\`\``,
 
-    validationMock: `    window.AppacadabraMCP = {
-        connect: function(slug, cb) { if (cb && typeof window[cb] === 'function') window[cb](true, { ok: true }); },
-        isConnected: function(slug, cb) { if (cb && typeof window[cb] === 'function') window[cb](true, true); },
-        listTools: function(slug, cb) { if (cb && typeof window[cb] === 'function') window[cb](true, [{ name: slug + '_echo', description: 'echo', inputSchema: { type: 'object', properties: {} } }]); },
-        callTool: function(slug, tool, args, cb) { if (cb && typeof window[cb] === 'function') window[cb](true, { text: 'example result', raw: {}, isError: false }); }
-    };`,
+    validationMock: `    window.AppacadabraMCP = (function() {
+        function reply(cb, data) {
+            if (typeof cb === 'string' && cb) { if (typeof window[cb] === 'function') window[cb](true, data); return undefined; }
+            return Promise.resolve({ success: true, data: data });
+        }
+        return {
+            connect: function(slug, cb) { return reply(cb, { ok: true }); },
+            isConnected: function(slug, cb) { return reply(cb, true); },
+            listTools: function(slug, cb) { return reply(cb, [{ name: slug + '_echo', description: 'echo', inputSchema: { type: 'object', properties: {} } }]); },
+            callTool: function(slug, tool, args, cb) { if (typeof args === 'string' && cb === undefined) { cb = args; } return reply(cb, { text: 'example result', raw: {}, isError: false }); },
+            readResource: function(slug, uri, cb) { return reply(cb, { uri: uri, contents: [] }); }
+        };
+    })();`,
 
     getInjectedJS: (_appId: number, _isEditMode: boolean): string => `
-  window.AppacadabraMCP = {
-    connect: function(slug, callbackName) {
-      sendMessage('MCP_CONNECT', { slug: slug }, callbackName);
-    },
-    isConnected: function(slug, callbackName) {
-      sendMessage('MCP_IS_CONNECTED', { slug: slug }, callbackName);
-    },
-    listTools: function(slug, callbackName) {
-      sendMessage('MCP_LIST_TOOLS', { slug: slug }, callbackName);
-    },
-    callTool: function(slug, toolName, args, callbackName) {
-      // Tolerate callTool(slug, tool, callback) with omitted args.
-      if (typeof args === 'string' && callbackName === undefined) {
-        callbackName = args;
-        args = {};
+  window.AppacadabraMCP = (function() {
+    var seq = 0;
+    // Callback style: invoke(type, payload, 'cbName') → cb(success, data).
+    // Promise style: invoke(type, payload) → Promise<{ success, data }> —
+    // enables direct API use (await AppacadabraMCP.callTool(...)).
+    function invoke(type, payload, callbackName) {
+      if (typeof callbackName === 'string' && callbackName) {
+        sendMessage(type, payload, callbackName);
+        return undefined;
       }
-      sendMessage('MCP_CALL_TOOL', { slug: slug, tool: toolName, args: args || {} }, callbackName);
+      return new Promise(function(resolve) {
+        var name = '__appacadabraMcpCb' + (++seq) + '_' + Date.now();
+        window[name] = function(success, data) {
+          try { delete window[name]; } catch (e) { window[name] = undefined; }
+          resolve({ success: !!success, data: data });
+        };
+        sendMessage(type, payload, name);
+      });
     }
-  };
+    return {
+      connect: function(slug, callbackName) {
+        return invoke('MCP_CONNECT', { slug: String(slug || '') }, callbackName);
+      },
+      isConnected: function(slug, callbackName) {
+        return invoke('MCP_IS_CONNECTED', { slug: String(slug || '') }, callbackName);
+      },
+      listTools: function(slug, callbackName) {
+        return invoke('MCP_LIST_TOOLS', { slug: String(slug || '') }, callbackName);
+      },
+      callTool: function(slug, toolName, args, callbackName) {
+        // Tolerate callTool(slug, tool, callback) with omitted args.
+        if (typeof args === 'string' && callbackName === undefined) {
+          callbackName = args;
+          args = {};
+        }
+        return invoke('MCP_CALL_TOOL', { slug: String(slug || ''), tool: String(toolName || ''), args: args || {} }, callbackName);
+      },
+      readResource: function(slug, uri, callbackName) {
+        return invoke('MCP_READ_RESOURCE', { slug: String(slug || ''), uri: String(uri || '') }, callbackName);
+      }
+    };
+  })();
 `,
 
     handleMessage: async (type: string, data: any, ctx: HandlerContext): Promise<Partial<HandlerResult> | null> => {
         if (!type.startsWith('MCP_')) return null;
 
         const { useBridgeUIStore } = require('../bridgeUIStore');
-        const manager = require('../mcp/manager');
+        const manager = require('../mcp/manager') as typeof import('../mcp/manager');
 
         const askConsent = async (slug: string, name?: string): Promise<boolean> => {
             return useBridgeUIStore.getState().requestMcpConnect(slug, name || slug);
@@ -125,6 +169,29 @@ window.onBalance = function(success, result) {
             return { ok: true };
         };
 
+        const isAuthError = (err: unknown): boolean =>
+            err instanceof Error && err.name === 'McpAuthRequiredError';
+
+        // Runs an authenticated operation; when the server rejects the token
+        // (expired/revoked — the manager already cleared it and marked the
+        // connection `needs_auth`), re-runs the consent + login flow ONCE and
+        // retries. Login cancellation/failure surfaces as a plain Error.
+        const withAuthRetry = async <T,>(slug: string, op: () => Promise<T>): Promise<T> => {
+            try {
+                return await op();
+            } catch (err) {
+                if (!isAuthError(err)) throw err;
+                const gate = await ensureConnected(slug);
+                if (!gate.ok) throw new Error(gate.error);
+                return op();
+            }
+        };
+
+        const errorMessage = (err: unknown, fallbackKey: string): string => {
+            if (isAuthError(err)) return t('mcpErrorAuthRequired');
+            return err instanceof Error && err.message ? err.message : t(fallbackKey);
+        };
+
         switch (type) {
             case 'MCP_IS_CONNECTED': {
                 const slug = String(data?.slug || '');
@@ -149,11 +216,11 @@ window.onBalance = function(success, result) {
                 const gate = await ensureConnected(slug);
                 if (!gate.ok) return { success: false, result: gate.error };
                 try {
-                    const tools = await manager.listProviderTools(slug, { forceRefresh: true });
+                    const tools = await withAuthRetry(slug, () => manager.listProviderTools(slug, { forceRefresh: true }));
                     return { success: true, result: tools };
                 } catch (err) {
                     console.warn(`[MCP] ${slug} listTools failed:`, err);
-                    return { success: false, result: err instanceof Error ? err.message : t('mcpErrorListTools') };
+                    return { success: false, result: errorMessage(err, 'mcpErrorListTools') };
                 }
             }
 
@@ -164,7 +231,7 @@ window.onBalance = function(success, result) {
                 const gate = await ensureConnected(slug);
                 if (!gate.ok) return { success: false, result: gate.error };
                 try {
-                    const result = await manager.callProviderTool(slug, tool, data?.args || {});
+                    const result = await withAuthRetry(slug, () => manager.callProviderTool(slug, tool, data?.args || {}));
                     if (result.isError) {
                         // Tool-level error: surface the server's human-readable
                         // message so spells can display it directly.
@@ -173,7 +240,22 @@ window.onBalance = function(success, result) {
                     return { success: true, result };
                 } catch (err) {
                     console.warn(`[MCP] ${slug}.${tool} failed:`, err);
-                    return { success: false, result: err instanceof Error ? err.message : t('mcpErrorCallTool') };
+                    return { success: false, result: errorMessage(err, 'mcpErrorCallTool') };
+                }
+            }
+
+            case 'MCP_READ_RESOURCE': {
+                const slug = String(data?.slug || '');
+                const uri = String(data?.uri || '');
+                if (!slug || !uri) return { success: false, result: t('mcpErrorSlugRequired') };
+                const gate = await ensureConnected(slug);
+                if (!gate.ok) return { success: false, result: gate.error };
+                try {
+                    const result = await withAuthRetry(slug, () => manager.readProviderResource(slug, uri));
+                    return { success: true, result };
+                } catch (err) {
+                    console.warn(`[MCP] ${slug} readResource(${uri}) failed:`, err);
+                    return { success: false, result: errorMessage(err, 'mcpErrorReadResource') };
                 }
             }
 

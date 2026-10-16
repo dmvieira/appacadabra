@@ -608,7 +608,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                     const snapshot: backup.BackupApp = {
                         ...appToDelete,
+                        iconPath: appToDelete.iconPath ?? undefined,
                         iconBase64,
+                        storeSpellId: appToDelete.storeSpellId ?? undefined,
+                        storeSpellSlug: appToDelete.storeSpellSlug ?? undefined,
+                        storeAuthorUid: appToDelete.storeAuthorUid ?? undefined,
+                        storeVisibility: appToDelete.storeVisibility ?? undefined,
+                        forkOfStoreSpellId: appToDelete.forkOfStoreSpellId ?? undefined,
                         versions: versions.map(v => ({
                             version: v.version,
                             code: v.code,
@@ -1218,7 +1224,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({
             generationError: {
                 jobId: e.jobId,
-                type: job.type,
+                type: job.type === 'edit' ? 'edit' : 'create',
                 code,
                 message: e.message,
                 promptText: job.promptText,

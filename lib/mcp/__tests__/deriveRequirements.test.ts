@@ -38,4 +38,8 @@ AppacadabraMCP.connect("picpay", "cb");
     it('parses garbage safely', () => {
         expect(parseRequirements('not json', undefined)).toEqual({ capabilities: [], mcps: [] });
     });
+
+    it('captures slugs from readResource calls', () => {
+        expect(deriveRequirements('AppacadabraMCP.readResource("notion", "notion://page/1", "cb");').mcps).toEqual(['notion']);
+    });
 });

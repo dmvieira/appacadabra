@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { colors, spacing, borderRadius } from '../lib/theme';
 import { t } from '../lib/i18n';
 import { getCuratedProvider } from '../lib/mcp/curatedCatalog';
@@ -56,12 +57,25 @@ export function SpellRequirements({ capabilities = [], mcps = [] }: Props) {
     }, [reload]);
 
     const handleConnect = async (slug: string) => {
+        // Prefer the persisted row: re-materializing the catalog descriptor
+        // would reset a strategy the user changed (e.g. oauth → bearer).
+        // URL-added servers only exist as rows.
         const curated = getCuratedProvider(slug);
-        if (!curated) return;
+        const conn = connections[slug];
+        const target = conn ?? curated;
+        if (!target) return;
         setBusy(slug);
         try {
-            await connectProvider(curated);
+            const res = await connectProvider(target);
             await reload();
+            if (!res.success) {
+                // Token-based servers (or failed OAuth) are fixed from the
+                // Connections screen, which has the access-token field.
+                Alert.alert(t('mcpConnectFailed'), res.error || '', [
+                    { text: t('cancel'), style: 'cancel' },
+                    { text: t('mcpSettingsTitle'), onPress: () => router.push('/settings/mcp') },
+                ]);
+            }
         } finally {
             setBusy(null);
         }
@@ -81,17 +95,19 @@ export function SpellRequirements({ capabilities = [], mcps = [] }: Props) {
                 ))}
                 {mcps.map(slug => {
                     const curated = getCuratedProvider(slug);
-                    const connected = connections[slug]?.status === 'connected';
+                    const conn = connections[slug];
+                    const connected = conn?.status === 'connected';
                     const isBusy = busy === slug;
+                    const connectable = !!curated || !!conn;
                     return (
                         <TouchableOpacity
                             key={`mcp-${slug}`}
                             style={[styles.badge, connected && styles.badgeConnected]}
-                            disabled={connected || isBusy || !curated}
+                            disabled={connected || isBusy || !connectable}
                             onPress={() => handleConnect(slug)}
                         >
                             <Text style={styles.badgeEmoji}>🔌</Text>
-                            <Text style={styles.badgeText}>{curated?.name ?? slug}</Text>
+                            <Text style={styles.badgeText}>{curated?.name ?? conn?.name ?? slug}</Text>
                             {isBusy ? (
                                 <ActivityIndicator size="small" color={colors.primary} />
                             ) : connected ? (

@@ -124,6 +124,15 @@ export async function setConnectionAuthMeta(
     await db.runAsync('UPDATE mcp_connections SET auth_meta = ? WHERE slug = ?', [authMeta, slug]);
 }
 
+/** Changes how a connection authenticates (e.g. oauth → bearer for API-key servers). */
+export async function setConnectionAuthStrategy(
+    slug: string,
+    authStrategy: McpAuthStrategy,
+): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('UPDATE mcp_connections SET auth_strategy = ? WHERE slug = ?', [authStrategy, slug]);
+}
+
 export async function touchConnection(slug: string): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('UPDATE mcp_connections SET last_used_at = ? WHERE slug = ?', [Date.now(), slug]);

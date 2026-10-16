@@ -1,4 +1,4 @@
-import { buildMcpFixInstruction, isMcpFixInstruction, computeMcpPendingFix, backfillPendingFixFlags, extractCallToolPairs } from '../pendingFix';
+import { buildMcpFixInstruction, isMcpFixInstruction, computeMcpPendingFix, backfillPendingFixFlags, extractCallToolPairs, extractCodeMcpSlugs, clearOrphanMcpFixFlags, mergeEditPendingFix } from '../pendingFix';
 
 jest.mock('../store', () => ({
     getAllConnections: jest.fn(),
@@ -19,12 +19,13 @@ jest.mock('../curatedCatalog', () => ({
 
 jest.mock('../../database/db', () => ({
     getAppsWithoutMcpFixEvaluation: jest.fn(),
+    getAppsWithMcpFixFlagged: jest.fn(),
     setMcpPendingFix: jest.fn(),
 }));
 
 import { getCachedTools, getShapesForSlug, getEarliestShapeObservedAt, getToolShapeObservedAt } from '../store';
 import { isConnected } from '../manager';
-import { getAppsWithoutMcpFixEvaluation, setMcpPendingFix } from '../../database/db';
+import { getAppsWithoutMcpFixEvaluation, getAppsWithMcpFixFlagged, setMcpPendingFix } from '../../database/db';
 
 const mockedGetCachedTools = getCachedTools as jest.Mock;
 const mockedGetShapesForSlug = getShapesForSlug as jest.Mock;
@@ -32,6 +33,7 @@ const mockedGetEarliestShapeObservedAt = getEarliestShapeObservedAt as jest.Mock
 const mockedGetToolShapeObservedAt = getToolShapeObservedAt as jest.Mock;
 const mockedIsConnected = isConnected as jest.Mock;
 const mockedGetWithoutEval = getAppsWithoutMcpFixEvaluation as jest.Mock;
+const mockedGetFlagged = getAppsWithMcpFixFlagged as jest.Mock;
 const mockedSetMcpPendingFix = setMcpPendingFix as jest.Mock;
 
 function reset(connected: string[], shapes: Record<string, string> = {}, tools: unknown[] = [{ name: 'list_x' }]) {
@@ -42,6 +44,7 @@ function reset(connected: string[], shapes: Record<string, string> = {}, tools: 
     mockedGetEarliestShapeObservedAt.mockResolvedValue(null);
     mockedGetToolShapeObservedAt.mockResolvedValue(null);
     mockedGetWithoutEval.mockResolvedValue([]);
+    mockedGetFlagged.mockResolvedValue([]);
     mockedSetMcpPendingFix.mockResolvedValue(undefined);
 }
 
@@ -63,16 +66,23 @@ describe('buildMcpFixInstruction', () => {
 });
 
 describe('computeMcpPendingFix', () => {
-    it('flags a catalog slug named in the prompt when not connected', async () => {
+    it('does not flag a catalog slug merely named in the prompt (strict heuristic)', async () => {
         reset([]);
         const pending = await computeMcpPendingFix({ prompt: 'app de transações do picpay' });
-        expect(pending).toEqual(['picpay']);
+        expect(pending).toEqual([]);
     });
 
     it('does not flag unrelated slugs', async () => {
         reset([]);
         const pending = await computeMcpPendingFix({ prompt: 'lista de tarefas simples' });
         expect(pending).toEqual([]);
+    });
+
+    it('flags a plan-declared slug when not connected', async () => {
+        reset([]);
+        const plan = { technicalRequirements: { mcpTools: [{ server: 'picpay', tools: ['statements_list'] }] } };
+        const pending = await computeMcpPendingFix({ prompt: 'app de transações do picpay', plan });
+        expect(pending).toEqual(['picpay']);
     });
 
     it('flags connected slug with declared tools but zero shapes', async () => {
@@ -89,15 +99,21 @@ describe('computeMcpPendingFix', () => {
         expect(pending).toEqual([]);
     });
 
-    it('flags connected undeclared slug with tools but zero shapes', async () => {
+    it('flags code-referenced undeclared slug with tools but zero shapes', async () => {
         reset(['picpay'], {});
-        const pending = await computeMcpPendingFix({ prompt: 'transações do picpay' });
+        const pending = await computeMcpPendingFix({
+            prompt: 'transações do picpay',
+            code: 'AppacadabraMCP.callTool("picpay", "statements_list", {}, "cb");',
+        });
         expect(pending).toEqual(['picpay']);
     });
 
-    it('does not flag connected slug that already has shapes', async () => {
+    it('does not flag code-referenced slug that already has shapes', async () => {
         reset(['picpay'], { statements_list: '{dias:[]}' });
-        const pending = await computeMcpPendingFix({ prompt: 'transações do picpay' });
+        const pending = await computeMcpPendingFix({
+            prompt: 'transações do picpay',
+            code: 'AppacadabraMCP.callTool("picpay", "statements_list", {}, "cb");',
+        });
         expect(pending).toEqual([]);
     });
 
@@ -110,10 +126,73 @@ describe('computeMcpPendingFix', () => {
         expect(pending).toContain('notion');
     });
 
+    it('ignores CSS that merely contains a slug-like substring (linear-gradient)', async () => {
+        reset([]);
+        const pending = await computeMcpPendingFix({
+            prompt: 'tela bonita',
+            code: 'background: linear-gradient(to right, #fff, #000);',
+        });
+        expect(pending).toEqual([]);
+    });
+
     it('fails safe: connection errors mark the pendência instead of throwing', async () => {
         jest.clearAllMocks();
         mockedIsConnected.mockRejectedValue(new Error('no db'));
-        await expect(computeMcpPendingFix({ prompt: 'picpay' })).resolves.toEqual(['picpay']);
+        await expect(computeMcpPendingFix({
+            prompt: 'picpay',
+            code: 'AppacadabraMCP.callTool("picpay", "statements_list", {}, "cb");',
+        })).resolves.toEqual(['picpay']);
+    });
+});
+
+describe('extractCodeMcpSlugs', () => {
+    it('extracts slugs from any AppacadabraMCP call, deduplicated', () => {
+        const code = `AppacadabraMCP.callTool("picpay", "t", {}, "cb");
+            AppacadabraMCP.isConnected('picpay', "cb");
+            AppacadabraMCP.listTools("notion", "cb");`;
+        expect(extractCodeMcpSlugs(code)).toEqual(['picpay', 'notion']);
+    });
+
+    it('ignores non-call mentions like CSS', () => {
+        expect(extractCodeMcpSlugs('background: linear-gradient(to right, #fff, #000);')).toEqual([]);
+    });
+});
+
+describe('clearOrphanMcpFixFlags', () => {
+    it('clears flags whose slugs the code never references', async () => {
+        reset(['picpay'], {});
+        mockedGetFlagged.mockResolvedValue([
+            { id: 1, code: 'no mcp here', flagged: ['picpay', 'notion'] },
+        ]);
+        const cleared = await clearOrphanMcpFixFlags();
+        expect(cleared).toBe(1);
+        expect(mockedSetMcpPendingFix).toHaveBeenCalledWith(1, []);
+    });
+
+    it('leaves flags whose slugs are all still referenced (no rewrite)', async () => {
+        reset(['picpay'], {});
+        mockedGetFlagged.mockResolvedValue([
+            { id: 2, code: 'AppacadabraMCP.callTool("picpay", "t", {}, "cb");', flagged: ['picpay'] },
+        ]);
+        const cleared = await clearOrphanMcpFixFlags();
+        expect(cleared).toBe(0);
+        expect(mockedSetMcpPendingFix).not.toHaveBeenCalled();
+    });
+
+    it('partial keeps: removes only orphan slugs', async () => {
+        reset(['picpay'], {});
+        mockedGetFlagged.mockResolvedValue([
+            { id: 3, code: 'AppacadabraMCP.callTool("picpay", "t", {}, "cb");', flagged: ['picpay', 'notion'] },
+        ]);
+        const cleared = await clearOrphanMcpFixFlags();
+        expect(cleared).toBe(1);
+        expect(mockedSetMcpPendingFix).toHaveBeenCalledWith(3, ['picpay']);
+    });
+
+    it('tolerates db failures', async () => {
+        reset([], {});
+        mockedGetFlagged.mockRejectedValue(new Error('no db'));
+        await expect(clearOrphanMcpFixFlags()).resolves.toBe(0);
     });
 });
 
@@ -181,5 +260,35 @@ describe('backfillPendingFixFlags', () => {
         mockedGetWithoutEval.mockRejectedValue(new Error('no db'));
         await expect(backfillPendingFixFlags()).resolves.toBe(0);
         expect(mockedSetMcpPendingFix).not.toHaveBeenCalled();
+    });
+});
+
+describe('mergeEditPendingFix', () => {
+    const CODE = 'AppacadabraMCP.callTool("picpay", "statements_list", {}, "cb");';
+
+    it('the targeted fix edit clears everything', () => {
+        expect(mergeEditPendingFix({
+            instruction: buildMcpFixInstruction(['picpay']),
+            previous: ['picpay'],
+            recomputed: ['picpay'],
+            code: CODE,
+        })).toEqual([]);
+    });
+
+    it('a cosmetic edit keeps a still-called flagged slug even if recomputation is clean', () => {
+        expect(mergeEditPendingFix({ instruction: 'make the header blue', previous: ['picpay'], recomputed: [], code: CODE })).toEqual(['picpay']);
+    });
+
+    it('drops flagged slugs the new code no longer calls', () => {
+        expect(mergeEditPendingFix({ instruction: 'remove the picpay section', previous: ['picpay'], recomputed: [], code: '<p>hi</p>' })).toEqual([]);
+    });
+
+    it('adds newly blind slugs without duplicates', () => {
+        const code = CODE + 'AppacadabraMCP.listTools("notion", "cb");';
+        expect(mergeEditPendingFix({ instruction: 'add notion', previous: ['picpay'], recomputed: ['notion', 'picpay'], code }).sort()).toEqual(['notion', 'picpay']);
+    });
+
+    it('handles a spell with no previous flag', () => {
+        expect(mergeEditPendingFix({ instruction: 'x', previous: undefined, recomputed: [], code: CODE })).toEqual([]);
     });
 });

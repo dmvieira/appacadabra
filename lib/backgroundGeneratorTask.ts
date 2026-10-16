@@ -38,7 +38,7 @@ import type { PendingJob, NewGeneratedApp } from './database/types';
 import { extractUnavailableModelId } from './api/modelUnavailableSignal';
 import SharingShortcuts from './bridges/SharingShortcuts';
 import { t } from './i18n';
-import { isMcpFixInstruction } from './mcp/pendingFix';
+import { mergeEditPendingFix } from './mcp/pendingFix';
 
 interface TaskData {
     taskKey: string;
@@ -599,8 +599,11 @@ async function finalizeEditInline(
         jobId,
     });
     // A targeted "update integration" edit clears the pendência; any other
-    // edit refreshes it with the recomputed value (usually unchanged).
-    await db.setMcpPendingFix(appId, isMcpFixInstruction(instruction) ? [] : mcpPendingFix).catch(() => {});
+    // edit keeps still-called flagged slugs and adds newly blind ones.
+    await db.setMcpPendingFix(
+        appId,
+        mergeEditPendingFix({ instruction, previous: app.mcpPendingFix, recomputed: mcpPendingFix, code: html }),
+    ).catch(() => {});
     await postEditSuccessNotification(appId, app.name, jobId);
     await db.deletePendingJob(jobId).catch(() => {});
 }

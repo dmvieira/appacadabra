@@ -255,6 +255,24 @@ export async function callTool(
     };
 }
 
+/** Result of a `resources/read` call: the requested URI + content blocks. */
+export interface McpResourceResult {
+    uri: string;
+    contents: unknown[];
+}
+
+/** Reads a resource exposed by the server (JSON-RPC `resources/read`). */
+export async function readResource(
+    url: string,
+    uri: string,
+    opts: McpRequestOptions,
+): Promise<McpResourceResult> {
+    const session = await ensureSession(url, opts);
+    const res = await rpc(url, rpcId++, 'resources/read', { uri }, opts, session || undefined);
+    const contents = res.result?.contents;
+    return { uri, contents: Array.isArray(contents) ? contents : [] };
+}
+
 /** Clears the cached session for a URL (e.g. after logout or re-auth). */
 export function resetSession(url: string): void {
     invalidateSession(url);

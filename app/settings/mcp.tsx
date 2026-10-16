@@ -38,6 +38,9 @@ export default function McpSettings() {
     const [urlInput, setUrlInput] = useState('');
     const [tokenInput, setTokenInput] = useState('');
     const [showAdd, setShowAdd] = useState(false);
+    // Per-card access token (bearer/API-key servers, or OAuth fallback).
+    const [cardTokens, setCardTokens] = useState<Record<string, string>>({});
+    const [tokenFieldOpen, setTokenFieldOpen] = useState<Record<string, boolean>>({});
 
     const reloadConnections = useCallback(async () => {
         const rows = await getAllConnections();
@@ -74,16 +77,37 @@ export default function McpSettings() {
 
     const handleSearch = () => { void runSearch(query); };
 
-    const handleConnect = async (provider: McpProvider) => {
+    const handleConnect = async (provider: McpProvider, bearerToken?: string): Promise<boolean> => {
         setBusySlug(provider.slug);
         try {
-            const res = await connectProvider(provider, {
-                bearerToken: provider.authStrategy === 'bearer' ? tokenInput || undefined : undefined,
-            });
+            const res = await connectProvider(provider, { bearerToken: bearerToken || undefined });
             await reloadConnections();
             if (!res.success) {
                 Alert.alert(t('mcpConnectFailed'), res.error || '');
             }
+            return res.success;
+        } finally {
+            setBusySlug(null);
+        }
+    };
+
+    const handleConnectConnection = async (conn: McpConnection): Promise<boolean> => {
+        const token = (cardTokens[conn.slug] ?? '').trim();
+        setBusySlug(conn.slug);
+        try {
+            // A typed token always wins: the manager switches an OAuth
+            // connection to bearer (API-key servers without OAuth metadata).
+            const res = await connectProvider(conn, { bearerToken: token || undefined });
+            await reloadConnections();
+            if (res.success) {
+                setCardTokens(prev => ({ ...prev, [conn.slug]: '' }));
+                setTokenFieldOpen(prev => ({ ...prev, [conn.slug]: false }));
+            } else {
+                // OAuth unavailable/failed — offer the access-token path.
+                setTokenFieldOpen(prev => ({ ...prev, [conn.slug]: true }));
+                Alert.alert(t('mcpConnectFailed'), res.error || '');
+            }
+            return res.success;
         } finally {
             setBusySlug(null);
         }
@@ -111,13 +135,19 @@ export default function McpSettings() {
 
     const handleAddByUrl = async () => {
         const url = urlInput.trim();
-        if (!url) return;
+        if (!/^https?:\/\/.+/i.test(url)) {
+            Alert.alert(t('mcpInvalidUrl'));
+            return;
+        }
         const provider = providerFromUrl(url);
-        if (tokenInput.trim()) provider.authStrategy = 'bearer';
-        setShowAdd(false);
-        setUrlInput('');
-        await handleConnect(provider);
-        setTokenInput('');
+        const token = tokenInput.trim();
+        if (token) provider.authStrategy = 'bearer';
+        const ok = await handleConnect(provider, token || undefined);
+        if (ok) {
+            setShowAdd(false);
+            setUrlInput('');
+            setTokenInput('');
+        }
     };
 
     const renderProvider = (p: McpProvider) => {
@@ -172,6 +202,97 @@ export default function McpSettings() {
         );
     };
 
+    const renderConnection = (conn: McpConnection) => {
+        const connected = conn.status === 'connected';
+        const busy = busySlug === conn.slug;
+        const isCurated = conn.source === 'curated';
+        const isBearer = conn.authStrategy === 'bearer';
+        // Bearer servers always need the field to (re)connect; OAuth servers
+        // reveal it on demand or after a failed login.
+        const showTokenField = !connected && (isBearer || !!tokenFieldOpen[conn.slug]);
+        const statusPill = connected ? (
+            <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>● {t('mcpConnected')}</Text>
+            </View>
+        ) : conn.status === 'error' ? (
+            <View style={styles.statusPillError}>
+                <Text style={styles.statusPillErrorText}>● {t('mcpStatusError')}</Text>
+            </View>
+        ) : (
+            <View style={styles.statusPillWarn}>
+                <Text style={styles.statusPillWarnText}>● {t('mcpStatusNeedsAuth')}</Text>
+            </View>
+        );
+        return (
+            <View key={conn.slug} style={styles.card}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.cardIcon}>
+                        <Text style={styles.cardIconText}>{isCurated ? '🔌' : '🌐'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.cardTitle}>{conn.name}</Text>
+                        {!isCurated && !!conn.mcpUrl && (
+                            <Text style={styles.cardUrl} numberOfLines={1}>{conn.mcpUrl}</Text>
+                        )}
+                        {connected && (toolCounts[conn.slug] > 0) && (
+                            <Text style={styles.cardMeta}>{t('mcpToolsCount', { count: toolCounts[conn.slug] })}</Text>
+                        )}
+                    </View>
+                </View>
+                {showTokenField && (
+                    <TextInput
+                        style={[styles.input, styles.cardTokenInput]}
+                        placeholder={t('mcpAccessTokenPlaceholder')}
+                        placeholderTextColor="#8b8aad"
+                        value={cardTokens[conn.slug] ?? ''}
+                        onChangeText={v => setCardTokens(prev => ({ ...prev, [conn.slug]: v }))}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        secureTextEntry
+                        editable={!busy}
+                        accessibilityLabel={t('mcpAccessTokenPlaceholder')}
+                    />
+                )}
+                <View style={styles.cardActions}>
+                    {statusPill}
+                    {connected ? (
+                        <TouchableOpacity
+                            style={styles.secondaryBtn}
+                            disabled={busy}
+                            onPress={() => handleDisconnect(conn.slug)}
+                        >
+                            <Text style={styles.secondaryBtnText}>{t('mcpDisconnect')}</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.primaryBtn}
+                            disabled={busy}
+                            onPress={() => handleConnectConnection(conn)}
+                        >
+                            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>{t('mcpConnect')}</Text>}
+                        </TouchableOpacity>
+                    )}
+                    {!connected && !isBearer && !showTokenField && (
+                        <TouchableOpacity
+                            style={styles.linkBtn}
+                            disabled={busy}
+                            onPress={() => setTokenFieldOpen(prev => ({ ...prev, [conn.slug]: true }))}
+                        >
+                            <Text style={styles.linkBtnText}>{t('mcpUseAccessToken')}</Text>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={styles.linkBtn} disabled={busy} onPress={() => handleRemove(conn.slug)}>
+                        <Text style={styles.linkBtnText}>{t('mcpRemove')}</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    };
+
+    const connectionsList = Object.values(connections).sort(
+        (a, b) => (a.status === 'connected' ? 0 : 1) - (b.status === 'connected' ? 0 : 1),
+    );
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <Stack.Screen options={{ title: t('mcpSettingsTitle') }} />
@@ -215,7 +336,8 @@ export default function McpSettings() {
                             value={tokenInput}
                             onChangeText={setTokenInput}
                             autoCapitalize="none"
-                            secureTextEntry={false}
+                            autoCorrect={false}
+                            secureTextEntry
                         />
                         <TouchableOpacity style={styles.primaryBtn} onPress={handleAddByUrl}>
                             <Text style={styles.primaryBtnText}>{t('mcpAdd')}</Text>
@@ -223,12 +345,17 @@ export default function McpSettings() {
                     </View>
                 )}
 
+                {!loading && connectionsList.length > 0 && (
+                    <Text style={styles.sectionTitle}>{t('mcpYourConnections')}</Text>
+                )}
+                {!loading && connectionsList.map(renderConnection)}
+
                 {loading ? (
                     <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
                 ) : providers.length === 0 ? (
                     <Text style={styles.empty}>{t('mcpNoProviders')}</Text>
                 ) : (
-                    providers.map(renderProvider)
+                    providers.filter(p => !connections[p.slug]).map(renderProvider)
                 )}
             </ScrollView>
         </SafeAreaView>
@@ -266,6 +393,31 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
     },
     empty: { color: colors.onSurfaceVariant, textAlign: 'center', marginTop: spacing.xl },
+    sectionTitle: {
+        color: colors.onSurfaceVariant,
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        marginTop: spacing.lg,
+        marginBottom: spacing.xs,
+    },
+    cardUrl: { color: colors.onSurfaceVariant, fontSize: 12, marginTop: 2 },
+    cardTokenInput: { flex: 0, marginTop: spacing.sm, backgroundColor: colors.background },
+    statusPillWarn: {
+        backgroundColor: 'rgba(245,158,11,0.12)',
+        borderRadius: borderRadius.sm,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+    },
+    statusPillWarnText: { color: '#f59e0b', fontSize: 12, fontWeight: '600' },
+    statusPillError: {
+        backgroundColor: 'rgba(239,68,68,0.12)',
+        borderRadius: borderRadius.sm,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+    },
+    statusPillErrorText: { color: '#ef4444', fontSize: 12, fontWeight: '600' },
     card: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.lg,

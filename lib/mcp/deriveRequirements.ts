@@ -8,7 +8,7 @@
  */
 
 const CAP_RE = /\bAppacadabra([A-Z][A-Za-z0-9_]*)\b/g;
-const MCP_CALL_RE = /\bAppacadabraMCP\s*\.\s*(?:callTool|connect|listTools|isConnected)\s*\(\s*['"]([a-z0-9][a-z0-9\-]*)['"]/g;
+const MCP_CALL_RE = /\bAppacadabraMCP\s*\.\s*(?:callTool|connect|listTools|isConnected|readResource)\s*\(\s*['"]([a-z0-9][a-z0-9\-]*)['"]/g;
 
 export interface SpellRequirements {
     /** Capability display names referenced by the code, e.g. ["Camera","Contacts"]. */

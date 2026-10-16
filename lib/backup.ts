@@ -28,7 +28,7 @@ export interface BackupApp {
     name: string;
     code: string;
     currentVersion: number;
-    iconPath?: string;
+    iconPath?: string | null;
     iconBase64?: string; // Base64 encoded icon for backup portability
     lastUpdated: number;
     createdAt?: number;
@@ -61,6 +61,11 @@ export interface BackupApp {
     storeVisibility?: 'public' | 'unlisted';
     source?: 'local' | 'store';
     forkOfStoreSpellId?: string;
+    // Derived from the generated code (see lib/mcp/deriveRequirements.ts).
+    requiredCapabilities?: string[];
+    requiredMcps?: string[];
+    // MCP slugs whose integration was coded blind. See lib/mcp/pendingFix.ts.
+    mcpPendingFix?: string[];
 }
 
 export async function createBackup(includeStorage: boolean = true, targetAppId?: number): Promise<BackupData> {
@@ -220,6 +225,9 @@ export async function createBackup(includeStorage: boolean = true, targetAppId?:
             storeVisibility: includeStorage ? (app.storeVisibility ?? undefined) : undefined,
             source: includeStorage ? (app.source ?? undefined) : undefined,
             forkOfStoreSpellId: includeStorage ? (app.forkOfStoreSpellId ?? undefined) : undefined,
+            // Provenance of the spell's MCP integration (coded blind or not).
+            // Not recomputable from code — must travel with the backup.
+            mcpPendingFix: app.mcpPendingFix,
         });
     }
 
@@ -487,6 +495,8 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                         shortDescription: app.shortDescription ?? existing.shortDescription,
                         sortOrder: app.sortOrder ?? existing.sortOrder,
                         requiresBiometric: app.requiresBiometric ?? existing.requiresBiometric,
+                        // Backup is strictly newer here — its flag describes this code.
+                        mcpPendingFix: app.mcpPendingFix ?? existing.mcpPendingFix,
                     });
                     // Restore store link if backup has it but the local row was cleared (e.g. after a previous restore)
                     if (app.storeSpellId && !existing.storeSpellId) {
@@ -626,6 +636,7 @@ export async function processBackupData(backup: BackupData, options?: { ignoreLo
                 storeVisibility: app.storeVisibility ?? undefined,
                 source: app.source ?? 'local',
                 forkOfStoreSpellId: app.forkOfStoreSpellId ?? undefined,
+                mcpPendingFix: app.mcpPendingFix,
             };
 
             const newId = await db.insertApp(newApp);

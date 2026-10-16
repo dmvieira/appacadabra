@@ -6,7 +6,14 @@
  * registration, the authorize URL, and the token exchange.
  */
 
-import { registerClient, runOAuthFlow } from '../auth';
+import {
+    registerClient,
+    runOAuthFlow,
+    resolveAuthorizationServer,
+    discoverProtectedResource,
+    fetchAuthorizationServerMetadata,
+    resolveAuthServerMeta,
+} from '../auth';
 
 jest.mock('expo-crypto', () => ({
     getRandomBytesAsync: jest.fn(async () => new Uint8Array(16).fill(1)),
@@ -246,5 +253,102 @@ describe('runOAuthFlow loopback redirect (PicPay-style servers)', () => {
             .rejects
             .toThrow('Authorization cancelled');
         expect(LoopbackServer.stop).toHaveBeenCalled();
+    });
+});
+
+describe('authorization-server discovery fallbacks', () => {
+    /** Fetch mock routed by exact URL; the MCP POST probe answers `probe`. */
+    function installRoutes(routes: Record<string, unknown>, probe: { status: number; wwwAuthenticate?: string } = { status: 401 }) {
+        const urls: string[] = [];
+        (global as any).fetch = jest.fn(async (url: string, init?: RequestInit) => {
+            urls.push(url);
+            if (init?.method === 'POST' && url === 'https://mcp.example/v2/mcp') {
+                return {
+                    ok: probe.status < 400,
+                    status: probe.status,
+                    headers: { get: (h: string) => (h.toLowerCase() === 'www-authenticate' ? probe.wwwAuthenticate ?? null : null) },
+                    json: () => Promise.resolve({}),
+                    text: () => Promise.resolve(''),
+                };
+            }
+            if (url in routes) return jsonResponse(routes[url]);
+            return jsonResponse({}, 404);
+        });
+        return urls;
+    }
+
+    it('falls back to the origin-root protected-resource well-known', async () => {
+        installRoutes({
+            'https://mcp.example/.well-known/oauth-protected-resource': PROTECTED_RESOURCE,
+            'https://as.example/.well-known/oauth-authorization-server': AS_METADATA,
+        });
+        const resolved = await resolveAuthorizationServer('https://mcp.example/v2/mcp');
+        expect(resolved).toMatchObject({ authorizationServer: 'https://as.example', legacy: false });
+        expect(resolved!.resourceScopes).toEqual(PROTECTED_RESOURCE.scopes_supported);
+    });
+
+    it('prefers the resource_metadata URL advertised on the 401', async () => {
+        const urls = installRoutes(
+            {
+                'https://meta.example/prm': PROTECTED_RESOURCE,
+                'https://as.example/.well-known/oauth-authorization-server': AS_METADATA,
+            },
+            { status: 401, wwwAuthenticate: 'Bearer resource_metadata="https://meta.example/prm"' },
+        );
+        const resource = await discoverProtectedResource('https://mcp.example/v2/mcp');
+        expect(resource?.authorization_servers).toEqual(['https://as.example']);
+        expect(urls).not.toContain('https://mcp.example/.well-known/oauth-protected-resource/v2/mcp');
+    });
+
+    it('skips metadata that names no authorization server', async () => {
+        installRoutes({
+            'https://mcp.example/.well-known/oauth-protected-resource/v2/mcp': { resource: 'x', authorization_servers: [] },
+            'https://mcp.example/.well-known/oauth-protected-resource': PROTECTED_RESOURCE,
+        });
+        const resource = await discoverProtectedResource('https://mcp.example/v2/mcp');
+        expect(resource?.authorization_servers).toEqual(['https://as.example']);
+    });
+
+    it('falls back to OIDC discovery appended to the issuer path', async () => {
+        installRoutes({
+            'https://as.example/tenant/.well-known/openid-configuration': AS_METADATA,
+        });
+        const meta = await fetchAuthorizationServerMetadata('https://as.example/tenant');
+        expect(meta?.token_endpoint).toBe('https://as.example/token');
+    });
+
+    it('legacy servers: uses the MCP origin as authorization server when the endpoint answers 401', async () => {
+        installRoutes({
+            'https://mcp.example/.well-known/oauth-authorization-server': AS_METADATA,
+        });
+        const resolved = await resolveAuthorizationServer('https://mcp.example/v2/mcp');
+        expect(resolved).toMatchObject({ authorizationServer: 'https://mcp.example', legacy: true, resourceScopes: null });
+    });
+
+    it('legacy fallback is NOT used for public endpoints (no 401)', async () => {
+        installRoutes(
+            { 'https://mcp.example/.well-known/oauth-authorization-server': AS_METADATA },
+            { status: 200 },
+        );
+        expect(await resolveAuthorizationServer('https://mcp.example/v2/mcp')).toBeNull();
+    });
+
+    it('runOAuthFlow completes against a legacy server', async () => {
+        installRoutes({
+            'https://mcp.example/.well-known/oauth-authorization-server': {
+                ...AS_METADATA,
+                registration_endpoint: 'https://mcp.example/register',
+                token_endpoint: 'https://mcp.example/token',
+            },
+            'https://mcp.example/register': { client_id: 'legacy-client' },
+            'https://mcp.example/token': { access_token: 'at-legacy' },
+        });
+        const bundle = await runOAuthFlow(CONNECTION);
+        expect(bundle).toMatchObject({ accessToken: 'at-legacy', clientId: 'legacy-client' });
+    });
+
+    it('resolveAuthServerMeta returns null when nothing is discoverable', async () => {
+        installRoutes({}, { status: 401 });
+        expect(await resolveAuthServerMeta(CONNECTION)).toBeNull();
     });
 });

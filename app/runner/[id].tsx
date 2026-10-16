@@ -220,18 +220,6 @@ export default function RunnerScreen() {
         useBridgeUIStore.getState().setWebViewRef(webViewRef as any);
     }, []); // Run once, the ref object is stable
 
-    // Track elapsed seconds during AI loading
-    useEffect(() => {
-        if (!isAiLoading) {
-            setAiElapsedSeconds(0);
-            setAiIsLargePayload(false);
-            return;
-        }
-        setAiElapsedSeconds(0);
-        const interval = setInterval(() => setAiElapsedSeconds(s => s + 1), 1000);
-        return () => clearInterval(interval);
-    }, [isAiLoading]);
-
     // Cleanup all media when leaving screen or app goes to background
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextState) => {
@@ -264,23 +252,6 @@ export default function RunnerScreen() {
         };
     }, []);
 
-    // Clean up watchers when WebView is recreated (pull-to-refresh or error reload)
-    const isFirstWebViewKeyRenderRunner = useRef(true);
-    useEffect(() => {
-        if (isFirstWebViewKeyRenderRunner.current) { isFirstWebViewKeyRenderRunner.current = false; return; }
-        if (isEditMode) {
-            // Edit mode: only clear edit-mode state, don't kill the runner's active watchers
-            cleanupSheetsEditMode(Number(id));
-            cleanupDocsEditMode(Number(id));
-            cleanupFormsEditMode(Number(id));
-        } else {
-            // Run mode: full cleanup of both watchers and edit-mode state
-            cleanupSheetsWatchers(Number(id)); cleanupSheetsEditMode(Number(id));
-            cleanupDocsWatchers(Number(id)); cleanupDocsEditMode(Number(id));
-            cleanupFormsWatchers(Number(id)); cleanupFormsEditMode(Number(id));
-        }
-    }, [webViewKey, id, isEditMode]);
-
     const [app, setApp] = useState<GeneratedApp | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isLocked, setIsLocked] = useState(false);
@@ -297,6 +268,35 @@ export default function RunnerScreen() {
     const [aiIsLargePayload, setAiIsLargePayload] = useState(false);
     const [lastUrl, setLastUrl] = useState<string | null>(null);
     const isRestoring = useRef(true); // Prevent infinite reload loops from window.location.replace
+
+    // Track elapsed seconds during AI loading
+    useEffect(() => {
+        if (!isAiLoading) {
+            setAiElapsedSeconds(0);
+            setAiIsLargePayload(false);
+            return;
+        }
+        setAiElapsedSeconds(0);
+        const interval = setInterval(() => setAiElapsedSeconds(s => s + 1), 1000);
+        return () => clearInterval(interval);
+    }, [isAiLoading]);
+
+    // Clean up watchers when WebView is recreated (pull-to-refresh or error reload)
+    const isFirstWebViewKeyRenderRunner = useRef(true);
+    useEffect(() => {
+        if (isFirstWebViewKeyRenderRunner.current) { isFirstWebViewKeyRenderRunner.current = false; return; }
+        if (isEditMode) {
+            // Edit mode: only clear edit-mode state, don't kill the runner's active watchers
+            cleanupSheetsEditMode(Number(id));
+            cleanupDocsEditMode(Number(id));
+            cleanupFormsEditMode(Number(id));
+        } else {
+            // Run mode: full cleanup of both watchers and edit-mode state
+            cleanupSheetsWatchers(Number(id)); cleanupSheetsEditMode(Number(id));
+            cleanupDocsWatchers(Number(id)); cleanupDocsEditMode(Number(id));
+            cleanupFormsWatchers(Number(id)); cleanupFormsEditMode(Number(id));
+        }
+    }, [webViewKey, id, isEditMode]);
 
     // Subscribe to store apps to react to background updates (async jobs)
     const storeApps = useAppStore(state => state.apps);

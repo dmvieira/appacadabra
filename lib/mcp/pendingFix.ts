@@ -31,34 +31,54 @@ export function isMcpFixInstruction(instruction: string | null | undefined): boo
     return !!instruction && instruction.startsWith('MCP integration fix:');
 }
 
-const CODE_MENTION_RE = /\bAppacadabraMCP\s*\.\s*(?:callTool|connect|listTools|isConnected)\s*\(\s*['"]([a-z0-9][a-z0-9\-]*)['"]/g;
+const CODE_MENTION_RE = /\bAppacadabraMCP\s*\.\s*(?:callTool|connect|listTools|isConnected|readResource)\s*\(\s*['"]([a-z0-9][a-z0-9\-]*)['"]/g;
 
-/**
- * Slugs referenced by the request context: mentioned in the prompt/plan text,
- * declared in `technicalRequirements.mcpTools`, or referenced by the code.
- */
-function referencedSlugs(ctx: { prompt: string; plan?: unknown; code?: string }): string[] {
-    let planText = '';
-    if (ctx.plan) {
-        try {
-            planText = JSON.stringify(ctx.plan);
-        } catch {
-            planText = '';
-        }
-    }
-    const haystack = `${ctx.prompt}\n${planText}\n${ctx.code ?? ''}`.toLowerCase();
-
-    const { extractPlanMcpTools } = require('./probe');
+/** All MCP slugs statically referenced in spell code (any AppacadabraMCP.* call). */
+export function extractCodeMcpSlugs(code: string): string[] {
     const out = new Set<string>();
-    for (const slug of extractPlanMcpTools(ctx.plan).keys()) out.add(slug);
     let m: RegExpExecArray | null;
     const re = new RegExp(CODE_MENTION_RE.source, 'g');
-    while ((m = re.exec(ctx.code ?? '')) !== null) out.add(m[1]);
-    // Also flag slugs merely named in the request (server exists in catalog).
-    const { CURATED_PROVIDERS } = require('./curatedCatalog');
-    for (const p of CURATED_PROVIDERS) {
-        if (haystack.includes(p.slug) || haystack.includes(String(p.name).toLowerCase())) out.add(p.slug);
-    }
+    while ((m = re.exec(code ?? '')) !== null) out.add(m[1]);
+    return [...out];
+}
+
+/**
+ * Pending-fix flag to persist after an EDIT.
+ *
+ * - The targeted "update integration" edit clears the flag.
+ * - Any other edit keeps previously flagged slugs the new code still calls —
+ *   a cosmetic edit ("make the header blue") rewrites none of the blind
+ *   integration, so connecting the server in the meantime must not silently
+ *   clear it — and adds whatever the recomputation flags for the new code.
+ *   Slugs the new code no longer calls are dropped.
+ */
+export function mergeEditPendingFix(opts: {
+    instruction: string | null | undefined;
+    previous: string[] | null | undefined;
+    recomputed: string[];
+    code: string;
+}): string[] {
+    if (isMcpFixInstruction(opts.instruction)) return [];
+    const referenced = new Set(extractCodeMcpSlugs(opts.code));
+    const out = new Set<string>();
+    for (const slug of opts.previous ?? []) if (referenced.has(slug)) out.add(slug);
+    for (const slug of opts.recomputed) out.add(slug);
+    return [...out];
+}
+
+/**
+ * Slugs referenced by the request context: declared in
+ * `technicalRequirements.mcpTools` or referenced by the code. Deliberately
+ * strict — the earlier heuristic that also matched slugs/names as substrings
+ * anywhere in prompt/plan/code produced false positives (e.g. CSS
+ * `linear-gradient` flagged the `linear` server, and plan text echoing the
+ * connector catalog flagged every server at once).
+ */
+function referencedSlugs(ctx: { prompt: string; plan?: unknown; code?: string }): string[] {
+    const out = new Set<string>();
+    const { extractPlanMcpTools } = require('./probe');
+    for (const slug of extractPlanMcpTools(ctx.plan).keys()) out.add(slug);
+    for (const slug of extractCodeMcpSlugs(ctx.code ?? '')) out.add(slug);
     return [...out];
 }
 
@@ -127,11 +147,14 @@ export function extractCallToolPairs(code: string): { slug: string; tool: string
  * Evaluated rows are written as `[]` (clean) or the flagged slugs, so the
  * scan never repeats for them.
  *
- * Returns how many spells were evaluated. Fire-and-forget safe.
+ * Also clears stale flags written by the earlier, looser heuristic (slugs the
+ * code never references) via `clearOrphanMcpFixFlags`.
+ *
+ * Returns how many spells were written. Fire-and-forget safe.
  */
 export async function backfillPendingFixFlags(): Promise<number> {
     try {
-        const db = require('../database/db');
+        const db = require('../database/db') as typeof import('../database/db');
         const { isConnected } = require('./manager');
         const { getShapesForSlug, getEarliestShapeObservedAt, getToolShapeObservedAt } = require('./store');
         const rows = await db.getAppsWithoutMcpFixEvaluation();
@@ -170,7 +193,39 @@ export async function backfillPendingFixFlags(): Promise<number> {
         if (evaluated > 0 && __DEV__) {
             console.warn(`[MCP pendingFix] backfill evaluated ${evaluated} legacy spell(s)`);
         }
+        // Heal false-positive flags written by the previous heuristic.
+        evaluated += await clearOrphanMcpFixFlags();
         return evaluated;
+    } catch {
+        return 0;
+    }
+}
+
+/**
+ * Clears stale pending-fix flags whose slugs are NOT referenced by the spell's
+ * code at all. Earlier heuristics flagged slugs merely mentioned in the
+ * prompt/plan or matched inside generated CSS (e.g. `linear-gradient`), so
+ * spells that never used MCP got the "integration may be outdated" banner.
+ * Partial keeps are allowed: only orphan slugs are removed; a flag whose slugs
+ * are all still referenced is left untouched (no rewrite).
+ * Fire-and-forget safe.
+ */
+export async function clearOrphanMcpFixFlags(): Promise<number> {
+    try {
+        const db = require('../database/db') as typeof import('../database/db');
+        const rows = await db.getAppsWithMcpFixFlagged();
+        let cleared = 0;
+        for (const row of rows) {
+            const referenced = new Set(extractCodeMcpSlugs(row.code));
+            const keep = row.flagged.filter(s => referenced.has(s));
+            if (keep.length === row.flagged.length) continue;
+            await db.setMcpPendingFix(row.id, keep).catch(() => {});
+            cleared++;
+        }
+        if (cleared > 0 && __DEV__) {
+            console.warn(`[MCP pendingFix] cleared orphan flags on ${cleared} spell(s)`);
+        }
+        return cleared;
     } catch {
         return 0;
     }

@@ -389,6 +389,29 @@ export async function getAppsWithoutMcpFixEvaluation(): Promise<{ id: number; cr
     }));
 }
 
+/**
+ * Spells with a non-empty MCP pending-fix flag. Used by the boot-time heal
+ * that clears flags whose slugs the spell's code never references (legacy
+ * heuristic false positives).
+ */
+export async function getAppsWithMcpFixFlagged(): Promise<{ id: number; code: string; flagged: string[] }[]> {
+    const database = await getDatabase();
+    const rows = await database.getAllAsync<{ id: number; code: string; mcp_pending_fix: string | null }>(
+        `SELECT id, code, mcp_pending_fix FROM generated_apps
+         WHERE mcp_pending_fix IS NOT NULL AND mcp_pending_fix != '[]'`,
+    );
+    return rows.map(r => {
+        let flagged: string[] = [];
+        try {
+            const parsed = JSON.parse(r.mcp_pending_fix ?? '[]');
+            if (Array.isArray(parsed)) flagged = parsed.filter((x): x is string => typeof x === 'string');
+        } catch {
+            // Unparseable flag — treat as empty so the heal skips this row.
+        }
+        return { id: r.id, code: r.code ?? '', flagged };
+    });
+}
+
 /** Reads the derived requirements for a spell (capabilities + MCP slugs). */
 export async function getAppRequirements(appId: number): Promise<{ capabilities: string[]; mcps: string[] }> {
     const database = await getDatabase();

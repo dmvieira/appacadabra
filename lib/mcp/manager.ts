@@ -6,8 +6,10 @@
 import {
     callTool as clientCallTool,
     listTools as clientListTools,
+    readResource as clientReadResource,
     resetSession,
     ensureSession,
+    type McpResourceResult,
 } from './client';
 import { runOAuthFlow, resolveAuthServerMeta } from './auth';
 import { t } from '../i18n';
@@ -19,6 +21,7 @@ import {
     setConnectionTokenRef,
     setConnectionClientId,
     setConnectionAuthMeta,
+    setConnectionAuthStrategy,
     cacheTools,
     getCachedTools,
     touchConnection,
@@ -54,6 +57,19 @@ function parseTokenEndpoint(authMeta?: string | null): string | undefined {
         return (JSON.parse(authMeta) as { tokenEndpoint?: string }).tokenEndpoint;
     } catch {
         return undefined;
+    }
+}
+
+/**
+ * Best-effort: fetch and cache the tool list right after a successful connect
+ * so the connection UI shows a tool count immediately and the NEXT generation
+ * already sees real tool schemas. Never throws, never fails the connect.
+ */
+async function warmToolCache(slug: string): Promise<void> {
+    try {
+        await listProviderTools(slug, { forceRefresh: true });
+    } catch {
+        // Server unreachable or auth rejected the listing — prewarm retries later.
     }
 }
 
@@ -104,6 +120,51 @@ async function buildAuthHeaders(connection: McpConnection): Promise<Record<strin
     return { Authorization: `Bearer ${bundle.accessToken}` };
 }
 
+/** Drops a rejected credential so the next use goes through login again. */
+async function invalidateAuth(connection: McpConnection): Promise<void> {
+    await clearTokens(connection.slug).catch(() => undefined);
+    await setConnectionTokenRef(connection.slug, null).catch(() => undefined);
+    await setConnectionStatus(connection.slug, 'needs_auth').catch(() => undefined);
+    resetSession(connection.mcpUrl);
+}
+
+/**
+ * Runs an authenticated request. When the server rejects the credential
+ * (401 → `McpAuthRequiredError`) — expired without a known `expiresAt`, or
+ * revoked — tries ONE forced refresh-token exchange and retries. If that is
+ * not possible or also fails, the token is cleared and the connection marked
+ * `needs_auth` (so `isConnected` turns false and callers can re-run login),
+ * then the auth error is rethrown.
+ */
+async function withAuthRecovery<T>(
+    connection: McpConnection,
+    op: (headers: Record<string, string>) => Promise<T>,
+): Promise<T> {
+    const headers = await buildAuthHeaders(connection);
+    if (connection.authStrategy !== 'none' && !headers.Authorization) {
+        throw new McpAuthRequiredError(connection.slug, 'Authentication required');
+    }
+    try {
+        return await op(headers);
+    } catch (err) {
+        if (!(err instanceof McpAuthRequiredError) || connection.authStrategy === 'none') throw err;
+        const bundle = await getTokens(connection.slug).catch(() => null);
+        if (bundle?.refreshToken) {
+            const refreshed = await refreshTokens(connection, bundle);
+            if (refreshed.accessToken && refreshed.accessToken !== bundle.accessToken) {
+                resetSession(connection.mcpUrl);
+                try {
+                    return await op({ Authorization: `Bearer ${refreshed.accessToken}` });
+                } catch (retryErr) {
+                    if (!(retryErr instanceof McpAuthRequiredError)) throw retryErr;
+                }
+            }
+        }
+        await invalidateAuth(connection);
+        throw err;
+    }
+}
+
 /** Ensures a stored connection row exists for the given slug. */
 export async function ensureConnectionRow(slug: string): Promise<McpConnection | null> {
     return getConnection(slug);
@@ -148,9 +209,18 @@ export async function connectProvider(
         return { success: false, slug, error: t('mcpErrorConnectionNotFound') };
     }
 
+    // A token supplied for a non-bearer connection means the user is telling
+    // us this server uses an API key (e.g. it rejected us with 401 but
+    // publishes no OAuth metadata) — switch the strategy so it sticks.
+    if (opts.bearerToken && connection.authStrategy !== 'bearer') {
+        await setConnectionAuthStrategy(slug, 'bearer');
+        connection = { ...connection, authStrategy: 'bearer' };
+    }
+
     try {
         if (connection.authStrategy === 'none') {
             await setConnectionStatus(slug, 'connected');
+            void warmToolCache(slug);
             return { success: true, slug };
         }
 
@@ -160,6 +230,7 @@ export async function connectProvider(
             await setConnectionTokenRef(slug, tokenRefFor(slug));
             await setConnectionStatus(slug, 'connected', opts.accountLabel ?? null);
             resetSession(connection.mcpUrl);
+            void warmToolCache(slug);
             return { success: true, slug, accountLabel: opts.accountLabel };
         }
 
@@ -170,6 +241,10 @@ export async function connectProvider(
             try {
                 const tools = await clientListTools(connection.mcpUrl, { headers: {} });
                 await cacheTools(slug, tools);
+                // Persist that this server is public: otherwise `isConnected`
+                // (which requires a token for non-`none` strategies) would
+                // report false and every spell call would re-prompt login.
+                await setConnectionAuthStrategy(slug, 'none');
                 await setConnectionStatus(slug, 'connected');
                 return { success: true, slug };
             } catch (probeErr) {
@@ -207,6 +282,7 @@ export async function connectProvider(
         if (bundle.clientId) await setConnectionClientId(slug, bundle.clientId);
         await setConnectionStatus(slug, 'connected', opts.accountLabel ?? null);
         resetSession(connection.mcpUrl);
+        void warmToolCache(slug);
         return { success: true, slug, accountLabel: opts.accountLabel };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -250,8 +326,7 @@ export async function listProviderTools(slug: string, opts: { forceRefresh?: boo
         const cached = await getCachedTools(slug);
         if (cached.length) return cached;
     }
-    const headers = await buildAuthHeaders(connection);
-    const tools = await clientListTools(connection.mcpUrl, { headers });
+    const tools = await withAuthRecovery(connection, headers => clientListTools(connection.mcpUrl, { headers }));
     await cacheTools(slug, tools);
     await touchConnection(slug);
     return tools;
@@ -282,21 +357,30 @@ export async function callProviderTool(
         }
     }
 
-    const headers = await buildAuthHeaders(connection);
-    if (connection.authStrategy !== 'none' && !headers.Authorization) {
-        throw new McpAuthRequiredError(slug, 'Authentication required');
-    }
-
-    await ensureSession(connection.mcpUrl, { headers }).catch(err => {
-        if (err instanceof McpAuthRequiredError) throw err;
-        throw err;
+    const result = await withAuthRecovery(connection, async headers => {
+        await ensureSession(connection.mcpUrl, { headers });
+        return clientCallTool(connection.mcpUrl, tool, args ?? {}, { headers });
     });
-
-    const result = await clientCallTool(connection.mcpUrl, tool, args ?? {}, { headers });
     await touchConnection(slug);
     // Learn the observed response shape for future spell generations.
     // Fire-and-forget: never blocks or fails the tool call.
     recordToolShape(slug, tool, result);
+    return result;
+}
+
+/**
+ * Reads a resource (`resources/read`) on a connection. Throws
+ * `McpAuthRequiredError` when the server requires OAuth and no valid token
+ * is available.
+ */
+export async function readProviderResource(slug: string, uri: string): Promise<McpResourceResult> {
+    const connection = await getConnection(slug);
+    if (!connection) throw new McpAuthRequiredError(slug, 'Unknown provider');
+    const result = await withAuthRecovery(connection, async headers => {
+        await ensureSession(connection.mcpUrl, { headers });
+        return clientReadResource(connection.mcpUrl, uri, { headers });
+    });
+    await touchConnection(slug);
     return result;
 }
 
