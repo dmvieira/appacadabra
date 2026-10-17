@@ -28,7 +28,7 @@ export const translations = {
         devicesEncantamentos: 'Enchantments',
         devicesEmpty: 'No enchantments yet — imbue one from a spell.',
         devicesWriteback: 'Write-back',
-        devicesWritebackCount: '%{count} mutations applied to their spells',
+        devicesWritebackCount: 'mutations applied to their spells',
         devicesWritebackNone: 'Nothing synced yet',
         devicesImbue: 'Imbue into a Familiar',
         devicesImbueTitle: 'Imbue Familiar',
@@ -49,7 +49,7 @@ export const translations = {
         devicesImbued: 'Enchanted!',
         devicesImbuedHint: 'The Familiar now carries this spell — it works without your phone nearby.',
         devicesDone: 'Done',
-        devicesUnsupportedList: 'This Familiar cannot serve: %{list}',
+        devicesUnsupportedList: 'This Familiar cannot serve:',
         devicesInvalidBundle: 'The transmuted bundle is invalid.',
 
         // File types
@@ -839,7 +839,7 @@ export const translations = {
         devicesEncantamentos: 'Encantamentos',
         devicesEmpty: 'Sem encantamentos — imbuía um a partir de uma spell.',
         devicesWriteback: 'Write-back',
-        devicesWritebackCount: '%{count} mutações aplicadas nas spells de origem',
+        devicesWritebackCount: 'mutações aplicadas nas spells de origem',
         devicesWritebackNone: 'Nada sincronizado ainda',
         devicesImbue: 'Imbuir num Familiar',
         devicesImbueTitle: 'Imbuir Familiar',
@@ -860,7 +860,7 @@ export const translations = {
         devicesImbued: 'Encantado!',
         devicesImbuedHint: 'O Familiar agora carrega esta spell — funciona sem o celular por perto.',
         devicesDone: 'Concluir',
-        devicesUnsupportedList: 'Este Familiar não atende: %{list}',
+        devicesUnsupportedList: 'Este Familiar não atende:',
         devicesInvalidBundle: 'O bundle transmutado é inválido.',
 
         // File types
@@ -1645,7 +1645,7 @@ export const translations = {
         devicesEncantamentos: 'Encantamientos',
         devicesEmpty: 'Sin encantamientos — imbuye uno desde un hechizo.',
         devicesWriteback: 'Escritura inversa',
-        devicesWritebackCount: '%{count} mutaciones aplicadas a sus hechizos',
+        devicesWritebackCount: 'mutaciones aplicadas a sus hechizos',
         devicesWritebackNone: 'Nada sincronizado aún',
         devicesImbue: 'Imbuir en un Familiar',
         devicesImbueTitle: 'Imbuir Familiar',
@@ -1666,7 +1666,7 @@ export const translations = {
         devicesImbued: '¡Encantado!',
         devicesImbuedHint: 'El Familiar ahora lleva este hechizo — funciona sin tu teléfono cerca.',
         devicesDone: 'Hecho',
-        devicesUnsupportedList: 'Este Familiar no atiende: %{list}',
+        devicesUnsupportedList: 'Este Familiar no atiende:',
         devicesInvalidBundle: 'El bundle transmutado es inválido.',
 
         // File types
@@ -2416,7 +2416,7 @@ export const translations = {
         devicesEncantamentos: 'Enchantements',
         devicesEmpty: 'Aucun enchantement — imbibez-en un depuis un sort.',
         devicesWriteback: 'Écriture retour',
-        devicesWritebackCount: '%{count} mutations appliquées à leurs sorts',
+        devicesWritebackCount: 'mutations appliquées à leurs sorts',
         devicesWritebackNone: 'Rien de synchronisé pour l’instant',
         devicesImbue: 'Imbiber un Familier',
         devicesImbueTitle: 'Imbiber le Familier',
@@ -2437,7 +2437,7 @@ export const translations = {
         devicesImbued: 'Enchanté !',
         devicesImbuedHint: 'Le Familier porte désormais ce sort — il fonctionne sans votre téléphone à proximité.',
         devicesDone: 'Terminé',
-        devicesUnsupportedList: 'Ce Familier ne prend pas en charge : %{list}',
+        devicesUnsupportedList: 'Ce Familier ne prend pas en charge :',
         devicesInvalidBundle: 'Le bundle transmuté est invalide.',
 
         // File types
@@ -3186,7 +3186,7 @@ export const translations = {
         devicesEncantamentos: 'Verzauberungen',
         devicesEmpty: 'Keine Verzauberungen — füge eine aus einem Spell hinzu.',
         devicesWriteback: 'Rückschreiben',
-        devicesWritebackCount: '%{count} Mutationen auf ihre Spells angewendet',
+        devicesWritebackCount: 'Mutationen auf ihre Spells angewendet',
         devicesWritebackNone: 'Noch nichts synchronisiert',
         devicesImbue: 'In einen Familiar einflößen',
         devicesImbueTitle: 'Familiar einflößen',
@@ -3207,7 +3207,7 @@ export const translations = {
         devicesImbued: 'Verzaubert!',
         devicesImbuedHint: 'Der Familiar trägt jetzt diesen Spell — er funktioniert ohne dein Telefon in der Nähe.',
         devicesDone: 'Fertig',
-        devicesUnsupportedList: 'Dieser Familiar kann nicht bedienen: %{list}',
+        devicesUnsupportedList: 'Dieser Familiar kann nicht bedienen:',
         devicesInvalidBundle: 'Das umgewandelte Bundle ist ungültig.',
 
         // File types
@@ -3888,7 +3888,7 @@ export const translations = {
         devicesEncantamentos: 'Incantesimi',
         devicesEmpty: 'Nessun incantesimo — imbevine uno da una spell.',
         devicesWriteback: 'Write-back',
-        devicesWritebackCount: '%{count} mutazioni applicate alle spell',
+        devicesWritebackCount: 'mutazioni applicate alle spell',
         devicesWritebackNone: 'Niente sincronizzato ancora',
         devicesImbue: 'Imbevi in un Famiglio',
         devicesImbueTitle: 'Imbevi Famiglio',
@@ -3909,7 +3909,7 @@ export const translations = {
         devicesImbued: 'Incantato!',
         devicesImbuedHint: 'Il Famiglio ora porta questa spell — funziona senza il telefono vicino.',
         devicesDone: 'Fatto',
-        devicesUnsupportedList: 'Questo Famiglio non serve: %{list}',
+        devicesUnsupportedList: 'Questo Famiglio non serve:',
         devicesInvalidBundle: 'Il bundle trasmutato non è valido.',
 
         // File types
@@ -5983,7 +5983,7 @@ export const translations = {
         devicesImbued: '인챈트 완료!',
         devicesImbuedHint: '패밀리어가 이 spell을 갖게 됨 — 휴대폰 없이도 작동합니다.',
         devicesDone: '완료',
-        devicesUnsupportedList: '이 패밀리어는 지원할 수 없음: %{list}',
+        devicesUnsupportedList: '이 패밀리어는 지원할 수 없음:',
         devicesInvalidBundle: '변환된 번들이 유효하지 않습니다.',
 
         // File types
@@ -6672,7 +6672,7 @@ export const translations = {
         devicesImbued: 'تم التعويذ!',
         devicesImbuedHint: 'الرفيق يحمل الآن هذه التعويذة — يعمل دون هاتفك بالقرب.',
         devicesDone: 'تم',
-        devicesUnsupportedList: 'هذا الرفيق لا يدعم: %{list}',
+        devicesUnsupportedList: 'هذا الرفيق لا يدعم:',
         devicesInvalidBundle: 'الحزمة المحولة غير صالحة.',
 
         // File types
@@ -7340,7 +7340,7 @@ export const translations = {
         devicesEncantamentos: 'जादू',
         devicesEmpty: 'अभी कोई जादू नहीं — एक spell से भरें।',
         devicesWriteback: 'राइट-बैक',
-        devicesWritebackCount: '%{count} परिवर्तन उनकी spell पर लागू',
+        devicesWritebackCount: 'परिवर्तन उनकी spell पर लागू',
         devicesWritebackNone: 'अभी कुछ सिंक नहीं',
         devicesImbue: 'फ़ैमिलियर में भरें',
         devicesImbueTitle: 'फ़ैमिलियर भरें',
@@ -7361,7 +7361,7 @@ export const translations = {
         devicesImbued: 'जादू हो गया!',
         devicesImbuedHint: 'फ़ैमिलियर अब यह spell ले जाता है — फ़ोन के पास बिना काम करता है।',
         devicesDone: 'पूर्ण',
-        devicesUnsupportedList: 'यह फ़ैमिलियर समर्थन नहीं करता: %{list}',
+        devicesUnsupportedList: 'यह फ़ैमिलियर समर्थन नहीं करता:',
         devicesInvalidBundle: 'परिवर्तित बंडल अमान्य है।',
 
         // File types
@@ -8029,7 +8029,7 @@ export const translations = {
         devicesEncantamentos: 'Зачарования',
         devicesEmpty: 'Зачарований пока нет — вложите одно из spell.',
         devicesWriteback: 'Обратная запись',
-        devicesWritebackCount: '%{count} изменений применено к их spell',
+        devicesWritebackCount: 'изменений применено к их spell',
         devicesWritebackNone: 'Пока ничего не синхронизировано',
         devicesImbue: 'Вложить в фамильяра',
         devicesImbueTitle: 'Вложить в фамильяра',
@@ -8050,7 +8050,7 @@ export const translations = {
         devicesImbued: 'Зачаровано!',
         devicesImbuedHint: 'Фамильяр теперь носит эту spell — работает без телефона рядом.',
         devicesDone: 'Готово',
-        devicesUnsupportedList: 'Этот фамильяр не поддерживает: %{list}',
+        devicesUnsupportedList: 'Этот фамильяр не поддерживает:',
         devicesInvalidBundle: 'Трансмутированный bundle недействителен.',
 
         // File types
@@ -8718,7 +8718,7 @@ export const translations = {
         devicesEncantamentos: 'Büyüler',
         devicesEmpty: 'Henüz büyü yok — bir spell’den uygulayın.',
         devicesWriteback: 'Geri yazma',
-        devicesWritebackCount: '%{count} değişiklik spell’lere uygulandı',
+        devicesWritebackCount: 'değişiklik spell’lere uygulandı',
         devicesWritebackNone: 'Henüz eşitleme yok',
         devicesImbue: 'Bir Familiar’a işle',
         devicesImbueTitle: 'Familiar’a işle',
@@ -8739,7 +8739,7 @@ export const translations = {
         devicesImbued: 'Büylendi!',
         devicesImbuedHint: 'Familiar artık bu spell’i taşıyor — telefonun yakınında olmadan çalışır.',
         devicesDone: 'Tamam',
-        devicesUnsupportedList: 'Bu Familiar sunamaz: %{list}',
+        devicesUnsupportedList: 'Bu Familiar sunamaz:',
         devicesInvalidBundle: 'Dönüştürülen paket geçersiz.',
 
         // File types
@@ -9405,7 +9405,7 @@ export const translations = {
         devicesEncantamentos: 'Betoveringen',
         devicesEmpty: 'Nog geen betoveringen — imbuieer er een vanuit een spell.',
         devicesWriteback: 'Terugschrijven',
-        devicesWritebackCount: '%{count} mutaties toegepast op hun spells',
+        devicesWritebackCount: 'mutaties toegepast op hun spells',
         devicesWritebackNone: 'Nog niets gesynchroniseerd',
         devicesImbue: 'In een Familiair inblazen',
         devicesImbueTitle: 'Familiair inblazen',
@@ -9426,7 +9426,7 @@ export const translations = {
         devicesImbued: 'Betoverd!',
         devicesImbuedHint: 'De Familiair draagt nu deze spell — werkt zonder je telefoon in de buurt.',
         devicesDone: 'Klaar',
-        devicesUnsupportedList: 'Deze Familiair kan niet bedienen: %{list}',
+        devicesUnsupportedList: 'Deze Familiair kan niet bedienen:',
         devicesInvalidBundle: 'De getransmuteerde bundel is ongeldig.',
 
         // File types
@@ -10114,7 +10114,7 @@ export const translations = {
         devicesImbued: 'Zaczarowano!',
         devicesImbuedHint: 'Familiar nosi teraz tę spell — działa bez telefonu w pobliżu.',
         devicesDone: 'Gotowe',
-        devicesUnsupportedList: 'Ten Familiar nie obsługuje: %{list}',
+        devicesUnsupportedList: 'Ten Familiar nie obsługuje:',
         devicesInvalidBundle: 'Przetransmutowany bundle jest nieprawidłowy.',
 
         // File types
@@ -10804,7 +10804,7 @@ export const translations = {
         devicesImbued: 'Đã phù phép!',
         devicesImbuedHint: 'Thần thú giờ mang spell này — hoạt động mà không cần điện thoại gần bên.',
         devicesDone: 'Xong',
-        devicesUnsupportedList: 'Thần thú này không hỗ trợ: %{list}',
+        devicesUnsupportedList: 'Thần thú này không hỗ trợ:',
         devicesInvalidBundle: 'Bundle chuyển hóa không hợp lệ.',
 
         // File types
@@ -11494,7 +11494,7 @@ export const translations = {
         devicesImbued: 'เอนแชนต์แล้ว!',
         devicesImbuedHint: 'คู่หูพก spell นี้แล้ว — ทำงานได้โดยไม่ต้องมีมือถืออยู่ใกล้',
         devicesDone: 'เสร็จ',
-        devicesUnsupportedList: 'คู่หูนี้ไม่รองรับ: %{list}',
+        devicesUnsupportedList: 'คู่หูนี้ไม่รองรับ:',
         devicesInvalidBundle: 'บันเดิลที่แปลงแล้วไม่ถูกต้อง',
 
         // File types

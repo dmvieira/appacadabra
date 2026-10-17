@@ -200,7 +200,7 @@ export default function DevicesScreen() {
                                 <Text style={styles.sectionTitle}>{t('devicesWriteback')}</Text>
                                 <Text style={styles.deviceMeta}>
                                     {session.lastWritebackAt
-                                        ? t('devicesWritebackCount', { count: session.lastWritebackCount })
+                                        ? `${session.lastWritebackCount} ${t('devicesWritebackCount')}`
                                         : t('devicesWritebackNone')}
                                 </Text>
                             </View>

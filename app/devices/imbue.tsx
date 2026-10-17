@@ -82,7 +82,7 @@ export default function ImbueScreen() {
             Alert.alert(
                 t('devicesError'),
                 unsupported
-                    ? t('devicesUnsupportedList', { list: ids.map((i) => CAPABILITY_MAP[i]?.displayName ?? i).join(', ') })
+                    ? `${t('devicesUnsupportedList')} ${ids.map((i) => CAPABILITY_MAP[i]?.displayName ?? i).join(', ')}`
                     : msg === 'devicesNoConnection'
                       ? t('devicesNoConnection')
                       : msg,
