@@ -105,7 +105,8 @@ class AppaTcpModule(reactContext: ReactApplicationContext) :
         // Required for RN event emitter (no-op)
     }
 
-    override fun onCatalystInstanceDestroy() {
+    override fun invalidate() {
         disconnect()
+        super.invalidate()
     }
 }

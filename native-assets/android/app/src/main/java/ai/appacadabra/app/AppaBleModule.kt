@@ -278,11 +278,12 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         }
         connectPromise = promise
         val g = device.connectGatt(reactApplicationContext, false, gattCallback)
-        gatt = g
         if (g == null) {
             connectPromise = null
             promise.reject("E_CONNECT", "connectGatt returned null")
+            return
         }
+        gatt = g
     }
 
     // ---- write (chunked) ------------------------------------------------------
