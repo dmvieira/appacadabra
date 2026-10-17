@@ -59,8 +59,10 @@ export default function DevicesScreen() {
                 Alert.alert(t('devicesTitle'), t('devicesBleNone'));
                 return;
             }
-            // Conecta ao mais forte (maior RSSI) cujo nome pareça um Familiar.
-            const best = [...devices].sort((a, b) => b.rssi - a.rssi)[0];
+            // Prioriza dispositivos com nome de Familiar (fofura/appa); senao o mais forte.
+            const preferred = devices.filter((d) => /fofura|appa/i.test(d.name));
+            const pool = preferred.length > 0 ? preferred : devices;
+            const best = [...pool].sort((a, b) => b.rssi - a.rssi)[0];
             await deviceManager.connect(bleTransport(best.id));
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
