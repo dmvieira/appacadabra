@@ -200,7 +200,7 @@ export default function DevicesScreen() {
                                 <Text style={styles.sectionTitle}>{t('devicesWriteback')}</Text>
                                 <Text style={styles.deviceMeta}>
                                     {session.lastWritebackAt
-                                        ? (() => { const l = t('devicesWritebackCount'); return l.includes('%{count}') ? l.replace('%{count}', String(session.lastWritebackCount)) : l; })()
+                                        ? t('devicesWritebackCount', { count: session.lastWritebackCount })
                                         : t('devicesWritebackNone')}
                                 </Text>
                             </View>

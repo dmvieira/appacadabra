@@ -82,7 +82,7 @@ export default function ImbueScreen() {
             Alert.alert(
                 t('devicesError'),
                 unsupported
-                    ? (() => { const l = t('devicesUnsupportedList'); const v = ids.map((i) => CAPABILITY_MAP[i]?.displayName ?? i).join(', '); return l.includes('%{list}') ? l.replace('%{list}', v) : l; })()
+                    ? t('devicesUnsupportedList', { list: ids.map((i) => CAPABILITY_MAP[i]?.displayName ?? i).join(', ') })
                     : msg === 'devicesNoConnection'
                       ? t('devicesNoConnection')
                       : msg,
