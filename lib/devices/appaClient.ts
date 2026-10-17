@@ -51,6 +51,8 @@ export class AppaClient {
     private helloWaiters: Array<{ resolve: (h: HelloPortrait) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }> = [];
     portrait: HelloPortrait | null = null;
     writebackHandler: ((mutations: Mutation[]) => WritebackDecision | Promise<WritebackDecision>) | null = null;
+    /** Relatórios de perguntas/respondidas do dispositivo (QUERY_RESULT). */
+    queryResultHandler: ((qr: { enc: string; q: string; a: string; usage?: { costUsd?: number } }) => void) | null = null;
     private requestTimeoutMs: number;
 
     constructor(transport: Transport, requestTimeoutMs = 5000) {
@@ -110,6 +112,11 @@ export class AppaClient {
                 clearTimeout(w.timer);
                 w.resolve(this.portrait);
             }
+            return;
+        }
+
+        if (msg.type === MSG.QUERY_RESULT) {
+            this.queryResultHandler?.(msg.payload as unknown as { enc: string; q: string; a: string });
             return;
         }
 
