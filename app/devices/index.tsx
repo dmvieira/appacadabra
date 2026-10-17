@@ -24,6 +24,7 @@ import { Stack } from 'expo-router';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
 import { deviceManager, nativeTcpTransport, type FamiliarSession } from '../../lib/devices/deviceManager';
+import { bleScan, bleTransport } from '../../lib/devices/bleTransport';
 import { getOpenRouterKey } from '../../lib/api/keyStorage';
 import { CAPABILITY_MAP } from '../../lib/devices/capabilityMap';
 
@@ -32,6 +33,7 @@ export default function DevicesScreen() {
     const [host, setHost] = useState('10.0.2.2');
     const [port, setPort] = useState('7788');
     const [connecting, setConnecting] = useState(false);
+    const [bleScanning, setBleScanning] = useState(false);
 
     useEffect(() => {
         return deviceManager.subscribe(() => setSession(deviceManager.getSession()));
@@ -48,6 +50,25 @@ export default function DevicesScreen() {
             setConnecting(false);
         }
     }, [host, port]);
+
+    const scanBle = useCallback(async () => {
+        setBleScanning(true);
+        try {
+            const devices = await bleScan(6000);
+            if (devices.length === 0) {
+                Alert.alert(t('devicesTitle'), t('devicesBleNone'));
+                return;
+            }
+            // Conecta ao mais forte (maior RSSI) cujo nome pareça um Familiar.
+            const best = [...devices].sort((a, b) => b.rssi - a.rssi)[0];
+            await deviceManager.connect(bleTransport(best.id));
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            Alert.alert(t('devicesError'), t(msg) === msg ? msg : t(msg));
+        } finally {
+            setBleScanning(false);
+        }
+    }, []);
 
     const grantOpenrouter = useCallback(async () => {
         try {
@@ -103,6 +124,17 @@ export default function DevicesScreen() {
                                 <ActivityIndicator color={colors.onPrimary} />
                             ) : (
                                 <Text style={styles.buttonText}>{t('devicesConnect')}</Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.button, styles.buttonBle]}
+                            onPress={scanBle}
+                            disabled={bleScanning}
+                        >
+                            {bleScanning ? (
+                                <ActivityIndicator color={colors.primary} />
+                            ) : (
+                                <Text style={styles.buttonSmallText}>{t('devicesBleScan')}</Text>
                             )}
                         </TouchableOpacity>
                         <Text style={styles.hint}>{t('devicesTcpHint')}</Text>
@@ -205,6 +237,7 @@ const styles = StyleSheet.create({
     buttonPrimary: { backgroundColor: colors.primary },
     buttonDanger: { backgroundColor: colors.error },
     buttonSmall: { backgroundColor: colors.surface, padding: spacing.sm, marginTop: spacing.xs },
+    buttonBle: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
     buttonSmallText: { color: colors.primary, fontWeight: '600' },
     buttonText: { color: colors.onPrimary, fontWeight: '600' },
     hint: { color: colors.onSurfaceVariant, fontSize: 12, marginTop: spacing.md },

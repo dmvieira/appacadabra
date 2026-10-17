@@ -25,6 +25,7 @@ class MainApplication : Application(), ReactApplication {
           add(AlarmPackage())
           add(BackgroundGeneratorPackage())
           add(LoopbackServerPackage())
+          add(AppaDevicesPackage())
           // Packages that cannot be autolinked yet can be added manually here, for example:
           // add(MyReactNativePackage())
         }

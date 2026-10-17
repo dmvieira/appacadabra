@@ -5,6 +5,10 @@ import { I18nManager } from 'react-native';
 // Translations for 17 languages: EN, PT, ES, FR, DE, IT, JA, ZH, KO, AR, HI, RU, TR, NL, PL, VI, TH
 export const translations = {
     en: {
+        devicesBleScan: 'Scan for Familiars (Bluetooth)',
+        devicesBleNone: 'No Familiars found nearby. Put the device in pairing mode.',
+        devicesBlePermission: 'Bluetooth permission denied.',
+        devicesNoNativeBle: 'Native BLE module not available — rebuild the app (Phase D).',
         devicesTitle: 'Familiars',
         devicesSubtitle: 'Connect a Familiar (appa device) and grant it powers.',
         devicesConnect: 'Connect',
@@ -812,6 +816,10 @@ export const translations = {
         iconCostHintFree: 'Icon generation is free with your OpenRouter key.',
     },
     pt: {
+        devicesBleScan: 'Procurar Familiares (Bluetooth)',
+        devicesBleNone: 'Nenhum Familiar por perto. Coloque o dispositivo em modo de pareamento.',
+        devicesBlePermission: 'Permissão de Bluetooth negada.',
+        devicesNoNativeBle: 'Módulo BLE nativo indisponível — rebuild do app (Fase D).',
         devicesTitle: 'Familiares',
         devicesSubtitle: 'Conecte um Familiar (dispositivo appa) e conceda poderes a ele.',
         devicesConnect: 'Conectar',
@@ -1614,6 +1622,10 @@ export const translations = {
         iconCostHintFree: 'A geração de ícones é gratuita com sua chave OpenRouter.',
     },
     es: {
+        devicesBleScan: 'Buscar Familiares (Bluetooth)',
+        devicesBleNone: 'No se encontraron Familiares cerca. Pon el dispositivo en modo de emparejamiento.',
+        devicesBlePermission: 'Permiso de Bluetooth denegado.',
+        devicesNoNativeBle: 'Módulo BLE nativo no disponible — recompila la app (Fase D).',
         devicesTitle: 'Familiares',
         devicesSubtitle: 'Conecta un Familiar (dispositivo appa) y concédele poderes.',
         devicesConnect: 'Conectar',
@@ -2381,6 +2393,10 @@ export const translations = {
         iconCostHintFree: 'La generación de iconos es gratis con tu clave de OpenRouter.',
     },
     fr: {
+        devicesBleScan: 'Rechercher des Familiers (Bluetooth)',
+        devicesBleNone: 'Aucun Familier à proximité. Mettez l’appareil en mode appairage.',
+        devicesBlePermission: 'Autorisation Bluetooth refusée.',
+        devicesNoNativeBle: 'Module BLE natif indisponible — recompilez l’app (Phase D).',
         devicesTitle: 'Familiers',
         devicesSubtitle: 'Connectez un Familier (appareil appa) et accordez-lui des pouvoirs.',
         devicesConnect: 'Connecter',
@@ -3147,6 +3163,10 @@ export const translations = {
         iconCostHintFree: 'La génération d\'icônes est gratuite avec votre clé OpenRouter.',
     },
     de: {
+        devicesBleScan: 'Familiare suchen (Bluetooth)',
+        devicesBleNone: 'Keine Familiare in der Nähe. Gerät in den Kopplungsmodus versetzen.',
+        devicesBlePermission: 'Bluetooth-Berechtigung verweigert.',
+        devicesNoNativeBle: 'Natives BLE-Modul nicht verfügbar — App neu bauen (Phase D).',
         devicesTitle: 'Familiare',
         devicesSubtitle: 'Verbinde einen Familiar (appa-Gerät) und gewähre ihm Kräfte.',
         devicesConnect: 'Verbinden',
@@ -3845,6 +3865,10 @@ export const translations = {
         iconCostHintFree: 'Icon-Generierung ist mit deinem OpenRouter-Schlüssel kostenlos.',
     },
     it: {
+        devicesBleScan: 'Cerca Famigli (Bluetooth)',
+        devicesBleNone: 'Nessun Famiglio vicino. Metti il dispositivo in modalità associazione.',
+        devicesBlePermission: 'Permesso Bluetooth negato.',
+        devicesNoNativeBle: 'Modulo BLE nativo non disponibile — ricompila l’app (Fase D).',
         devicesTitle: 'Famigli',
         devicesSubtitle: 'Collega un Famiglio (dispositivo appa) e concedigli poteri.',
         devicesConnect: 'Connetti',
@@ -4543,6 +4567,10 @@ export const translations = {
         iconCostHintFree: 'La generazione di icone è gratuita con la tua chiave OpenRouter.',
     },
     ja: {
+        devicesBleScan: '使い魔を検索（Bluetooth）',
+        devicesBleNone: '近くに使い魔が見つかりません。デバイスをペアリングモードにしてください。',
+        devicesBlePermission: 'Bluetoothの権限が拒否されました。',
+        devicesNoNativeBle: 'ネイティブBLEモジュールが利用不可 — アプリを再ビルド（フェーズD）。',
         devicesTitle: '使い魔',
         devicesSubtitle: '使い魔（appaデバイス）を接続して力を与えます。',
         devicesConnect: '接続',
@@ -5222,6 +5250,10 @@ export const translations = {
     },
     // Chinese (Simplified)
     zh: {
+        devicesBleScan: '扫描魔宠（蓝牙）',
+        devicesBleNone: '附近未发现魔宠。请将设备置于配对模式。',
+        devicesBlePermission: '蓝牙权限被拒绝。',
+        devicesNoNativeBle: '原生 BLE 模块不可用 — 重新构建应用（阶段 D）。',
         devicesTitle: '魔宠',
         devicesSubtitle: '连接魔宠（appa 设备）并授予它力量。',
         devicesConnect: '连接',
@@ -5907,6 +5939,10 @@ export const translations = {
     },
     // Korean
     ko: {
+        devicesBleScan: '패밀리어 검색 (블루투스)',
+        devicesBleNone: '근처에 패밀리어가 없습니다. 기기를 페어링 모드로 설정하세요.',
+        devicesBlePermission: '블루투스 권한이 거부되었습니다.',
+        devicesNoNativeBle: '네이티브 BLE 모듈을 사용할 수 없음 — 앱을 다시 빌드하세요(단계 D).',
         devicesTitle: '패밀리어',
         devicesSubtitle: '패밀리어(appa 기기)를 연결하고 권한을 부여하세요.',
         devicesConnect: '연결',
@@ -6592,6 +6628,10 @@ export const translations = {
     },
     // Arabic
     ar: {
+        devicesBleScan: 'ابحث عن الرفاق (بلوتوث)',
+        devicesBleNone: 'لا يوجد رفقاء قريبون. ضع الجهاز في وضع الاقتران.',
+        devicesBlePermission: 'تم رفض إذن البلوتوث.',
+        devicesNoNativeBle: 'وحدة BLE الأصلية غير متوفرة — أعد بناء التطبيق (المرحلة D).',
         devicesTitle: 'الرفيق',
         devicesSubtitle: 'اربط رفيقك (جهاز appa) وامنحه القوى.',
         devicesConnect: 'اتصال',
@@ -7277,6 +7317,10 @@ export const translations = {
     },
     // Hindi
     hi: {
+        devicesBleScan: 'फ़ैमिलियर खोजें (ब्लूटूथ)',
+        devicesBleNone: 'पास में कोई फ़ैमिलियर नहीं मिला। डिवाइस को पेयरिंग मोड में रखें।',
+        devicesBlePermission: 'ब्लूटूथ अनुमति अस्वीकृत।',
+        devicesNoNativeBle: 'नेटिव BLE मॉड्यूल अनुपलब्ध — ऐप रीबिल्ड करें (चरण D)।',
         devicesTitle: 'फ़ैमिलियर',
         devicesSubtitle: 'एक फ़ैमिलियर (appa डिवाइस) कनेक्ट करें और उसे शक्तियाँ दें।',
         devicesConnect: 'कनेक्ट करें',
@@ -7962,6 +8006,10 @@ export const translations = {
     },
     // Russian
     ru: {
+        devicesBleScan: 'Поиск фамильяров (Bluetooth)',
+        devicesBleNone: 'Фамильяры рядом не найдены. Переведите устройство в режим сопряжения.',
+        devicesBlePermission: 'Разрешение Bluetooth отклонено.',
+        devicesNoNativeBle: 'Нативный BLE-модуль недоступен — пересоберите приложение (Фаза D).',
         devicesTitle: 'Фамильяры',
         devicesSubtitle: 'Подключите фамильяра (устройство appa) и даруйте ему силы.',
         devicesConnect: 'Подключить',
@@ -8647,6 +8695,10 @@ export const translations = {
     },
     // Turkish
     tr: {
+        devicesBleScan: 'Familyaları ara (Bluetooth)',
+        devicesBleNone: 'Yakında Familiar yok. Cihazı eşleştirme moduna alın.',
+        devicesBlePermission: 'Bluetooth izni reddedildi.',
+        devicesNoNativeBle: 'Yerel BLE modülü mevcut değil — uygulamayı yeniden derleyin (Faz D).',
         devicesTitle: 'Familyalar',
         devicesSubtitle: 'Bir Familiar (appa cihazı) bağlayın ve ona güçler verin.',
         devicesConnect: 'Bağlan',
@@ -9330,6 +9382,10 @@ export const translations = {
     },
     // Dutch
     nl: {
+        devicesBleScan: 'Familiairen zoeken (Bluetooth)',
+        devicesBleNone: 'Geen Familiairen gevonden. Zet het apparaat in koppelingsmodus.',
+        devicesBlePermission: 'Bluetooth-toestemming geweigerd.',
+        devicesNoNativeBle: 'Native BLE-module niet beschikbaar — bouw de app opnieuw (Fase D).',
         devicesTitle: 'Familiairen',
         devicesSubtitle: 'Verbind een Familiair (appa-apparaat) en verleen het krachten.',
         devicesConnect: 'Verbinden',
@@ -10014,6 +10070,10 @@ export const translations = {
     },
     // Polish
     pl: {
+        devicesBleScan: 'Szukaj Familiarów (Bluetooth)',
+        devicesBleNone: 'Nie znaleziono Familiarów w pobliżu. Przełącz urządzenie w tryb parowania.',
+        devicesBlePermission: 'Odmowa uprawnienia Bluetooth.',
+        devicesNoNativeBle: 'Natywny moduł BLE niedostępny — przebuduj aplikację (Faza D).',
         devicesTitle: 'Familiary',
         devicesSubtitle: 'Połącz Familiara (urządzenie appa) i przyznaj mu moce.',
         devicesConnect: 'Połącz',
@@ -10700,6 +10760,10 @@ export const translations = {
     },
     // Vietnamese
     vi: {
+        devicesBleScan: 'Tìm Thần thú (Bluetooth)',
+        devicesBleNone: 'Không tìm thấy Thần thú gần đó. Đặt thiết bị vào chế độ ghép nối.',
+        devicesBlePermission: 'Quyền Bluetooth bị từ chối.',
+        devicesNoNativeBle: 'Mô-đun BLE gốc không khả dụng — build lại ứng dụng (Giai đoạn D).',
         devicesTitle: 'Thần thú',
         devicesSubtitle: 'Kết nối Thần thú (thiết bị appa) và trao quyền cho nó.',
         devicesConnect: 'Kết nối',
@@ -11386,6 +11450,10 @@ export const translations = {
     },
     // Thai
     th: {
+        devicesBleScan: 'ค้นหาคู่หู (บลูทูธ)',
+        devicesBleNone: 'ไม่พบคู่หูใกล้เคียง ตั้งอุปกรณ์เป็นโหมดจับคู่',
+        devicesBlePermission: 'สิทธิ์บลูทูธถูกปฏิเสธ',
+        devicesNoNativeBle: 'โมดูล BLE เนทีฟไม่พร้อมใช้งาน — บิลด์แอปใหม่ (เฟส D)',
         devicesTitle: 'คู่หู',
         devicesSubtitle: 'เชื่อมต่อคู่หู (อุปกรณ์ appa) และมอบพลังให้',
         devicesConnect: 'เชื่อมต่อ',

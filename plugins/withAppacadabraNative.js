@@ -111,6 +111,9 @@ const withNativeFiles = (config) => {
                 { src: 'MainActivity.kt', dest: 'MainActivity.kt' },
                 { src: 'WebViewAiKeepAliveModule.kt', dest: 'WebViewAiKeepAliveModule.kt' },
                 { src: 'WebViewAiKeepAliveService.kt', dest: 'WebViewAiKeepAliveService.kt' },
+                { src: 'AppaTcpModule.kt', dest: 'AppaTcpModule.kt' },
+                { src: 'AppaBleModule.kt', dest: 'AppaBleModule.kt' },
+                { src: 'AppaDevicesPackage.kt', dest: 'AppaDevicesPackage.kt' },
             ];
 
             for (const file of filesToCopy) {
@@ -159,6 +162,7 @@ const withMainApplicationPackageInjection = (config) => {
             'add(SharingShortcutsPackage())',
             'add(AlarmPackage())',
             'add(BackgroundGeneratorPackage())',
+            'add(AppaDevicesPackage())',
         ];
 
         if (contents.includes(anchor)) {
