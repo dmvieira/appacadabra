@@ -993,7 +993,10 @@ export default function HomeScreen() {
                     <Text style={styles.headerTitle}>{t('appName')}</Text>
                 </View>
                 <AiProviderButton />
-                <TouchableOpacity onPress={() => { setActiveCardId(null); setShowMenu(true); }} style={[styles.menuBtn, { marginStart: spacing.sm }]} accessibilityLabel={t('options')} accessibilityRole="button">
+                <TouchableOpacity onPress={() => router.push('/devices')} style={styles.menuBtn} accessibilityLabel={t('devicesImbueTitle')} accessibilityRole="button">
+                    <Text style={styles.menuIcon}>🐾</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setActiveCardId(null); setShowMenu(true); }} style={[styles.menuBtn, { marginStart: 0 }]} accessibilityLabel={t('options')} accessibilityRole="button">
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
             </View>

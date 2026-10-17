@@ -1,0 +1,23 @@
+appId: ai.appacadabra.app
+---
+# Nível 1 — TCP: app no emulador conecta no appa-sim.exe (host 10.0.2.2:7788)
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Fazer Feitiço ✨"
+    timeout: 300000
+- tapOn:
+    label: "Imbuir Familiar"
+- extendedWaitUntil:
+    visible: "Conectar"
+    timeout: 15000
+- tapOn: "Conectar"
+- extendedWaitUntil:
+    visible: "fofura-sim"
+    timeout: 10000
+- assertVisible: "host-sim"
+- assertVisible: "Poderes concedidos"
+- assertVisible: "AI"
+- assertVisible: "Sheets"
+- assertVisible: "Sem encantamentos"
+- takeScreenshot: familiar_conectado

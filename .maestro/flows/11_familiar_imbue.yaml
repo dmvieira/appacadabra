@@ -1,0 +1,27 @@
+appId: ai.appacadabra.app
+---
+# Nível 1 — Forja: spell fixture → 🐾 Imbuir → permissionamento → ENCHANT_ACK
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Fazer Feitiço ✨"
+    timeout: 300000
+- tapOn: "Tarefas da Casa"
+- extendedWaitUntil:
+    visible: "Relíquias"
+    timeout: 15000
+- tapOn:
+    label: "Imbuir num Familiar"
+- extendedWaitUntil:
+    visible: "Poderes que viajam com ela"
+    timeout: 30000
+- assertVisible: "AI → openrouter"
+- assertVisible: "Relíquias (dados)"
+- assertVisible: "tarefas"
+- assertVisible: "Prompt de voz"
+- takeScreenshot: imbue_revisao
+- tapOn: "Imbuir!"
+- extendedWaitUntil:
+    visible: "Encantado!"
+    timeout: 30000
+- takeScreenshot: imbue_encantado

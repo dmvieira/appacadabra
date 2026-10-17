@@ -1,0 +1,62 @@
+appId: ai.appacadabra.app
+name: 10_familiar_e2e
+---
+# E2E Familiar (Nível 1 — TCP): app Android real <-> appa-sim (C++) no host.
+# Pré-requisitos (orquestrados fora do flow):
+#   - appa-sim.exe --port 7788 rodando no host Windows
+#   - adb reverse tcp:7788 tcp:7788 (app conecta via localhost:7788)
+#   - spell fixture semeada (seed-familiar.js)
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Fazer Feitiço ✨"
+    timeout: 300000
+
+# 1) Abrir Familiares pela home
+- tapOn:
+    label: "Imbuir Familiar"
+- assertVisible: "Familiares"
+
+# 2) Conectar via TCP no appa-sim (host editável: localhost + adb reverse)
+- tapOn:
+    id: "host-input"
+- inputText: "localhost"
+- tapOn:
+    id: "port-input"
+- inputText: "7788"
+- tapOn: "Conectar"
+- extendedWaitUntil:
+    visible: "fofura-sim"
+    timeout: 10000
+- assertVisible: "host-sim"
+- assertVisible: "Capabilities atendidas"
+
+# 3) Imbuir a spell fixture (voltar à home e abrir a spell)
+- back
+- extendedWaitUntil:
+    visible: "Fazer Feitiço ✨"
+    timeout: 10000
+- tapOn: "Tarefas da Casa"
+- extendedWaitUntil:
+    visible: "🐾"
+    timeout: 10000
+- tapOn:
+    label: "Imbuir num Familiar"
+- extendedWaitUntil:
+    visible: "Poderes que viajam com ela"
+    timeout: 60000
+- assertVisible: "AI → openrouter"
+- assertVisible: "Relíquias (dados)"
+- tapOn: "Imbuir!"
+- extendedWaitUntil:
+    visible: "Encantado!"
+    timeout: 30000
+- assertVisible: "Encantado!"
+- tapOn: "Concluir"
+
+# 4) Validar o encantamento listado no Familiar
+- tapOn:
+    label: "Imbuir Familiar"
+- assertVisible: "fofura-sim"
+- assertVisible: "enc_"
+- back

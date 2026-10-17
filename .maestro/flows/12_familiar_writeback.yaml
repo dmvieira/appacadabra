@@ -1,0 +1,21 @@
+appId: ai.appacadabra.app
+---
+# Nível 1 — Write-back: MUTATE injetado no sim → WRITEBACK → app_storage atualizado
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Fazer Feitiço ✨"
+    timeout: 300000
+- tapOn:
+    label: "Imbuir Familiar"
+- extendedWaitUntil:
+    visible: "Conectar"
+    timeout: 15000
+- tapOn: "Conectar"
+- extendedWaitUntil:
+    visible: "fofura-sim"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "mutações aplicadas"
+    timeout: 15000
+- takeScreenshot: familiar_writeback
