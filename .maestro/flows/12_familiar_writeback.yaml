@@ -7,6 +7,9 @@ appId: ai.appacadabra.app
     visible: "Fazer Feitiço ✨"
     timeout: 300000
 - tapOn:
+    text: "Ignorar backup"
+    optional: true
+- tapOn:
     label: "Imbuir Familiar"
 - extendedWaitUntil:
     visible: "Conectar"

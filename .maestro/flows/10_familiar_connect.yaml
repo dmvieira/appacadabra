@@ -1,16 +1,24 @@
 appId: ai.appacadabra.app
 ---
-# Nível 1 — TCP: app no emulador conecta no appa-sim.exe (host 10.0.2.2:7788)
+# Nível 1 — TCP: app conecta no appa-sim (host via FAMILIAR_HOST:
+# 10.0.2.2 no emulador; 127.0.0.1 no celular físico via adb reverse)
 - launchApp:
     stopApp: false
 - extendedWaitUntil:
     visible: "Fazer Feitiço ✨"
     timeout: 300000
 - tapOn:
+    text: "Ignorar backup"
+    optional: true
+- tapOn:
     label: "Imbuir Familiar"
 - extendedWaitUntil:
     visible: "Conectar"
     timeout: 15000
+- tapOn: "10.0.2.2"
+- eraseText
+- inputText: "${FAMILIAR_HOST}"
+- hideKeyboard
 - tapOn: "Conectar"
 - extendedWaitUntil:
     visible: "fofura-sim"

@@ -1,25 +1,30 @@
 #!/usr/bin/env node
-// Seeds the Familiar E2E fixture: one spell ("Tarefas da Casa") using
-// AppacadabraAI, with a `tarefas` relic in app_storage — so the imbue flow
-// exercises capability mapping + relics without any AI cost.
-// Usage: node .maestro/scripts/seed-familiar.js [--storage <json>]
-//   --storage <json>  optional extra app_storage rows (key->value object)
+// Seeds the Familiar E2E fixture by patching the app's REAL SQLite:
+//   1. pull appacadabra.db (+ WAL/SHM) via `adb exec-out run-as cat`
+//   2. python3 patch_appdb.py insere a spell + relíquias e consolida o WAL
+//   3. push de volta para files/SQLite/appacadabra.db (e limpa wal/shm)
+//
+// Uso: node .maestro/scripts/seed-familiar.js [--serial <sn>]
+// (o device nao tem o binario sqlite3; por isso o patch acontece no WSL)
 
-const { execSync, spawnSync } = require('child_process');
+const { execFileSync, spawnSync } = require('child_process');
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 const PACKAGE = 'ai.appacadabra.app';
 const APP_ID = 900;
+const APP_NAME = 'Tarefas da Casa';
+const WIN_TMP = '/mnt/c/dev/appa/.e2e';
+const WIN_TMP_ADB = 'C:\\dev\\appa\\.e2e';
 
 function findAdb() {
     const candidates = [
         process.env.ANDROID_HOME && path.join(process.env.ANDROID_HOME, 'platform-tools', 'adb'),
-        path.join(os.homedir(), 'AppData', 'Local', 'Android', 'Sdk', 'platform-tools', 'adb.exe'),
         '/tmp/opencode/android-sdk-bridge/platform-tools/adb',
+        path.join(os.homedir(), 'AppData', 'Local', 'Android', 'Sdk', 'platform-tools', 'adb.exe'),
         'adb',
     ].filter(Boolean);
-    const { execFileSync } = require('child_process');
     for (const c of candidates) {
         try { execFileSync(c, ['version'], { stdio: 'pipe' }); return c; } catch {}
     }
@@ -27,38 +32,60 @@ function findAdb() {
 }
 
 const ADB = findAdb();
-const DB = `/data/data/${PACKAGE}/files/SQLite/appacadabra.db`;
+const serial = process.argv.includes('--serial')
+    ? process.argv[process.argv.indexOf('--serial') + 1]
+    : process.env.ANDROID_SERIAL || null;
+const S = serial ? ['-s', serial] : [];
 
-function sql(statements) {
-    const input = statements.join('\n') + '\n.quit\n';
-    const r = spawnSync(ADB, ['shell', 'run-as', PACKAGE, 'sqlite3', DB], { encoding: 'utf8', input });
-    if (r.status !== 0) {
-        console.error('sqlite3 error:', r.stderr || r.stdout);
-        process.exit(1);
-    }
-    return r.stdout;
+const DB_REL = `files/SQLite/appacadabra.db`;
+const DB_ABS = `/data/data/${PACKAGE}/${DB_REL}`;
+
+function run(args, opts = {}) {
+    return spawnSync(ADB, [...S, ...args], { maxBuffer: 64 * 1024 * 1024, ...opts });
 }
 
-const html = `<html><body><h1>Tarefas da Casa</h1><script>AppacadabraAI.generate({prompt:"lista de tarefas",callback:"done"});</script></body></html>`;
-const now = Date.now();
-const extraStorage = process.argv.includes('--storage')
-    ? JSON.parse(process.argv[process.argv.indexOf('--storage') + 1])
-    : {};
+function pull(devicePath, localPath) {
+    const r = run(['exec-out', 'run-as', PACKAGE, 'cat', devicePath], { encoding: null });
+    if (r.status !== 0 || !r.stdout || r.stdout.length === 0) return false;
+    fs.writeFileSync(localPath, r.stdout);
+    return true;
+}
 
-sql([
-    // Limpa fixtures anteriores (re-executável)
-    `DELETE FROM generated_apps WHERE id = ${APP_ID};`,
-    `DELETE FROM app_storage WHERE appId = ${APP_ID};`,
-    `INSERT INTO generated_apps (name, code, currentVersion, iconPath, lastUpdated, createdAt, consoleLogs, totalSpendUsd, jobId, requiresBiometric, shortDescription, sortOrder, source, required_capabilities, required_mcps, mcp_pending_fix) VALUES (`,
-    `  'Tarefas da Casa',`,
-    `  '${html.replace(/'/g, "''")}',`,
-    `  1, '', ${now}, ${now}, '', 0, '', 0, 'Encantamento de teste', 0, 'local',`,
-    `  '["AI"]', '[]', NULL);`,
-    `INSERT INTO app_storage (appId, key, value) VALUES (${APP_ID}, 'tarefas', '{"itens":["trocar filtro do ar"]}');`,
-    ...Object.entries(extraStorage).map(
-        ([k, v]) => `INSERT OR REPLACE INTO app_storage (appId, key, value) VALUES (${APP_ID}, '${k}', '${String(v).replace(/'/g, "''")}');`
-    ),
-]);
+function push(localPath, devicePath) {
+    run(['push', path.join(WIN_TMP_ADB, path.basename(localPath)), '/data/local/tmp/seedfile']);
+    const r = run(['shell', 'run-as', PACKAGE, 'cp', '/data/local/tmp/seedfile', devicePath], { encoding: 'utf8' });
+    return r.status === 0;
+}
 
-const id = sql([`SELECT id FROM generated_apps WHERE id = ${APP_ID};`]);
-console.log('→ seed ok:', id.trim() ? `spell #${APP_ID} "Tarefas da Casa" + relíquia tarefas` : 'FALHOU');
+async function main() {
+    fs.mkdirSync(WIN_TMP, { recursive: true });
+
+    console.log('→ pull appacadabra.db (real, criado pelo app)...');
+    const localDb = path.join(WIN_TMP, 'appacadabra.db');
+    if (!pull(DB_ABS, localDb)) throw new Error('falha ao puxar o appacadabra.db (primeiro boot rodou?)');
+    pull(DB_ABS + '-wal', localDb + '-wal');
+    pull(DB_ABS + '-shm', localDb + '-shm');
+
+    const html = `<html><body><h1>Tarefas da Casa</h1><script>AppacadabraAI.generate({prompt:"lista de tarefas",callback:"ok"});</script></body></html>`;
+    const codeFile = path.join(WIN_TMP, 'code.html');
+    fs.writeFileSync(codeFile, html, 'utf8');
+
+    const storage = JSON.stringify({ tarefas: JSON.stringify({ itens: ['trocar filtro do ar'] }) });
+    console.log('→ patch (spell + relíquia)...');
+    const py = execFileSync('python3', [path.join(__dirname, 'patch_appdb.py'), localDb, String(APP_ID), APP_NAME, codeFile, storage], { encoding: 'utf8' });
+    process.stdout.write('  ' + py);
+
+    console.log('→ push de volta...');
+    if (!push(localDb, DB_ABS)) throw new Error('falha ao devolver o db');
+    run(['shell', 'run-as', PACKAGE, 'rm', '-f', DB_ABS + '-wal', DB_ABS + '-shm']);
+
+    // verificação
+    const verify = path.join(WIN_TMP, 'verify.db');
+    pull(DB_ABS, verify);
+    const out = execFileSync('python3', ['-c',
+        `import sqlite3,sys;c=sqlite3.connect(sys.argv[1]);print(c.execute("select id,name,required_capabilities from generated_apps where id=900").fetchall());print(c.execute("select key,value from app_storage where appId=900").fetchall())`,
+        verify], { encoding: 'utf8' });
+    console.log('→ verificado:', out.trim().replace(/\n/g, ' | '));
+}
+
+main().catch((e) => { console.error('seed FALHOU:', e.message); process.exit(1); });

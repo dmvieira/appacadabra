@@ -87,20 +87,19 @@ const ADB = findAdb();
     try { adb(`shell cmd locale set-app-locales ${PACKAGE} --locales pt-BR`); } catch {}
 
     console.log('→ Writing AsyncStorage keys (skip onboarding)...');
-    // @react-native-async-storage/async-storage v2 uses SQLite at databases/RKStorage
-    // DROP TABLE first so stale zustand-persist keys don't survive.
-    const SQL = [
-        `DROP TABLE IF EXISTS catalystLocalStorage;`,
-        `CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL);`,
-        `INSERT INTO catalystLocalStorage VALUES ('appacadabra_onboarding_seen','true');`,
-        `PRAGMA user_version = 1;`,
-        `.quit`,
-    ].join('\n');
+    // @react-native-async-storage/async-storage v2 uses SQLite at databases/RKStorage.
+    // O device nao traz o binario sqlite3 — geramos o arquivo no WSL (python) e
+    // empurramos via /data/local/tmp + run-as cp.
+    const WIN_TMP = '/mnt/c/dev/appa/.e2e';
+    fs.mkdirSync(WIN_TMP, { recursive: true });
+    const localAs = path.join(WIN_TMP, 'RKStorage');
+    execSync(`python3 ${path.join(__dirname, 'mk_asyncstorage.py')} "${localAs}"`, { stdio: 'pipe' });
     const DB_PATH = `/data/data/${PACKAGE}/databases/RKStorage`;
+    spawnSync(ADB, ['push', 'C:\\dev\\appa\\.e2e\\RKStorage', '/data/local/tmp/RKStorage'], { encoding: 'utf-8' });
     spawnSync(ADB, ['shell', 'run-as', PACKAGE, 'mkdir', '-p', `/data/data/${PACKAGE}/databases`], { encoding: 'utf-8' });
-    const result = spawnSync(ADB, ['shell', 'run-as', PACKAGE, 'sqlite3', DB_PATH], { encoding: 'utf-8', input: SQL });
-    if (result.status !== 0) {
-        console.error('sqlite3 error:', result.stderr || result.stdout);
+    const cpRes = spawnSync(ADB, ['shell', 'run-as', PACKAGE, 'cp', '/data/local/tmp/RKStorage', DB_PATH], { encoding: 'utf-8' });
+    if (cpRes.status !== 0) {
+        console.error('cp RKStorage error:', cpRes.stderr || cpRes.stdout);
         process.exit(1);
     }
 

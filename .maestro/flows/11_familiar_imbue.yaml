@@ -6,6 +6,9 @@ appId: ai.appacadabra.app
 - extendedWaitUntil:
     visible: "Fazer Feitiço ✨"
     timeout: 300000
+- tapOn:
+    text: "Ignorar backup"
+    optional: true
 - tapOn: "Tarefas da Casa"
 - extendedWaitUntil:
     visible: "Relíquias"
