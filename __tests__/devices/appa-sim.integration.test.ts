@@ -178,6 +178,60 @@ describeFn('appa L2 integration — Appacadabra client x appa-sim (C++)', () => 
     });
 });
 
+// db mockado para o deviceManager (app_settings + storage por app)
+const mockManagerStorage = new Map<string, string>([['7:tarefas', '{"itens":["filtro"]}']]);
+const mockManagerSettings = new Map<string, string>();
+jest.mock('../../lib/database/db', () => ({
+    getStorageForApp: async (appId: number) =>
+        [...mockManagerStorage.entries()]
+            .filter(([k]) => k.startsWith(`${appId}:`))
+            .map(([k, v], i) => ({ id: i, appId, key: k.split(':')[1], value: v })),
+    getStorageItem: async (appId: number, key: string) => mockManagerStorage.get(`${appId}:${key}`) ?? null,
+    setStorageItem: async (appId: number, key: string, value: string) => {
+        mockManagerStorage.set(`${appId}:${key}`, value);
+    },
+    getSetting: async (k: string) => mockManagerSettings.get(k) ?? null,
+    setSetting: async (k: string, v: string) => {
+        mockManagerSettings.set(k, v);
+    },
+}));
+
+describe('appa L2 — deviceManager (produção) x appa-sim (C++)', () => {
+    jest.setTimeout(60_000);
+
+    test('fluxo completo do usuário: conectar → imbuir → MUTATE por voz → relíquia atualizada', async () => {
+        const { deviceManager } = require('../../lib/devices/deviceManager');
+        const { TcpTransport } = require('../../lib/devices/transport');
+        const sim2 = await startSim('fofura-sim');
+        try {
+            const portrait = await deviceManager.connect(new TcpTransport('127.0.0.1', sim2.port));
+            expect(portrait.device.capabilities).toContain('ai');
+
+            // Imbução com permissionamento (AI granted → exige openrouter; device cobre 'ai')
+            const result = await deviceManager.imbueSpell({ id: 7, name: 'Tarefas da Casa', requiredCapabilities: ['AI'] });
+            expect(result.ack.stored).toBe(true);
+            expect(result.mapping.powersToGrant).toEqual(['openrouter']);
+            expect(result.bundle.data.tarefas).toBe('{"itens":["filtro"]}');
+
+            // Concede o poder; cofre real do C++ responde OK
+            await deviceManager.grantPower('openrouter', 'sk-or-v1-test');
+
+            // Mutação "por voz" no device → WRITEBACK → applyMutations → ACK
+            sim2.write(`MUTATE ${result.bundle.manifest.id} tarefas merge {"itens":["lâmpada"]}`);
+            await waitFor(
+                () => expect(JSON.parse(mockManagerStorage.get('7:tarefas')!)).toEqual({ itens: ['lâmpada'] }),
+                'relíquia não foi atualizada pelo write-back',
+            );
+
+            const session = deviceManager.getSession();
+            expect(session?.lastWritebackCount).toBe(1);
+            deviceManager.disconnect();
+        } finally {
+            sim2.stop();
+        }
+    });
+});
+
 describe('appa client — fluxo WRITEBACK device→APP (fake device node)', () => {
     test('client responde WRITEBACK_ACK com ackOf do WRITEBACK recebido', async () => {
         const server = net.createServer();
