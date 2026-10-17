@@ -65,8 +65,10 @@ export default function DevicesScreen() {
             const best = [...pool].sort((a, b) => b.rssi - a.rssi)[0];
             await deviceManager.connect(bleTransport(best.id));
         } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            Alert.alert(t('devicesError'), t(msg) === msg ? msg : t(msg));
+            const err = e as { code?: string; message?: string };
+            console.warn('[devices] BLE falhou', err?.code, err?.message);
+            const detail = `${err?.code ?? ''} ${err?.message ?? ''}`.trim() || t('devicesNoNativeBle');
+            Alert.alert(t('devicesError'), t(detail) === detail ? detail : t(detail));
         } finally {
             setBleScanning(false);
         }
