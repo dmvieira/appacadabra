@@ -56,10 +56,15 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         const val CHUNK = 180 // conservative until MTU is known
     }
 
-    private var adapter: BluetoothAdapter? = null
-        get() = field ?: reactApplicationContext
-            .getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothAdapter
-            ?.also { field = it }
+    private var adapterCache: BluetoothAdapter? = null
+
+    private fun adapter(): BluetoothAdapter? {
+        if (adapterCache == null) {
+            adapterCache =
+                reactApplicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothAdapter
+        }
+        return adapterCache
+    }
 
     private var scanning = false
     private val found = LinkedHashMap<String, Map<String, Any>>()
@@ -121,7 +126,7 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         stopScanInternal()
         found.clear()
         scanPromise = promise
-        val scanner = adapter?.bluetoothLeScanner
+        val scanner = adapter()?.bluetoothLeScanner
         if (scanner == null) {
             scanPromise = null
             promise.reject("E_NO_ADAPTER", "no BLE adapter")
@@ -155,7 +160,7 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
     private fun stopScanInternal() {
         if (scanning) {
             try {
-                adapter?.bluetoothLeScanner?.stopScan(scanCallback)
+                adapter()?.bluetoothLeScanner?.stopScan(scanCallback)
             } catch (_: Exception) {
             }
             scanning = false
@@ -268,7 +273,7 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         }
         gatt = null
         val device: BluetoothDevice? = try {
-            adapter?.getRemoteDevice(deviceId)
+            adapter()?.getRemoteDevice(deviceId)
         } catch (e: IllegalArgumentException) {
             null
         }

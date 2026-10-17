@@ -37,11 +37,11 @@ export interface SimHandle {
  * zig toolchain is cached under ../appa/.toolchain) and starts it on a free
  * port with a throwaway storage dir.
  */
-export async function startSim(name = 'fofura-sim'): Promise<SimHandle> {
+export async function startSim(name = 'fofura-sim', fixedPort?: number): Promise<SimHandle> {
     if (!fs.existsSync(SIM_BIN)) {
         execSync('bash scripts/build_host.sh', { cwd: APPA_ROOT, stdio: 'pipe', timeout: 170_000 });
     }
-    const port = await freePort();
+    const port = fixedPort ?? (await freePort());
     const storage = fs.mkdtempSync(path.join(os.tmpdir(), 'appa-sim-test-'));
     const proc = spawn(SIM_BIN, ['--port', String(port), '--storage', storage, '--name', name], {
         stdio: ['pipe', 'pipe', 'pipe'],
