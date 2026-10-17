@@ -491,9 +491,18 @@ export default function SpellDataScreen() {
                 <View style={[styles.sectionWrapper, { flex: 1.4 }]}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionLabel}>{t('relicsCreated')}</Text>
-                        <TouchableOpacity onPress={() => setCleanModal(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Text style={styles.trashIcon}>🗑️</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                            <TouchableOpacity
+                                onPress={() => router.push(`/devices/imbue?appId=${id}`)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                accessibilityLabel={t('devicesImbue')}
+                            >
+                                <Text style={styles.trashIcon}>🐾</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setCleanModal(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Text style={styles.trashIcon}>🗑️</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     {/* Filter Pills */}

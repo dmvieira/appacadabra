@@ -73,7 +73,7 @@ describe('transmuteSpell v0.2 — capabilities no bundle', () => {
     test('validação rejeita capabilities malformadas', () => {
         const bad = (capabilities: unknown) =>
             validateBundle({
-                manifest: { id: 'enc_ab12cd', spellId: 's', name: 'n', version: 1, requiredPowers: [], createdAt: 0, capabilities },
+                manifest: { id: 'enc_ab12cd', spellId: 's', name: 'n', version: 1, requiredPowers: [], createdAt: 0, capabilities: capabilities as CapabilityEntry[] },
                 prompt: 'p',
                 data: {},
                 config: { refreshPolicy: 'manual' },
