@@ -149,7 +149,8 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
             } catch (e: Throwable) {
                 scanning = false
                 scanPromise = null
-                promise.reject("E_STARTSCAN", "startScan: " + (e.message ?: e.toString()))
+                val frames = e.stackTrace.take(4).joinToString(" <- ") { it.className + "." + it.methodName + ":" + it.lineNumber }
+                promise.reject("E_STARTSCAN", "startScan: " + e.javaClass.name + " / " + (e.message ?: "") + " @ " + frames)
                 return
             }
             Thread {
