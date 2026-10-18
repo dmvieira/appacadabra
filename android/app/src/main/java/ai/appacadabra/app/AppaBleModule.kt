@@ -145,7 +145,11 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
                 val scanSettings = android.bluetooth.le.ScanSettings.Builder()
                     .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
                     .build()
-                scanner.startScan(emptyList(), scanSettings, scanCallback)
+                // filtra pelo servico NUS: so Familiars appa (firmware/bridge) aparecem
+                val nusFilter = android.bluetooth.le.ScanFilter.Builder()
+                    .setServiceUuid(android.os.ParcelUuid(NUS_SERVICE))
+                    .build()
+                scanner.startScan(listOf(nusFilter), scanSettings, scanCallback)
             } catch (e: Throwable) {
                 scanning = false
                 scanPromise = null
