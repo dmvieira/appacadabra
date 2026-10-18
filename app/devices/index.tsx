@@ -45,7 +45,7 @@ export default function DevicesScreen() {
             await deviceManager.connect(nativeTcpTransport(host.trim(), parseInt(port, 10) || 7788));
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
-            Alert.alert(t('devicesError'), msg === 'devicesNoNativeTcp' ? t('devicesNoNativeTcp') : msg);
+            Alert.alert(t('devicesError'), msg.startsWith('devices') ? t(msg) : msg);
         } finally {
             setConnecting(false);
         }
@@ -67,8 +67,10 @@ export default function DevicesScreen() {
         } catch (e) {
             const err = e as { code?: string; message?: string };
             console.warn('[devices] BLE falhou', err?.code, err?.message);
-            const detail = `${err?.code ?? ''} ${err?.message ?? ''}`.trim() || t('devicesNoNativeBle');
-            Alert.alert(t('devicesError'), t(detail) === detail ? detail : t(detail));
+            const detail = `${err?.code ?? ''} ${err?.message ?? ''}`.trim() || 'devicesNoNativeBle';
+            // chaves i18n conhecidas sao traduzidas; mensagens cruas vao como estao
+            const body = detail.startsWith('devices') ? t(detail) : detail;
+            Alert.alert(t('devicesError'), body);
         } finally {
             setBleScanning(false);
         }
