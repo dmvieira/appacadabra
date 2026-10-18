@@ -58,11 +58,11 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
     private var adapterCache: BluetoothAdapter? = null
 
-    @Suppress("DEPRECATION")
     private fun adapter(): BluetoothAdapter? {
         if (adapterCache == null) {
-            adapterCache = BluetoothAdapter.getDefaultAdapter()
-                ?: (reactApplicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+            val manager = reactApplicationContext.applicationContext
+                .getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            adapterCache = manager?.adapter
         }
         return adapterCache
     }
