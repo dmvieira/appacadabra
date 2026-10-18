@@ -142,7 +142,10 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
             }
             scanning = true
             try {
-                scanner.startScan(null, null, scanCallback)
+                val scanSettings = android.bluetooth.le.ScanSettings.Builder()
+                    .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
+                    .build()
+                scanner.startScan(emptyList(), scanSettings, scanCallback)
             } catch (e: Throwable) {
                 scanning = false
                 scanPromise = null
