@@ -234,28 +234,11 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
                 g.disconnect()
                 return
             }
-            g.requestMtu(247)
+            enableTxNotify(g)
         }
 
         override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) {
-            // Enable TX notifications (device -> app)
-            val tx = txChar ?: run {
-                connectPromise?.reject("E_NO_NUS", "TX characteristic missing")
-                connectPromise = null
-                return
-            }
-            g.setCharacteristicNotification(tx, true)
-            val descriptor = tx.getDescriptor(CCC_DESCRIPTOR)
-            if (descriptor != null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    g.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
-                } else {
-                    @Suppress("DEPRECATION")
-                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    @Suppress("DEPRECATION")
-                    g.writeDescriptor(descriptor)
-                }
-            }
+            enableTxNotify(g)
         }
 
         override fun onDescriptorWrite(g: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
@@ -291,6 +274,26 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         override fun onCharacteristicWrite(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             writing = false
             drainWrites(g)
+        }
+    }
+
+    private fun enableTxNotify(g: BluetoothGatt) {
+        val tx = txChar ?: return
+        g.setCharacteristicNotification(tx, true)
+        val descriptor = tx.getDescriptor(CCC_DESCRIPTOR)
+        if (descriptor != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                g.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+            } else {
+                @Suppress("DEPRECATION")
+                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                @Suppress("DEPRECATION")
+                g.writeDescriptor(descriptor)
+            }
+        } else {
+            // sem CCCD: resolve o connect direto na 1a notificacao habilitada
+            connectPromise?.resolve(null)
+            connectPromise = null
         }
     }
 
