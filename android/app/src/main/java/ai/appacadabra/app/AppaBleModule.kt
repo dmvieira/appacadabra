@@ -58,11 +58,11 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
     private var adapterCache: BluetoothAdapter? = null
 
+    @Suppress("DEPRECATION")
     private fun adapter(): BluetoothAdapter? {
         if (adapterCache == null) {
-            val manager =
-                reactApplicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-            adapterCache = manager?.adapter
+            adapterCache = BluetoothAdapter.getDefaultAdapter()
+                ?: (reactApplicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
         }
         return adapterCache
     }
@@ -120,37 +120,43 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun scan(timeoutMs: Int, promise: Promise) {
-        if (!hasPermission()) {
-            promise.reject("E_PERMISSION", "BLUETOOTH_SCAN/BLUETOOTH_CONNECT not granted")
-            return
-        }
-        stopScanInternal()
-        found.clear()
-        scanPromise = promise
-        val scanner = adapter()?.bluetoothLeScanner
-        if (scanner == null) {
-            scanPromise = null
-            promise.reject("E_NO_ADAPTER", "no BLE adapter")
-            return
-        }
-        scanning = true
-        scanner.startScan(null, null, scanCallback)
-        Thread {
-            try {
-                Thread.sleep(timeoutMs.toLong())
-            } catch (_: InterruptedException) {
+        try {
+            if (!hasPermission()) {
+                promise.reject("E_PERMISSION", "BLUETOOTH_SCAN/BLUETOOTH_CONNECT not granted")
+                return
             }
             stopScanInternal()
-            val list = Arguments.createArray()
-            for (entry in found.values) {
-                list.pushMap(Arguments.createMap().apply {
-                    putString("id", entry["id"] as String)
-                    putString("name", entry["name"] as String)
-                    putInt("rssi", (entry["rssi"] as Int))
-                })
+            found.clear()
+            scanPromise = promise
+            val scanner = adapter()?.bluetoothLeScanner
+            if (scanner == null) {
+                scanPromise = null
+                promise.reject("E_NO_ADAPTER", "no BLE adapter/scanner")
+                return
             }
-            promise.resolve(list)
-        }.start()
+            scanning = true
+            scanner.startScan(null, null, scanCallback)
+            Thread {
+                try {
+                    Thread.sleep(timeoutMs.toLong())
+                } catch (_: InterruptedException) {
+                }
+                stopScanInternal()
+                val list = Arguments.createArray()
+                for (entry in found.values) {
+                    list.pushMap(Arguments.createMap().apply {
+                        putString("id", entry["id"] as String)
+                        putString("name", entry["name"] as String)
+                        putInt("rssi", (entry["rssi"] as Int))
+                    })
+                }
+                promise.resolve(list)
+            }.start()
+        } catch (e: Throwable) {
+            scanPromise = null
+            scanning = false
+            promise.reject("E_SCAN", e.message ?: e.toString(), e)
+        }
     }
 
     @ReactMethod
@@ -269,32 +275,37 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun connect(deviceId: String, promise: Promise) {
-        if (!hasPermission()) {
-            promise.reject("E_PERMISSION", "BLUETOOTH_CONNECT not granted")
-            return
-        }
         try {
-            gatt?.close()
-        } catch (_: Exception) {
-        }
-        gatt = null
-        val device: BluetoothDevice? = try {
-            adapter()?.getRemoteDevice(deviceId)
-        } catch (e: IllegalArgumentException) {
-            null
-        }
-        if (device == null) {
-            promise.reject("E_DEVICE", "unknown device: $deviceId")
-            return
-        }
-        connectPromise = promise
-        val g = device.connectGatt(reactApplicationContext, false, gattCallback)
-        if (g == null) {
+            if (!hasPermission()) {
+                promise.reject("E_PERMISSION", "BLUETOOTH_CONNECT not granted")
+                return
+            }
+            try {
+                gatt?.close()
+            } catch (_: Exception) {
+            }
+            gatt = null
+            val device: BluetoothDevice? = try {
+                adapter()?.getRemoteDevice(deviceId)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+            if (device == null) {
+                promise.reject("E_DEVICE", "unknown device: $deviceId")
+                return
+            }
+            connectPromise = promise
+            val g = device.connectGatt(reactApplicationContext, false, gattCallback)
+            if (g == null) {
+                connectPromise = null
+                promise.reject("E_CONNECT", "connectGatt returned null")
+                return
+            }
+            gatt = g
+        } catch (e: Throwable) {
             connectPromise = null
-            promise.reject("E_CONNECT", "connectGatt returned null")
-            return
+            promise.reject("E_CONNECT", e.message ?: e.toString(), e)
         }
-        gatt = g
     }
 
     // ---- write (chunked) ------------------------------------------------------
