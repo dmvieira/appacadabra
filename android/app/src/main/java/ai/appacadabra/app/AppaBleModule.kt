@@ -60,8 +60,9 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
     private fun adapter(): BluetoothAdapter? {
         if (adapterCache == null) {
-            adapterCache =
-                reactApplicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothAdapter
+            val manager =
+                reactApplicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            adapterCache = manager?.adapter
         }
         return adapterCache
     }

@@ -52,14 +52,20 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         val NUS_SERVICE: UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
         val NUS_RX: UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e") // app -> device
         val NUS_TX: UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e") // device -> app
-        const val CCC_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        val CCC_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         const val CHUNK = 180 // conservative until MTU is known
     }
 
-    private var adapter: BluetoothAdapter? = null
-        get() = field ?: reactApplicationContext
-            .getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothAdapter
-            ?.also { field = it }
+    private var adapterCache: BluetoothAdapter? = null
+
+    private fun adapter(): BluetoothAdapter? {
+        if (adapterCache == null) {
+            val manager =
+                reactApplicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            adapterCache = manager?.adapter
+        }
+        return adapterCache
+    }
 
     private var scanning = false
     private val found = LinkedHashMap<String, Map<String, Any>>()
@@ -121,7 +127,7 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         stopScanInternal()
         found.clear()
         scanPromise = promise
-        val scanner = adapter?.bluetoothLeScanner
+        val scanner = adapter()?.bluetoothLeScanner
         if (scanner == null) {
             scanPromise = null
             promise.reject("E_NO_ADAPTER", "no BLE adapter")
@@ -155,7 +161,7 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
     private fun stopScanInternal() {
         if (scanning) {
             try {
-                adapter?.bluetoothLeScanner?.stopScan(scanCallback)
+                adapter()?.bluetoothLeScanner?.stopScan(scanCallback)
             } catch (_: Exception) {
             }
             scanning = false
@@ -206,8 +212,13 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
         override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) {
             // Enable TX notifications (device -> app)
-            g.setCharacteristicNotification(txChar, true)
-            val descriptor = txChar.getDescriptor(CCC_DESCRIPTOR)
+            val tx = txChar ?: run {
+                connectPromise?.reject("E_NO_NUS", "TX characteristic missing")
+                connectPromise = null
+                return
+            }
+            g.setCharacteristicNotification(tx, true)
+            val descriptor = tx.getDescriptor(CCC_DESCRIPTOR)
             if (descriptor != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     g.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
@@ -268,7 +279,7 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         }
         gatt = null
         val device: BluetoothDevice? = try {
-            adapter?.getRemoteDevice(deviceId)
+            adapter()?.getRemoteDevice(deviceId)
         } catch (e: IllegalArgumentException) {
             null
         }
