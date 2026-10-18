@@ -80,13 +80,13 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
     override fun getName() = NAME
 
-    private fun hasPermission(): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ContextCompat.checkSelfPermission(reactApplicationContext, Manifest.permission.BLUETOOTH_SCAN) ==
-                PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(reactApplicationContext, Manifest.permission.BLUETOOTH_CONNECT) ==
-                PackageManager.PERMISSION_GRANTED
+    private fun hasPermission(): Boolean {
+        val ctx = reactApplicationContext.applicationContext
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ctx.checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
+                ctx.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
         } else true
+    }
 
     private fun emit(event: String, params: com.facebook.react.bridge.WritableMap?) {
         reactApplicationContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
@@ -128,14 +128,27 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
             stopScanInternal()
             found.clear()
             scanPromise = promise
-            val scanner = adapter()?.bluetoothLeScanner
+            val scanner = try {
+                adapter()?.bluetoothLeScanner
+            } catch (e: Throwable) {
+                scanPromise = null
+                promise.reject("E_ADAPTER", "bluetoothLeScanner: " + (e.message ?: e.toString()))
+                return
+            }
             if (scanner == null) {
                 scanPromise = null
                 promise.reject("E_NO_ADAPTER", "no BLE adapter/scanner")
                 return
             }
             scanning = true
-            scanner.startScan(null, null, scanCallback)
+            try {
+                scanner.startScan(null, null, scanCallback)
+            } catch (e: Throwable) {
+                scanning = false
+                scanPromise = null
+                promise.reject("E_STARTSCAN", "startScan: " + (e.message ?: e.toString()))
+                return
+            }
             Thread {
                 try {
                     Thread.sleep(timeoutMs.toLong())
