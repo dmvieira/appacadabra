@@ -91,9 +91,9 @@ describe('deviceManager', () => {
         // relíquia viajou no bundle
         expect(result.bundle.data.tarefas).toBe('[{"t":"lavar"}]');
 
-        // índice enc→app persistido em app_settings (id do bundle -> app 42)
-        expect(mockSettings.get('devices.encIndex')).toContain(result.bundle.manifest.id);
-        expect(mockSettings.get('devices.encIndex')).toContain(':42');
+        // índice enc→app persistido em app_settings (por device; aqui '__default__')
+        expect(mockSettings.get('devices.encIndex.__default__')).toContain(result.bundle.manifest.id);
+        expect(mockSettings.get('devices.encIndex.__default__')).toContain(':42');
     });
 
     test('imbueSpell recusa quando o device não cobre a capability', async () => {

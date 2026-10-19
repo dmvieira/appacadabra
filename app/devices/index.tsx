@@ -23,7 +23,7 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
-import { deviceManager, nativeTcpTransport, hashKey, type FamiliarSession } from '../../lib/devices/deviceManager';
+import { deviceManager, nativeTcpTransport, hashKey, type FamiliarSession, type KnownFamiliar } from '../../lib/devices/deviceManager';
 import { useAppStore } from '../../lib/store';
 import { bleScan, bleTransport, APPA_STATE_CONFIGURED, type BleDevice } from '../../lib/devices/bleTransport';
 import { getOpenRouterKey } from '../../lib/api/keyStorage';
@@ -53,6 +53,8 @@ export default function DevicesScreen() {
     const [aiKeyOk, setAiKeyOk] = useState(false);
     const [encApp, setEncApp] = useState<Record<string, number>>({});
     const [lastQuery, setLastQuery] = useState(deviceManager.getLastQuery());
+    const [known, setKnown] = useState<KnownFamiliar[]>([]);
+    const [nearbyIds, setNearbyIds] = useState<Set<string>>(new Set());
     const apps = useAppStore((s) => s.apps);
 
     useEffect(() => {
@@ -61,6 +63,20 @@ export default function DevicesScreen() {
             setLastQuery(deviceManager.getLastQuery());
         });
     }, []);
+
+    // Familiares conhecidos (p/ escolher com status).
+    useEffect(() => {
+        let alive = true;
+        deviceManager
+            .knownFamiliars()
+            .then((k) => {
+                if (alive) setKnown(k);
+            })
+            .catch(() => {});
+        return () => {
+            alive = false;
+        };
+    }, [session]);
 
     // Mantém o campo de nome sincronizado com o retrato atual do Familiar.
     useEffect(() => {
@@ -140,6 +156,9 @@ export default function DevicesScreen() {
             const devices = await bleScan(6000);
             const sorted = [...devices].sort((a, b) => b.rssi - a.rssi);
             setBleDevices(sorted);
+            setNearbyIds(new Set(sorted.map((d) => d.id)));
+            setKnown(await deviceManager.knownFamiliars());
+            for (const d of sorted) void deviceManager.markFamiliarSeen(d.id);
             if (sorted.length === 0) {
                 Alert.alert(t('devicesTitle'), t('devicesBleNone'));
             }
@@ -158,8 +177,9 @@ export default function DevicesScreen() {
     const connectBleDevice = useCallback(async (device: BleDevice) => {
         setBleConnectingId(device.id);
         try {
-            await deviceManager.connect(bleTransport(device.id));
+            await deviceManager.connect(bleTransport(device.id), device.id);
             setBleDevices([]);
+            setKnown(await deviceManager.knownFamiliars());
         } catch (e) {
             const err = e as { code?: string; message?: string };
             console.warn('[devices] BLE connect falhou', err?.code, err?.message);
@@ -192,6 +212,14 @@ export default function DevicesScreen() {
 
     const disconnect = useCallback(() => {
         deviceManager.disconnect();
+    }, []);
+
+    const removeEnchantment = useCallback(async (encId: string) => {
+        try {
+            await deviceManager.unenchant(encId);
+        } catch (e) {
+            Alert.alert(t('devicesError'), e instanceof Error ? e.message : String(e));
+        }
     }, []);
 
     const grantWifi = useCallback(async () => {
@@ -264,6 +292,14 @@ export default function DevicesScreen() {
         [encApp, apps],
     );
 
+    const relTime = useCallback((ts: number) => {
+        const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+        if (s < 60) return `${s}s`;
+        if (s < 3600) return `${Math.floor(s / 60)}min`;
+        if (s < 86400) return `${Math.floor(s / 3600)}h`;
+        return `${Math.floor(s / 86400)}d`;
+    }, []);
+
     return (
         <SafeAreaView style={styles.root} edges={['bottom']}>
             <Stack.Screen options={{ title: t('devicesTitle') }} />
@@ -271,6 +307,35 @@ export default function DevicesScreen() {
                 {!session ? (
                     <View>
                         <Text style={styles.subtitle}>{t('devicesSubtitle')}</Text>
+
+                        {known.length > 0 && (
+                            <View style={styles.card}>
+                                <Text style={styles.sectionTitle}>{t('devicesMyFamiliars')}</Text>
+                                {known.map((f) => (
+                                    <TouchableOpacity
+                                        key={f.id}
+                                        style={styles.deviceRow}
+                                        disabled={bleConnectingId !== null}
+                                        onPress={() => connectBleDevice({ id: f.id, name: f.name, rssi: 0 })}
+                                    >
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.deviceRowName}>{f.name}</Text>
+                                            <Text style={styles.deviceRowMeta}>
+                                                {nearbyIds.has(f.id)
+                                                    ? t('devicesNearby')
+                                                    : t('devicesSeenAgo', { time: relTime(f.lastSeen) })}
+                                            </Text>
+                                        </View>
+                                        {bleConnectingId === f.id ? (
+                                            <ActivityIndicator color={colors.primary} />
+                                        ) : (
+                                            <Text style={styles.deviceRowAction}>{t('devicesConnect')}</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+
                         <TouchableOpacity
                             style={[styles.button, styles.buttonPrimary]}
                             onPress={scanBle}
@@ -279,7 +344,7 @@ export default function DevicesScreen() {
                             {bleScanning ? (
                                 <ActivityIndicator color={colors.onPrimary} />
                             ) : (
-                                <Text style={styles.buttonText}>{t('devicesConnectBle')}</Text>
+                                <Text style={styles.buttonText}>{t('devicesFindFamiliars')}</Text>
                             )}
                         </TouchableOpacity>
                         <Text style={styles.hint}>{t('devicesConnectBleHint')}</Text>
@@ -430,18 +495,24 @@ export default function DevicesScreen() {
                                     p.encantamentos.map((e) => {
                                         const spellId = encApp[e.id];
                                         return (
-                                            <TouchableOpacity
-                                                key={e.id}
-                                                style={styles.deviceRow}
-                                                disabled={spellId == null}
-                                                onPress={() => spellId != null && router.push(`/devices/imbue?appId=${spellId}`)}
-                                            >
-                                                <View style={{ flex: 1 }}>
+                                            <View key={e.id} style={styles.deviceRow}>
+                                                <TouchableOpacity
+                                                    style={{ flex: 1 }}
+                                                    disabled={spellId == null}
+                                                    onPress={() => spellId != null && router.push(`/devices/imbue?appId=${spellId}`)}
+                                                >
                                                     <Text style={styles.deviceRowName}>{appNameFor(e.id)}</Text>
                                                     <Text style={styles.deviceRowMeta}>v{e.version}</Text>
-                                                </View>
-                                                {spellId != null && <Text style={styles.deviceRowAction}>{t('devicesEditEnchantment')}</Text>}
-                                            </TouchableOpacity>
+                                                </TouchableOpacity>
+                                                {spellId != null && (
+                                                    <TouchableOpacity onPress={() => router.push(`/devices/imbue?appId=${spellId}`)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                                        <Text style={styles.deviceRowAction}>{t('devicesEditEnchantment')}</Text>
+                                                    </TouchableOpacity>
+                                                )}
+                                                <TouchableOpacity onPress={() => removeEnchantment(e.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                                    <Text style={styles.deviceRowRemove}>{t('devicesRemoveEnchantment')}</Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         );
                                     })
                                 )}
@@ -641,6 +712,7 @@ const styles = StyleSheet.create({
     deviceRowName: { color: colors.onBackground, fontSize: 16, fontWeight: '600' },
     deviceRowMeta: { color: colors.onSurfaceVariant, fontSize: 12, marginTop: 2 },
     deviceRowAction: { color: colors.primary, fontWeight: '600' },
+    deviceRowRemove: { color: colors.error, fontWeight: '600' },
     hint: { color: colors.onSurfaceVariant, fontSize: 12, marginTop: spacing.md, lineHeight: 17 },
     advancedLink: { color: colors.onSurfaceVariant, fontSize: 13, marginTop: spacing.lg, paddingVertical: spacing.sm },
     card: {
