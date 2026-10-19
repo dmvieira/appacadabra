@@ -13,7 +13,7 @@
  */
 
 import type { AppStorage } from '../database/types';
-import { CapabilityEntry, DeviceRequirement, Bundle, generateEncantamentoId, validEncantamentoId, validPowerName } from './protocol';
+import { CapabilityEntry, DeviceRequirement, Bundle, encIdForSpell, generateEncantamentoId, validEncantamentoId, validPowerName } from './protocol';
 import { mapRequirements } from './capabilityMap';
 
 const DATA_KEY_RE = /^[a-zA-Z0-9_.-]{1,64}$/;
@@ -265,7 +265,7 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
     if (io.keywordsOverride) keywords = normalizeKeywords(io.keywordsOverride);
 
     const bundle = transmuteSpell({
-        encId: io.encId,
+        encId: io.encId ?? encIdForSpell(app.id),
         spellId: `app_${app.id}`,
         name: app.name.slice(0, 64) || 'Encantamento',
         prompt,

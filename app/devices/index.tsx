@@ -29,6 +29,7 @@ import { bleScan, bleTransport, APPA_STATE_CONFIGURED, type BleDevice } from '..
 import { getOpenRouterKey } from '../../lib/api/keyStorage';
 import { MODELS } from '../../lib/api/pricing';
 import { CAPABILITY_MAP } from '../../lib/devices/capabilityMap';
+import { encIdToAppId } from '../../lib/devices/protocol';
 import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -178,7 +179,19 @@ export default function DevicesScreen() {
     const connectBleDevice = useCallback(async (device: BleDevice) => {
         setBleConnectingId(device.id);
         try {
-            await deviceManager.connect(bleTransport(device.id), device.id);
+            // 2 tentativas: o BLE do ESP32 às vezes falha um connect e passa no retry.
+            let lastErr: unknown = null;
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    await deviceManager.connect(bleTransport(device.id), device.id);
+                    lastErr = null;
+                    break;
+                } catch (e) {
+                    lastErr = e;
+                    await sleep(700);
+                }
+            }
+            if (lastErr) throw lastErr;
             setBleDevices([]);
             setKnown(await deviceManager.knownFamiliars());
         } catch (e) {
@@ -287,7 +300,8 @@ export default function DevicesScreen() {
 
     const appNameFor = useCallback(
         (encId: string) => {
-            const id = encApp[encId];
+            // Encantamento determinístico: decode direto; fallback ao índice legado.
+            const id = encIdToAppId(encId) ?? encApp[encId];
             const a = id != null ? apps.find((x) => x.id === id) : undefined;
             return a?.name ?? encId;
         },

@@ -334,6 +334,27 @@ export function generateEncantamentoId(): string {
     return `enc_${suffix}`;
 }
 
+/**
+ * id DETERMINÍSTICO do encantamento a partir do feitiço: 1 encantamento por
+ * feitiço por device. Reencantar reusa este id → o device ATUALIZA a versão
+ * (upsert) em vez de duplicar. `enc_` + base36(appId) com 6 chars.
+ */
+export function encIdForSpell(appId: number): string {
+    return `enc_${appId.toString(36).padStart(6, '0')}`;
+}
+
+/**
+ * appId a partir do encId determinístico. Só decodifica o formato de 6 chars
+ * (`encIdForSpell`); ids aleatórios legados (10 chars) retornam null e são
+ * resolvidos pelo índice legado.
+ */
+export function encIdToAppId(encId: string): number | null {
+    const m = /^enc_([0-9a-z]{6})$/.exec(encId);
+    if (!m) return null;
+    const n = parseInt(m[1], 36);
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 // ============= Payload types (PROTOCOL.md §3-§4) =============
 
 export interface HelloPortrait {

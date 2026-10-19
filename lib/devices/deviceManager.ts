@@ -13,7 +13,7 @@
 import { NativeModules } from 'react-native';
 
 import { AppaClient } from './appaClient';
-import { Bundle, HelloPortrait, Mutation } from './protocol';
+import { Bundle, HelloPortrait, Mutation, encIdForSpell, encIdToAppId } from './protocol';
 import { Transport } from './transport';
 import { applyMutations } from './writeback';
 import { transmuteApp, validateBundle, type MinimalSpellApp, type TransmuteAppResult } from './transmute';
@@ -110,7 +110,9 @@ class DeviceManager {
         const idx = await this.loadEncIndex();
         const groups = new Map<number, Mutation[]>();
         for (const mu of mutations) {
-            const appId = idx.get(mu.enc);
+            // Encantamento determinístico: decode direto do id; fallback ao
+            // índice (ids aleatórios legados).
+            const appId = encIdToAppId(mu.enc) ?? idx.get(mu.enc);
             if (appId === undefined) continue;
             const list = groups.get(appId) ?? [];
             list.push(mu);
@@ -195,13 +197,12 @@ class DeviceManager {
         }
     }
 
-    async registerEncantamento(encId: string, appId: number, version: number): Promise<void> {
+    async registerEncantamento(encId: string, appId: number): Promise<void> {
+        // Índice legado (encId -> appId). Com o id determinístico o vínculo é
+        // inerente (encIdToAppId); o índice cobre ids aleatórios antigos.
         const idx = await this.loadEncIndex();
         idx.set(encId, appId);
         await this.saveEncIndex();
-        const forMap = await this.loadEncFor();
-        forMap.set(appId, { encId, version });
-        await this.saveEncFor();
     }
 
     /** Mapa encId -> appId (spell de origem), para exibir o nome na UI. */
@@ -211,17 +212,9 @@ class DeviceManager {
 
     /** Encantamento existente desta spell neste device (p/ rotular "Atualizar"). */
     async enchantmentForApp(appId: number): Promise<{ encId: string; version: number } | null> {
-        const e = (await this.loadEncFor()).get(appId);
-        if (e) return e;
-        const idx = await this.loadEncIndex();
-        const candidates = [...idx.entries()].filter(([, a]) => a === appId).map(([id]) => id);
-        if (!candidates.length) return null;
-        return candidates
-            .map((id) => ({
-                encId: id,
-                version: this.session?.portrait.encantamentos.find((x) => x.id === id)?.version ?? 0,
-            }))
-            .sort((a, b) => b.version - a.version)[0];
+        const encId = encIdForSpell(appId);
+        const e = this.session?.portrait.encantamentos.find((x) => x.id === encId);
+        return e ? { encId, version: e.version } : null;
     }
 
     /** Remove um encantamento do Familiar conectado. */
@@ -229,14 +222,8 @@ class DeviceManager {
         if (!this.session) throw new Error('devicesNoConnection');
         await this.session.client.unenchant(encId);
         const idx = await this.loadEncIndex();
-        const appId = idx.get(encId);
         idx.delete(encId);
         await this.saveEncIndex();
-        if (appId !== undefined) {
-            const forMap = await this.loadEncFor();
-            forMap.delete(appId);
-            await this.saveEncFor();
-        }
         await this.pullPortrait().catch(() => {});
     }
 
@@ -310,35 +297,11 @@ class DeviceManager {
         } = {},
     ): Promise<TransmuteAppResult & { ack: { id: string; version: number; stored: boolean } }> {
         if (!this.session) throw new Error('devicesNoConnection');
-        // Atualizar (não duplicar): se a spell já tem encantamento neste device,
-        // reusa o mesmo encId e incrementa a versão. Deriva também do índice
-        // reverso (encIndex) p/ encantamentos criados antes do encFor existir.
-        let encId = opts.encId;
-        let version = opts.version;
-        let duplicates: string[] = [];
-        if (!encId) {
-            const idx = await this.loadEncIndex();
-            const candidates = [...idx.entries()].filter(([, aId]) => aId === app.id).map(([eId]) => eId);
-            const forMap = await this.loadEncFor();
-            const fromFor = forMap.get(app.id) ?? null;
-            // Mantém o encFor; senão o de maior versão no retrato.
-            let keep: string | undefined = fromFor?.encId;
-            if (!keep && candidates.length) {
-                keep = candidates
-                    .map((eId) => ({
-                        eId,
-                        v: this.session!.portrait.encantamentos.find((x) => x.id === eId)?.version ?? 0,
-                    }))
-                    .sort((a, b) => b.v - a.v)[0].eId;
-            }
-            if (keep) {
-                const fromPortrait = this.session.portrait.encantamentos.find((e) => e.id === keep)?.version;
-                const base = fromPortrait ?? fromFor?.version ?? 0;
-                encId = keep;
-                version = base + 1;
-                duplicates = candidates.filter((eId) => eId !== keep);
-            }
-        }
+        // 1 encantamento por feitiço/device: o id deriva do feitiço, então
+        // reencantar ATUALIZA a versão (upsert) — nunca duplica.
+        const encId = opts.encId ?? encIdForSpell(app.id);
+        const fromPortrait = this.session.portrait.encantamentos.find((e) => e.id === encId)?.version;
+        const version = opts.version ?? (fromPortrait ?? 0) + 1;
         const build = async (v: number | undefined, id: string | undefined) =>
             transmuteApp(app, {
                 getStorage: (appId) => getStorageForApp(appId),
@@ -364,21 +327,7 @@ class DeviceManager {
             result = await build(next, encId);
             if (!validateBundle(result.bundle)) ack = await this.enchantWithRetry(result.bundle);
         }
-        // Dedupe: encantamentos antigos da MESMA spell neste device (ex.: criados
-        // antes do encFor) — remove os extras após atualizar o principal.
-        if (duplicates.length) {
-            const idx = this.encIndexCache.get(this.deviceKey()) ?? (await this.loadEncIndex());
-            for (const d of duplicates) {
-                try {
-                    await this.session.client.unenchant(d);
-                    idx.delete(d);
-                } catch {
-                    // best-effort
-                }
-            }
-            await this.saveEncIndex();
-        }
-        await this.registerEncantamento(result.bundle.manifest.id, app.id, ack.version || version || 1);
+        await this.registerEncantamento(result.bundle.manifest.id, app.id);
         this.emit();
         return { ...result, ack };
     }
