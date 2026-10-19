@@ -99,6 +99,24 @@ descoberto no GATT ao conectar).
 Pendente: **gravar o firmware** (o COM3 estava ocupado/inoperante nesta máquina na
 rodada) e validar picker/renomear/estado no celular.
 
+## Fase G — Voz no Familiar (wakeword + STT) — ✅ código · ⏳ hardware
+- **Identificador de wakeword** (modos `flex`/`local`): VAD puro
+  (`src/wakeword/appa_vad.h`, `frame_rms` com remoção de DC + histerese) dispara
+  no início da fala; o firmware grava um clip curto e chama `flex_verify`
+  (pergunta ao modelo multimodal se a frase `wake.phrase` foi dita). `local`
+  usa o mesmo verificador remoto enquanto o modelo microWakeWord não é embutido.
+- **STT**: acordado, o firmware grava ~4s (`record_wav`), codifica em base64
+  (mbedtls) e chama `openrouter_stt` → texto → `route_query` + IA
+  (`openrouter_chat`) → `QUERY_RESULT` para o app.
+- **Config**: `SET_CONFIG { wake: {mode,phrase,threshold} }` persistido
+  (`config:wake`, já suportado pelo sim/HELLO); o app envia o **modelo do
+  WebView** em `GRANT_POWER openrouter meta.model` → firmware guarda
+  `config:model` e usa no verify/STT.
+- **Comandos seriais** para bancada: `vad` (testa o gate) e `voice`
+  (grava→STT→IA sem passar pelo wake).
+- **Verificação**: firmware compila (39%); testes host do VAD (doctest) verdes
+  (40 casos / 195 asserts). Pendente: validação no hardware (áudio real).
+
 ## Como rodar o Nível 1
 ```bash
 # 1) sim no Windows (uma vez):

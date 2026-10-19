@@ -26,6 +26,7 @@ import { t } from '../../lib/i18n';
 import { deviceManager, nativeTcpTransport, type FamiliarSession } from '../../lib/devices/deviceManager';
 import { bleScan, bleTransport, APPA_STATE_CONFIGURED, type BleDevice } from '../../lib/devices/bleTransport';
 import { getOpenRouterKey } from '../../lib/api/keyStorage';
+import { MODELS } from '../../lib/api/pricing';
 import { CAPABILITY_MAP } from '../../lib/devices/capabilityMap';
 import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
 
@@ -131,7 +132,7 @@ export default function DevicesScreen() {
                 Alert.alert(t('devicesError'), t('devicesGrantNeedsKey'));
                 return;
             }
-            await deviceManager.grantPower('openrouter', key);
+            await deviceManager.grantPower('openrouter', key, { model: MODELS.WEBVIEW });
             await deviceManager.pullPortrait().catch(() => {});
             Alert.alert(t('devicesTitle'), t('devicesAiGranted'));
         } catch (e) {

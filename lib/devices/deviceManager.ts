@@ -158,9 +158,9 @@ class DeviceManager {
     }
 
     /** Concede um poder ao Familiar conectado. */
-    async grantPower(power: string, token: string): Promise<void> {
+    async grantPower(power: string, token: string, meta?: Record<string, unknown>): Promise<void> {
         if (!this.session) throw new Error('devicesNoConnection');
-        await this.session.client.grantPower(power, token);
+        await this.session.client.grantPower(power, token, meta);
     }
 
     /**
