@@ -24,7 +24,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
 import { useAppStore } from '../../lib/store';
-import { deviceManager } from '../../lib/devices/deviceManager';
+import { deviceManager, deviceErrorKey } from '../../lib/devices/deviceManager';
 import { generateVoiceEnchantment } from '../../lib/devices/voicePrompt';
 import { normalizeKeywords, KEYWORDS_MAX, KEYWORD_MAX_LEN, type TransmuteAppResult } from '../../lib/devices/transmute';
 import { CAPABILITY_MAP, requiresNet } from '../../lib/devices/capabilityMap';
@@ -163,13 +163,16 @@ export default function ImbueScreen() {
             const msg = e instanceof Error ? e.message : String(e);
             const unsupported = msg.startsWith('devicesUnsupported:');
             const ids = unsupported ? msg.slice('devicesUnsupported:'.length).split(',') : [];
+            const ek = deviceErrorKey(msg);
             Alert.alert(
                 t('devicesError'),
                 unsupported
                     ? `${t('devicesUnsupportedList')} ${ids.map((i) => CAPABILITY_MAP[i]?.displayName ?? i).join(', ')}`
                     : msg === 'devicesNoConnection'
                       ? t('devicesNoConnection')
-                      : msg,
+                      : ek
+                        ? t(ek)
+                        : msg,
             );
             setPhase({ kind: 'review' });
         }

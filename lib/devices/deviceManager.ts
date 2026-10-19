@@ -325,16 +325,33 @@ class DeviceManager {
         if (missing.length > 0) {
             throw new Error(`devicesUnsupported:${missing.map((m) => m.id).join(',')}`);
         }
-        let ack = await this.session.client.enchant(result.bundle);
+        let ack = await this.enchantWithRetry(result.bundle);
         // Idempotência: o device tinha versão igual/maior -> sobe e reenvia 1x.
         if (!ack.stored && encId) {
             const next = (ack.version || 0) + 1;
             result = await build(next, encId);
-            if (!validateBundle(result.bundle)) ack = await this.session.client.enchant(result.bundle);
+            if (!validateBundle(result.bundle)) ack = await this.enchantWithRetry(result.bundle);
         }
         await this.registerEncantamento(result.bundle.manifest.id, app.id, ack.version || version || 1);
         this.emit();
         return { ...result, ack };
+    }
+
+    /**
+     * Envia o ENCHANT com 1 retry em caso de timeout (BLE instável durante o
+     * envio). Outros erros sobem como estão.
+     */
+    private async enchantWithRetry(bundle: Bundle): Promise<{ id: string; version: number; stored: boolean }> {
+        if (!this.session) throw new Error('devicesNoConnection');
+        try {
+            return await this.session.client.enchant(bundle);
+        } catch (e) {
+            if (e instanceof Error && /timeout/i.test(e.message)) {
+                await this.session.client.ping().catch(() => {});
+                return await this.session.client.enchant(bundle);
+            }
+            throw e;
+        }
     }
 
     /** Concede um poder ao Familiar conectado. */
@@ -432,6 +449,18 @@ export function hashKey(key: string): string {
     let h = 5381;
     for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
     return (h >>> 0).toString(16);
+}
+
+/**
+ * Mapeia mensagens técnicas de erro do device para chaves i18n amigáveis.
+ * Retorna null quando não há tradução (a UI mostra a mensagem crua).
+ */
+export function deviceErrorKey(message: string): string | null {
+    if (/timeout waiting for ENCHANT_ACK|waiting for OK/i.test(message)) return 'devicesEnchantTimeout';
+    if (/timeout waiting for HELLO|timeout waiting/i.test(message)) return 'devicesConnectTimeout';
+    if (/E_NO_NUS|does not expose NUS/i.test(message)) return 'devicesBleNoService';
+    if (/E_DISCONNECTED|connection closed/i.test(message)) return 'devicesDisconnected';
+    return null;
 }
 
 /**

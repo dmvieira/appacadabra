@@ -23,7 +23,7 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
-import { deviceManager, nativeTcpTransport, hashKey, type FamiliarSession, type KnownFamiliar } from '../../lib/devices/deviceManager';
+import { deviceManager, nativeTcpTransport, hashKey, deviceErrorKey, type FamiliarSession, type KnownFamiliar } from '../../lib/devices/deviceManager';
 import { useAppStore } from '../../lib/store';
 import { bleScan, bleTransport, APPA_STATE_CONFIGURED, type BleDevice } from '../../lib/devices/bleTransport';
 import { getOpenRouterKey } from '../../lib/api/keyStorage';
@@ -167,7 +167,8 @@ export default function DevicesScreen() {
             console.warn('[devices] BLE falhou', err?.code, err?.message);
             const detail = `${err?.code ?? ''} ${err?.message ?? ''}`.trim() || 'devicesNoNativeBle';
             // chaves i18n conhecidas sao traduzidas; mensagens cruas vao como estao
-            const body = detail.startsWith('devices') ? t(detail) : detail;
+            const ek = deviceErrorKey(detail);
+            const body = ek ? t(ek) : detail.startsWith('devices') ? t(detail) : detail;
             Alert.alert(t('devicesError'), body);
         } finally {
             setBleScanning(false);
@@ -184,7 +185,8 @@ export default function DevicesScreen() {
             const err = e as { code?: string; message?: string };
             console.warn('[devices] BLE connect falhou', err?.code, err?.message);
             const detail = `${err?.code ?? ''} ${err?.message ?? ''}`.trim() || 'devicesNoNativeBle';
-            Alert.alert(t('devicesError'), detail.startsWith('devices') ? t(detail) : detail);
+            const ek = deviceErrorKey(detail);
+            Alert.alert(t('devicesError'), ek ? t(ek) : detail.startsWith('devices') ? t(detail) : detail);
         } finally {
             setBleConnectingId(null);
         }
