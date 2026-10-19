@@ -5,8 +5,7 @@
  */
 
 import { DeviceEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
-
-import { getAppaBleNative } from 'appa-ble';
+import { requireNativeModule } from 'expo-modules-core';
 
 import type { Transport } from './transport';
 
@@ -27,6 +26,18 @@ interface AppaBleModuleShape {
 }
 
 /**
+ * iOS native module (CoreBluetooth, pod local `modules/appa-ble`). Resolved via
+ * `requireNativeModule` so Android doesn't need the package on the JS side.
+ */
+function iosBleModule(): (AppaBleModuleShape & { addListener?: (e: string, c: (p: { base64: string }) => void) => { remove: () => void } }) | null {
+    try {
+        return requireNativeModule('AppaBleModule') as never;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Contrato de descoberta appa: um Familiar anuncia este UUID de serviço (com
  * 1 byte de estado em Service Data). É o que distingue "Familiares a
  * configurar" do resto dos dispositivos BLE. Ver PROTOCOL.md (§ Descoberta).
@@ -40,7 +51,7 @@ export const APPA_STATE_CONFIGURED = 1;
 export function bleModule(): AppaBleModuleShape | null {
     // iOS: local Expo module (CoreBluetooth). Android: app-target RCT module.
     if (Platform.OS === 'ios') {
-        return (getAppaBleNative() as AppaBleModuleShape | null) ?? null;
+        return iosBleModule();
     }
     const mod = (NativeModules as Record<string, unknown>).AppaBleModule;
     return mod ? (mod as AppaBleModuleShape) : null;
@@ -51,7 +62,7 @@ type BleSub = { remove: () => void };
 /** Subscribes to a BLE event on both platforms (Expo module vs DeviceEventEmitter). */
 function addBleListener(event: string, cb: (payload: { base64: string }) => void): BleSub {
     if (Platform.OS === 'ios') {
-        const mod = getAppaBleNative() as { addListener?: (e: string, c: (p: { base64: string }) => void) => BleSub } | null;
+        const mod = iosBleModule();
         if (mod?.addListener) return mod.addListener(event, cb);
     }
     return DeviceEventEmitter.addListener(event, cb) as BleSub;
@@ -87,12 +98,15 @@ export function bleTransport(deviceId: string): Transport {
     return {
         async connect() {
             await ensureBlePermissions();
-            await mod.connect(deviceId);
+            // Anexa o listener ANTES do connect: o firmware envia o HELLO logo
+            // após o subscribe, e os primeiros chunks se perderiam se o listener
+            // ainda não estivesse registrado (causava "timeout waiting for HELLO").
             const sub = addBleListener('AppaBleData', (e: { base64: string }) => {
                 const bytes = base64ToBytes(e.base64);
                 for (const l of listeners) l(bytes);
             });
             addBleListener('AppaBleDisconnect', () => sub.remove());
+            await mod.connect(deviceId);
             return {
                 connected: () => true,
                 write: (data: Uint8Array) => {

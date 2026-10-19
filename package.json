@@ -60,6 +60,7 @@
     "expo-localization": "~55.0.19",
     "expo-location": "~55.1.14",
     "expo-mail-composer": "~55.0.18",
+    "expo-modules-core": "~55.0.26",
     "expo-network": "~55.0.18",
     "expo-notifications": "~55.0.27",
     "expo-print": "~55.0.19",

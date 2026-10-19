@@ -176,7 +176,7 @@ export default function ImbueScreen() {
                         )}
 
                         <Text style={styles.sectionTitle}>{t('devicesPromptPreview')}</Text>
-                        <Text style={styles.prompt}>{result.bundle.prompt.slice(0, 320)}</Text>
+                        <Text style={styles.prompt} selectable>{result.bundle.prompt}</Text>
                         {!result.promptGeneratedByAI && <Text style={styles.hint}>{t('devicesPromptFallback')}</Text>}
 
                         {requiresNet(result.mapping.entries) && (

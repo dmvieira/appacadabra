@@ -54,7 +54,9 @@ class DeviceManager {
      */
     async connect(transport: Transport): Promise<HelloPortrait> {
         this.disconnect();
-        const client = new AppaClient(transport);
+        // BLE transmite em chunks de ~20B: bundles grandes (HTML da spell) levam
+        // dezenas de segundos -> timeout generoso (antes 5s).
+        const client = new AppaClient(transport, 120000);
         client.writebackHandler = (mutations) => this.handleWriteback(mutations);
         const portrait = await client.connect();
         this.session = {
@@ -132,6 +134,29 @@ class DeviceManager {
         await this.loadEncIndex();
         this.encToApp.set(encId, appId);
         await this.saveEncIndex();
+    }
+
+    /** Mapa encId -> appId (spell de origem), para exibir o nome na UI. */
+    async encAppMap(): Promise<Map<string, number>> {
+        await this.loadEncIndex();
+        return new Map(this.encToApp);
+    }
+
+    /** Hash (ou vazio) da última chave de IA concedida — p/ não reativar à toa. */
+    async aiKeyHash(): Promise<string> {
+        try {
+            return (await getSetting('devices.aiKeyHash')) ?? '';
+        } catch {
+            return '';
+        }
+    }
+
+    async rememberAiKeyHash(hash: string): Promise<void> {
+        try {
+            await setSetting('devices.aiKeyHash', hash);
+        } catch {
+            // best-effort
+        }
     }
 
     /**
@@ -245,6 +270,13 @@ export const deviceManager = new DeviceManager();
 export function spellIdToAppId(spellId: string): number | null {
     const m = /^app_(\d+)$/.exec(spellId);
     return m ? parseInt(m[1], 10) : null;
+}
+
+/** Hash estável (djb2) de uma chave — para saber se a IA já foi concedida. */
+export function hashKey(key: string): string {
+    let h = 5381;
+    for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(16);
 }
 
 /**

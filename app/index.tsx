@@ -1233,6 +1233,7 @@ export default function HomeScreen() {
                                     app={item}
                                     onRun={() => { setActiveCardId(null); handleRunApp(item); }}
                                     onEdit={() => { setActiveCardId(null); handleEditApp(item); }}
+                                    onEnchant={() => { setActiveCardId(null); router.push(`/devices/imbue?appId=${item.id}`); }}
                                     onDelete={() => { setActiveCardId(null); setDeleteTarget(item); }}
                                     onRename={() => {
                                         setActiveCardId(null);

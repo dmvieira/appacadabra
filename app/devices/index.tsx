@@ -23,7 +23,8 @@ import { Stack, useFocusEffect } from 'expo-router';
 
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
-import { deviceManager, nativeTcpTransport, type FamiliarSession } from '../../lib/devices/deviceManager';
+import { deviceManager, nativeTcpTransport, hashKey, type FamiliarSession } from '../../lib/devices/deviceManager';
+import { useAppStore } from '../../lib/store';
 import { bleScan, bleTransport, APPA_STATE_CONFIGURED, type BleDevice } from '../../lib/devices/bleTransport';
 import { getOpenRouterKey } from '../../lib/api/keyStorage';
 import { MODELS } from '../../lib/api/pricing';
@@ -47,6 +48,10 @@ export default function DevicesScreen() {
     const [nameDraft, setNameDraft] = useState('');
     const [renaming, setRenaming] = useState(false);
     const [advanced, setAdvanced] = useState(false);
+    const [aiSending, setAiSending] = useState(false);
+    const [aiKeyOk, setAiKeyOk] = useState(false);
+    const [encApp, setEncApp] = useState<Record<string, number>>({});
+    const apps = useAppStore((s) => s.apps);
 
     useEffect(() => {
         return deviceManager.subscribe(() => setSession(deviceManager.getSession()));
@@ -57,6 +62,41 @@ export default function DevicesScreen() {
         const n = session?.portrait?.name;
         if (n) setNameDraft(n);
     }, [session?.portrait?.name]);
+
+    // Resolve encId -> appId (nome do feitiço de origem) para exibir na lista.
+    useEffect(() => {
+        if (!session) {
+            setEncApp({});
+            return;
+        }
+        let alive = true;
+        deviceManager
+            .encAppMap()
+            .then((m) => {
+                if (alive) setEncApp(Object.fromEntries(m));
+            })
+            .catch(() => {});
+        return () => {
+            alive = false;
+        };
+    }, [session, session?.portrait?.encantamentos?.length]);
+
+    // IA já está ativada no Familiar com a MESMA chave do app?
+    useEffect(() => {
+        if (!session) {
+            setAiKeyOk(false);
+            return;
+        }
+        let alive = true;
+        (async () => {
+            const key = await getOpenRouterKey().catch(() => null);
+            const stored = await deviceManager.aiKeyHash().catch(() => '');
+            if (alive) setAiKeyOk(!!key && !!stored && stored === hashKey(key));
+        })();
+        return () => {
+            alive = false;
+        };
+    }, [session, session?.portrait?.device?.powers?.length]);
 
     // Ao abrir a tela, sugere o Wi-Fi ATUAL do celular (não a rede antiga) e,
     // se já tiver a senha daquela rede, preenche.
@@ -126,6 +166,7 @@ export default function DevicesScreen() {
     }, []);
 
     const grantOpenrouter = useCallback(async () => {
+        setAiSending(true);
         try {
             const key = await getOpenRouterKey();
             if (!key) {
@@ -133,10 +174,14 @@ export default function DevicesScreen() {
                 return;
             }
             await deviceManager.grantPower('openrouter', key, { model: MODELS.WEBVIEW });
+            await deviceManager.rememberAiKeyHash(hashKey(key));
+            setAiKeyOk(true);
             await deviceManager.pullPortrait().catch(() => {});
             Alert.alert(t('devicesTitle'), t('devicesAiGranted'));
         } catch (e) {
             Alert.alert(t('devicesError'), e instanceof Error ? e.message : String(e));
+        } finally {
+            setAiSending(false);
         }
     }, []);
 
@@ -197,6 +242,15 @@ export default function DevicesScreen() {
     }, [nameDraft]);
 
     const p = session?.portrait;
+
+    const appNameFor = useCallback(
+        (encId: string) => {
+            const id = encApp[encId];
+            const a = id != null ? apps.find((x) => x.id === id) : undefined;
+            return a?.name ?? encId;
+        },
+        [encApp, apps],
+    );
 
     return (
         <SafeAreaView style={styles.root} edges={['bottom']}>
@@ -329,9 +383,44 @@ export default function DevicesScreen() {
                                     </TouchableOpacity>
                                 </View>
 
-                                <TouchableOpacity style={[styles.button, styles.buttonPrimary]} onPress={grantOpenrouter}>
-                                    <Text style={styles.buttonText}>{t('devicesGrantOpenrouter')}</Text>
-                                </TouchableOpacity>
+                                {p.device.powers.includes('openrouter') && aiKeyOk ? (
+                                    <View style={styles.aiActiveRow}>
+                                        <View style={styles.dot} />
+                                        <Text style={styles.statusText}>{t('devicesAiActive')}</Text>
+                                    </View>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[styles.button, styles.buttonPrimary, aiSending && styles.buttonDisabled]}
+                                        onPress={grantOpenrouter}
+                                        disabled={aiSending}
+                                    >
+                                        {aiSending ? (
+                                            <View style={styles.sendingRow}>
+                                                <ActivityIndicator color={colors.onPrimary} />
+                                                <Text style={styles.buttonText}>{t('devicesAiActivating')}</Text>
+                                            </View>
+                                        ) : (
+                                            <Text style={styles.buttonText}>
+                                                {p.device.powers.includes('openrouter')
+                                                    ? t('devicesGrantOpenrouterUpdate')
+                                                    : t('devicesGrantOpenrouter')}
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            <View style={styles.card}>
+                                <Text style={styles.sectionTitle}>{t('devicesSpellsTitle')}</Text>
+                                {p.encantamentos.length === 0 ? (
+                                    <Text style={styles.empty}>{t('devicesSpellsNone')}</Text>
+                                ) : (
+                                    p.encantamentos.map((e) => (
+                                        <Text key={e.id} style={styles.encItem}>
+                                            {appNameFor(e.id)} · v{e.version}
+                                        </Text>
+                                    ))
+                                )}
                             </View>
 
                             <View style={styles.card}>
@@ -443,7 +532,7 @@ export default function DevicesScreen() {
                                     ) : (
                                         p.encantamentos.map((e) => (
                                             <Text key={e.id} style={styles.encItem}>
-                                                {e.id} · v{e.version}
+                                                {appNameFor(e.id)} · v{e.version}
                                             </Text>
                                         ))
                                     )}
@@ -524,6 +613,7 @@ const styles = StyleSheet.create({
     },
     deviceName: { color: colors.onBackground, fontSize: 22, fontWeight: '700' },
     statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    aiActiveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm },
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
     statusText: { color: colors.success, fontWeight: '600' },
     deviceMeta: { color: colors.onSurfaceVariant, marginTop: spacing.xs },

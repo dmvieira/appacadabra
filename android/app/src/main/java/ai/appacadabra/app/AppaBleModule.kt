@@ -100,7 +100,15 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device: BluetoothDevice = result.device
-            val name = device.name ?: result.scanRecord?.deviceName ?: return
+            val rec = result.scanRecord
+            // Sem ScanFilter no startScan (o filtro nativo por UUID 128-bit nao
+            // casa em varios Androids): filtramos aqui pelo servico appa, que o
+            // firmware anuncia no pacote principal (Complete List of 128-bit).
+            val hasAppa = rec?.serviceUuids?.contains(android.os.ParcelUuid(APPA_SERVICE)) == true ||
+                rec?.getServiceData(android.os.ParcelUuid(APPA_SERVICE)) != null
+            android.util.Log.d("AppaBle", "result ${device.address} name=${device.name} uuids=${rec?.serviceUuids} appa=$hasAppa")
+            if (!hasAppa) return
+            val name = device.name ?: rec?.deviceName ?: "Familiar"
             val state = readSetupState(result)
             val entry = mapOf("id" to device.address, "name" to name, "rssi" to result.rssi, "state" to state)
             val prev = found[device.address]
@@ -159,11 +167,9 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
                 val scanSettings = android.bluetooth.le.ScanSettings.Builder()
                     .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
                     .build()
-                // filtra pelo servico appa: so Familiars a configurar aparecem
-                val appaFilter = android.bluetooth.le.ScanFilter.Builder()
-                    .setServiceUuid(android.os.ParcelUuid(APPA_SERVICE))
-                    .build()
-                scanner.startScan(listOf(appaFilter), scanSettings, scanCallback)
+                // sem filtro nativo: filtramos pelo servico appa no callback
+                // (ScanFilter por UUID 128-bit nao casa em varios Androids)
+                scanner.startScan(null, scanSettings, scanCallback)
             } catch (e: Throwable) {
                 scanning = false
                 scanPromise = null

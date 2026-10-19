@@ -61,6 +61,7 @@ interface AppCardProps {
     onShortcut?: () => void;
     onToggleBiometric?: () => void;
     onViewSchedules?: () => void;
+    onEnchant?: () => void;
     isPlaceholder?: boolean;
     isLocked?: boolean;
     notificationCount?: number;
@@ -79,7 +80,7 @@ interface AppCardProps {
 
 export function AppCard({
     app, onRun, onEdit, onDelete, onRename,
-    onSendSpell, onShortcut, onToggleBiometric, onViewSchedules,
+    onSendSpell, onShortcut, onToggleBiometric, onViewSchedules, onEnchant,
     isPlaceholder, isLocked, notificationCount, coachStep, onCoachDismiss,
     onLongPress, onClearData,
     isActive, canMoveUp, canMoveDown, onMoveUp, onMoveDown, onDismissActive,
@@ -344,6 +345,24 @@ export function AppCard({
                                 {/* Sheet items */}
                                 <View style={styles.sheetBody}>
                                     {/* ── Personalization ── */}
+
+                                    {/* Encantar num Familiar (implantar no device appa) */}
+                                    {onEnchant && (
+                                        <TouchableOpacity
+                                            style={styles.sheetItem}
+                                            onPress={() => { setShowSheet(false); onEnchant(); }}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={t('devicesImbue')}
+                                        >
+                                            <View style={styles.sheetItemIconWrap}>
+                                                <Text style={styles.sheetItemIconEmoji}>🐾</Text>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.sheetItemTitle}>{t('devicesImbue')}</Text>
+                                                <Text style={styles.sheetItemSub}>{t('devicesImbueSub')}</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    )}
 
                                     {/* Edit spell details (name, desc) */}
                                     <TouchableOpacity
