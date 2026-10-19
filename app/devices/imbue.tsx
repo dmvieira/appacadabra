@@ -1,10 +1,13 @@
 /**
- * Imbuir num Familiar — a forja em tela: transmuta a spell (capabilities →
- * permissionamento, relíquias do app_storage, prompt de voz via IA BYOK) e
+ * Encantar num Familiar — a forja em tela: transmuta a spell (capabilities →
+ * permissionamento, relíquias do app_storage, encantamento via IA BYOK) e
  * encanta o dispositivo conectado (ENCHANT → ENCHANT_ACK).
+ *
+ * O encantamento (prompt de voz) e as palavras-chave são EDITÁVEIS aqui; o
+ * envio ao Familiar roda em primeiro plano (BLE exige o app vivo).
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -22,10 +25,11 @@ import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
 import { useAppStore } from '../../lib/store';
 import { deviceManager } from '../../lib/devices/deviceManager';
-import { generateVoicePrompt } from '../../lib/devices/voicePrompt';
+import { generateVoiceEnchantment } from '../../lib/devices/voicePrompt';
+import { normalizeKeywords, KEYWORDS_MAX, KEYWORD_MAX_LEN, type TransmuteAppResult } from '../../lib/devices/transmute';
 import { CAPABILITY_MAP, requiresNet } from '../../lib/devices/capabilityMap';
 import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
-import type { TransmuteAppResult } from '../../lib/devices/transmute';
+import { getSetting, setSetting } from '../../lib/database/db';
 
 type Phase = { kind: 'review' } | { kind: 'imbuing' } | { kind: 'done'; encId: string; version: number };
 
@@ -41,6 +45,11 @@ export default function ImbueScreen() {
     const [wifiSsid, setWifiSsid] = useState('');
     const [wifiPass, setWifiPass] = useState('');
     const [wifiShowPass, setWifiShowPass] = useState(false);
+    const [promptDraft, setPromptDraft] = useState('');
+    const [keywords, setKeywords] = useState<string[]>([]);
+    const [newKeyword, setNewKeyword] = useState('');
+    const [regenerating, setRegenerating] = useState(false);
+    const draftLoaded = useRef(false);
 
     useEffect(() => {
         let alive = true;
@@ -59,20 +68,31 @@ export default function ImbueScreen() {
     useEffect(() => {
         let alive = true;
         if (!app) return;
-        // Revisão prévia: transmuta sem encantar (a forja roda de novo no
-        // confirmar, contra o device conectado).
+        // Revisão prévia: transmuta sem encantar. Se houver rascunho salvo do
+        // usuário (prompt/keywords editados), ele tem prioridade.
         (async () => {
             try {
-                const { transmuteApp } = await import('../../lib/devices/transmute');
-                const { getStorageForApp } = await import('../../lib/database/db');
+                const [{ transmuteApp }, { getStorageForApp }] = await Promise.all([
+                    import('../../lib/devices/transmute'),
+                    import('../../lib/database/db'),
+                ]);
                 const r = await transmuteApp(
                     { id: app.id, name: app.name, code: app.code, requiredCapabilities: app.requiredCapabilities },
-                    { getStorage: getStorageForApp, generatePrompt: generateVoicePrompt },
+                    { getStorage: getStorageForApp, generateEnchantment: generateVoiceEnchantment },
                 );
-                if (alive) {
-                    setResult(r);
-                    setTransmuting(false);
+                if (!alive) return;
+                setResult(r);
+                let draft: { prompt?: string; keywords?: string[] } | null = null;
+                try {
+                    const raw = await getSetting(`devices.encDraft.${app.id}`);
+                    if (raw) draft = JSON.parse(raw) as { prompt?: string; keywords?: string[] };
+                } catch {
+                    // rascunho corrompido: ignora
                 }
+                draftLoaded.current = !!draft;
+                setPromptDraft(draft?.prompt ?? r.bundle.prompt);
+                setKeywords(draft?.keywords ?? r.bundle.manifest.keywords ?? []);
+                setTransmuting(false);
             } catch (e) {
                 if (alive) {
                     setTransmuteError(e instanceof Error ? e.message : String(e));
@@ -85,6 +105,47 @@ export default function ImbueScreen() {
         };
     }, [app?.id]);
 
+    const persistDraft = useCallback(async () => {
+        if (!app) return;
+        try {
+            await setSetting(
+                `devices.encDraft.${app.id}`,
+                JSON.stringify({ prompt: promptDraft, keywords }),
+            );
+        } catch {
+            // best-effort
+        }
+    }, [app, promptDraft, keywords]);
+
+    const regenerate = useCallback(async () => {
+        if (!app) return;
+        setRegenerating(true);
+        try {
+            const gen = await generateVoiceEnchantment(
+                { id: app.id, name: app.name, code: app.code, requiredCapabilities: app.requiredCapabilities },
+                Object.keys(result?.bundle.data ?? {}),
+            );
+            if (gen.prompt) setPromptDraft(gen.prompt);
+            if (gen.keywords.length) setKeywords(normalizeKeywords(gen.keywords));
+            draftLoaded.current = true;
+        } catch (e) {
+            Alert.alert(t('devicesError'), e instanceof Error ? e.message : String(e));
+        } finally {
+            setRegenerating(false);
+        }
+    }, [app, result]);
+
+    const addKeyword = useCallback(() => {
+        const k = newKeyword.trim();
+        if (!k) return;
+        setKeywords((prev) => normalizeKeywords([...prev, k]));
+        setNewKeyword('');
+    }, [newKeyword]);
+
+    const removeKeyword = useCallback((k: string) => {
+        setKeywords((prev) => prev.filter((x) => x !== k));
+    }, []);
+
     const confirm = useCallback(async () => {
         if (!app || !result) return;
         setPhase({ kind: 'imbuing' });
@@ -92,9 +153,10 @@ export default function ImbueScreen() {
             if (requiresNet(result.mapping.entries) && wifiSsid.trim()) {
                 await deviceManager.provisionWifi(wifiSsid, wifiPass);
             }
+            await persistDraft();
             const r = await deviceManager.imbueSpell(
                 { id: app.id, name: app.name, code: app.code, requiredCapabilities: app.requiredCapabilities },
-                {},
+                { promptOverride: promptDraft, keywordsOverride: keywords },
             );
             setPhase({ kind: 'done', encId: r.ack.id, version: r.ack.version });
         } catch (e) {
@@ -111,7 +173,7 @@ export default function ImbueScreen() {
             );
             setPhase({ kind: 'review' });
         }
-    }, [app, result]);
+    }, [app, result, promptDraft, keywords, wifiSsid, wifiPass, persistDraft]);
 
     if (!app) {
         return (
@@ -122,11 +184,14 @@ export default function ImbueScreen() {
         );
     }
 
+    const target = session?.portrait?.name;
+
     return (
         <SafeAreaView style={styles.root} edges={['bottom']}>
             <Stack.Screen options={{ title: t('devicesImbueTitle') }} />
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.appName}>{app.name}</Text>
+                {target && <Text style={styles.target}>{t('devicesEnchantTarget', { name: target })}</Text>}
 
                 {!session && <Text style={styles.warn}>{t('devicesNoConnection')}</Text>}
 
@@ -175,9 +240,62 @@ export default function ImbueScreen() {
                             ))
                         )}
 
-                        <Text style={styles.sectionTitle}>{t('devicesPromptPreview')}</Text>
-                        <Text style={styles.prompt} selectable>{result.bundle.prompt}</Text>
-                        {!result.promptGeneratedByAI && <Text style={styles.hint}>{t('devicesPromptFallback')}</Text>}
+                        {/* ── Encantamento (editável) ── */}
+                        <View style={styles.editHeader}>
+                            <Text style={styles.sectionTitle}>{t('devicesPromptPreview')}</Text>
+                            <TouchableOpacity onPress={regenerate} disabled={regenerating} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                {regenerating ? (
+                                    <ActivityIndicator color={colors.primary} />
+                                ) : (
+                                    <Text style={styles.editAction}>{t('devicesRegenerate')}</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                        <TextInput
+                            style={styles.promptInput}
+                            value={promptDraft}
+                            onChangeText={setPromptDraft}
+                            multiline
+                            textAlignVertical="top"
+                            placeholder={t('devicesPromptPreview')}
+                            placeholderTextColor={colors.onSurfaceVariant}
+                        />
+                        {!result.promptGeneratedByAI && !draftLoaded.current && (
+                            <Text style={styles.hint}>{t('devicesPromptFallback')}</Text>
+                        )}
+
+                        {/* ── Palavras-chave (roteamento) ── */}
+                        <Text style={styles.sectionTitle}>{t('devicesKeywords')}</Text>
+                        <Text style={styles.hint}>{t('devicesKeywordsHint')}</Text>
+                        <View style={styles.chipRow}>
+                            {keywords.map((k) => (
+                                <TouchableOpacity key={k} style={styles.chip} onPress={() => removeKeyword(k)}>
+                                    <Text style={styles.chipText}>{k}  ✕</Text>
+                                </TouchableOpacity>
+                            ))}
+                            {keywords.length === 0 && <Text style={styles.empty}>{t('devicesKeywordsNone')}</Text>}
+                        </View>
+                        <View style={styles.inlineRow}>
+                            <TextInput
+                                style={[styles.input, styles.inputFlex]}
+                                value={newKeyword}
+                                onChangeText={setNewKeyword}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                maxLength={KEYWORD_MAX_LEN}
+                                placeholder={t('devicesKeywordAddPlaceholder')}
+                                placeholderTextColor={colors.onSurfaceVariant}
+                                onSubmitEditing={addKeyword}
+                                returnKeyType="done"
+                            />
+                            <TouchableOpacity
+                                style={[styles.inlineBtn, (!newKeyword.trim() || keywords.length >= KEYWORDS_MAX) && styles.buttonDisabled]}
+                                onPress={addKeyword}
+                                disabled={!newKeyword.trim() || keywords.length >= KEYWORDS_MAX}
+                            >
+                                <Text style={styles.inlineBtnText}>{t('devicesKeywordAdd')}</Text>
+                            </TouchableOpacity>
+                        </View>
 
                         {requiresNet(result.mapping.entries) && (
                             <View>
@@ -222,11 +340,15 @@ export default function ImbueScreen() {
                             disabled={!session || phase.kind === 'imbuing'}
                         >
                             {phase.kind === 'imbuing' ? (
-                                <ActivityIndicator color={colors.onPrimary} />
+                                <View style={styles.inlineRow}>
+                                    <ActivityIndicator color={colors.onPrimary} />
+                                    <Text style={styles.buttonText}>{t('devicesEnchantSending')}</Text>
+                                </View>
                             ) : (
                                 <Text style={styles.buttonText}>{t('devicesImbueConfirm')}</Text>
                             )}
                         </TouchableOpacity>
+                        <Text style={styles.hint}>{t('devicesEnchantForegroundHint')}</Text>
                     </View>
                 )}
 
@@ -234,7 +356,7 @@ export default function ImbueScreen() {
                     <View style={styles.card}>
                         <Text style={styles.doneTitle}>{t('devicesImbued')}</Text>
                         <Text style={styles.itemMono}>
-                            {phase.encId} · v{phase.version}
+                            {app.name} · v{phase.version}
                         </Text>
                         <Text style={styles.hint}>{t('devicesImbuedHint')}</Text>
                         <TouchableOpacity
@@ -254,6 +376,7 @@ const styles = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: spacing.md, gap: spacing.sm },
     appName: { color: colors.onBackground, fontSize: 20, fontWeight: '700' },
+    target: { color: colors.primary, fontSize: 13, fontWeight: '600' },
     warn: { color: colors.error },
     error: { color: colors.error },
     empty: { color: colors.onSurfaceVariant, fontStyle: 'italic' },
@@ -271,11 +394,28 @@ const styles = StyleSheet.create({
         fontSize: 11,
         marginTop: spacing.sm,
     },
+    editHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    editAction: { color: colors.primary, fontWeight: '600', fontSize: 13 },
     item: { color: colors.onBackground },
     itemOff: { color: colors.onSurfaceVariant },
     itemMono: { color: colors.onBackground, fontFamily: 'monospace' },
-    prompt: { color: colors.onSurfaceVariant },
+    promptInput: {
+        color: colors.onBackground,
+        backgroundColor: colors.background,
+        borderRadius: borderRadius.md,
+        padding: spacing.sm,
+        minHeight: 96,
+        marginTop: spacing.xs,
+    },
     hint: { color: colors.onSurfaceVariant, fontSize: 12 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
+    chip: {
+        backgroundColor: colors.surfaceVariant,
+        borderRadius: borderRadius.sm,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    chipText: { color: colors.onBackground, fontSize: 13 },
     input: {
         backgroundColor: colors.background,
         color: colors.onBackground,

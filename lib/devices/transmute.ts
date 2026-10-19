@@ -20,6 +20,28 @@ const DATA_KEY_RE = /^[a-zA-Z0-9_.-]{1,64}$/;
 const CAP_ID_RE = /^[a-z][a-z0-9_]{0,30}$/;
 const ALL_REQUIREMENTS: DeviceRequirement[] = ['mic', 'speaker', 'net', 'storage', 'camera'];
 
+/** Limites das palavras-chave de roteamento (manifest.keywords). */
+export const KEYWORDS_MAX = 12;
+export const KEYWORD_MAX_LEN = 64;
+
+/** Normaliza keywords: trim, remove vazias, dedupe (case-insensitive), cap. */
+export function normalizeKeywords(input: readonly string[] | undefined): string[] {
+    if (!input) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of input) {
+        if (typeof raw !== 'string') continue;
+        const k = raw.trim().replace(/\s+/g, ' ');
+        if (!k) continue;
+        const kk = k.toLowerCase();
+        if (seen.has(kk)) continue;
+        seen.add(kk);
+        out.push(k.slice(0, KEYWORD_MAX_LEN));
+        if (out.length >= KEYWORDS_MAX) break;
+    }
+    return out;
+}
+
 function validateCapabilityEntry(entry: CapabilityEntry, prefix: string): string | null {
     if (!entry || typeof entry !== 'object') return `${prefix} invalida`;
     if (typeof entry.id !== 'string' || !CAP_ID_RE.test(entry.id)) return `${prefix}.id invalido: ${entry.id}`;
@@ -50,6 +72,8 @@ export interface TransmuteInput {
     encId?: string;
     /** Capability permissionamento (v0.2) — from mapRequirements(). */
     capabilities?: CapabilityEntry[];
+    /** Palavras/frases de roteamento (manifest.keywords). */
+    keywords?: string[];
 }
 
 /** Returns null when valid, or a human-readable error otherwise. */
@@ -84,6 +108,21 @@ export function validateBundle(bundle: Bundle): string | null {
         }
     }
 
+    if (m.keywords !== undefined) {
+        if (!Array.isArray(m.keywords) || m.keywords.length > KEYWORDS_MAX) {
+            return `manifest.keywords deve ser array de ate ${KEYWORDS_MAX}`;
+        }
+        const seenK = new Set<string>();
+        for (const k of m.keywords) {
+            if (typeof k !== 'string' || k.trim().length < 1 || k.length > KEYWORD_MAX_LEN) {
+                return `keyword invalida: ${k}`;
+            }
+            const kk = k.toLowerCase();
+            if (seenK.has(kk)) return `keyword duplicada: ${k}`;
+            seenK.add(kk);
+        }
+    }
+
     if (typeof bundle.prompt !== 'string' || bundle.prompt.length < 1 || bundle.prompt.length > 8192) {
         return 'prompt deve ter 1-8192 chars';
     }
@@ -112,6 +151,7 @@ export function transmuteSpell(input: TransmuteInput): Bundle {
         data[key] = typeof value === 'string' ? value : JSON.stringify(value);
     }
     const capabilities = input.capabilities?.map((c) => ({ ...c, powers: [...c.powers], requires: [...c.requires] }));
+    const keywords = normalizeKeywords(input.keywords);
     const bundle: Bundle = {
         manifest: {
             id: input.encId ?? generateEncantamentoId(),
@@ -121,6 +161,7 @@ export function transmuteSpell(input: TransmuteInput): Bundle {
             requiredPowers: [...new Set([...(input.requiredPowers ?? []), ...(capabilities?.flatMap((c) => (c.status === 'granted' ? c.powers : [])) ?? [])])],
             createdAt: input.createdAt ?? Date.now(),
             ...(capabilities ? { capabilities } : {}),
+            ...(keywords.length ? { keywords } : {}),
         },
         prompt: input.prompt,
         data,
@@ -146,8 +187,14 @@ export interface TransmuteIO {
     getStorage?: (appId: number) => Promise<AppStorage[]>;
     /** Gerador do prompt de voz (chat OpenRouter). Default: prompt estático. */
     generatePrompt?: (app: MinimalSpellApp, dataKeys: string[]) => Promise<string>;
+    /** Gerador do encantamento completo (prompt + keywords). Preferido. */
+    generateEnchantment?: (app: MinimalSpellApp, dataKeys: string[]) => Promise<{ prompt: string; keywords: string[] }>;
     now?: () => number;
     encId?: string;
+    /** Overrides (ex.: edição do usuário antes de encantar). */
+    promptOverride?: string;
+    keywordsOverride?: string[];
+    version?: number;
 }
 
 /** Prompt de voz padrão quando não há IA disponível. */
@@ -159,6 +206,15 @@ function fallbackPrompt(app: MinimalSpellApp, dataKeys: string[]): string {
         `Você cuida dos seguintes dados: ${keys}. ` +
         `Quando o usuário pedir mudanças nesses dados, confirme e registre.`
     );
+}
+
+/** Keywords de roteamento padrão (quando não há IA): nome + chaves de dados. */
+function fallbackKeywords(app: MinimalSpellApp, dataKeys: string[]): string[] {
+    const words = app.name
+        .toLowerCase()
+        .split(/[^a-zà-ú0-9]+/)
+        .filter((w) => w.length >= 3);
+    return normalizeKeywords([...words, ...dataKeys]);
 }
 
 export interface TransmuteAppResult {
@@ -185,14 +241,28 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
     }
 
     let prompt = fallbackPrompt(app, Object.keys(data));
+    let keywords = fallbackKeywords(app, Object.keys(data));
     let promptGeneratedByAI = false;
-    if (io.generatePrompt) {
+    if (io.generateEnchantment) {
+        const gen = await io.generateEnchantment(app, Object.keys(data));
+        if (gen?.prompt && gen.prompt.trim().length >= 40) {
+            prompt = gen.prompt.trim().slice(0, 8192);
+            promptGeneratedByAI = true;
+        }
+        if (gen?.keywords?.length) keywords = normalizeKeywords(gen.keywords);
+    } else if (io.generatePrompt) {
         const generated = await io.generatePrompt(app, Object.keys(data));
         if (generated && generated.trim().length >= 40) {
             prompt = generated.trim().slice(0, 8192);
             promptGeneratedByAI = true;
         }
     }
+    // Edição do usuário tem prioridade sobre a geração automática.
+    if (io.promptOverride && io.promptOverride.trim()) {
+        prompt = io.promptOverride.trim().slice(0, 8192);
+        promptGeneratedByAI = false;
+    }
+    if (io.keywordsOverride) keywords = normalizeKeywords(io.keywordsOverride);
 
     const bundle = transmuteSpell({
         encId: io.encId,
@@ -201,6 +271,8 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
         prompt,
         data,
         capabilities: mapping.entries,
+        keywords,
+        version: io.version,
     });
     return { bundle, mapping, promptGeneratedByAI };
 }

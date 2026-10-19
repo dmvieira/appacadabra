@@ -19,7 +19,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
@@ -34,6 +34,7 @@ import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function DevicesScreen() {
+    const router = useRouter();
     const [session, setSession] = useState<FamiliarSession | null>(deviceManager.getSession());
     const [host, setHost] = useState('10.0.2.2');
     const [port, setPort] = useState('7788');
@@ -51,10 +52,14 @@ export default function DevicesScreen() {
     const [aiSending, setAiSending] = useState(false);
     const [aiKeyOk, setAiKeyOk] = useState(false);
     const [encApp, setEncApp] = useState<Record<string, number>>({});
+    const [lastQuery, setLastQuery] = useState(deviceManager.getLastQuery());
     const apps = useAppStore((s) => s.apps);
 
     useEffect(() => {
-        return deviceManager.subscribe(() => setSession(deviceManager.getSession()));
+        return deviceManager.subscribe(() => {
+            setSession(deviceManager.getSession());
+            setLastQuery(deviceManager.getLastQuery());
+        });
     }, []);
 
     // Mantém o campo de nome sincronizado com o retrato atual do Familiar.
@@ -243,6 +248,13 @@ export default function DevicesScreen() {
 
     const p = session?.portrait;
 
+    // Wi-Fi já conectado nesse SSID? (espelha o estado da IA)
+    const wifiConnected =
+        !!p?.device.net &&
+        p.device.net.status === 3 &&
+        (p.device.net.ssid ?? '').trim().toLowerCase() === wifiSsid.trim().toLowerCase() &&
+        !!wifiSsid.trim();
+
     const appNameFor = useCallback(
         (encId: string) => {
             const id = encApp[encId];
@@ -415,13 +427,33 @@ export default function DevicesScreen() {
                                 {p.encantamentos.length === 0 ? (
                                     <Text style={styles.empty}>{t('devicesSpellsNone')}</Text>
                                 ) : (
-                                    p.encantamentos.map((e) => (
-                                        <Text key={e.id} style={styles.encItem}>
-                                            {appNameFor(e.id)} · v{e.version}
-                                        </Text>
-                                    ))
+                                    p.encantamentos.map((e) => {
+                                        const spellId = encApp[e.id];
+                                        return (
+                                            <TouchableOpacity
+                                                key={e.id}
+                                                style={styles.deviceRow}
+                                                disabled={spellId == null}
+                                                onPress={() => spellId != null && router.push(`/devices/imbue?appId=${spellId}`)}
+                                            >
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={styles.deviceRowName}>{appNameFor(e.id)}</Text>
+                                                    <Text style={styles.deviceRowMeta}>v{e.version}</Text>
+                                                </View>
+                                                {spellId != null && <Text style={styles.deviceRowAction}>{t('devicesEditEnchantment')}</Text>}
+                                            </TouchableOpacity>
+                                        );
+                                    })
                                 )}
                             </View>
+
+                            {lastQuery && (
+                                <View style={styles.card}>
+                                    <Text style={styles.sectionTitle}>{t('devicesFamiliarAnswer')}</Text>
+                                    {!!lastQuery.q && <Text style={styles.deviceRowMeta}>“{lastQuery.q}”</Text>}
+                                    <Text style={styles.deviceMeta}>{lastQuery.a}</Text>
+                                </View>
+                            )}
 
                             <View style={styles.card}>
                                 <Text style={styles.sectionTitle}>{t('devicesWifiTitle')}</Text>
@@ -456,20 +488,27 @@ export default function DevicesScreen() {
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity
-                                    style={[styles.button, styles.buttonSmall, (!wifiSsid.trim() || wifiSending) && styles.buttonDisabled]}
-                                    onPress={grantWifi}
-                                    disabled={!wifiSsid.trim() || wifiSending}
-                                >
-                                    {wifiSending ? (
-                                        <View style={styles.sendingRow}>
-                                            <ActivityIndicator color={colors.primary} />
-                                            <Text style={styles.buttonSmallText}>{t('devicesWifiConnecting')}</Text>
-                                        </View>
-                                    ) : (
-                                        <Text style={styles.buttonSmallText}>{t('devicesGrantWifi')}</Text>
-                                    )}
-                                </TouchableOpacity>
+                                {wifiConnected ? (
+                                    <View style={styles.aiActiveRow}>
+                                        <View style={styles.dot} />
+                                        <Text style={styles.statusText}>{t('devicesWifiActive')}</Text>
+                                    </View>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[styles.button, styles.buttonSmall, (!wifiSsid.trim() || wifiSending) && styles.buttonDisabled]}
+                                        onPress={grantWifi}
+                                        disabled={!wifiSsid.trim() || wifiSending}
+                                    >
+                                        {wifiSending ? (
+                                            <View style={styles.sendingRow}>
+                                                <ActivityIndicator color={colors.primary} />
+                                                <Text style={styles.buttonSmallText}>{t('devicesWifiConnecting')}</Text>
+                                            </View>
+                                        ) : (
+                                            <Text style={styles.buttonSmallText}>{t('devicesGrantWifi')}</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                )}
                             </View>
 
                             <TouchableOpacity style={[styles.button, styles.buttonDanger]} onPress={disconnect}>

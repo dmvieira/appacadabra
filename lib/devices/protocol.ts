@@ -392,6 +392,12 @@ export interface BundleManifest {
     createdAt: number;
     /** Permissionamento que viaja com o encantamento (v0.2, opcional). */
     capabilities?: CapabilityEntry[];
+    /**
+     * Palavras/frases de exemplo para o roteador de voz do device decidir
+     * quando usar este encantamento (ex.: ["tarefas","o que falta","hoje"]).
+     * Opcional (v0.2).
+     */
+    keywords?: string[];
 }
 
 export type DeviceRequirement = 'mic' | 'speaker' | 'net' | 'storage' | 'camera';

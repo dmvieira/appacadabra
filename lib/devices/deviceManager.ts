@@ -34,9 +34,15 @@ type Listener = () => void;
 class DeviceManager {
     private session: FamiliarSession | null = null;
     private listeners = new Set<Listener>();
+    /** Última resposta do Familiar (QUERY_RESULT de voz). */
+    private lastQuery: { enc: string; q: string; a: string } | null = null;
 
     getSession(): FamiliarSession | null {
         return this.session;
+    }
+
+    getLastQuery(): { enc: string; q: string; a: string } | null {
+        return this.lastQuery;
     }
 
     subscribe(fn: Listener): () => void {
@@ -58,6 +64,11 @@ class DeviceManager {
         // dezenas de segundos -> timeout generoso (antes 5s).
         const client = new AppaClient(transport, 120000);
         client.writebackHandler = (mutations) => this.handleWriteback(mutations);
+        client.queryResultHandler = (qr) => {
+            // Resposta/pergunta do Familiar (voz): a tela mostra a última.
+            this.lastQuery = { enc: qr.enc, q: qr.q, a: qr.a };
+            this.emit();
+        };
         const portrait = await client.connect();
         this.session = {
             client,
@@ -74,6 +85,7 @@ class DeviceManager {
         if (this.session) {
             this.session.client.close();
             this.session = null;
+            this.lastQuery = null;
             this.emit();
         }
     }
@@ -163,11 +175,26 @@ class DeviceManager {
      * The full forja: transmutes the spell and enchants the connected
      * Familiar. Returns the bundle review for the UI.
      */
-    async imbueSpell(app: MinimalSpellApp & { requiredCapabilities?: string[] | null }, opts: { generatePrompt?: (app: MinimalSpellApp, keys: string[]) => Promise<string> } = {}): Promise<TransmuteAppResult & { ack: { id: string; version: number; stored: boolean } }> {
+    async imbueSpell(
+        app: MinimalSpellApp & { requiredCapabilities?: string[] | null },
+        opts: {
+            generatePrompt?: (app: MinimalSpellApp, keys: string[]) => Promise<string>;
+            generateEnchantment?: (app: MinimalSpellApp, keys: string[]) => Promise<{ prompt: string; keywords: string[] }>;
+            promptOverride?: string;
+            keywordsOverride?: string[];
+            version?: number;
+            encId?: string;
+        } = {},
+    ): Promise<TransmuteAppResult & { ack: { id: string; version: number; stored: boolean } }> {
         if (!this.session) throw new Error('devicesNoConnection');
         const result = await transmuteApp(app, {
             getStorage: (appId) => getStorageForApp(appId),
+            ...(opts.generateEnchantment ? { generateEnchantment: opts.generateEnchantment } : {}),
             ...(opts.generatePrompt ? { generatePrompt: opts.generatePrompt } : {}),
+            ...(opts.promptOverride !== undefined ? { promptOverride: opts.promptOverride } : {}),
+            ...(opts.keywordsOverride !== undefined ? { keywordsOverride: opts.keywordsOverride } : {}),
+            ...(opts.version !== undefined ? { version: opts.version } : {}),
+            ...(opts.encId !== undefined ? { encId: opts.encId } : {}),
         });
         if (validateBundle(result.bundle)) throw new Error('devicesInvalidBundle');
         // Permissionamento: o Familiar precisa cobrir as capabilities granted
