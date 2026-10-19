@@ -993,9 +993,6 @@ export default function HomeScreen() {
                     <Text style={styles.headerTitle}>{t('appName')}</Text>
                 </View>
                 <AiProviderButton />
-                <TouchableOpacity onPress={() => router.push('/devices')} style={styles.menuBtn} accessibilityLabel={t('devicesImbueTitle')} accessibilityRole="button">
-                    <Text style={styles.menuIcon}>🐾</Text>
-                </TouchableOpacity>
                 <TouchableOpacity onPress={() => { setActiveCardId(null); setShowMenu(true); }} style={[styles.menuBtn, { marginStart: 0 }]} accessibilityLabel={t('options')} accessibilityRole="button">
                     <Text style={styles.menuIcon}>⋮</Text>
                 </TouchableOpacity>
@@ -1314,6 +1311,13 @@ export default function HomeScreen() {
 
                         {/* Items */}
                         <View style={styles.sheetBody}>
+                            <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowAdvanced(false); router.push('/devices'); }} accessibilityLabel={t('devicesMenuTitle')} accessibilityRole="menuitem">
+                                <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>🐾</Text></View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sheetItemTitle}>{t('devicesMenuTitle')}</Text>
+                                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{t('devicesMenuSub')}</Text>
+                                </View>
+                            </TouchableOpacity>
                             <TouchableOpacity style={styles.sheetItem} onPress={() => { setShowMenu(false); setShowAdvanced(false); setShowOnboarding(true); }} accessibilityLabel={t('replayOnboarding')} accessibilityRole="menuitem">
                                 <View style={styles.sheetItemIcon}><Text style={styles.sheetItemEmoji}>📖</Text></View>
                                 <View style={{ flex: 1 }}>

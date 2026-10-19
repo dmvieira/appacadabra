@@ -195,6 +195,17 @@ export class AppaClient {
         await this.waitForHello();
     }
 
+    /**
+     * Reemite o HELLO (o device responde PAIR_REQUEST com PAIR_ACCEPT + HELLO)
+     * e atualiza `portrait` — usado após conceder um poder (ex.: wifi) para a
+     * UI refletir o novo estado sem reconectar.
+     */
+    async pullPortrait(): Promise<HelloPortrait> {
+        this.portrait = null;
+        await this.request(MSG.PAIR_REQUEST, {}, MSG.PAIR_ACCEPT);
+        return this.waitForHello();
+    }
+
     async enchant(bundle: Bundle): Promise<EnchantAck> {
         const reply = await this.request(MSG.ENCHANT, bundle as unknown as Record<string, unknown>, MSG.ENCHANT_ACK);
         return reply.payload as unknown as EnchantAck;

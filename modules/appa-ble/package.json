@@ -1,0 +1,21 @@
+{
+    "name": "appa-ble",
+    "version": "1.0.0",
+    "description": "Appacadabra Familiar BLE (CoreBluetooth central / NUS) — iOS twin of the Android AppaBleModule",
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "keywords": [
+        "react-native",
+        "expo",
+        "bluetooth",
+        "appa"
+    ],
+    "author": "Diogo Vieira",
+    "license": "MIT",
+    "homepage": "https://github.com/dmvieira/appacadabra",
+    "peerDependencies": {
+        "expo": "*",
+        "react": "*",
+        "react-native": "*"
+    }
+}

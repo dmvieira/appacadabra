@@ -60,6 +60,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>O app usa Bluetooth para encontrar e configurar seu Familiar appa.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>O app usa Bluetooth para encontrar e configurar seu Familiar appa.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>O app precisa acessar o calendário para criar eventos.</string>
 	<key>NSCalendarsUsageDescription</key>

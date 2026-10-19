@@ -113,6 +113,7 @@ const withNativeFiles = (config) => {
                 { src: 'WebViewAiKeepAliveService.kt', dest: 'WebViewAiKeepAliveService.kt' },
                 { src: 'AppaTcpModule.kt', dest: 'AppaTcpModule.kt' },
                 { src: 'AppaBleModule.kt', dest: 'AppaBleModule.kt' },
+                { src: 'AppaNetModule.kt', dest: 'AppaNetModule.kt' },
                 { src: 'AppaDevicesPackage.kt', dest: 'AppaDevicesPackage.kt' },
             ];
 

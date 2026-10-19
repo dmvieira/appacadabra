@@ -11,6 +11,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -22,7 +23,8 @@ import { t } from '../../lib/i18n';
 import { useAppStore } from '../../lib/store';
 import { deviceManager } from '../../lib/devices/deviceManager';
 import { generateVoicePrompt } from '../../lib/devices/voicePrompt';
-import { CAPABILITY_MAP } from '../../lib/devices/capabilityMap';
+import { CAPABILITY_MAP, requiresNet } from '../../lib/devices/capabilityMap';
+import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
 import type { TransmuteAppResult } from '../../lib/devices/transmute';
 
 type Phase = { kind: 'review' } | { kind: 'imbuing' } | { kind: 'done'; encId: string; version: number };
@@ -36,6 +38,23 @@ export default function ImbueScreen() {
     const [transmuting, setTransmuting] = useState(true);
     const [transmuteError, setTransmuteError] = useState<string | null>(null);
     const [phase, setPhase] = useState<Phase>({ kind: 'review' });
+    const [wifiSsid, setWifiSsid] = useState('');
+    const [wifiPass, setWifiPass] = useState('');
+    const [wifiShowPass, setWifiShowPass] = useState(false);
+
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            const ssid = await getCurrentWifiSsid();
+            if (!alive || !ssid) return;
+            setWifiSsid((cur) => cur || ssid);
+            const pass = await deviceManager.wifiPasswordFor(ssid).catch(() => '');
+            if (alive && pass) setWifiPass((cur) => cur || pass);
+        })();
+        return () => {
+            alive = false;
+        };
+    }, []);
 
     useEffect(() => {
         let alive = true;
@@ -70,6 +89,9 @@ export default function ImbueScreen() {
         if (!app || !result) return;
         setPhase({ kind: 'imbuing' });
         try {
+            if (requiresNet(result.mapping.entries) && wifiSsid.trim()) {
+                await deviceManager.provisionWifi(wifiSsid, wifiPass);
+            }
             const r = await deviceManager.imbueSpell(
                 { id: app.id, name: app.name, code: app.code, requiredCapabilities: app.requiredCapabilities },
                 {},
@@ -157,6 +179,43 @@ export default function ImbueScreen() {
                         <Text style={styles.prompt}>{result.bundle.prompt.slice(0, 320)}</Text>
                         {!result.promptGeneratedByAI && <Text style={styles.hint}>{t('devicesPromptFallback')}</Text>}
 
+                        {requiresNet(result.mapping.entries) && (
+                            <View>
+                                <Text style={styles.sectionTitle}>{t('devicesWifi')}</Text>
+                                <Text style={styles.hint}>{t('devicesWifiHint')}</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={wifiSsid}
+                                    onChangeText={setWifiSsid}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    placeholder={t('devicesWifiSsid')}
+                                    placeholderTextColor={colors.onSurfaceVariant}
+                                />
+                                <View style={styles.inlineRow}>
+                                    <TextInput
+                                        style={[styles.input, styles.inputFlex]}
+                                        value={wifiPass}
+                                        onChangeText={setWifiPass}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        secureTextEntry={!wifiShowPass}
+                                        placeholder={t('devicesWifiPass')}
+                                        placeholderTextColor={colors.onSurfaceVariant}
+                                    />
+                                    <TouchableOpacity
+                                        style={styles.inlineBtn}
+                                        onPress={() => setWifiShowPass((v) => !v)}
+                                        accessibilityLabel={wifiShowPass ? t('devicesHidePassword') : t('devicesShowPassword')}
+                                    >
+                                        <Text style={styles.inlineBtnText}>
+                                            {wifiShowPass ? t('devicesHidePassword') : t('devicesShowPassword')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+
                         <TouchableOpacity
                             style={[styles.button, (!session || phase.kind === 'imbuing') && styles.buttonDisabled]}
                             onPress={confirm}
@@ -217,9 +276,29 @@ const styles = StyleSheet.create({
     itemMono: { color: colors.onBackground, fontFamily: 'monospace' },
     prompt: { color: colors.onSurfaceVariant },
     hint: { color: colors.onSurfaceVariant, fontSize: 12 },
+    input: {
+        backgroundColor: colors.background,
+        color: colors.onBackground,
+        borderRadius: borderRadius.md,
+        padding: spacing.sm,
+        marginTop: spacing.xs,
+    },
     button: { backgroundColor: colors.primary, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.sm },
     buttonPrimary: { backgroundColor: colors.primary },
     buttonDisabled: { opacity: 0.5 },
+    inlineRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    inputFlex: { flex: 1 },
+    inlineBtn: {
+        backgroundColor: colors.surfaceVariant,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.sm,
+        minWidth: 56,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: spacing.xs,
+    },
+    inlineBtnText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
     buttonText: { color: colors.onPrimary, fontWeight: '600' },
     doneTitle: { color: colors.success, fontSize: 18, fontWeight: '700' },
 });

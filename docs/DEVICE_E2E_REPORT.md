@@ -31,30 +31,73 @@ Fluxo executado e verde repetidas vezes no celular físico:
 Evidências: `C:\dev\appa\e2e\familiar_conectado.png`, `imbue_revisao.png`,
 `imbue_encantado.png`, `familiar_writeback.png`.
 
-## Nível 2 — BLE real (celular ↔ bridge no PC ↔ appa-sim) — ⚠️ PARCIAL
-- **Bridge BLE no PC funciona**: `tools/ble_bridge.py` (Python 3.12 + WinRT
-  `GattServiceProvider`) publica o serviço **NUS** e anuncia (status 0). O bleak não serve
-  (removem o GATT server no 3.x; 0.20/0.22 não têm server no Windows).
-- **App (AppaBleModule)**: bugs corrigidos durante a validação —
-  1. adapter via `BluetoothManager` do `applicationContext`
-     (`getSystemService` no ReactContext dava `E_NO_ADAPTER`);
-  2. `hasPermission()` usando `applicationContext`;
-  3. `startScan` com `ScanSettings`/filtros explícitos **e filtro pelo UUID do serviço NUS**
-     (o nome anunciado pelo Windows é o nome do PC, não "fofura");
-  4. erros nativos granulares (E_ADAPTER/E_STARTSCAN/E_DISCONNECTED) + stack;
-  5. alerta de erro mostrando a mensagem crua.
-- **Resultado atual**: o app **encontra o bridge (filtro NUS) e conecta (GATT)**, mas o
-  **periférico Windows derruba o link** — `onConnectionStateChange` status **147** antes de
-  qualquer troca de dados (o bridge não registra cliente assinando o TX). É limitação do
-  stack BLE do Windows como *servidor* GATT, não da lógica do app/firmware.
-- **Pendente para fechar o Nível 2**: validar contra o **ESP32 físico** (periférico BLE real)
-  ou investigar parâmetros do GattServiceProvider (proteções/CCC/adv). O caminho de código do
-  app está exercitado até a conexão.
+## Nível 2 — BLE real (celular ↔ ESP32 físico) — ✅ COMPLETO
+Validado em **2026-10-18** contra o **XIAO ESP32-S3 real** (periférico BLE NUS), com o
+celular em **ADB over Wi-Fi** (sem USB — a única porta USB ficou para o ESP32).
+- **Conectar**: tela Familiares → *Procurar Familiares (Bluetooth)* → scan filtrado pelo
+  UUID do serviço NUS → conecta no `fofura` → assina o TX (notify) → recebe o **HELLO**.
+- Retrato renderizado: `fofura · XIAO_ESP32S3 · fw 0.1.0 · proto 1`, capabilities
+  AI/Audio/Sheets/Forms/Docs/Calendar, wake `button`.
+- **Provisionamento de Wi-Fi (novo)**: a tela de Familiares (e o ritual de imbuir, quando a
+  spell exige `net`) envia **`GRANT_POWER wifi`** com token `{ssid, pass}`; o Cofre do
+  dispositivo passa a listar `wifi` no HELLO seguinte. Evidência: `wifi-portrait.png`
+  (`PODERES CONCEDIDOS: wifi`, SSID `CyberNet` lembrado; a senha não é persistida no app).
+- **Conexão de fato (novo)**: o firmware lê o token do Cofre e chama `WiFi.begin` (no boot e
+  ao receber `GRANT_POWER wifi`, **fora da task do BLE** — rodar na task do BLE travava a
+  resposta `OK` do GRANT_POWER, causando timeout no app); `REVOKE_POWER wifi` desconecta. O
+  HELLO passou a expor `device.net {ssid, status, ip}` e o app mostra a linha de rede.
+  **Validado conectado** com a senha real: `wifi status=3 ssid='CyberNet' ip=192.168.0.217`.
+- **Bridge BLE no PC (Windows GattServiceProvider)** segue como *fallback* dev: o stack do
+  Windows como servidor GATT derruba o link (status 147) — limitação do Windows, não do
+  app/firmware. O caminho de produção agora é o ESP32.
 
-## Nível 3 — ESP32 físico (XIAO ESP32-S3) — ⏳ PENDENTE
-Firmware pronto (`appa/examples/minimal_familiar`), depende de gravar no hardware
-(`arduino-cli`/Arduino IDE) e plugar o dispositivo. É a validação definitiva do BLE (o
-firmware usa a mesma API NUS que o bridge, mas num rádio/periférico real).
+Correções de código desta rodada:
+- `AppaBleModule.kt`: **faltava `discoverServices()`** no `onConnectionStateChange(CONNECTED)`
+  — sem isso o NUS nunca era encontrado e o CCCD/notify nunca assinado (o connect ficava
+  pendurado). Também: subscribe ao TX resolvia o `connect()` mas nada mais acontecia.
+
+## Nível 3 — ESP32 físico (XIAO ESP32-S3) — ✅ COMPLETO
+Fluxo BLE ponta-a-ponta verde com o hardware real (celular em Wi-Fi, sem USB no celular):
+- **Toolchain**: ESP32 core `esp32:esp32@3.3.12` via `arduino-cli` (Windows); sketchbook
+  `C:\dev\Arduino` (lib `appa` + `ArduinoJson` 7.4.2).
+- **Compila** (`--fqbn esp32:esp32:XIAO_ESP32S3`), **grava** em `COM3` (verify OK) e **boota**:
+  `storage: ok`, `ble: advertising`, `[appa] pronto. Aparelho: 'fofura' (NUS)`.
+- **Correções no `src/arduino/` + exemplo** (Fase E, nunca havia compilado no core 3.x):
+  1. `appa_ble_nus.h`: `BLEDevice::init(String)`; `getValue()` retorna `String`.
+  2. `appa_nvs_storage.h`: `getString`/`putString` com `String`; `removeValue` → `remove`.
+  3. `minimal_familiar.ino`: faltava `#include <ArduinoJson.h>`.
+  4. **HELLO no subscribe**: o cliente espera HELLO logo após conectar; o firmware agora o
+     envia quando o central assina o TX (`BleNus::on_subscribe`), via `poll()` no `loop()`
+     (fora da task da stack BLE).
+  5. **Flow control do TX**: `notify()` é fire-and-forget e maiores que MTU-3 são descartados
+     — `write_tx` enfileira e `poll()` drena **1 chunk de 20 B por iteração** (protegido por
+     `portMUX`), e o `FrameDecoder` do cliente remonta o stream.
+  6. **HELLO completo**: o firmware passou a incluir `wake` (modes/active/phrase/threshold) e
+     `storage.freeKb` — a ausência de `wake` quebrava a renderização no app.
+
+## Fase F — Setup do Familiar (nome, Wi‑Fi, picker) — ✅ código · ⏳ hardware
+Contrato de descoberta (PROTOCOL.md §3.1.2): o firmware **anuncia o serviço appa**
+`61707061-0000-1000-8000-00805f9b34fb` com **1 byte de estado** em Service Data
+(`0` = novo, `1` = configurado) e o nome no scan response. O app filtra o scan por
+esse UUID — o picker lista só "Familiares a configurar" (o NUS segue como transporte,
+descoberto no GATT ao conectar).
+- **Picker**: a tela Familiares mostra a lista de Familiares encontrados (nome,
+  estado, RSSI) e conecta no escolhido — não auto-conecta mais no mais forte.
+- **Nome**: campo "Nome pelo qual será chamado" → `SET_CONFIG { name }`; o firmware
+  persiste `config:name`, atualiza o advertising e passa a reportar o nome no HELLO.
+- **Wi‑Fi**: senha com "Ver/Ocultar"; a senha só é lembrada **após conexão
+  confirmada** (antes era gravada mesmo com senha errada); a falha agora diferencia
+  senha errada (`WiFi.status` 4) de rede ausente (status 1).
+- **Firmware**: `wifi_connect_from_cofre()` faz `WiFi.disconnect(false, true)` antes
+  do `WiFi.begin()` + `setAutoReconnect(true)` — a troca de rede não fica presa na
+  antiga (provável causa do "nenhuma senha conecta").
+- **iOS**: pod local `modules/appa-ble` (Expo Module, CoreBluetooth) espelhando o
+  contrato JS do `bleTransport` — autolinkado pelo Expo (sobrevive ao prebuild),
+  como `share-intent`/`shortcuts`. `NSBluetooth*UsageDescription` no Info.plist.
+  (Sem `AppaNetModule` no iOS — o SSID é digitado; o app já trata `null`.)
+
+Pendente: **gravar o firmware** (o COM3 estava ocupado/inoperante nesta máquina na
+rodada) e validar picker/renomear/estado no celular.
 
 ## Como rodar o Nível 1
 ```bash

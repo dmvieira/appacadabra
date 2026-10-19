@@ -17,6 +17,8 @@ import { Bundle, HelloPortrait, Mutation } from './protocol';
 import { Transport } from './transport';
 import { applyMutations } from './writeback';
 import { transmuteApp, validateBundle, type MinimalSpellApp, type TransmuteAppResult } from './transmute';
+import { POWER_WIFI } from './capabilityMap';
+import { getWifiPassword, rememberWifiPassword } from './wifiCredentials';
 import { getSetting, setSetting, getStorageForApp } from '../database/db';
 
 export interface FamiliarSession {
@@ -161,6 +163,46 @@ class DeviceManager {
         await this.session.client.grantPower(power, token);
     }
 
+    /**
+     * Provisiona Wi-Fi no Familiar (poder `wifi`, token `{ssid, pass}` — ver
+     * PROTOCOL.md). O SSID é lembrado em app_settings; a senha NÃO é persistida
+     * aqui — só depois que a conexão é confirmada (ver rememberWifi).
+     */
+    async provisionWifi(ssid: string, password: string): Promise<void> {
+        if (!this.session) throw new Error('devicesNoConnection');
+        const name = ssid.trim();
+        if (!name) throw new Error('devicesWifiNeedsSsid');
+        await this.session.client.grantPower(POWER_WIFI, JSON.stringify({ ssid: name, pass: password }));
+        await this.rememberWifiSsid(name);
+    }
+
+    /** Guarda a senha de um SSID só depois de confirmada (ver grantWifi na UI). */
+    async rememberWifi(ssid: string, password: string): Promise<void> {
+        await rememberWifiPassword(ssid.trim(), password).catch(() => {});
+    }
+
+    /** Último SSID provisionado (conveniência de UI). */
+    async lastWifiSsid(): Promise<string> {
+        try {
+            return (await getSetting('devices.wifiSsid')) ?? '';
+        } catch {
+            return '';
+        }
+    }
+
+    /** Senha lembrada para um SSID ('' quando desconhecida) — ver wifiCredentials.ts. */
+    async wifiPasswordFor(ssid: string): Promise<string> {
+        return getWifiPassword(ssid);
+    }
+
+    private async rememberWifiSsid(ssid: string): Promise<void> {
+        try {
+            await setSetting('devices.wifiSsid', ssid);
+        } catch {
+            // best-effort
+        }
+    }
+
     async revokePower(power: string): Promise<void> {
         if (!this.session) throw new Error('devicesNoConnection');
         await this.session.client.revokePower(power);
@@ -171,8 +213,29 @@ class DeviceManager {
         await this.session.client.setConfig(config);
     }
 
+    /**
+     * Renomeia o Familiar (nome pelo qual ele é chamado). SET_CONFIG {name} e
+     * reemite o HELLO para a UI refletir o novo nome sem reconectar.
+     */
+    async renameFamiliar(name: string): Promise<HelloPortrait | null> {
+        if (!this.session) throw new Error('devicesNoConnection');
+        const clean = name.trim();
+        if (!clean) throw new Error('devicesNameEmpty');
+        await this.session.client.setConfig({ name: clean });
+        return this.pullPortrait();
+    }
+
     refreshPortrait(): HelloPortrait | null {
         return this.session?.portrait ?? null;
+    }
+
+    /** Reemite o HELLO e atualiza o retrato da sessão (ex.: pós-provisionamento). */
+    async pullPortrait(): Promise<HelloPortrait | null> {
+        if (!this.session) return null;
+        const portrait = await this.session.client.pullPortrait();
+        this.session.portrait = portrait;
+        this.emit();
+        return portrait;
     }
 }
 

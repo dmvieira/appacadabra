@@ -12,7 +12,7 @@ import com.facebook.react.uimanager.ViewManager
  */
 class AppaDevicesPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-        listOf(AppaTcpModule(reactContext), AppaBleModule(reactContext))
+        listOf(AppaTcpModule(reactContext), AppaBleModule(reactContext), AppaNetModule(reactContext))
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
 }

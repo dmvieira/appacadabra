@@ -26,6 +26,7 @@ jest.mock('expo-router', () => ({
     Stack: { Screen: () => null },
     useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
     useLocalSearchParams: () => ({}),
+    useFocusEffect: () => {},
 }));
 
 const { Alert } = require('react-native');
@@ -82,8 +83,10 @@ describeFn('devices UI — tela Familiares x appa-sim (C++)', () => {
         const DevicesScreen = require('../../app/devices/index').default;
         await rtl.render(<DevicesScreen />);
 
-        // host:porta da tela apontam para o sim
-        rtl.fireEvent.changeText(rtl.screen.getByPlaceholderText('10.0.2.2'), '127.0.0.1');
+        // host:porta ficam em "Avançado" agora — abre para apontar ao sim
+        rtl.fireEvent.press(rtl.screen.getByText(/advanced/i));
+        const hostInput = await rtl.screen.findByPlaceholderText('10.0.2.2');
+        rtl.fireEvent.changeText(hostInput, '127.0.0.1');
 
         rtl.fireEvent.press(rtl.screen.getByText('devicesConnect'));
 

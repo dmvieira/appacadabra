@@ -53,6 +53,8 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         val NUS_RX: UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e") // app -> device
         val NUS_TX: UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e") // device -> app
         val CCC_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        // Contrato de descoberta appa (advertido pelo firmware; ver PROTOCOL.md).
+        val APPA_SERVICE: UUID = UUID.fromString("61707061-0000-1000-8000-00805f9b34fb")
         const val CHUNK = 180 // conservative until MTU is known
     }
 
@@ -99,14 +101,16 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device: BluetoothDevice = result.device
             val name = device.name ?: result.scanRecord?.deviceName ?: return
-            val entry = mapOf("id" to device.address, "name" to name, "rssi" to result.rssi)
+            val state = readSetupState(result)
+            val entry = mapOf("id" to device.address, "name" to name, "rssi" to result.rssi, "state" to state)
             val prev = found[device.address]
-            if (prev != null && prev["name"] == name) return
+            if (prev != null && prev["name"] == name && prev["state"] == state) return
             found[device.address] = entry
             val params = Arguments.createMap().apply {
                 putString("id", device.address)
                 putString("name", name)
                 putInt("rssi", result.rssi)
+                putInt("state", state)
             }
             emit("AppaBleDevice", params)
         }
@@ -115,6 +119,16 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
             scanning = false
             scanPromise?.reject("E_SCAN", "scan failed: $errorCode")
             scanPromise = null
+        }
+    }
+
+    /** Último byte de estado em Service Data do UUID appa (-1 quando ausente). */
+    private fun readSetupState(result: ScanResult): Int {
+        return try {
+            val data = result.scanRecord?.getServiceData(android.os.ParcelUuid(APPA_SERVICE))
+            if (data != null && data.isNotEmpty()) data[0].toInt() and 0xFF else -1
+        } catch (_: Throwable) {
+            -1
         }
     }
 
@@ -145,11 +159,11 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
                 val scanSettings = android.bluetooth.le.ScanSettings.Builder()
                     .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
                     .build()
-                // filtra pelo servico NUS: so Familiars appa (firmware/bridge) aparecem
-                val nusFilter = android.bluetooth.le.ScanFilter.Builder()
-                    .setServiceUuid(android.os.ParcelUuid(NUS_SERVICE))
+                // filtra pelo servico appa: so Familiars a configurar aparecem
+                val appaFilter = android.bluetooth.le.ScanFilter.Builder()
+                    .setServiceUuid(android.os.ParcelUuid(APPA_SERVICE))
                     .build()
-                scanner.startScan(listOf(nusFilter), scanSettings, scanCallback)
+                scanner.startScan(listOf(appaFilter), scanSettings, scanCallback)
             } catch (e: Throwable) {
                 scanning = false
                 scanPromise = null
@@ -169,6 +183,7 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
                         putString("id", entry["id"] as String)
                         putString("name", entry["name"] as String)
                         putInt("rssi", (entry["rssi"] as Int))
+                        putInt("state", (entry["state"] as Int))
                     })
                 }
                 promise.resolve(list)
@@ -199,6 +214,17 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                // connectGatt nao descobre servicos sozinho: sem isto o NUS
+                // nunca e encontrado e o notify (CCCD) nunca e assinado.
+                try {
+                    g.discoverServices()
+                } catch (e: Throwable) {
+                    connectPromise?.reject("E_SERVICES", "discoverServices: " + (e.message ?: e.toString()))
+                    connectPromise = null
+                }
+                return
+            }
             if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 gatt = null
                 rxChar = null

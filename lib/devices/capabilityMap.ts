@@ -92,3 +92,15 @@ export function mapRequirements(requiredCapabilities: string[]): MappingResult {
     }
     return { entries, powersToGrant: [...powers].sort(), unsupported };
 }
+
+/**
+ * Power name (Cofre) do Wi-Fi: o ritual de vínculo envia as credenciais
+ * (`{ssid, pass}` serializado em `token`) para o Familiar alcançar a rede —
+ * exigido sempre que alguma capability granted `requires` "net".
+ */
+export const POWER_WIFI = 'wifi';
+
+/** True quando alguma capability granted exige rede (net). */
+export function requiresNet(entries: CapabilityEntry[]): boolean {
+    return entries.some((e) => e.status === 'granted' && e.requires.includes('net'));
+}

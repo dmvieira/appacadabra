@@ -347,6 +347,8 @@ export interface HelloPortrait {
         capabilities?: string[];
         /** Recursos físicos presentes no dispositivo (v0.2). */
         requires?: DeviceRequirement[];
+        /** Estado de rede (v0.2, opcional): SSID/IP/status quando há Wi-Fi. */
+        net?: { ssid?: string; status?: number; ip?: string };
     };
     storage: { freeKb: number };
     wake: {
