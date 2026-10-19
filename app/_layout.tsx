@@ -143,6 +143,13 @@ export default function RootLayout() {
                 return;
             }
 
+            if (kind === 'enchant-ready') {
+                try {
+                    router.push({ pathname: '/devices/imbue', params: { appId: String(appId) } });
+                } catch {}
+                return;
+            }
+
             if (Platform.OS === 'android') {
                 ShareIntent.startRunnerActivity(Number(appId)).catch(() => {});
             } else {

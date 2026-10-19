@@ -11,6 +11,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    AppState,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -18,6 +20,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -32,6 +35,32 @@ import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
 import { getSetting, setSetting } from '../../lib/database/db';
 
 type Phase = { kind: 'review' } | { kind: 'imbuing' } | { kind: 'done'; encId: string; version: number };
+
+/** Cache do transmute por spell — evita re-gerar com IA ao voltar/background. */
+const transmuteCache = new Map<number, { result: TransmuteAppResult; codeLen: number }>();
+
+/** Notifica (local) que o encantamento está pronto — abre a tela p/ encantar. */
+async function notifyEnchantReady(appId: number, appName: string): Promise<void> {
+    try {
+        const channelId = 'appa-enchant';
+        if (Platform.OS === 'android') {
+            await Notifications.setNotificationChannelAsync(channelId, {
+                name: t('devicesImbueTitle'),
+                importance: Notifications.AndroidImportance.HIGH,
+            }).catch(() => {});
+        }
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: t('devicesEnchantReadyTitle'),
+                body: t('devicesEnchantReadyBody', { name: appName }),
+                data: { appId, kind: 'enchant-ready' },
+            },
+            trigger: Platform.OS === 'android' ? ({ channelId } as unknown as null) : null,
+        });
+    } catch {
+        // best-effort
+    }
+}
 
 export default function ImbueScreen() {
     const router = useRouter();
@@ -70,8 +99,30 @@ export default function ImbueScreen() {
         if (!app) return;
         // Revisão prévia: transmuta sem encantar. Se houver rascunho salvo do
         // usuário (prompt/keywords editados), ele tem prioridade.
+        const applyDraft = async (r: TransmuteAppResult) => {
+            let draft: { prompt?: string; keywords?: string[] } | null = null;
+            try {
+                const raw = await getSetting(`devices.encDraft.${app.id}`);
+                if (raw) draft = JSON.parse(raw) as { prompt?: string; keywords?: string[] };
+            } catch {
+                // rascunho corrompido: ignora
+            }
+            draftLoaded.current = !!draft;
+            if (!alive) return;
+            setPromptDraft(draft?.prompt ?? r.bundle.prompt);
+            setKeywords(draft?.keywords ?? r.bundle.manifest.keywords ?? []);
+        };
         (async () => {
             try {
+                // Cache: se a spell não mudou, reaproveita o transmute (resiste a
+                // ir pra background / voltar).
+                const cached = transmuteCache.get(app.id);
+                if (cached && cached.codeLen === (app.code?.length ?? 0)) {
+                    setResult(cached.result);
+                    await applyDraft(cached.result);
+                    setTransmuting(false);
+                    return;
+                }
                 const [{ transmuteApp }, { getStorageForApp }] = await Promise.all([
                     import('../../lib/devices/transmute'),
                     import('../../lib/database/db'),
@@ -81,18 +132,12 @@ export default function ImbueScreen() {
                     { getStorage: getStorageForApp, generateEnchantment: generateVoiceEnchantment },
                 );
                 if (!alive) return;
+                transmuteCache.set(app.id, { result: r, codeLen: app.code?.length ?? 0 });
                 setResult(r);
-                let draft: { prompt?: string; keywords?: string[] } | null = null;
-                try {
-                    const raw = await getSetting(`devices.encDraft.${app.id}`);
-                    if (raw) draft = JSON.parse(raw) as { prompt?: string; keywords?: string[] };
-                } catch {
-                    // rascunho corrompido: ignora
-                }
-                draftLoaded.current = !!draft;
-                setPromptDraft(draft?.prompt ?? r.bundle.prompt);
-                setKeywords(draft?.keywords ?? r.bundle.manifest.keywords ?? []);
+                await applyDraft(r);
                 setTransmuting(false);
+                // Se o app foi pra background durante a geração, avisa por notificação.
+                if (AppState.currentState !== 'active') void notifyEnchantReady(app.id, app.name);
             } catch (e) {
                 if (alive) {
                     setTransmuteError(e instanceof Error ? e.message : String(e));
