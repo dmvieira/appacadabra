@@ -317,26 +317,26 @@ class DeviceManager {
         let version = opts.version;
         let duplicates: string[] = [];
         if (!encId) {
+            const idx = await this.loadEncIndex();
+            const candidates = [...idx.entries()].filter(([, aId]) => aId === app.id).map(([eId]) => eId);
             const forMap = await this.loadEncFor();
-            let existing = forMap.get(app.id) ?? null;
-            if (!existing) {
-                const idx = await this.loadEncIndex();
-                const candidates = [...idx.entries()].filter(([, aId]) => aId === app.id).map(([eId]) => eId);
-                if (candidates.length) {
-                    const rated = candidates
-                        .map((eId) => ({
-                            eId,
-                            v: this.session!.portrait.encantamentos.find((x) => x.id === eId)?.version ?? 0,
-                        }))
-                        .sort((a, b) => b.v - a.v);
-                    existing = { encId: rated[0].eId, version: rated[0].v };
-                    duplicates = rated.slice(1).map((r) => r.eId);
-                }
+            const fromFor = forMap.get(app.id) ?? null;
+            // Mantém o encFor; senão o de maior versão no retrato.
+            let keep: string | undefined = fromFor?.encId;
+            if (!keep && candidates.length) {
+                keep = candidates
+                    .map((eId) => ({
+                        eId,
+                        v: this.session!.portrait.encantamentos.find((x) => x.id === eId)?.version ?? 0,
+                    }))
+                    .sort((a, b) => b.v - a.v)[0].eId;
             }
-            if (existing) {
-                encId = existing.encId;
-                const fromPortrait = this.session.portrait.encantamentos.find((e) => e.id === encId)?.version;
-                version = (fromPortrait ?? existing.version) + 1;
+            if (keep) {
+                const fromPortrait = this.session.portrait.encantamentos.find((e) => e.id === keep)?.version;
+                const base = fromPortrait ?? fromFor?.version ?? 0;
+                encId = keep;
+                version = base + 1;
+                duplicates = candidates.filter((eId) => eId !== keep);
             }
         }
         const build = async (v: number | undefined, id: string | undefined) =>
