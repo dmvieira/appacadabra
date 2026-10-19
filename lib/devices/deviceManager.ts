@@ -209,6 +209,21 @@ class DeviceManager {
         return new Map(await this.loadEncIndex());
     }
 
+    /** Encantamento existente desta spell neste device (p/ rotular "Atualizar"). */
+    async enchantmentForApp(appId: number): Promise<{ encId: string; version: number } | null> {
+        const e = (await this.loadEncFor()).get(appId);
+        if (e) return e;
+        const idx = await this.loadEncIndex();
+        const candidates = [...idx.entries()].filter(([, a]) => a === appId).map(([id]) => id);
+        if (!candidates.length) return null;
+        return candidates
+            .map((id) => ({
+                encId: id,
+                version: this.session?.portrait.encantamentos.find((x) => x.id === id)?.version ?? 0,
+            }))
+            .sort((a, b) => b.version - a.version)[0];
+    }
+
     /** Remove um encantamento do Familiar conectado. */
     async unenchant(encId: string): Promise<void> {
         if (!this.session) throw new Error('devicesNoConnection');
@@ -296,11 +311,28 @@ class DeviceManager {
     ): Promise<TransmuteAppResult & { ack: { id: string; version: number; stored: boolean } }> {
         if (!this.session) throw new Error('devicesNoConnection');
         // Atualizar (não duplicar): se a spell já tem encantamento neste device,
-        // reusa o mesmo encId e incrementa a versão.
+        // reusa o mesmo encId e incrementa a versão. Deriva também do índice
+        // reverso (encIndex) p/ encantamentos criados antes do encFor existir.
         let encId = opts.encId;
         let version = opts.version;
+        let duplicates: string[] = [];
         if (!encId) {
-            const existing = (await this.loadEncFor()).get(app.id);
+            const forMap = await this.loadEncFor();
+            let existing = forMap.get(app.id) ?? null;
+            if (!existing) {
+                const idx = await this.loadEncIndex();
+                const candidates = [...idx.entries()].filter(([, aId]) => aId === app.id).map(([eId]) => eId);
+                if (candidates.length) {
+                    const rated = candidates
+                        .map((eId) => ({
+                            eId,
+                            v: this.session!.portrait.encantamentos.find((x) => x.id === eId)?.version ?? 0,
+                        }))
+                        .sort((a, b) => b.v - a.v);
+                    existing = { encId: rated[0].eId, version: rated[0].v };
+                    duplicates = rated.slice(1).map((r) => r.eId);
+                }
+            }
             if (existing) {
                 encId = existing.encId;
                 const fromPortrait = this.session.portrait.encantamentos.find((e) => e.id === encId)?.version;
@@ -331,6 +363,20 @@ class DeviceManager {
             const next = (ack.version || 0) + 1;
             result = await build(next, encId);
             if (!validateBundle(result.bundle)) ack = await this.enchantWithRetry(result.bundle);
+        }
+        // Dedupe: encantamentos antigos da MESMA spell neste device (ex.: criados
+        // antes do encFor) — remove os extras após atualizar o principal.
+        if (duplicates.length) {
+            const idx = this.encIndexCache.get(this.deviceKey()) ?? (await this.loadEncIndex());
+            for (const d of duplicates) {
+                try {
+                    await this.session.client.unenchant(d);
+                    idx.delete(d);
+                } catch {
+                    // best-effort
+                }
+            }
+            await this.saveEncIndex();
         }
         await this.registerEncantamento(result.bundle.manifest.id, app.id, ack.version || version || 1);
         this.emit();

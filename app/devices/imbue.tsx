@@ -78,7 +78,23 @@ export default function ImbueScreen() {
     const [keywords, setKeywords] = useState<string[]>([]);
     const [newKeyword, setNewKeyword] = useState('');
     const [regenerating, setRegenerating] = useState(false);
+    const [updating, setUpdating] = useState(false);
     const draftLoaded = useRef(false);
+
+    // Esta spell já tem encantamento neste Familiar? (rotula "Atualizar")
+    useEffect(() => {
+        let alive = true;
+        const id = parseInt(appId, 10);
+        deviceManager
+            .enchantmentForApp(id)
+            .then((e) => {
+                if (alive) setUpdating(!!e);
+            })
+            .catch(() => {});
+        return () => {
+            alive = false;
+        };
+    }, [appId]);
 
     useEffect(() => {
         let alive = true;
@@ -393,7 +409,9 @@ export default function ImbueScreen() {
                                     <Text style={styles.buttonText}>{t('devicesEnchantSending')}</Text>
                                 </View>
                             ) : (
-                                <Text style={styles.buttonText}>{t('devicesImbueConfirm')}</Text>
+                                <Text style={styles.buttonText}>
+                                    {updating ? t('devicesUpdateEnchantment') : t('devicesImbueConfirm')}
+                                </Text>
                             )}
                         </TouchableOpacity>
                         <Text style={styles.hint}>{t('devicesEnchantForegroundHint')}</Text>
