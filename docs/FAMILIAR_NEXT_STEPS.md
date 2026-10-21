@@ -107,3 +107,29 @@ usuário tocar **Remover** (por design). Nada automático.
 - Firmware: `appa/src/arduino/{appa_ble_nus,appa_nvs_storage,appa_pdm_mic,appa_http_client}.h`,
   `appa/src/encantamentos/*`, `appa/examples/minimal_familiar/minimal_familiar.ino`,
   `appa/protocol/PROTOCOL.md`.
+
+## Wake por voz — plano e pivô (2026-10-21)
+
+Implementado no firmware (`appa`, branch `feat/familiar-setup`):
+
+1. **Fase 1 ✓** — `pcm_to_wav_b64` com DC removida + pico ~-3 dBFS (ganho máx
+   16×). Validado no hardware: DC -0.0 (era ~1400), silêncio a -20 dBFS.
+2. **Fase 2 ✓** — wake flex reescrito: **1 STT por gatilho** + conferência
+   determinística da frase (`appa_wake_match::transcript_contains`, fold +
+   distância de edição; mata o viés "sim" do LLM e as respostas vazias). O
+   resto da transcrição vira o comando direto ("Appa, adicionar lavar louça"
+   acorda e executa numa chamada). Porta de RMS (300): silêncio nunca chama a
+   nuvem. STT com `max_tokens 1024` + `reasoning exclude` (gemini não come o
+   orçamento "pensando"). Comando serial **`fakeai [on|off]`**: transcrições
+   enlatadas (positivas e negativas reais do log) + resposta fake — bancada
+   sem gastar crédito.
+3. **Fase 3 PIVOTADA** — embedder do openWakeWord é inviável no ESP32-S3: o
+   próprio autor documenta *vários segundos por frame de 80ms* no S3 e os
+   modelos pré-treinados são **CC-BY-NC-SA (não comercial)**. O caminho
+   configurável no device é o **DTW + cadastro de voz** já implementado
+   (`appa_kws`: log-mel+delta, DTW com banda, enrollment/calibração/reforço
+   em NVS) — validado apenas com fixtures contaminadas (negativas contendo a
+   própria frase). Pendência: recoletar fixtures limpos e re-avaliar.
+4. **Fase 4 (futuro, se DTW não bastar)** — embedder no CELULAR (openWakeWord
+   1,4 MB via tflite nativo; o clip vai por WiFi/TCP) ou treino de modelo
+   por frase (microWakeWord via Colab + OTA). Nenhum dos dois no firmware.
