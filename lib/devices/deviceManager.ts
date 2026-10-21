@@ -13,7 +13,9 @@
 import { NativeModules } from 'react-native';
 
 import { AppaClient } from './appaClient';
-import { Bundle, HelloPortrait, Mutation, encIdForSpell, encIdToAppId } from './protocol';
+import {
+    EnrollAck,
+    EnrollSampleResult, Bundle, HelloPortrait, Mutation, encIdForSpell, encIdToAppId } from './protocol';
 import { Transport } from './transport';
 import { applyMutations } from './writeback';
 import { transmuteApp, validateBundle, type MinimalSpellApp, type TransmuteAppResult } from './transmute';
@@ -37,6 +39,31 @@ export interface KnownFamiliar {
     lastSeen: number;
 }
 
+/**
+ * Wakeword = nome pelo qual o Familiar é chamado. O nome vai no Complete Local
+ * Name do scan response, que já carrega 19 bytes do Service Data do UUID appa
+ * (16 UUID + 1 estado + 2 de overhead) — sobram 10 bytes no pacote de 31. Se
+ * passar disso, o core BLE descarta o nome silenciosamente (some do picker).
+ * Por isso o teto é em BYTES UTF-8 (acento = 2 bytes), não em caracteres.
+ */
+export const WAKE_MAX_BYTES = 10;
+export const DEFAULT_WAKE_WORD = 'Appa';
+/**
+ * Nomes que o firmware traz de fábrica (não são escolha do usuário). Se a
+ * memória do app tiver um desses, tratamos como "não definido" -> DEFAULT.
+ */
+const LEGACY_WAKE_DEFAULTS = new Set(['fofura']);
+
+/** Comprimento em bytes UTF-8 (sem depender de TextEncoder no Hermes). */
+export function utf8len(s: string): number {
+    let n = 0;
+    for (const ch of s) {
+        const c = ch.codePointAt(0) ?? 0;
+        n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+    }
+    return n;
+}
+
 type Listener = () => void;
 
 class DeviceManager {
@@ -49,7 +76,10 @@ class DeviceManager {
     private encForCache = new Map<string, Map<number, { encId: string; version: number }>>();
 
     getSession(): FamiliarSession | null {
-        return this.session;
+        // Snapshot imutável: a UI guarda isso em state; devolver o mesmo ref
+        // fazia setSession() bailar e a tela nao re-renderizar apos mutacoes
+        // (ex.: remover encantamento parecia "nao funcionar").
+        return this.session ? { ...this.session } : null;
     }
 
     getLastQuery(): { enc: string; q: string; a: string } | null {
@@ -81,7 +111,7 @@ class DeviceManager {
             this.emit();
         };
         const portrait = await client.connect();
-        this.session = {
+        const session: FamiliarSession = {
             client,
             portrait,
             ...(deviceId ? { deviceId } : {}),
@@ -89,9 +119,53 @@ class DeviceManager {
             lastWritebackAt: null,
             lastWritebackCount: 0,
         };
-        if (deviceId) await this.rememberFamiliar({ id: deviceId, name: portrait.name }).catch(() => {});
+        this.session = session;
+        if (deviceId) {
+            try {
+                await this.ensureWakeword(deviceId);
+            } catch {
+                await this.rememberFamiliar({ id: deviceId, name: portrait.name }).catch(() => {});
+            }
+        }
         this.emit();
-        return portrait;
+        return session.portrait;
+    }
+
+    /**
+     * Garante que o firmware desperte pela wakeword exibida. O nome É a wakeword;
+     * resolve da memória por device (ou DEFAULT_WAKE_WORD) e envia
+     * SET_CONFIG {name, wake:{mode:'flex',phrase}}, re-lendo o HELLO. Assim o
+     * default de fábrica do firmware nunca aparece e renomear sempre vale.
+     */
+    private async ensureWakeword(deviceId: string): Promise<void> {
+        const session = this.session;
+        if (!session) return;
+        const known = await this.knownFamiliars();
+        const stored = known.find((f) => f.id === deviceId)?.name?.trim() ?? '';
+        let wake =
+            !stored || LEGACY_WAKE_DEFAULTS.has(stored.toLowerCase()) ? DEFAULT_WAKE_WORD : stored;
+        if (utf8len(wake) > WAKE_MAX_BYTES) wake = DEFAULT_WAKE_WORD;
+        await session.client.setConfig({
+            name: wake,
+            wake: { mode: 'flex', phrase: wake },
+        });
+        // Atualiza o retrato localmente: o HELLO do firmware hardcoda wake/mode e
+        // o PAIR_REQUEST (pullPortrait) não é confiável neste firmware, então não
+        // dependemos dele para refletir o nome na UI.
+        this.applyWakewordLocally(wake);
+        await this.rememberFamiliar({ id: deviceId, name: wake }).catch(() => {});
+    }
+
+    /** Reflete a wakeword no retrato da sessão (nome + wake.phrase) e re-renderiza. */
+    private applyWakewordLocally(wake: string): void {
+        const p = this.session?.portrait;
+        if (!p) return;
+        p.name = wake;
+        if (p.wake) {
+            p.wake.phrase = wake;
+            p.wake.active = 'flex';
+        }
+        this.emit();
     }
 
     disconnect(): void {
@@ -224,7 +298,14 @@ class DeviceManager {
         const idx = await this.loadEncIndex();
         idx.delete(encId);
         await this.saveEncIndex();
-        await this.pullPortrait().catch(() => {});
+        // Remocao otimista: tira do retrato local e re-renderiza na hora (o
+        // refresh por HELLO sobre BLE e lento e fazia parecer que "nao removeu").
+        const portrait = this.session.portrait;
+        if (portrait?.encantamentos) {
+            portrait.encantamentos = portrait.encantamentos.filter((e) => e.id !== encId);
+            this.emit();
+        }
+        await this.pullPortrait(3000).catch(() => {});
     }
 
     // ---- Familiares conhecidos (persistidos p/ escolher com status) ----
@@ -300,8 +381,7 @@ class DeviceManager {
         // 1 encantamento por feitiço/device: o id deriva do feitiço, então
         // reencantar ATUALIZA a versão (upsert) — nunca duplica.
         const encId = opts.encId ?? encIdForSpell(app.id);
-        const fromPortrait = this.session.portrait.encantamentos.find((e) => e.id === encId)?.version;
-        const version = opts.version ?? (fromPortrait ?? 0) + 1;
+        const version = opts.version ?? (await this.resolveNextVersion(encId, app.id));
         const build = async (v: number | undefined, id: string | undefined) =>
             transmuteApp(app, {
                 getStorage: (appId) => getStorageForApp(appId),
@@ -328,8 +408,41 @@ class DeviceManager {
             if (!validateBundle(result.bundle)) ack = await this.enchantWithRetry(result.bundle);
         }
         await this.registerEncantamento(result.bundle.manifest.id, app.id);
+        // Mantém o retrato em sync: o próximo update já manda a versão certa de
+        // primeira (evita "manda errado -> device recusa -> reenvia o payload").
+        this.syncPortraitEnchantment(result.bundle.manifest.id, ack.version);
         this.emit();
         return { ...result, ack };
+    }
+
+    /**
+     * Versão a usar no ENCHANT (upsert). Se o retrato atual já lista o
+     * encantamento, manda stored+1 de primeira. Se temos indício local de que a
+     * spell já foi encantada mas o retrato não a lista (retrato possivelmente
+     * obsoleto), pergunta o HELLO (barato) antes, em vez de gastar dois envios
+     * do payload inteiro.
+     */
+    private async resolveNextVersion(encId: string, appId: number): Promise<number> {
+        const findVer = () => this.session?.portrait.encantamentos.find((e) => e.id === encId)?.version;
+        let v = findVer();
+        if (v === undefined) {
+            const encFor = await this.loadEncFor();
+            if (encFor.has(appId)) {
+                await this.pullPortrait(3000).catch(() => {});
+                v = findVer();
+            }
+        }
+        return (v ?? 0) + 1;
+    }
+
+    /** Reflete um encantamento recém-gravado no retrato (id/versão) e re-renderiza. */
+    private syncPortraitEnchantment(encId: string, version: number): void {
+        const portrait = this.session?.portrait;
+        if (!portrait?.encantamentos) return;
+        const found = portrait.encantamentos.find((e) => e.id === encId);
+        if (found) found.version = version;
+        else portrait.encantamentos.push({ id: encId, version });
+        this.emit();
     }
 
     /**
@@ -406,25 +519,120 @@ class DeviceManager {
     }
 
     /**
-     * Renomeia o Familiar (nome pelo qual ele é chamado). SET_CONFIG {name} e
-     * reemite o HELLO para a UI refletir o novo nome sem reconectar.
+     * Renomeia o Familiar: o nome É a wakeword (nome pelo qual ele é chamado).
+     * SET_CONFIG {name, wake:{mode:'flex',phrase}} e reemite o HELLO para a UI
+     * refletir sem reconectar. O teto de bytes garante o nome no advertising.
      */
     async renameFamiliar(name: string): Promise<HelloPortrait | null> {
         if (!this.session) throw new Error('devicesNoConnection');
         const clean = name.trim();
         if (!clean) throw new Error('devicesNameEmpty');
-        await this.session.client.setConfig({ name: clean });
-        return this.pullPortrait();
+        if (utf8len(clean) > WAKE_MAX_BYTES) throw new Error('devicesNameTooLong');
+        await this.session.client.setConfig({
+            name: clean,
+            wake: { mode: 'flex', phrase: clean },
+        });
+        this.applyWakewordLocally(clean);
+        if (this.session.deviceId) {
+            await this.rememberFamiliar({ id: this.session.deviceId, name: clean }).catch(() => {});
+        }
+        return this.session.portrait;
     }
 
     refreshPortrait(): HelloPortrait | null {
         return this.session?.portrait ?? null;
     }
 
+    /** Cancela um cadastro em andamento (best-effort). */
+    async cancelEnroll(): Promise<void> {
+        if (!this.session) return;
+        await this.session.client.enrollCancel().catch(() => {});
+    }
+
+    /** A voz para a frase atual ja esta cadastrada no Familiar? */
+    wakeEnrolled(): boolean {
+        return this.session?.portrait?.wake?.enrolled === true;
+    }
+
+    /**
+     * Ritual de cadastro da wakeword por voz (PROTOCOL.md 3.6): o device grava
+     * com o PROPRIO microfone; este metodo so conduz — pede cada amostra no
+     * momento certo, checa o resultado, calibra o ambiente e commita.
+     *
+     * `cb.onSampleStart` dispara ANTES de cada gravacao: a UI mostra "diga
+     * <nome> agora" e SÓ DEPOIS chama voltar; a gravacao comeca imediatamente.
+     */
+    async enrollWakeWord(
+        opts: { required?: number; optional?: number; onCommitFail?: (r: EnrollAck) => void } = {},
+        cb: {
+            onSampleStart?: (index: number, total: number) => Promise<void> | void;
+            onSampleResult?: (index: number, r: EnrollSampleResult) => void;
+            onCalibrateStart?: () => Promise<void> | void;
+        } = {},
+    ): Promise<EnrollAck & { samples: number }> {
+        const session = this.session;
+        if (!session) throw new Error('devicesNoConnection');
+        const required = opts.required ?? 3;
+        const optional = opts.optional ?? 2;
+
+        await session.client.enrollStart();
+
+        let okSamples = 0;
+        const trySample = async (attempts: number, index: number, total: number): Promise<boolean> => {
+            for (let a = 0; a < attempts; a++) {
+                await cb.onSampleStart?.(index, total);
+                const r = await session.client.enrollSample();
+                cb.onSampleResult?.(index, r);
+                if (r.ok) {
+                    okSamples += 1;
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        const total = required + optional;
+        // 3 obrigatorias: sem as 3, aborta (cancel limpa o device).
+        for (let i = 1; i <= required; i++) {
+            const ok = await trySample(3, i, total);
+            if (!ok) {
+                await session.client.enrollCancel().catch(() => {});
+                return { stage: 'commit', enrolled: false, reason: 'samples', samples: okSamples };
+            }
+        }
+        // 2 opcionais: melhor-esforco, falha so pula.
+        for (let i = required + 1; i <= required + optional; i++) {
+            await trySample(1, i, required + optional);
+        }
+
+        // Calibracao do ambiente (com 1 retry).
+        await cb.onCalibrateStart?.();
+        let calib = await session.client.enrollCalibrate();
+        if (!calib.ok) calib = await session.client.enrollCalibrate();
+        if (!calib.ok) {
+            await session.client.enrollCancel().catch(() => {});
+            return { stage: 'commit', enrolled: false, reason: 'calibrate', samples: okSamples };
+        }
+
+        const ack = await session.client.enrollCommit();
+        if (!ack.enrolled) {
+            opts.onCommitFail?.(ack);
+            return { ...ack, samples: okSamples };
+        }
+        // Retrato local: o proximo HELLO confirma, mas refletimos ja.
+        const p = session.portrait;
+        if (p?.wake) {
+            p.wake.enrolled = true;
+            p.wake.active = 'enrolled';
+        }
+        this.emit();
+        return { ...ack, samples: okSamples };
+    }
+
     /** Reemite o HELLO e atualiza o retrato da sessão (ex.: pós-provisionamento). */
-    async pullPortrait(): Promise<HelloPortrait | null> {
+    async pullPortrait(timeoutMs?: number): Promise<HelloPortrait | null> {
         if (!this.session) return null;
-        const portrait = await this.session.client.pullPortrait();
+        const portrait = await this.session.client.pullPortrait(timeoutMs);
         this.session.portrait = portrait;
         this.emit();
         return portrait;

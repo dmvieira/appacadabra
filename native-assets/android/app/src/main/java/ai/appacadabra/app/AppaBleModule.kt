@@ -55,7 +55,17 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
         val CCC_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         // Contrato de descoberta appa (advertido pelo firmware; ver PROTOCOL.md).
         val APPA_SERVICE: UUID = UUID.fromString("61707061-0000-1000-8000-00805f9b34fb")
-        const val CHUNK = 180 // conservative until MTU is known
+        // ATT payload default: MTU 23 - 3 bytes de cabecalho. Nao negociamos MTU
+        // (requestMtu derrubava o periferico em sessoes anteriores), entao o chunk
+        // fica em 20: 1 ATT Write Request por chunk, sem Long Write do Bluedroid
+        // (que travava de forma intermitente o ESP32).
+        const val DEFAULT_MTU = 23
+        const val MIN_CHUNK = 20
+        // Negociacao de MTU desligada por padrao: requestMtu derruba o GATT do
+        // ESP32 (validado 2026-10-19: onServicesDiscovered perde o NUS -
+        // E_NO_NUS). O fallback e o DEFAULT_MTU.
+        const val REQUESTED_MTU = 247
+        const val NEGOTIATE_MTU = false
     }
 
     private var adapterCache: BluetoothAdapter? = null
@@ -79,6 +89,11 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
     private var connectPromise: Promise? = null
     private var writeQueue = ConcurrentLinkedQueue<ByteArray>()
     private var writing = false
+    private var mtu = DEFAULT_MTU
+    private var notifyEnabled = false
+
+    /** ATT payload util: MTU - 3 bytes de cabecalho, nunca abaixo de 20. */
+    private val chunkSize: Int get() = maxOf(MIN_CHUNK, mtu - 3)
 
     override fun getName() = NAME
 
@@ -221,6 +236,12 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                // Intervalo de conexao minimo (~11.25ms) para acelerar o ENCHANT:
+                // com MTU 23 e ~1 escrita por intervalo, isso ja da ~3-4x.
+                try {
+                    g.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+                } catch (_: Throwable) {
+                }
                 // connectGatt nao descobre servicos sozinho: sem isto o NUS
                 // nunca e encontrado e o notify (CCCD) nunca e assinado.
                 try {
@@ -235,6 +256,7 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
                 gatt = null
                 rxChar = null
                 txChar = null
+                notifyEnabled = false
                 connectPromise?.reject("E_DISCONNECTED", "disconnected (status $status)")
                 connectPromise = null
                 emit("AppaBleDisconnect", null)
@@ -266,11 +288,21 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
                 g.disconnect()
                 return
             }
+            if (NEGOTIATE_MTU) {
+                try {
+                    g.requestMtu(REQUESTED_MTU)
+                } catch (_: Throwable) {
+                }
+            }
             enableTxNotify(g)
         }
 
         override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) {
-            enableTxNotify(g)
+            // So atualiza o chunk; o notify ja foi (ou sera) habilitado em
+            // onServicesDiscovered. Fallback: mantem DEFAULT_MTU se falhar.
+            if (status == BluetoothGatt.GATT_SUCCESS && mtu > 0) {
+                this@AppaBleModule.mtu = mtu
+            }
         }
 
         override fun onDescriptorWrite(g: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
@@ -311,6 +343,8 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
 
     private fun enableTxNotify(g: BluetoothGatt) {
         val tx = txChar ?: return
+        if (notifyEnabled) return
+        notifyEnabled = true
         g.setCharacteristicNotification(tx, true)
         val descriptor = tx.getDescriptor(CCC_DESCRIPTOR)
         if (descriptor != null) {
@@ -375,9 +409,10 @@ class AppaBleModule(reactContext: ReactApplicationContext) :
             return
         }
         val data = Base64.decode(b64, Base64.NO_WRAP)
+        val chunkSize = this.chunkSize
         var i = 0
         while (i < data.size) {
-            val end = minOf(i + CHUNK, data.size)
+            val end = minOf(i + chunkSize, data.size)
             writeQueue.add(data.copyOfRange(i, end))
             i = end
         }

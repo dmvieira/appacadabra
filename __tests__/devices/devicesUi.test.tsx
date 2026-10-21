@@ -30,8 +30,10 @@ jest.mock('expo-router', () => ({
 }));
 
 const { Alert } = require('react-native');
-jest.spyOn(Alert, 'alert').mockImplementation((title, msg) => {
+let lastAlertButtons: Array<{ text?: string; style?: string; onPress?: () => void }> = [];
+jest.spyOn(Alert, 'alert').mockImplementation((title, msg, buttons) => {
     console.log('ALERT:', title, '|', String(msg).slice(0, 100));
+    lastAlertButtons = (buttons as typeof lastAlertButtons) ?? [];
 });
 
 const net = require('net');
@@ -102,9 +104,14 @@ describeFn('devices UI — tela Familiares x appa-sim (C++)', () => {
         // write-back wiring ativo (sessão do manager)
         expect(deviceManager.getSession()?.portrait.name).toBe('fofura-sim');
 
-        // desconecta pela UI — o manager encerra a sessão (o re-render do
-        // form é coberto pelo subscription; no ambiente de teste validamos o estado)
+        // desconecta pela UI — agora pede confirmação (revoga poderes) e o
+        // manager encerra a sessão após o "confirmar" do Alert.
         rtl.fireEvent.press(rtl.screen.getByText('devicesDisconnect'));
+        const confirm = lastAlertButtons.find((b) => b.style === 'destructive');
+        expect(confirm).toBeTruthy();
+        await rtl.act(async () => {
+            await confirm!.onPress?.();
+        });
         await waitFor(() => expect(deviceManager.getSession()).toBeNull());
     });
 });

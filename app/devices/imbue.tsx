@@ -144,7 +144,7 @@ export default function ImbueScreen() {
                     import('../../lib/database/db'),
                 ]);
                 const r = await transmuteApp(
-                    { id: app.id, name: app.name, code: app.code, requiredCapabilities: app.requiredCapabilities },
+                    { id: app.id, name: app.name, code: app.code, description: app.shortDescription, requiredCapabilities: app.requiredCapabilities },
                     { getStorage: getStorageForApp, generateEnchantment: generateVoiceEnchantment },
                 );
                 if (!alive) return;
@@ -183,7 +183,7 @@ export default function ImbueScreen() {
         setRegenerating(true);
         try {
             const gen = await generateVoiceEnchantment(
-                { id: app.id, name: app.name, code: app.code, requiredCapabilities: app.requiredCapabilities },
+                { id: app.id, name: app.name, code: app.code, description: app.shortDescription, requiredCapabilities: app.requiredCapabilities },
                 Object.keys(result?.bundle.data ?? {}),
             );
             if (gen.prompt) setPromptDraft(gen.prompt);
@@ -216,7 +216,7 @@ export default function ImbueScreen() {
             }
             await persistDraft();
             const r = await deviceManager.imbueSpell(
-                { id: app.id, name: app.name, code: app.code, requiredCapabilities: app.requiredCapabilities },
+                { id: app.id, name: app.name, code: app.code, description: app.shortDescription, requiredCapabilities: app.requiredCapabilities },
                 { promptOverride: promptDraft, keywordsOverride: keywords },
             );
             setPhase({ kind: 'done', encId: r.ack.id, version: r.ack.version });
@@ -287,7 +287,7 @@ export default function ImbueScreen() {
                                 <Text style={styles.sectionTitle}>{t('devicesCapabilitiesUnsupported')}</Text>
                                 {result.mapping.unsupported.map((u) => (
                                     <Text key={u.id} style={styles.itemOff}>
-                                        {u.displayName} — {t(`devicesReason_${u.reason ?? 'phoneOnly'}`)}
+                                        {u.displayName} · {t(`devicesReason_${u.reason ?? 'phoneOnly'}`)}
                                     </Text>
                                 ))}
                             </View>

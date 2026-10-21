@@ -23,6 +23,25 @@ Já implementado e commitado:
 
 ## PROBLEMA ABERTO 1 — envio do ENCHANT lento/timeout
 
+> **Status: RESOLVIDO E VALIDADO on-device (2026-10-19).**
+> `AppaBleModule.kt`: chunk dinâmico `max(20, mtu-3)` (MTU default 23 → 20) com
+> `WRITE_TYPE_DEFAULT` (sem Long Write) + `requestConnectionPriority(HIGH)` no
+> connect. Espelhado em `android/...` e `native-assets/...`.
+>
+> Medições no **ESP32 real** (Motorola Edge 60 Pro):
+> - Conectar: OK (HELLO/portrait).
+> - **ENCHANT de uma spell: ~4,7 s** (antes: timeout/nunca completava).
+> - Reencantar a MESMA spell (update, 2 envios): ~10 s → **v2**, sem criar extra.
+> - Device (`selftest`): `encs: 3` (2 legado + novo `enc_000001`), `cofre: 2`.
+>   App DB confirma `devices.encIndex.<mac> = {..., "enc_000001":1}`.
+>
+> **MTU 247 (#3): NÃO usar.** Testado ligando `NEGOTIATE_MTU=true`: o
+> `requestMtu` derruba o GATT do ESP32 → `onServicesDiscovered` perde o NUS
+> (`E_NO_NUS` / "serviço ausente"). Confirmado o aviso; mantido
+> `NEGOTIATE_MTU=false`. Se quiser mais velocidade, o caminho é #2
+> (`WRITE_NR` + flow control), não MTU.
+> #2 (WRITE_NR) não implementado.
+
 ### Causa provável
 O app fatia o ENCHANT em **chunks de 180 bytes** com `WRITE_TYPE_DEFAULT`
 (`android/.../AppaBleModule.kt:58` `CHUNK=180`, `:388` `drainWrites`,

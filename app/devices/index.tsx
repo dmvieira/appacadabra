@@ -23,7 +23,7 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
-import { deviceManager, nativeTcpTransport, hashKey, deviceErrorKey, type FamiliarSession, type KnownFamiliar } from '../../lib/devices/deviceManager';
+import { deviceManager, nativeTcpTransport, hashKey, deviceErrorKey, utf8len, WAKE_MAX_BYTES, type FamiliarSession, type KnownFamiliar } from '../../lib/devices/deviceManager';
 import { useAppStore } from '../../lib/store';
 import { bleScan, bleTransport, APPA_STATE_CONFIGURED, type BleDevice } from '../../lib/devices/bleTransport';
 import { getOpenRouterKey } from '../../lib/api/keyStorage';
@@ -56,6 +56,8 @@ export default function DevicesScreen() {
     const [lastQuery, setLastQuery] = useState(deviceManager.getLastQuery());
     const [known, setKnown] = useState<KnownFamiliar[]>([]);
     const [nearbyIds, setNearbyIds] = useState<Set<string>>(new Set());
+    const [removingEncId, setRemovingEncId] = useState<string | null>(null);
+    const [disconnecting, setDisconnecting] = useState(false);
     const apps = useAppStore((s) => s.apps);
 
     useEffect(() => {
@@ -216,7 +218,7 @@ export default function DevicesScreen() {
             await deviceManager.grantPower('openrouter', key, { model: MODELS.WEBVIEW });
             await deviceManager.rememberAiKeyHash(hashKey(key));
             setAiKeyOk(true);
-            await deviceManager.pullPortrait().catch(() => {});
+            await deviceManager.pullPortrait(3000).catch(() => {});
             Alert.alert(t('devicesTitle'), t('devicesAiGranted'));
         } catch (e) {
             Alert.alert(t('devicesError'), e instanceof Error ? e.message : String(e));
@@ -225,17 +227,70 @@ export default function DevicesScreen() {
         }
     }, []);
 
-    const disconnect = useCallback(() => {
-        deviceManager.disconnect();
-    }, []);
+    const appNameFor = useCallback(
+        (encId: string) => {
+            // Encantamento determinístico: decode direto; fallback ao índice legado.
+            const id = encIdToAppId(encId) ?? encApp[encId];
+            const a = id != null ? apps.find((x) => x.id === id) : undefined;
+            return a?.name ?? encId;
+        },
+        [encApp, apps],
+    );
 
-    const removeEnchantment = useCallback(async (encId: string) => {
-        try {
-            await deviceManager.unenchant(encId);
-        } catch (e) {
-            Alert.alert(t('devicesError'), e instanceof Error ? e.message : String(e));
-        }
-    }, []);
+    const disconnect = useCallback(() => {
+        Alert.alert(
+            t('devicesDisconnectConfirmTitle'),
+            t('devicesDisconnectConfirmBody'),
+            [
+                { text: t('cancel'), style: 'cancel' },
+                {
+                    text: t('devicesDisconnect'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        setDisconnecting(true);
+                        try {
+                            // Desconectar revoga TODOS os poderes (IA, Wi-Fi, ...)
+                            // do Familiar — e nao so solta a conexao.
+                            const powers = session?.portrait?.device?.powers ?? [];
+                            for (const pw of powers) {
+                                await deviceManager.revokePower(pw).catch(() => {});
+                            }
+                        } finally {
+                            deviceManager.disconnect();
+                            setDisconnecting(false);
+                        }
+                    },
+                },
+            ],
+        );
+    }, [session]);
+
+    const removeEnchantment = useCallback(
+        (encId: string) => {
+            Alert.alert(
+                t('devicesRemoveConfirmTitle'),
+                t('devicesRemoveConfirmBody', { name: appNameFor(encId) }),
+                [
+                    { text: t('cancel'), style: 'cancel' },
+                    {
+                        text: t('delete'),
+                        style: 'destructive',
+                        onPress: async () => {
+                            setRemovingEncId(encId);
+                            try {
+                                await deviceManager.unenchant(encId);
+                            } catch (e) {
+                                Alert.alert(t('devicesError'), e instanceof Error ? e.message : String(e));
+                            } finally {
+                                setRemovingEncId(null);
+                            }
+                        },
+                    },
+                ],
+            );
+        },
+        [appNameFor],
+    );
 
     const grantWifi = useCallback(async () => {
         const target = wifiSsid.trim();
@@ -248,7 +303,7 @@ export default function DevicesScreen() {
             let lastStatus = -1;
             for (let i = 0; i < 10 && !connected; i++) {
                 await sleep(1500);
-                const portrait = await deviceManager.pullPortrait().catch(() => null);
+                const portrait = await deviceManager.pullPortrait(3000).catch(() => null);
                 const net = portrait?.device?.net;
                 if (net) lastStatus = net.status ?? -1;
                 if (net && net.status === 3 && (net.ssid ?? '').toLowerCase() === target.toLowerCase()) {
@@ -280,7 +335,17 @@ export default function DevicesScreen() {
         setRenaming(true);
         try {
             await deviceManager.renameFamiliar(name);
-            Alert.alert(t('devicesTitle'), t('devicesNameSaved', { name }));
+            if (!deviceManager.wakeEnrolled()) {
+                Alert.alert(t('devicesTitle'), t('devicesNameSaved', { name }), [
+                    {
+                        text: t('devicesEnrollCta'),
+                        onPress: () => router.push('/devices/enroll'),
+                    },
+                    { text: t('devicesLater'), style: 'cancel' },
+                ]);
+            } else {
+                Alert.alert(t('devicesTitle'), t('devicesNameSaved', { name }));
+            }
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             Alert.alert(t('devicesError'), msg.startsWith('devices') ? t(msg) : msg);
@@ -297,16 +362,6 @@ export default function DevicesScreen() {
         p.device.net.status === 3 &&
         (p.device.net.ssid ?? '').trim().toLowerCase() === wifiSsid.trim().toLowerCase() &&
         !!wifiSsid.trim();
-
-    const appNameFor = useCallback(
-        (encId: string) => {
-            // Encantamento determinístico: decode direto; fallback ao índice legado.
-            const id = encIdToAppId(encId) ?? encApp[encId];
-            const a = id != null ? apps.find((x) => x.id === id) : undefined;
-            return a?.name ?? encId;
-        },
-        [encApp, apps],
-    );
 
     const relTime = useCallback((ts: number) => {
         const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -460,13 +515,14 @@ export default function DevicesScreen() {
                                         onChangeText={setNameDraft}
                                         autoCapitalize="none"
                                         autoCorrect={false}
+                                        maxLength={24}
                                         placeholder={t('devicesNameLabel')}
                                         placeholderTextColor={colors.onSurfaceVariant}
                                     />
                                     <TouchableOpacity
-                                        style={[styles.inlineBtn, (!nameDraft.trim() || renaming || nameDraft.trim() === p.name) && styles.buttonDisabled]}
+                                        style={[styles.inlineBtn, (!nameDraft.trim() || renaming || nameDraft.trim() === p.name || utf8len(nameDraft.trim()) > WAKE_MAX_BYTES) && styles.buttonDisabled]}
                                         onPress={renameFamiliar}
-                                        disabled={!nameDraft.trim() || renaming || nameDraft.trim() === p.name}
+                                        disabled={!nameDraft.trim() || renaming || nameDraft.trim() === p.name || utf8len(nameDraft.trim()) > WAKE_MAX_BYTES}
                                     >
                                         {renaming ? (
                                             <ActivityIndicator color={colors.primary} />
@@ -475,6 +531,20 @@ export default function DevicesScreen() {
                                         )}
                                     </TouchableOpacity>
                                 </View>
+                                <Text style={[styles.hint, utf8len(nameDraft.trim()) > WAKE_MAX_BYTES && styles.hintWarn]}>
+                                    {t('devicesNameWakeHint')}
+                                </Text>
+
+                                <TouchableOpacity
+                                    style={[styles.button, styles.buttonPrimary]}
+                                    onPress={() => router.push('/devices/enroll')}
+                                >
+                                    <Text style={styles.buttonText}>
+                                        {p.wake?.enrolled
+                                            ? t('devicesEnrollAgain')
+                                            : t('devicesEnrollCta')}
+                                    </Text>
+                                </TouchableOpacity>
 
                                 {p.device.powers.includes('openrouter') && aiKeyOk ? (
                                     <View style={styles.aiActiveRow}>
@@ -502,45 +572,6 @@ export default function DevicesScreen() {
                                     </TouchableOpacity>
                                 )}
                             </View>
-
-                            <View style={styles.card}>
-                                <Text style={styles.sectionTitle}>{t('devicesSpellsTitle')}</Text>
-                                {p.encantamentos.length === 0 ? (
-                                    <Text style={styles.empty}>{t('devicesSpellsNone')}</Text>
-                                ) : (
-                                    p.encantamentos.map((e) => {
-                                        const spellId = encApp[e.id];
-                                        return (
-                                            <View key={e.id} style={styles.deviceRow}>
-                                                <TouchableOpacity
-                                                    style={{ flex: 1 }}
-                                                    disabled={spellId == null}
-                                                    onPress={() => spellId != null && router.push(`/devices/imbue?appId=${spellId}`)}
-                                                >
-                                                    <Text style={styles.deviceRowName}>{appNameFor(e.id)}</Text>
-                                                    <Text style={styles.deviceRowMeta}>v{e.version}</Text>
-                                                </TouchableOpacity>
-                                                {spellId != null && (
-                                                    <TouchableOpacity onPress={() => router.push(`/devices/imbue?appId=${spellId}`)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                                                        <Text style={styles.deviceRowAction}>{t('devicesEditEnchantment')}</Text>
-                                                    </TouchableOpacity>
-                                                )}
-                                                <TouchableOpacity onPress={() => removeEnchantment(e.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                                                    <Text style={styles.deviceRowRemove}>{t('devicesRemoveEnchantment')}</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        );
-                                    })
-                                )}
-                            </View>
-
-                            {lastQuery && (
-                                <View style={styles.card}>
-                                    <Text style={styles.sectionTitle}>{t('devicesFamiliarAnswer')}</Text>
-                                    {!!lastQuery.q && <Text style={styles.deviceRowMeta}>“{lastQuery.q}”</Text>}
-                                    <Text style={styles.deviceMeta}>{lastQuery.a}</Text>
-                                </View>
-                            )}
 
                             <View style={styles.card}>
                                 <Text style={styles.sectionTitle}>{t('devicesWifiTitle')}</Text>
@@ -598,8 +629,71 @@ export default function DevicesScreen() {
                                 )}
                             </View>
 
-                            <TouchableOpacity style={[styles.button, styles.buttonDanger]} onPress={disconnect}>
-                                <Text style={styles.buttonText}>{t('devicesDisconnect')}</Text>
+                            <View style={styles.card}>
+                                <Text style={styles.sectionTitle}>{t('devicesSpellsTitle')}</Text>
+                                {p.encantamentos.length === 0 ? (
+                                    <Text style={styles.empty}>{t('devicesSpellsNone')}</Text>
+                                ) : (
+                                    p.encantamentos.map((e) => {
+                                        const spellId = encApp[e.id];
+                                        return (
+                                            <View key={e.id} style={styles.deviceRow}>
+                                                <TouchableOpacity
+                                                    style={{ flex: 1 }}
+                                                    disabled={spellId == null}
+                                                    onPress={() => spellId != null && router.push(`/devices/imbue?appId=${spellId}`)}
+                                                >
+                                                    <Text style={styles.deviceRowName}>{appNameFor(e.id)}</Text>
+                                                    <Text style={styles.deviceRowMeta}>v{e.version}</Text>
+                                                </TouchableOpacity>
+                                                {spellId != null && (
+                                                    <TouchableOpacity onPress={() => router.push(`/devices/imbue?appId=${spellId}`)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                                        <Text style={styles.deviceRowAction}>{t('devicesEditEnchantment')}</Text>
+                                                    </TouchableOpacity>
+                                                )}
+                                                {removingEncId === e.id ? (
+                                                    <ActivityIndicator color={colors.error} />
+                                                ) : (
+                                                    <TouchableOpacity
+                                                        onPress={() => removeEnchantment(e.id)}
+                                                        disabled={removingEncId != null}
+                                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                    >
+                                                        <Text style={styles.deviceRowRemove}>{t('devicesRemoveEnchantment')}</Text>
+                                                    </TouchableOpacity>
+                                                )}
+                                            </View>
+                                        );
+                                    })
+                                )}
+                            </View>
+
+                            {lastQuery && (
+                                <View style={styles.card}>
+                                    <Text style={styles.sectionTitle}>{t('devicesFamiliarAnswer')}</Text>
+                                    {!!lastQuery.enc && (
+                                        <Text style={styles.deviceRowName}>
+                                            {t('devicesFamiliarSpell', { name: appNameFor(lastQuery.enc) })}
+                                        </Text>
+                                    )}
+                                    {!!lastQuery.q && <Text style={styles.deviceRowMeta}>“{lastQuery.q}”</Text>}
+                                    <Text style={styles.deviceMeta}>{lastQuery.a}</Text>
+                                </View>
+                            )}
+
+                            <TouchableOpacity
+                                style={[styles.button, styles.buttonDanger, disconnecting && styles.buttonDisabled]}
+                                onPress={disconnect}
+                                disabled={disconnecting}
+                            >
+                                {disconnecting ? (
+                                    <View style={styles.sendingRow}>
+                                        <ActivityIndicator color={colors.onPrimary} />
+                                        <Text style={styles.buttonText}>{t('devicesRevokingAll')}</Text>
+                                    </View>
+                                ) : (
+                                    <Text style={styles.buttonText}>{t('devicesDisconnect')}</Text>
+                                )}
                             </TouchableOpacity>
 
                             <TouchableOpacity onPress={() => setAdvanced((v) => !v)}>
@@ -629,14 +723,8 @@ export default function DevicesScreen() {
                                             ))}
                                         </View>
                                     )}
-                                    <TouchableOpacity
-                                        style={[styles.button, styles.buttonSmall]}
-                                        onPress={() => deviceManager.revokePower('openrouter').catch(() => {})}
-                                    >
-                                        <Text style={styles.buttonSmallText}>{t('devicesRevokeOpenrouter')}</Text>
-                                    </TouchableOpacity>
-
                                     <Text style={styles.sectionTitle}>{t('devicesCapabilities')}</Text>
+                                    <Text style={styles.deviceMeta}>{t('devicesCapabilitiesHint')}</Text>
                                     <View style={styles.chipRow}>
                                         {(p.device.capabilities ?? []).map((c) => (
                                             <View key={c} style={[styles.chip, styles.chipOk]}>
@@ -646,11 +734,6 @@ export default function DevicesScreen() {
                                             </View>
                                         ))}
                                     </View>
-
-                                    <Text style={styles.sectionTitle}>{t('devicesWake')}</Text>
-                                    <Text style={styles.deviceMeta}>
-                                        {t('devicesWakePhrase')}: {p.wake?.phrase ?? '—'} · {t('devicesWakeMode')}: {p.wake?.active ?? '—'}
-                                    </Text>
 
                                     <Text style={styles.sectionTitle}>{t('devicesEncantamentos')}</Text>
                                     {p.encantamentos.length === 0 ? (
@@ -730,6 +813,7 @@ const styles = StyleSheet.create({
     deviceRowAction: { color: colors.primary, fontWeight: '600' },
     deviceRowRemove: { color: colors.error, fontWeight: '600' },
     hint: { color: colors.onSurfaceVariant, fontSize: 12, marginTop: spacing.md, lineHeight: 17 },
+    hintWarn: { color: colors.error },
     advancedLink: { color: colors.onSurfaceVariant, fontSize: 13, marginTop: spacing.lg, paddingVertical: spacing.sm },
     card: {
         backgroundColor: colors.surface,

@@ -129,4 +129,49 @@ describeLive('appa L2-live — forja OpenRouter -> encantamento no device', () =
             expect(cost).toBeLessThan(0.5);
         }
     });
+
+    test('wake custom + VOICE: acorda com "Appa" e responde o encantamento certo (IA real)', async () => {
+        const bundle = transmuteSpell({
+            encId: 'enc_l1ve01',
+            spellId: 'app_live02',
+            name: 'Lista de Compras',
+            prompt: 'Você é o guardião da lista de compras. Responda em uma frase curta, em português.',
+            data: { lista: JSON.stringify(['arroz', 'café']) },
+            keywords: ['lista de compras', 'mercado'],
+            capabilities: [
+                { id: 'ai', status: 'granted', powers: ['openrouter'], requires: ['net'] },
+            ],
+        });
+        expect(validateBundle(bundle)).toBeNull();
+
+        const client = new AppaClient(new TcpTransport('127.0.0.1', sim!.port));
+        await client.connect();
+        // A wakeword custom é configurada pelo app (nome É a wakeword).
+        await client.setConfig({ name: 'Appa', wake: { mode: 'flex', phrase: 'Appa' } });
+        await client.grantPower('openrouter', liveKey as string);
+        const ack = await client.enchant(bundle);
+        expect(ack).toMatchObject({ id: 'enc_l1ve01', stored: true });
+
+        const answers: Array<{ enc: string; q: string; a: string }> = [];
+        client.queryResultHandler = (qr) => answers.push(qr);
+
+        // Acorda pela frase e faz a pergunta (STT injetado; a rota é determinística).
+        sim!.write('WAKE Appa');
+        await new Promise((r) => setTimeout(r, 400));
+        sim!.write('VOICE qual é a minha lista de compras?');
+        await new Promise<void>((resolve, reject) => {
+            const t = setTimeout(() => reject(new Error('QUERY_RESULT nao chegou (60s)')), 60_000);
+            const poll = setInterval(() => {
+                if (answers.length > 0) {
+                    clearTimeout(t);
+                    clearInterval(poll);
+                    resolve();
+                }
+            }, 200);
+        });
+        expect(answers[0].enc).toBe('enc_l1ve01');
+        expect(answers[0].a.length).toBeGreaterThan(10);
+
+        client.close();
+    });
 });

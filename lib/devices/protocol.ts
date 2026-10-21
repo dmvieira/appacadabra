@@ -42,6 +42,13 @@ export const MSG = {
     WRITEBACK: 'WRITEBACK',
     WRITEBACK_ACK: 'WRITEBACK_ACK',
     QUERY_RESULT: 'QUERY_RESULT',
+    ENROLL_START: 'ENROLL_START',
+    ENROLL_SAMPLE: 'ENROLL_SAMPLE',
+    ENROLL_CALIBRATE: 'ENROLL_CALIBRATE',
+    ENROLL_COMMIT: 'ENROLL_COMMIT',
+    ENROLL_CANCEL: 'ENROLL_CANCEL',
+    ENROLL_ACK: 'ENROLL_ACK',
+    ENROLL_SAMPLE_RESULT: 'ENROLL_SAMPLE_RESULT',
 } as const;
 
 export type MessageType = (typeof MSG)[keyof typeof MSG];
@@ -377,9 +384,29 @@ export interface HelloPortrait {
         active: string;
         phrase: string;
         threshold: number;
+        /** true quando a voz para a frase atual ja esta cadastrada no device. */
+        enrolled?: boolean;
     };
     encantamentos: Array<{ id: string; version: number }>;
     [key: string]: unknown;
+}
+
+/** Resultado de ENROLL_SAMPLE / ENROLL_CALIBRATE (device -> app). */
+export interface EnrollSampleResult {
+    index?: number;
+    stage?: 'calibrate';
+    ok: boolean;
+    dist?: number;
+    reason?: string;
+}
+
+/** Payload do ENROLL_ACK (resposta a ENROLL_START / ENROLL_COMMIT). */
+export interface EnrollAck {
+    stage: 'start' | 'commit';
+    enrolled?: boolean;
+    threshold?: number;
+    templates?: number;
+    reason?: string;
 }
 
 export interface EnchantAck {

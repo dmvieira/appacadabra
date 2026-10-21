@@ -13,6 +13,7 @@
  */
 
 import type { AppStorage } from '../database/types';
+import { getCurrentLanguage } from '../i18n';
 import { CapabilityEntry, DeviceRequirement, Bundle, encIdForSpell, generateEncantamentoId, validEncantamentoId, validPowerName } from './protocol';
 import { mapRequirements } from './capabilityMap';
 
@@ -179,6 +180,8 @@ export interface MinimalSpellApp {
     name: string;
     /** HTML da spell (usado para contexto do prompt de voz). */
     code?: string;
+    /** Descrição curta editável da Spell (contexto primário do encantamento). */
+    description?: string;
     requiredCapabilities?: string[] | null;
 }
 
@@ -198,23 +201,51 @@ export interface TransmuteIO {
 }
 
 /** Prompt de voz padrão quando não há IA disponível. */
-function fallbackPrompt(app: MinimalSpellApp, dataKeys: string[]): string {
-    const keys = dataKeys.length ? dataKeys.join(', ') : 'nenhuma relíquia';
-    return (
-        `Você é "${app.name}", um familiar de voz que vive num dispositivo ao lado do usuário. ` +
-        `Responda de forma direto ao ponto, em português do Brasil, com frases curtas para fala. ` +
-        `Você cuida dos seguintes dados: ${keys}. ` +
-        `Quando o usuário pedir mudanças nesses dados, confirme e registre.`
-    );
+function fallbackPrompt(app: MinimalSpellApp, dataKeys: string[], description: string): string {
+    const keys = dataKeys.length ? dataKeys.join(', ') : 'nenhum dado';
+    const lang = getCurrentLanguage();
+    const parts = [
+        `Você é "${app.name}", um assistente de voz que vive num Familiar — um dispositivo ao lado do usuário.`,
+        `O usuário FALA um comando em voz alta; você executa a tarefa correspondente sobre os dados que guarda (${keys}) e responde em voz alta, com frases curtas e naturais para alto-falante.`,
+        `Quando o comando pedir uma mudança nesses dados, confirme e registre a mudança.`,
+        `Idioma: responda no idioma do usuário — o código BCP-47 desse idioma é "${lang}".`,
+    ];
+    if (description) parts.splice(1, 0, `Esta spell serve para: ${description}`);
+    return parts.join(' ');
 }
 
-/** Keywords de roteamento padrão (quando não há IA): nome + chaves de dados. */
-function fallbackKeywords(app: MinimalSpellApp, dataKeys: string[]): string[] {
-    const words = app.name
+/** Keywords de roteamento padrão (quando não há IA): nome + descrição + dados. */
+function fallbackKeywords(app: MinimalSpellApp, dataKeys: string[], description: string): string[] {
+    const nameWords = app.name
         .toLowerCase()
         .split(/[^a-zà-ú0-9]+/)
         .filter((w) => w.length >= 3);
-    return normalizeKeywords([...words, ...dataKeys]);
+    const descWords = description
+        .toLowerCase()
+        .split(/[^a-zà-ú0-9]+/)
+        .filter((w) => w.length >= 3);
+    return normalizeKeywords([...nameWords, ...descWords, ...dataKeys]);
+}
+
+/**
+ * Texto visível aproximado de um HTML de spell — fallback de descrição quando a
+ * Spell não tem `shortDescription`. Remove script/style/comentários, tira tags,
+ * decodifica entidades comuns e colapsa espaços; capa em ~500 chars.
+ */
+export function extractTextFromHtml(code: string): string {
+    let text = code
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<!--[\s\S]*?-->/g, ' ')
+        .replace(/<[^>]+>/g, ' ');
+    text = text
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'");
+    return text.replace(/\s+/g, ' ').trim().slice(0, 500);
 }
 
 export interface TransmuteAppResult {
@@ -240,8 +271,9 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
         data[item.key] = item.value;
     }
 
-    let prompt = fallbackPrompt(app, Object.keys(data));
-    let keywords = fallbackKeywords(app, Object.keys(data));
+    const description = app.description?.trim() || extractTextFromHtml(app.code ?? '');
+    let prompt = fallbackPrompt(app, Object.keys(data), description);
+    let keywords = fallbackKeywords(app, Object.keys(data), description);
     let promptGeneratedByAI = false;
     if (io.generateEnchantment) {
         const gen = await io.generateEnchantment(app, Object.keys(data));

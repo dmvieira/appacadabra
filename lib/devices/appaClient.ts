@@ -14,6 +14,8 @@
 import {
     Bundle,
     EnchantAck,
+    EnrollAck,
+    EnrollSampleResult,
     ErrorPayload,
     FrameDecoder,
     HelloPortrait,
@@ -88,14 +90,14 @@ export class AppaClient {
         this.helloWaiters = [];
     }
 
-    private waitForHello(): Promise<HelloPortrait> {
+    private waitForHello(timeoutMs = this.requestTimeoutMs): Promise<HelloPortrait> {
         if (this.portrait) return Promise.resolve(this.portrait);
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 const idx = this.helloWaiters.findIndex((w) => w.timer === timer);
                 if (idx >= 0) this.helloWaiters.splice(idx, 1);
                 reject(new Error('timeout waiting for HELLO'));
-            }, this.requestTimeoutMs);
+            }, timeoutMs);
             this.helloWaiters.push({ resolve, reject, timer });
         });
     }
@@ -165,7 +167,7 @@ export class AppaClient {
         return id;
     }
 
-    private request(type: MessageType, payload: Record<string, unknown>, expect: MessageType): Promise<Message> {
+    private request(type: MessageType, payload: Record<string, unknown>, expect: MessageType, timeoutMs = this.requestTimeoutMs): Promise<Message> {
         return new Promise((resolve, reject) => {
             const id = (() => {
                 try {
@@ -179,7 +181,7 @@ export class AppaClient {
             const timer = setTimeout(() => {
                 this.pending.delete(id);
                 reject(new Error(`timeout waiting for ${expect} (sent ${type} id=${id})`));
-            }, this.requestTimeoutMs);
+            }, timeoutMs);
             this.pending.set(id, { resolve, reject, timer });
         });
     }
@@ -200,10 +202,10 @@ export class AppaClient {
      * e atualiza `portrait` — usado após conceder um poder (ex.: wifi) para a
      * UI refletir o novo estado sem reconectar.
      */
-    async pullPortrait(): Promise<HelloPortrait> {
+    async pullPortrait(timeoutMs = this.requestTimeoutMs): Promise<HelloPortrait> {
         this.portrait = null;
-        await this.request(MSG.PAIR_REQUEST, {}, MSG.PAIR_ACCEPT);
-        return this.waitForHello();
+        await this.request(MSG.PAIR_REQUEST, {}, MSG.PAIR_ACCEPT, timeoutMs);
+        return this.waitForHello(timeoutMs);
     }
 
     async enchant(bundle: Bundle): Promise<EnchantAck> {
@@ -225,6 +227,39 @@ export class AppaClient {
 
     async setConfig(config: { wake?: { mode?: string; phrase?: string; threshold?: number }; name?: string }): Promise<void> {
         await this.request(MSG.SET_CONFIG, config as Record<string, unknown>, MSG.OK);
+    }
+
+    // ---- cadastro da wakeword por voz (PROTOCOL.md 3.6) --------------------
+    // O device grava com o PROPRIO microfone; o app so conduz o ritual. As
+    // gravacoes sao bloqueantes no device: timeouts generosos.
+
+    /** Suspende o wake no device e abre o cadastro. */
+    async enrollStart(): Promise<EnrollAck> {
+        const m = await this.request(MSG.ENROLL_START, {}, MSG.ENROLL_ACK, 15000);
+        return m.payload as unknown as EnrollAck;
+    }
+
+    /** Grava ~1.6s (usuario fala o nome) e devolve o resultado da amostra. */
+    async enrollSample(timeoutMs = 20000): Promise<EnrollSampleResult> {
+        const m = await this.request(MSG.ENROLL_SAMPLE, {}, MSG.ENROLL_SAMPLE_RESULT, timeoutMs);
+        return m.payload as unknown as EnrollSampleResult;
+    }
+
+    /** Grava ~6s de ambiente (ninguem fala o nome) para calibrar o limiar. */
+    async enrollCalibrate(timeoutMs = 30000): Promise<EnrollSampleResult> {
+        const m = await this.request(MSG.ENROLL_CALIBRATE, {}, MSG.ENROLL_SAMPLE_RESULT, timeoutMs);
+        return m.payload as unknown as EnrollSampleResult;
+    }
+
+    /** Valida margem, calcula limiar, persiste e coloca wake.mode='enrolled'. */
+    async enrollCommit(timeoutMs = 20000): Promise<EnrollAck> {
+        const m = await this.request(MSG.ENROLL_COMMIT, {}, MSG.ENROLL_ACK, timeoutMs);
+        return m.payload as unknown as EnrollAck;
+    }
+
+    /** Descarta o cadastro em andamento. */
+    async enrollCancel(): Promise<void> {
+        await this.request(MSG.ENROLL_CANCEL, {}, MSG.OK, 15000);
     }
 }
 

@@ -230,6 +230,41 @@ describe('appa L2 — deviceManager (produção) x appa-sim (C++)', () => {
             sim2.stop();
         }
     });
+
+    test('wakeword: o nome É a wakeword — renameFamiliar/ensureWakeword viajam pro device e voltam no HELLO', async () => {
+        const { deviceManager, DEFAULT_WAKE_WORD } = require('../../lib/devices/deviceManager');
+        const { TcpTransport } = require('../../lib/devices/transport');
+        const sim3 = await startSim('fofura-sim', undefined, ['--offline']);
+        try {
+            // Memória do app guarda um nome legado de fábrica ('fofura'):
+            // ensureWakeword coage para o default 'Appa'.
+            mockManagerSettings.set(
+                'devices.known',
+                JSON.stringify([{ id: 'sim3', name: 'fofura', lastSeen: 1 }]),
+            );
+            expect(DEFAULT_WAKE_WORD).toBe('Appa');
+            await deviceManager.connect(new TcpTransport('127.0.0.1', sim3.port), 'sim3');
+            expect(deviceManager.refreshPortrait()?.wake?.phrase).toBe('Appa');
+
+            // O device REALMENTE recebeu a frase: o HELLO do sim relê config:wake.
+            const p1 = await deviceManager.pullPortrait();
+            expect(p1?.wake?.phrase).toBe('Appa');
+            expect(p1?.name).toBe('Appa');
+
+            // Renomear = trocar a wakeword (o firmware verifica a nova frase).
+            await deviceManager.renameFamiliar('Luna');
+            const p2 = await deviceManager.pullPortrait();
+            expect(p2?.wake?.phrase).toBe('Luna');
+            expect(p2?.name).toBe('Luna');
+
+            // Teto de 10 bytes UTF-8 (acento = 2 bytes): 'Aniversário' = 11 bytes.
+            await expect(deviceManager.renameFamiliar('Aniversário')).rejects.toThrow('devicesNameTooLong');
+
+            deviceManager.disconnect();
+        } finally {
+            sim3.stop();
+        }
+    });
 });
 
 describe('appa client — fluxo WRITEBACK device→APP (fake device node)', () => {

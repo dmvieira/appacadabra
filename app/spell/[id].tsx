@@ -396,7 +396,7 @@ export default function SpellDataScreen() {
                     style={styles.valueRow} 
                     onPress={() => setTextModal({ visible: true, content: valStr })}
                 >
-                    <Text style={[styles.valueText, { color: colors.primary }]}>[{mimeLabel} — {Math.round(valStr.length / 1024)}KB]</Text>
+                    <Text style={[styles.valueText, { color: colors.primary }]}>[{mimeLabel} · {Math.round(valStr.length / 1024)}KB]</Text>
                     {linked && (
                         <View style={styles.linkedBadge}>
                             <Text style={styles.linkedBadgeText}>#{Math.abs(linked.id)}</Text>

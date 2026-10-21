@@ -8,17 +8,21 @@
 import { chat } from '../api/openrouter';
 import { getPreferredModel } from '../api/modelPreferences';
 import { getOpenRouterKey } from '../api/keyStorage';
-import type { MinimalSpellApp } from './transmute';
+import { getCurrentLanguage } from '../i18n';
+import { extractTextFromHtml, type MinimalSpellApp } from './transmute';
 
 export interface GeneratedEnchantment {
     prompt: string;
     keywords: string[];
 }
 
-function buildContext(app: MinimalSpellApp, dataKeys: string[]): string {
+function buildContext(app: MinimalSpellApp, dataKeys: string[], description: string): string {
+    const caps = app.requiredCapabilities ?? [];
     return [
         `Nome da spell: ${app.name}`,
+        description ? `Descrição/contexto da spell: ${description}` : null,
         dataKeys.length ? `Dados que ela guarda (localStorage): ${dataKeys.join(', ')}` : null,
+        caps.length ? `Capacidades usadas: ${caps.join(', ')}` : null,
     ]
         .filter(Boolean)
         .join('\n');
@@ -37,7 +41,9 @@ export async function generateVoiceEnchantment(
     if (!key) return { prompt: '', keywords: [] };
 
     const model = await getPreferredModel('SPELL_S');
-    const context = buildContext(app, dataKeys);
+    const description = app.description?.trim() || extractTextFromHtml(app.code ?? '');
+    const context = buildContext(app, dataKeys, description);
+    const lang = getCurrentLanguage();
 
     const response = await chat({
         model,
@@ -46,13 +52,16 @@ export async function generateVoiceEnchantment(
                 role: 'user',
                 content:
                     'Você define COMO um "familiar" de voz — um dispositivo ao lado do usuário que herda esta ' +
-                    'spell do Appacadabra — deve se comportar e quando deve ser usado. Responda SOMENTE com JSON ' +
-                    'válido, no formato: {"prompt": "...", "keywords": ["...", ...]}.\n\n' +
-                    '- "prompt": system prompt de voz em português do Brasil, 3 a 6 frases, direto, para fala em ' +
-                    'alto-falante. O familiar responde perguntas sobre os dados e registra mudanças por voz.\n' +
+                    'spell do Appacadabra — deve se comportar e quando deve ser usado. O familiar recebe um COMANDO ' +
+                    'FALADO do usuário, EXECUTA a tarefa correspondente sobre os dados que guarda e RESPONDE em voz ' +
+                    'alta, de forma curta e natural para alto-falante. Responda SOMENTE com JSON válido, no formato: ' +
+                    '{"prompt": "...", "keywords": ["...", ...]}.\n\n' +
+                    '- "prompt": system prompt de voz, 3 a 6 frases, direto, para fala em alto-falante. O familiar ' +
+                    'recebe comandos falados, executa a tarefa sobre os dados e pode registrar mudanças.\n' +
                     '- "keywords": de 5 a 10 palavras/frases CURTAS (1 a 4 palavras cada) que um usuário diria ao ' +
-                    'pedir ESTA spell por voz — sinônimos e perguntas típicas (ex.: para uma checklist da casa: ' +
-                    '"tarefas", "afazeres", "o que falta", "minha lista", "pendências", "hoje").\n\n' +
+                    'pedir ESTA spell por voz — sinônimos e perguntas típicas.\n' +
+                    `- Idioma: escreva o "prompt" E as "keywords" no idioma do usuário. O código BCP-47 desse ` +
+                    `idioma é "${lang}".\n\n` +
                     context +
                     '\n\nSem markdown, sem texto fora do JSON.',
             },
