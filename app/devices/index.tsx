@@ -58,6 +58,7 @@ export default function DevicesScreen() {
     const [nearbyIds, setNearbyIds] = useState<Set<string>>(new Set());
     const [removingEncId, setRemovingEncId] = useState<string | null>(null);
     const [disconnecting, setDisconnecting] = useState(false);
+    const [autoConnectingId, setAutoConnectingId] = useState<string | null>(null);
     const apps = useAppStore((s) => s.apps);
 
     useEffect(() => {
@@ -80,6 +81,43 @@ export default function DevicesScreen() {
             alive = false;
         };
     }, [session]);
+
+    // Auto-reconexão silenciosa: o reload do app mata a sessão BLE; ao abrir
+    // esta tela sem sessão, reconecta o último familiar sem exigir cliques.
+    const autoReconnect = useCallback(async (list: KnownFamiliar[]) => {
+        if (!list.length || deviceManager.getSession()) return;
+        const last = [...list].sort((a, b) => b.lastSeen - a.lastSeen)[0];
+        if (!last?.id) return;
+        setAutoConnectingId(last.id);
+        try {
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    await deviceManager.connect(bleTransport(last.id), last.id);
+                    return; // subscribe atualiza a sessão
+                } catch {
+                    if (attempt < 2) await sleep(700);
+                }
+            }
+        } catch {
+            // silencioso: usuário pode conectar manualmente na lista
+        } finally {
+            setAutoConnectingId(null);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (session || autoConnectingId) return;
+        let alive = true;
+        deviceManager
+            .knownFamiliars()
+            .then((k) => {
+                if (alive && k.length) void autoReconnect(k);
+            })
+            .catch(() => {});
+        return () => {
+            alive = false;
+        };
+    }, [session, autoConnectingId, autoReconnect]);
 
     // Mantém o campo de nome sincronizado com o retrato atual do Familiar.
     useEffect(() => {
@@ -382,6 +420,16 @@ export default function DevicesScreen() {
                         {known.length > 0 && (
                             <View style={styles.card}>
                                 <Text style={styles.sectionTitle}>{t('devicesMyFamiliars')}</Text>
+                                {autoConnectingId && (
+                                    <View style={styles.deviceRow}>
+                                        <Text style={styles.deviceRowMeta}>
+                                            {t('devicesReconnectingNamed', {
+                                                name: known.find((f) => f.id === autoConnectingId)?.name ?? '',
+                                            })}
+                                        </Text>
+                                        <ActivityIndicator color={colors.primary} />
+                                    </View>
+                                )}
                                 {known.map((f) => (
                                     <TouchableOpacity
                                         key={f.id}

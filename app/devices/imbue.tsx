@@ -27,7 +27,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, spacing, borderRadius } from '../../lib/theme';
 import { t } from '../../lib/i18n';
 import { useAppStore } from '../../lib/store';
-import { deviceManager, deviceErrorKey } from '../../lib/devices/deviceManager';
+import { deviceManager, deviceErrorKey, type KnownFamiliar } from '../../lib/devices/deviceManager';
+import { bleTransport } from '../../lib/devices/bleTransport';
 import { generateVoiceEnchantment } from '../../lib/devices/voicePrompt';
 import { normalizeKeywords, KEYWORDS_MAX, KEYWORD_MAX_LEN, type TransmuteAppResult } from '../../lib/devices/transmute';
 import { CAPABILITY_MAP, requiresNet } from '../../lib/devices/capabilityMap';
@@ -66,7 +67,9 @@ export default function ImbueScreen() {
     const router = useRouter();
     const { appId } = useLocalSearchParams<{ appId: string }>();
     const app = useAppStore((s) => s.apps.find((a) => a.id === parseInt(appId, 10)));
-    const session = deviceManager.getSession();
+    const [session, setSession] = useState(deviceManager.getSession());
+    const [known, setKnown] = useState<KnownFamiliar | null>(null);
+    const [connectingKnown, setConnectingKnown] = useState(false);
     const [result, setResult] = useState<TransmuteAppResult | null>(null);
     const [transmuting, setTransmuting] = useState(true);
     const [transmuteError, setTransmuteError] = useState<string | null>(null);
@@ -80,6 +83,53 @@ export default function ImbueScreen() {
     const [regenerating, setRegenerating] = useState(false);
     const [updating, setUpdating] = useState(false);
     const draftLoaded = useRef(false);
+
+    // Sessão reativa (o connect é disparado daqui e precisa re-renderizar).
+    useEffect(() => {
+        return deviceManager.subscribe(() => {
+            setSession(deviceManager.getSession());
+        });
+    }, []);
+
+    // Último familiar conhecido (botão "Conectar {nome}" quando sem sessão).
+    useEffect(() => {
+        let alive = true;
+        deviceManager
+            .knownFamiliars()
+            .then((all) => {
+                if (!alive) return;
+                const last = [...all].sort((a, b) => b.lastSeen - a.lastSeen)[0] ?? null;
+                setKnown(last);
+            })
+            .catch(() => {});
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    // Mesmo fluxo da lista (2 tentativas — o BLE do ESP32 falha 1x às vezes).
+    const connectKnown = useCallback(async (): Promise<boolean> => {
+        if (!known || connectingKnown) return false;
+        setConnectingKnown(true);
+        try {
+            let lastErr: unknown = null;
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    await deviceManager.connect(bleTransport(known.id), known.id);
+                    lastErr = null;
+                    break;
+                } catch (e) {
+                    lastErr = e;
+                    await new Promise((r) => setTimeout(r, 700));
+                }
+            }
+            return !lastErr;
+        } catch {
+            return false;
+        } finally {
+            setConnectingKnown(false);
+        }
+    }, [known, connectingKnown]);
 
     // Esta spell já tem encantamento neste Familiar? (rotula "Atualizar")
     useEffect(() => {
@@ -224,6 +274,21 @@ export default function ImbueScreen() {
             const msg = e instanceof Error ? e.message : String(e);
             // Slot do familiar ocupa­do por outra spell: pergunta antes de
             // substituir (o vínculo enc↔spell nunca muda calado).
+            if (msg === 'devicesNoConnection') {
+                setPhase({ kind: 'review' });
+                const name = known?.name?.trim();
+                Alert.alert(
+                    t('devicesError'),
+                    t('devicesNoConnection'),
+                    [
+                        { text: t('cancel'), style: 'cancel' },
+                        name
+                            ? { text: t('devicesConnectNamed', { name }), onPress: () => { void connectKnown(); } }
+                            : { text: t('devicesTitle'), onPress: () => router.push('/devices') },
+                    ],
+                );
+                return;
+            }
             if (msg.startsWith('devicesEncSlotConflict:')) {
                 const otherSpell = msg.split(':')[2] ?? '';
                 setPhase({ kind: 'review' });
@@ -276,7 +341,29 @@ export default function ImbueScreen() {
                 <Text style={styles.appName}>{app.name}</Text>
                 {target && <Text style={styles.target}>{t('devicesEnchantTarget', { name: target })}</Text>}
 
-                {!session && <Text style={styles.warn}>{t('devicesNoConnection')}</Text>}
+                {!session && (
+                    <View style={styles.noConnBox}>
+                        <Text style={styles.warn}>{t('devicesNoConnection')}</Text>
+                        {known && (
+                            <TouchableOpacity
+                                style={styles.connectKnownBtn}
+                                onPress={() => { void connectKnown(); }}
+                                disabled={connectingKnown}
+                            >
+                                {connectingKnown ? (
+                                    <ActivityIndicator color={colors.primary} />
+                                ) : (
+                                    <Text style={styles.connectKnownText}>
+                                        {t('devicesConnectNamed', { name: known.name?.trim() || 'Appa' })}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity onPress={() => router.push('/devices')}>
+                            <Text style={styles.verFamiliares}>{t('devicesTitle')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {transmuting && (
                     <View style={styles.center}>
@@ -458,6 +545,32 @@ export default function ImbueScreen() {
 }
 
 const styles = StyleSheet.create({
+    noConnBox: {
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 10,
+    },
+    connectKnownBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        borderWidth: 1,
+        borderColor: colors.primary,
+        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 18,
+        minHeight: 42,
+    },
+    connectKnownText: {
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    verFamiliares: {
+        color: colors.onSurfaceVariant,
+        textDecorationLine: 'underline',
+        marginTop: 2,
+    },
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: spacing.md, gap: spacing.sm },
     appName: { color: colors.onBackground, fontSize: 20, fontWeight: '700' },
