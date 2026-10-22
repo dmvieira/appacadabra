@@ -248,6 +248,36 @@ export function extractTextFromHtml(code: string): string {
     return text.replace(/\s+/g, ' ').trim().slice(0, 500);
 }
 
+
+/**
+ * Semeia o `data` do encantamento a partir das chaves de localStorage que o
+ * código da spell usa. Spell nova nunca rodou = app_storage vazio = encantamento
+ * sem data = o protocolo de write-back (@@APPA) jamais entra no prompt. Extrai
+ * `localStorage.getItem|setItem('chave')` e tenta inferir o literal default
+ * (`getItem('k') ?? []`); sem literal, semeia `{}` (op "merge" é objeto).
+ */
+export function extractStorageKeys(code: string | undefined, max = 8): Record<string, string> {
+    const out: Record<string, string> = {};
+    if (!code) return out;
+    const re = /localStorage\.(?:getItem|setItem)\(\s*['"]([A-Za-z0-9_.-]{1,64})['"]/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(code)) !== null && Object.keys(out).length < max) {
+        const key = m[1];
+        if (key.startsWith('__') || key in out) continue;
+        // Default imediatamente após a chave: `getItem('k') ?? '[]'` (literal
+        // JSON entre aspas) ou `?? []`/`?? {}` (literal cru). Colado ao `??` —
+        // nada de janela larga, que pegava literal de OUTRA linha.
+        const rest = code.slice(re.lastIndex, re.lastIndex + 80);
+        const quoted = rest.match(/^[)\s]*\?\?\s*'((?:[^'\\]|\\.)*)'/);
+        const raw = quoted
+            ? quoted[1]
+            : rest.match(/^[)\s]*\?\?\s*(\[[^\]]*\]|\{[^}]*\})/)?.[1];
+        const v = raw && /^[[{]/.test(raw.trim()) ? raw.trim() : '{}';
+        out[key] = v;
+    }
+    return out;
+}
+
 export interface TransmuteAppResult {
     bundle: Bundle;
     mapping: ReturnType<typeof mapRequirements>;
@@ -263,9 +293,10 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
     const mapping = mapRequirements(app.requiredCapabilities ?? []);
 
     const storage = io.getStorage ? await io.getStorage(app.id) : [];
-    const data: Record<string, string> = {};
+    const data: Record<string, string> = extractStorageKeys(app.code);
     for (const item of storage) {
         // Value já é TEXT (string) no app_storage; blobs marcados ficam de fora.
+        // Valores reais sobrescrevem as sementes extraídas do código.
         if (!DATA_KEY_RE.test(item.key)) continue;
         if (item.key.startsWith('__')) continue; // chaves internas (ex.: DOM snapshot)
         data[item.key] = item.value;

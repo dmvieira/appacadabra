@@ -121,6 +121,36 @@ describe('transmuteApp — a forja real', () => {
         expect(validateBundle(result.bundle)).toBeNull();
     });
 
+    test('spell nova sem storage: semeia data das chaves localStorage do código', async () => {
+        const code = `<script>
+            const t = JSON.parse(localStorage.getItem('tarefas') ?? '[]');
+            const cfg = JSON.parse(localStorage.getItem('__snapshot') ?? '{}');
+            localStorage.setItem('concluidas', []);
+            function f() { return localStorage.getItem('outra'); }
+        </script>`;
+        const result = await transmuteApp(
+            { id: 11, name: 'Tarefa+', code, requiredCapabilities: [] },
+            { encId: 'enc_forja04', getStorage: async () => [] },
+        );
+        // semeia chaves de localStorage com defaults inferidos; __interno fora
+        expect(result.bundle.data['tarefas']).toBe('[]');
+        expect(result.bundle.data['concluidas']).toBe('{}');
+        expect(result.bundle.data['outra']).toBe('{}');
+        expect(result.bundle.data['__snapshot']).toBeUndefined();
+        // prompt menciona as chaves semeadas -> o protocolo @@APPA engata
+        expect(Object.keys(result.bundle.data)).toContain('tarefas');
+        expect(validateBundle(result.bundle)).toBeNull();
+    });
+
+    test('storage real sobrescreve sementes do código', async () => {
+        const code = `localStorage.getItem('tarefas') ?? []`;
+        const result = await transmuteApp(
+            { id: 12, name: 'L', code, requiredCapabilities: [] },
+            { encId: 'enc_forja05', getStorage: async () => [{ id: 1, appId: 12, key: 'tarefas', value: '[{"t":"x"}]' }] },
+        );
+        expect(result.bundle.data['tarefas']).toBe('[{"t":"x"}]');
+    });
+
     test('prompt IA curto demais cai no fallback', async () => {
         const result = await transmuteApp(
             { id: 10, name: 'X', requiredCapabilities: [] },

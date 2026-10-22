@@ -109,8 +109,11 @@ export function bleTransport(deviceId: string): Transport {
             await mod.connect(deviceId);
             return {
                 connected: () => true,
-                write: (data: Uint8Array) => {
-                    void mod.write(bytesToBase64(data));
+                write: async (data: Uint8Array) => {
+                    // Aguarda o native: sem isso frames gigantes (ENCHANT ~25KB)
+                    // sao enfileirados sem backpressure e o sink BLE pode
+                    // descartar. Transport.write agora aceita Promise.
+                    await mod.write(bytesToBase64(data));
                     return true;
                 },
                 onData: (cb) => {

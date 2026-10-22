@@ -9,7 +9,7 @@
 
 export interface TransportConnection {
     connected(): boolean;
-    write(data: Uint8Array): boolean;
+    write(data: Uint8Array): boolean | Promise<boolean>;
     onData(cb: (data: Uint8Array) => void): void;
     onDisconnect(cb: () => void): void;
     close(): void;

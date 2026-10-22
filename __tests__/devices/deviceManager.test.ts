@@ -33,6 +33,10 @@ describe('deviceManager', () => {
     let server: net.Server;
     let port: number;
     const sentFrames: string[] = [];
+    let lastWritebackAck: { accepted: string[]; rejected: string[] } | null = null;
+    let helloEncantamentos: Array<{ id: string; version: number; spellId?: string }> = [];
+    // empurra uma mensagem do "device" para o app (ex.: WRITEBACK espontâneo)
+    let serverPush: ((obj: unknown) => void) | null = null;
 
     beforeAll(async () => {
         server = net.createServer();
@@ -40,14 +44,24 @@ describe('deviceManager', () => {
             server.listen(0, '127.0.0.1', () => resolve((server.address() as net.AddressInfo).port));
         });
         server.on('connection', (socket) => {
-            const hello = { v: 1, id: 'd1', type: 'HELLO', payload: { name: 'fam', proto: 1, device: { model: 'm', powers: [], capabilities: ['ai', 'sheets'] }, encantamentos: [] } };
+            const hello = { v: 1, id: 'd1', type: 'HELLO', payload: { name: 'fam', proto: 1, device: { model: 'm', powers: [], capabilities: ['ai', 'sheets'] }, encantamentos: helloEncantamentos } };
             const send = (obj: unknown) => socket.write(Buffer.from(frameEncode(encoder.encode(JSON.stringify(obj))) as Uint8Array));
+            serverPush = send;
             send(hello);
             socket.on('data', (buf) => {
                 sentFrames.push(buf.toString());
                 const text = buf.toString();
                 if (text.includes('ENCHANT')) {
                     send({ v: 1, id: 'd2', type: 'ENCHANT_ACK', ackOf: JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).id, payload: { id: 'enc_mgr01', version: 1, stored: true } });
+                } else if (text.includes('UNENCHANT')) {
+                    send({ v: 1, id: 'd4', type: 'OK', ackOf: JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).id, payload: {} });
+                } else if (text.includes('WRITEBACK_ACK')) {
+                    // resposta do app às mutações do device
+                    const frame = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+                    lastWritebackAck = {
+                        accepted: frame.payload?.accepted ?? [],
+                        rejected: frame.payload?.rejected ?? [],
+                    };
                 } else if (text.includes('PING')) {
                     send({ v: 1, id: 'd3', type: 'PONG', ackOf: JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).id, payload: {} });
                 }
@@ -94,6 +108,69 @@ describe('deviceManager', () => {
         // índice enc→app persistido em app_settings (por device; aqui '__default__')
         expect(mockSettings.get('devices.encIndex.__default__')).toContain(result.bundle.manifest.id);
         expect(mockSettings.get('devices.encIndex.__default__')).toContain(':42');
+    });
+
+    test('slot do device com OUTRA spell: recusa sem forceReplace, substitui com', async () => {
+        helloEncantamentos = [{ id: 'enc_00000z', version: 3, spellId: 'app_999' }];
+        // recarrega a sessão para o retrato ter o slot conflitante
+        deviceManager.disconnect();
+        const transport = {
+            connect: async () => {
+                const s2 = net.connect(port, '127.0.0.1');
+                await new Promise<void>((r) => s2.once('connect', r));
+                return {
+                    connected: () => !s2.destroyed,
+                    write: (d: Uint8Array) => (s2.write(Buffer.from(d)), true),
+                    onData: (cb: (d: Uint8Array) => void) => s2.on('data', (b: Buffer) => cb(new Uint8Array(b))),
+                    onDisconnect: () => {},
+                    close: () => s2.destroy(),
+                };
+            },
+        };
+        await deviceManager.connect(transport);
+
+        // encIdForSpell(90) = enc_00000z (90 em base36 = '2k'? use app cujo base36 bate)
+        // 90.toString(36) = '2k' — não é '00000z'. Escolhemos appId cujo base36 = '00000z'
+        // -> impossível ('z' > dígitos de 36? z=35 é válido!). 'z' sozinho = 35; 6 chars
+        // '00000z' = 35. Então app 35 gera enc_00000z.
+        await expect(
+            deviceManager.imbueSpell({ id: 35, name: 'Nova', requiredCapabilities: [] }),
+        ).rejects.toThrow('devicesEncSlotConflict:enc_00000z:app_999');
+
+        // forceReplace: UNENCHANT + ENCHANT
+        const r = await deviceManager.imbueSpell(
+            { id: 35, name: 'Nova', requiredCapabilities: [] },
+            { forceReplace: true },
+        );
+        expect(r.ack.stored).toBe(true);
+        expect(sentFrames.some((f) => f.includes('UNENCHANT'))).toBe(true);
+        helloEncantamentos = [];
+    });
+
+    test('writeback com enc sem destino é rejeitado no ack', async () => {
+        deviceManager.disconnect();
+        const transport = {
+            connect: async () => {
+                const s2 = net.connect(port, '127.0.0.1');
+                await new Promise<void>((r) => s2.once('connect', r));
+                return {
+                    connected: () => !s2.destroyed,
+                    write: (d: Uint8Array) => (s2.write(Buffer.from(d)), true),
+                    onData: (cb: (d: Uint8Array) => void) => s2.on('data', (b: Buffer) => cb(new Uint8Array(b))),
+                    onDisconnect: () => {},
+                    close: () => s2.destroy(),
+                };
+            },
+        };
+        await deviceManager.connect(transport);
+        // o "device" entrega mutação com enc sem destino conhecido
+        serverPush?.({
+            v: 1, id: 'wb1', type: 'WRITEBACK',
+            payload: { mutations: [{ id: 'm1', enc: 'enc_999999', key: 'x', op: 'set', value: '1', ts: 0 }] },
+        });
+        await new Promise((r) => setTimeout(r, 400));
+        expect(lastWritebackAck?.rejected).toContain('m1');
+        serverPush = null;
     });
 
     test('imbueSpell recusa quando o device não cobre a capability', async () => {

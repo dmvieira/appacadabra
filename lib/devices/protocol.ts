@@ -387,7 +387,7 @@ export interface HelloPortrait {
         /** true quando a voz para a frase atual ja esta cadastrada no device. */
         enrolled?: boolean;
     };
-    encantamentos: Array<{ id: string; version: number }>;
+    encantamentos: Array<{ id: string; version: number; spellId?: string }>;
     [key: string]: unknown;
 }
 

@@ -207,7 +207,7 @@ export default function ImbueScreen() {
         setKeywords((prev) => prev.filter((x) => x !== k));
     }, []);
 
-    const confirm = useCallback(async () => {
+    const confirm = useCallback(async (forceReplace = false) => {
         if (!app || !result) return;
         setPhase({ kind: 'imbuing' });
         try {
@@ -217,11 +217,30 @@ export default function ImbueScreen() {
             await persistDraft();
             const r = await deviceManager.imbueSpell(
                 { id: app.id, name: app.name, code: app.code, description: app.shortDescription, requiredCapabilities: app.requiredCapabilities },
-                { promptOverride: promptDraft, keywordsOverride: keywords },
+                { promptOverride: promptDraft, keywordsOverride: keywords, ...(forceReplace ? { forceReplace: true } : {}) },
             );
             setPhase({ kind: 'done', encId: r.ack.id, version: r.ack.version });
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
+            // Slot do familiar ocupa­do por outra spell: pergunta antes de
+            // substituir (o vínculo enc↔spell nunca muda calado).
+            if (msg.startsWith('devicesEncSlotConflict:')) {
+                const otherSpell = msg.split(':')[2] ?? '';
+                setPhase({ kind: 'review' });
+                Alert.alert(
+                    t('devicesEncSlotConflictTitle'),
+                    t('devicesEncSlotConflictBody', { spell: otherSpell.replace(/^app_/, '#') }),
+                    [
+                        { text: t('cancel'), style: 'cancel' },
+                        {
+                            text: t('devicesEncSlotConflictReplace'),
+                            style: 'destructive',
+                            onPress: () => { void confirm(true); },
+                        },
+                    ],
+                );
+                return;
+            }
             const unsupported = msg.startsWith('devicesUnsupported:');
             const ids = unsupported ? msg.slice('devicesUnsupported:'.length).split(',') : [];
             const ek = deviceErrorKey(msg);
@@ -400,7 +419,7 @@ export default function ImbueScreen() {
 
                         <TouchableOpacity
                             style={[styles.button, (!session || phase.kind === 'imbuing') && styles.buttonDisabled]}
-                            onPress={confirm}
+                            onPress={() => { void confirm(); }}
                             disabled={!session || phase.kind === 'imbuing'}
                         >
                             {phase.kind === 'imbuing' ? (

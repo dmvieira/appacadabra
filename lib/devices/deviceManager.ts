@@ -183,21 +183,26 @@ class DeviceManager {
         // origem via indice de imbuições (persistido em app_settings).
         const idx = await this.loadEncIndex();
         const groups = new Map<number, Mutation[]>();
+        const rejected: string[] = [];
         for (const mu of mutations) {
             // Encantamento determinístico: decode direto do id; fallback ao
-            // índice (ids aleatórios legados).
+            // índice (ids aleatórios legados). Sem destino conhecido a mutação
+            // é REJEITADA (volta no ack; o device para de retentar eternamente
+            // e o app decide reencantar ou remover).
             const appId = encIdToAppId(mu.enc) ?? idx.get(mu.enc);
-            if (appId === undefined) continue;
+            if (appId === undefined) {
+                rejected.push(mu.id);
+                continue;
+            }
             const list = groups.get(appId) ?? [];
             list.push(mu);
             groups.set(appId, list);
         }
-        let accepted: string[] = [];
-        let rejected: string[] = [];
+        const accepted: string[] = [];
         for (const [appId, list] of groups) {
             const r = await applyMutations(appId, list);
-            accepted = [...accepted, ...r.accepted];
-            rejected = [...rejected, ...r.rejected];
+            accepted.push(...r.accepted);
+            rejected.push(...r.rejected);
         }
         this.session.lastWritebackAt = Date.now();
         this.session.lastWritebackCount += accepted.length;
@@ -375,12 +380,23 @@ class DeviceManager {
             keywordsOverride?: string[];
             version?: number;
             encId?: string;
+            /** Substitui slot ocupado por OUTRA spell (confirmado na UI). */
+            forceReplace?: boolean;
         } = {},
     ): Promise<TransmuteAppResult & { ack: { id: string; version: number; stored: boolean } }> {
         if (!this.session) throw new Error('devicesNoConnection');
         // 1 encantamento por feitiço/device: o id deriva do feitiço, então
         // reencantar ATUALIZA a versão (upsert) — nunca duplica.
         const encId = opts.encId ?? encIdForSpell(app.id);
+        // Vínculo explícito: se o slot do device guarda OUTRA spell, não
+        // substitui silenciosamente — a UI pergunta antes (forceReplace).
+        const storedEnc = this.session.portrait.encantamentos.find((e) => e.id === encId);
+        if (storedEnc?.spellId && storedEnc.spellId !== `app_${app.id}` && !opts.forceReplace) {
+            throw new Error(`devicesEncSlotConflict:${encId}:${storedEnc.spellId}`);
+        }
+        if (opts.forceReplace && storedEnc) {
+            await this.session.client.unenchant(encId).catch(() => {});
+        }
         const version = opts.version ?? (await this.resolveNextVersion(encId, app.id));
         const build = async (v: number | undefined, id: string | undefined) =>
             transmuteApp(app, {
@@ -687,8 +703,8 @@ export function nativeTcpTransport(host: string, port: number): Transport {
             });
             return {
                 connected: () => true,
-                write: (data: Uint8Array) => {
-                    mod.write(bytesToBase64(data));
+                write: async (data: Uint8Array) => {
+                    await mod.write(bytesToBase64(data));
                     return true;
                 },
                 onData: (cb) => {

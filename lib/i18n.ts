@@ -135,6 +135,9 @@ export const translations = {
         devicesImbuedHint: 'The Familiar now carries this spell, it works without your phone nearby.',
         devicesDone: 'Done',
         devicesUnsupportedList: 'This Familiar cannot serve:',
+        devicesEncSlotConflictTitle: 'Slot in use',
+        devicesEncSlotConflictBody: 'This Familiar already has an enchantment from another spell (%{spell}) in this slot. Replace it?',
+        devicesEncSlotConflictReplace: 'Replace',
         devicesInvalidBundle: 'The transmuted bundle is invalid.',
 
         // File types
@@ -1031,6 +1034,9 @@ export const translations = {
         devicesImbuedHint: 'O Familiar agora carrega este feitiço, funciona sem o celular por perto.',
         devicesDone: 'Concluir',
         devicesUnsupportedList: 'Este Familiar não atende:',
+        devicesEncSlotConflictTitle: 'Slot ocupado',
+        devicesEncSlotConflictBody: 'Este Familiar já tem um encantamento de outra spell (%{spell}) neste slot. Substituir?',
+        devicesEncSlotConflictReplace: 'Substituir',
         devicesInvalidBundle: 'O bundle transmutado é inválido.',
 
         // File types
@@ -1837,6 +1843,9 @@ export const translations = {
         devicesImbuedHint: 'El Familiar ahora lleva este hechizo, funciona sin tu teléfono cerca.',
         devicesDone: 'Hecho',
         devicesUnsupportedList: 'Este Familiar no atiende:',
+        devicesEncSlotConflictTitle: 'Ranura ocupada',
+        devicesEncSlotConflictBody: 'Este Familiar ya tiene un encantamiento de otro hechizo (%{spell}) en esta ranura. ¿Reemplazar?',
+        devicesEncSlotConflictReplace: 'Reemplazar',
         devicesInvalidBundle: 'El bundle transmutado es inválido.',
 
         // File types
@@ -2608,6 +2617,9 @@ export const translations = {
         devicesImbuedHint: 'Le Familier porte désormais ce sort, il fonctionne sans votre téléphone à proximité.',
         devicesDone: 'Terminé',
         devicesUnsupportedList: 'Ce Familier ne prend pas en charge :',
+        devicesEncSlotConflictTitle: 'Emplacement occupé',
+        devicesEncSlotConflictBody: 'Ce Familier a déjà un enchantement d\'un autre sort (%{spell}) dans cet emplacement. Le remplacer ?',
+        devicesEncSlotConflictReplace: 'Remplacer',
         devicesInvalidBundle: 'Le bundle transmuté est invalide.',
 
         // File types
@@ -3378,6 +3390,9 @@ export const translations = {
         devicesImbuedHint: 'Der Familiar trägt jetzt diesen Spell, er funktioniert ohne dein Telefon in der Nähe.',
         devicesDone: 'Fertig',
         devicesUnsupportedList: 'Dieser Familiar kann nicht bedienen:',
+        devicesEncSlotConflictTitle: 'Slot belegt',
+        devicesEncSlotConflictBody: 'Dieser Familiar hat bereits eine Verzauberung eines anderen Spells (%{spell}) in diesem Slot. Ersetzen?',
+        devicesEncSlotConflictReplace: 'Ersetzen',
         devicesInvalidBundle: 'Das umgewandelte Bundle ist ungültig.',
 
         // File types
@@ -4080,6 +4095,9 @@ export const translations = {
         devicesImbuedHint: 'Il Famiglio ora porta questa spell, funziona senza il telefono vicino.',
         devicesDone: 'Fatto',
         devicesUnsupportedList: 'Questo Famiglio non serve:',
+        devicesEncSlotConflictTitle: 'Slot occupato',
+        devicesEncSlotConflictBody: 'Questo Famiglio ha già un incantesimo di un\'altra spell (%{spell}) in questo slot. Sostituirlo?',
+        devicesEncSlotConflictReplace: 'Sostituisci',
         devicesInvalidBundle: 'Il bundle trasmutato non è valido.',
 
         // File types
@@ -4782,6 +4800,9 @@ export const translations = {
         devicesImbuedHint: '使い魔がこのspellを携帯中, スマホが近くになくても動作します。',
         devicesDone: '完了',
         devicesUnsupportedList: 'この使い魔は対応できません：%{list}',
+        devicesEncSlotConflictTitle: 'スロット使用中',
+        devicesEncSlotConflictBody: 'この使い魔には別のスペル (%{spell}) のエンチャントが既にあります。置き換えますか？',
+        devicesEncSlotConflictReplace: '置き換える',
         devicesInvalidBundle: '変換されたバンドルが無効です。',
 
         // File types
@@ -5465,6 +5486,9 @@ export const translations = {
         devicesImbuedHint: '魔宠现在携带这个 spell, 手机不在身边也能工作。',
         devicesDone: '完成',
         devicesUnsupportedList: '此魔宠无法支持：%{list}',
+        devicesEncSlotConflictTitle: '槽位已被占用',
+        devicesEncSlotConflictBody: '此魔宠已有另一个法术 (%{spell}) 的附魔。要替换吗？',
+        devicesEncSlotConflictReplace: '替换',
         devicesInvalidBundle: '转化后的 bundle 无效。',
 
         // File types
@@ -6154,6 +6178,9 @@ export const translations = {
         devicesImbuedHint: '패밀리어가 이 spell을 갖게 됨, 휴대폰 없이도 작동합니다.',
         devicesDone: '완료',
         devicesUnsupportedList: '이 패밀리어는 지원할 수 없음:',
+        devicesEncSlotConflictTitle: '슬롯 사용 중',
+        devicesEncSlotConflictBody: '이 패밀리어에는 다른 스펠 (%{spell})의 인챈트가 이미 있습니다. 교체할까요?',
+        devicesEncSlotConflictReplace: '교체',
         devicesInvalidBundle: '변환된 번들이 유효하지 않습니다.',
 
         // File types
@@ -6843,6 +6870,9 @@ export const translations = {
         devicesImbuedHint: 'الرفيق يحمل الآن هذه التعويذة, يعمل دون هاتفك بالقرب.',
         devicesDone: 'تم',
         devicesUnsupportedList: 'هذا الرفيق لا يدعم:',
+        devicesEncSlotConflictTitle: 'الفتحة مشغولة',
+        devicesEncSlotConflictBody: 'لدى هذا الرفيق بالفعل تعويذة من spell آخر (%{spell}) في هذه الفتحة. استبدال؟',
+        devicesEncSlotConflictReplace: 'استبدال',
         devicesInvalidBundle: 'الحزمة المحولة غير صالحة.',
 
         // File types
@@ -7532,6 +7562,9 @@ export const translations = {
         devicesImbuedHint: 'फ़ैमिलियर अब यह spell ले जाता है, फ़ोन के पास बिना काम करता है।',
         devicesDone: 'पूर्ण',
         devicesUnsupportedList: 'यह फ़ैमिलियर समर्थन नहीं करता:',
+        devicesEncSlotConflictTitle: 'स्लॉट उपयोग में',
+        devicesEncSlotConflictBody: 'इस फ़ैमिलियर के पास पहले से दूसरे स्पेल (%{spell}) का एन्चांटमेंट है। बदलें?',
+        devicesEncSlotConflictReplace: 'बदलें',
         devicesInvalidBundle: 'परिवर्तित बंडल अमान्य है।',
 
         // File types
@@ -8221,6 +8254,9 @@ export const translations = {
         devicesImbuedHint: 'Фамильяр теперь носит эту spell, работает без телефона рядом.',
         devicesDone: 'Готово',
         devicesUnsupportedList: 'Этот фамильяр не поддерживает:',
+        devicesEncSlotConflictTitle: 'Слот занят',
+        devicesEncSlotConflictBody: 'У этого фамильяра уже есть зачарование от другого спелла (%{spell}) в этом слоте. Заменить?',
+        devicesEncSlotConflictReplace: 'Заменить',
         devicesInvalidBundle: 'Трансмутированный bundle недействителен.',
 
         // File types
@@ -8910,6 +8946,9 @@ export const translations = {
         devicesImbuedHint: 'Familiar artık bu spell’i taşıyor, telefonun yakınında olmadan çalışır.',
         devicesDone: 'Tamam',
         devicesUnsupportedList: 'Bu Familiar sunamaz:',
+        devicesEncSlotConflictTitle: 'Yuva dolu',
+        devicesEncSlotConflictBody: 'Bu Familiar\'ın bu yuvada başka bir spell\'in (%{spell}) büyüsü zaten var. Değiştirilsin mi?',
+        devicesEncSlotConflictReplace: 'Değiştir',
         devicesInvalidBundle: 'Dönüştürülen paket geçersiz.',
 
         // File types
@@ -9597,6 +9636,9 @@ export const translations = {
         devicesImbuedHint: 'De Familiair draagt nu deze spell, werkt zonder je telefoon in de buurt.',
         devicesDone: 'Klaar',
         devicesUnsupportedList: 'Deze Familiair kan niet bedienen:',
+        devicesEncSlotConflictTitle: 'Slot in gebruik',
+        devicesEncSlotConflictBody: 'Deze Familiair heeft al een betovering van een andere spell (%{spell}) in dit slot. Vervangen?',
+        devicesEncSlotConflictReplace: 'Vervangen',
         devicesInvalidBundle: 'De getransmuteerde bundel is ongeldig.',
 
         // File types
@@ -10285,6 +10327,9 @@ export const translations = {
         devicesImbuedHint: 'Familiar nosi teraz tę spell, działa bez telefonu w pobliżu.',
         devicesDone: 'Gotowe',
         devicesUnsupportedList: 'Ten Familiar nie obsługuje:',
+        devicesEncSlotConflictTitle: 'Slot zajęty',
+        devicesEncSlotConflictBody: 'Ten Familiar ma już zaklęcie z innego spella (%{spell}) w tym slocie. Zastąpić?',
+        devicesEncSlotConflictReplace: 'Zastąp',
         devicesInvalidBundle: 'Przetransmutowany bundle jest nieprawidłowy.',
 
         // File types
@@ -10975,6 +11020,9 @@ export const translations = {
         devicesImbuedHint: 'Thần thú giờ mang spell này, hoạt động mà không cần điện thoại gần bên.',
         devicesDone: 'Xong',
         devicesUnsupportedList: 'Thần thú này không hỗ trợ:',
+        devicesEncSlotConflictTitle: 'Khe đã có',
+        devicesEncSlotConflictBody: 'Thần thú này đã có phù chú của spell khác (%{spell}) trong khe này. Thay thế?',
+        devicesEncSlotConflictReplace: 'Thay thế',
         devicesInvalidBundle: 'Bundle chuyển hóa không hợp lệ.',
 
         // File types
@@ -11665,6 +11713,9 @@ export const translations = {
         devicesImbuedHint: 'คู่หูพก spell นี้แล้ว, ทำงานได้โดยไม่ต้องมีมือถืออยู่ใกล้',
         devicesDone: 'เสร็จ',
         devicesUnsupportedList: 'คู่หูนี้ไม่รองรับ:',
+        devicesEncSlotConflictTitle: 'ช่องนี้มีของอยู่แล้ว',
+        devicesEncSlotConflictBody: 'คู่หูนี้มีเวทมนตร์จากสเปลอื่น (%{spell}) ในช่องนี้แล้ว จะแทนที่ไหม',
+        devicesEncSlotConflictReplace: 'แทนที่',
         devicesInvalidBundle: 'บันเดิลที่แปลงแล้วไม่ถูกต้อง',
 
         // File types

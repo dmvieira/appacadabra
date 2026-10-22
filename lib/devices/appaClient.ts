@@ -157,32 +157,45 @@ export class AppaClient {
         }, msg.id);
     }
 
-    /** Sends an envelope without waiting for a reply. */
+    /** Envia o envelope pelo transporte; aguarda quando o write é assíncrono. */
+    private async sendAsync(type: MessageType, payload: Record<string, unknown>, ackOf?: string): Promise<string> {
+        const id = generateMessageId();
+        const json = buildMessage({ id, type, payload, ackOf });
+        if (!json) throw new Error(`invalid envelope: ${type}`);
+        const frame = frameEncodeChecked(json);
+        if (!this.conn) throw new Error('transport not connected');
+        const wr = this.conn.write(frame);
+        if (wr && typeof (wr as Promise<boolean>).then === 'function') await wr;
+        return id;
+    }
+
+    /** Envia sem aguardar transporte async (fire-and-forget, ex.: ACKs internos). */
     private send(type: MessageType, payload: Record<string, unknown>, ackOf?: string): string {
         const id = generateMessageId();
         const json = buildMessage({ id, type, payload, ackOf });
         if (!json) throw new Error(`invalid envelope: ${type}`);
         const frame = frameEncodeChecked(json);
-        if (!this.conn?.write(frame)) throw new Error('transport not connected');
+        if (!this.conn) throw new Error('transport not connected');
+        this.conn.write(frame);
         return id;
     }
 
     private request(type: MessageType, payload: Record<string, unknown>, expect: MessageType, timeoutMs = this.requestTimeoutMs): Promise<Message> {
         return new Promise((resolve, reject) => {
-            const id = (() => {
+            void (async () => {
+                let id: string;
                 try {
-                    return this.send(type, payload);
+                    id = await this.sendAsync(type, payload);
                 } catch (e) {
                     reject(e as Error);
-                    return null;
+                    return;
                 }
+                const timer = setTimeout(() => {
+                    this.pending.delete(id);
+                    reject(new Error(`timeout waiting for ${expect} (sent ${type} id=${id})`));
+                }, timeoutMs);
+                this.pending.set(id, { resolve, reject, timer });
             })();
-            if (id === null) return;
-            const timer = setTimeout(() => {
-                this.pending.delete(id);
-                reject(new Error(`timeout waiting for ${expect} (sent ${type} id=${id})`));
-            }, timeoutMs);
-            this.pending.set(id, { resolve, reject, timer });
         });
     }
 
