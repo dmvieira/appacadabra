@@ -238,7 +238,16 @@ export class AppaClient {
         await this.request(MSG.REVOKE_POWER, { power }, MSG.OK);
     }
 
-    async setConfig(config: { wake?: { mode?: string; phrase?: string; threshold?: number }; name?: string }): Promise<void> {
+    async setConfig(config: {
+        wake?: { mode?: string; phrase?: string; threshold?: number };
+        name?: string;
+        /** Modelo do WebView (o device passa a usá-lo no chat E no STT). */
+        model?: string;
+        /** Epoch segundos do CELULAR (fonte única de hora do device). */
+        time?: number;
+        /** getTimezoneOffset() do celular (minutos, oeste-positivo). */
+        tzOffset?: number;
+    }): Promise<void> {
         await this.request(MSG.SET_CONFIG, config as Record<string, unknown>, MSG.OK);
     }
 

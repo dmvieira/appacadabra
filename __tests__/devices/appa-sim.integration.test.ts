@@ -114,7 +114,7 @@ describeFn('appa L2 integration — Appacadabra client x appa-sim (C++)', () => 
         client.close();
         client = new AppaClient(new TcpTransport('127.0.0.1', sim!.port));
         const portrait = await client.connect();
-        expect(portrait.encantamentos).toEqual([{ id: 'enc_l2test01', version: 2 }]);
+        expect(portrait.encantamentos).toEqual([{ id: 'enc_l2test01', version: 2, spellId: 'app_l2test' }]);
     });
 
     test('UNENCHANT remove; segunda tentativa erro UNKNOWN_ENCHANTMENT', async () => {

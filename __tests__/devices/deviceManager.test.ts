@@ -35,6 +35,7 @@ describe('deviceManager', () => {
     const sentFrames: string[] = [];
     let lastWritebackAck: { accepted: string[]; rejected: string[] } | null = null;
     let helloEncantamentos: Array<{ id: string; version: number; spellId?: string }> = [];
+    let lastSetConfig: Record<string, unknown> | null = null;
     // empurra uma mensagem do "device" para o app (ex.: WRITEBACK espontâneo)
     let serverPush: ((obj: unknown) => void) | null = null;
 
@@ -55,6 +56,9 @@ describe('deviceManager', () => {
                     send({ v: 1, id: 'd2', type: 'ENCHANT_ACK', ackOf: JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).id, payload: { id: 'enc_mgr01', version: 1, stored: true } });
                 } else if (text.includes('UNENCHANT')) {
                     send({ v: 1, id: 'd4', type: 'OK', ackOf: JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).id, payload: {} });
+                } else if (text.includes('SET_CONFIG')) {
+                    lastSetConfig = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).payload;
+                    send({ v: 1, id: 'd6', type: 'OK', ackOf: JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).id, payload: {} });
                 } else if (text.includes('WRITEBACK_ACK')) {
                     // resposta do app às mutações do device
                     const frame = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
@@ -171,6 +175,31 @@ describe('deviceManager', () => {
         await new Promise((r) => setTimeout(r, 400));
         expect(lastWritebackAck?.rejected).toContain('m1');
         serverPush = null;
+    });
+
+    test('imbue reafirma modelo do WebView e hora do celular (SET_CONFIG)', async () => {
+        deviceManager.disconnect();
+        const transport = {
+            connect: async () => {
+                const s2 = net.connect(port, '127.0.0.1');
+                await new Promise<void>((r) => s2.once('connect', r));
+                return {
+                    connected: () => !s2.destroyed,
+                    write: (d: Uint8Array) => (s2.write(Buffer.from(d)), true),
+                    onData: (cb: (d: Uint8Array) => void) => s2.on('data', (b: Buffer) => cb(new Uint8Array(b))),
+                    onDisconnect: () => {},
+                    close: () => s2.destroy(),
+                };
+            },
+        };
+        await deviceManager.connect(transport);
+        await deviceManager.imbueSpell({ id: 50, name: 'M', requiredCapabilities: [] });
+        // syncClockAndModel roda no imbue: modelo atual + hora + fuso
+        expect(lastSetConfig).toBeTruthy();
+        expect(typeof lastSetConfig!.model).toBe('string');
+        expect((lastSetConfig!.model as string).length).toBeGreaterThan(3);
+        expect((lastSetConfig!.time as number)).toBeGreaterThan(1577836800);
+        expect(typeof lastSetConfig!.tzOffset).toBe('number');
     });
 
     test('imbueSpell recusa quando o device não cobre a capability', async () => {

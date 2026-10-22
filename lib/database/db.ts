@@ -65,6 +65,7 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       appId INTEGER NOT NULL,
       key TEXT NOT NULL,
       value TEXT NOT NULL,
+      updated_at INTEGER,
       FOREIGN KEY(appId) REFERENCES generated_apps(id) ON DELETE CASCADE
     );
 
@@ -190,6 +191,14 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       PRIMARY KEY (slug, tool)
     );
   `);
+    // Migração: installs antigos não têm updated_at em app_storage (carimbo de
+    // mutações de voz — writeback). Guardado por table_info.
+    const cols = await database.getAllAsync<{ name: string }>(
+      "PRAGMA table_info(app_storage)"
+    );
+    if (!cols.some((c) => c.name === 'updated_at')) {
+      await database.execAsync('ALTER TABLE app_storage ADD COLUMN updated_at INTEGER');
+    }
 
     // Defensive column add for users upgrading from a schema without storeAuthorUid.
     // SQLite ALTER TABLE throws "duplicate column name" if the column already exists; swallow it.
@@ -612,12 +621,17 @@ export async function getStorageItem(appId: number, key: string): Promise<string
     return result?.value ?? null;
 }
 
-export async function setStorageItem(appId: number, key: string, value: string): Promise<void> {
+export async function setStorageItem(
+    appId: number,
+    key: string,
+    value: string,
+    updatedAt: number = Date.now()
+): Promise<void> {
     const database = await getDatabase();
     await database.runAsync(
-        `INSERT OR REPLACE INTO app_storage (appId, key, value)
-     VALUES (?, ?, ?)`,
-        [appId, key, value]
+        `INSERT OR REPLACE INTO app_storage (appId, key, value, updated_at)
+     VALUES (?, ?, ?, ?)`,
+        [appId, key, value, updatedAt]
     );
 }
 

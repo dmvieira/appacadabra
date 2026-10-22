@@ -421,13 +421,22 @@ export interface ErrorPayload {
     inReplyTo?: string;
 }
 
+export type MutationOp = 'merge' | 'set' | 'list-append' | 'list-update';
+
 export interface Mutation {
     id: string;
     enc: string;
     key: string;
-    op: 'merge' | 'set';
-    /** JSON-string value, mirroring app_storage TEXT columns. */
+    op: MutationOp;
+    /**
+     * JSON-string value, mirroring app_storage TEXT columns.
+     * - merge: objeto parcial a mesclar;
+     * - set: valor completo da chave;
+     * - list-append: o OBJETO do item a anexar na lista;
+     * - list-update: {match:{campo:valor}, patch:{campos a alterar}}.
+     */
     value: string;
+    /** Epoch SECONDS do device (hora do app via SET_CONFIG; 0 = sem hora). */
     ts: number;
 }
 

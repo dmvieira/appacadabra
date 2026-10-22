@@ -22,6 +22,7 @@ import { transmuteApp, validateBundle, type MinimalSpellApp, type TransmuteAppRe
 import { POWER_WIFI } from './capabilityMap';
 import { getWifiPassword, rememberWifiPassword } from './wifiCredentials';
 import { getSetting, setSetting, getStorageForApp } from '../database/db';
+import { getPreferredModel } from '../api/modelPreferences';
 
 export interface FamiliarSession {
     client: AppaClient;
@@ -148,6 +149,9 @@ class DeviceManager {
         await session.client.setConfig({
             name: wake,
             wake: { mode: 'flex', phrase: wake },
+            time: Math.floor(Date.now() / 1000),
+            tzOffset: new Date().getTimezoneOffset(),
+            model: await getPreferredModel('WEBVIEW').catch(() => undefined),
         });
         // Atualiza o retrato localmente: o HELLO do firmware hardcoda wake/mode e
         // o PAIR_REQUEST (pullPortrait) não é confiável neste firmware, então não
@@ -212,6 +216,25 @@ class DeviceManager {
 
     private deviceKey(): string {
         return this.session?.deviceId ?? '__default__';
+    }
+
+    /**
+     * Hora do CELULAR é a fonte única do device (sem NTP): epoch + fuso vão no
+     * SET_CONFIG a cada sincronização. O modelo do WebView também via junto —
+     * o device usa O MESMO modelo no chat e no STT.
+     */
+    private async syncClockAndModel(): Promise<void> {
+        if (!this.session) return;
+        try {
+            const model = await getPreferredModel('WEBVIEW');
+            await this.session.client.setConfig({
+                model,
+                time: Math.floor(Date.now() / 1000),
+                tzOffset: new Date().getTimezoneOffset(),
+            });
+        } catch {
+            // best-effort: device segue com a última hora/modelo conhecidos
+        }
     }
 
     /** Índice encId -> appId (por device), persistido em app_settings. */
@@ -424,6 +447,8 @@ class DeviceManager {
             if (!validateBundle(result.bundle)) ack = await this.enchantWithRetry(result.bundle);
         }
         await this.registerEncantamento(result.bundle.manifest.id, app.id);
+        // Vinculação reafirma o modelo do WebView e a hora do celular.
+        await this.syncClockAndModel();
         // Mantém o retrato em sync: o próximo update já manda a versão certa de
         // primeira (evita "manda errado -> device recusa -> reenvia o payload").
         this.syncPortraitEnchantment(result.bundle.manifest.id, ack.version);
