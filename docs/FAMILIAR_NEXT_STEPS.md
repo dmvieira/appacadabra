@@ -133,3 +133,22 @@ Implementado no firmware (`appa`, branch `feat/familiar-setup`):
 4. **Fase 4 (futuro, se DTW não bastar)** — embedder no CELULAR (openWakeWord
    1,4 MB via tflite nativo; o clip vai por WiFi/TCP) ou treino de modelo
    por frase (microWakeWord via Colab + OTA). Nenhum dos dois no firmware.
+
+## STT embarcado no device — veredito (arquivado 2026-10-22)
+
+Pergunta: embutir ASR no ESP32-S3 (PocketSphinx+JSGF, Vosk, Sherpa, Whisper)?
+**Não — arquivado.** Motivos:
+
+1. **Vocabulário fechado vs aberto**: JSGF/gramáticas e MultiNet (esp-sr, só
+   EN/CN) reconhecem padrões fixos; o produto é conteúdo livre ("adicionar
+   lavar a louça do almoço"). Wake é coberto pelo cadastro DTW local
+   (`appa_kws`), conteúdo livre fica no STT cloud — mesma dependência da IA.
+2. **Sem modelo acústico PT-BR decente** para PocketSphinx (modelos
+   comunitários antigos/medíocres; Vosk/Sherpa PT são bons por serem modernos).
+3. **Porta pra ESP-IDF é projeto à parte** e 4-6MB de modelo nos 8MB de PSRAM
+   (com kws+captura+pilhas) é limite. Vosk/Sherpa/Whisper (35-50MB) não cabem
+   de forma nenhuma.
+
+Requisito do produto: device independente do **celular** (WiFi+cofre ok).
+Roadmap de wake local: fixtures limpos → cadastro DTW validado; se insuficiente,
+embedder pequeno (openWakeWord ~1,4MB) ou microWakeWord por frase (futuro).
