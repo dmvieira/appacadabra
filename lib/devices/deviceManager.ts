@@ -102,9 +102,25 @@ class DeviceManager {
      */
     async connect(transport: Transport, deviceId?: string): Promise<HelloPortrait> {
         this.disconnect();
+        // Sessão zumbi: o device rebootando/desaparecendo NÃO disparava limpeza
+        // (onDisconnect era no-op) — a UI seguia "conectado" e toda ação falhava
+        // com 'not connected' do native. Encerra a sessão na desconexão real.
+        const wrapped: Transport = {
+            connect: async () => {
+                const conn = await transport.connect();
+                conn.onDisconnect(() => {
+                    if (this.session) {
+                        this.session = null;
+                        this.lastQuery = null;
+                        this.emit();
+                    }
+                });
+                return conn;
+            },
+        };
         // BLE transmite em chunks de ~20B: bundles grandes (HTML da spell) levam
         // dezenas de segundos -> timeout generoso (antes 5s).
-        const client = new AppaClient(transport, 120000);
+        const client = new AppaClient(wrapped, 120000);
         client.writebackHandler = (mutations) => this.handleWriteback(mutations);
         client.queryResultHandler = (qr) => {
             // Resposta/pergunta do Familiar (voz): a tela mostra a última.

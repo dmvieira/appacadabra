@@ -10,6 +10,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 const KEY_NAME = 'appa_wifi_passwords';
+const KEY_LAST_SSID = 'appa_wifi_last_ssid';
 
 const OPTIONS: SecureStore.SecureStoreOptions = {
     keychainAccessible: SecureStore.WHEN_UNLOCKED,
@@ -41,11 +42,25 @@ export async function getWifiPassword(ssid: string): Promise<string> {
     return map[ssid] ?? '';
 }
 
-/** Guarda a senha de um SSID (preserva as demais redes). */
+/** Guarda a senha de um SSID (preserva as demais redes) e lembra o último. */
 export async function rememberWifiPassword(ssid: string, pass: string): Promise<void> {
     const map = await readMap();
     map[ssid] = pass;
     await SecureStore.setItemAsync(KEY_NAME, JSON.stringify(map), OPTIONS);
+    await SecureStore.setItemAsync(KEY_LAST_SSID, ssid, OPTIONS);
+}
+
+/**
+ * Último SSID usado num ritual (fallback do preenchimento automático: quando
+ * o celular está no 5G ou sem permissão de localização, getCurrentWifiSsid()
+ * retorna null e ainda assim queremos sugerir a rede de antes).
+ */
+export async function getLastWifiSsid(): Promise<string | null> {
+    try {
+        return (await SecureStore.getItemAsync(KEY_LAST_SSID, OPTIONS)) ?? null;
+    } catch {
+        return null;
+    }
 }
 
 export async function forgetWifiPassword(ssid: string): Promise<void> {

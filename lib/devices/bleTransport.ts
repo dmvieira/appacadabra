@@ -105,7 +105,13 @@ export function bleTransport(deviceId: string): Transport {
                 const bytes = base64ToBytes(e.base64);
                 for (const l of listeners) l(bytes);
             });
-            addBleListener('AppaBleDisconnect', () => sub.remove());
+            let disconnectCb: (() => void) | null = null;
+            const subDisc = addBleListener('AppaBleDisconnect', () => {
+                sub.remove();
+                // Desconexão REAL do GATT (device rebootou/saiu): propaga pra
+                // cima — o deviceManager limpa a sessão e a UI reage.
+                disconnectCb?.();
+            });
             await mod.connect(deviceId);
             return {
                 connected: () => true,
@@ -119,8 +125,13 @@ export function bleTransport(deviceId: string): Transport {
                 onData: (cb) => {
                     listeners.push(cb);
                 },
-                onDisconnect: () => {},
+                onDisconnect: (cb) => {
+                    disconnectCb = cb;
+                },
                 close: () => {
+                    subDisc.remove();
+                    sub.remove();
+                    disconnectCb = null;
                     mod.disconnect();
                 },
             };

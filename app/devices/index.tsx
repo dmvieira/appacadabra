@@ -31,6 +31,7 @@ import { MODELS } from '../../lib/api/pricing';
 import { CAPABILITY_MAP } from '../../lib/devices/capabilityMap';
 import { encIdToAppId } from '../../lib/devices/protocol';
 import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
+import { getLastWifiSsid } from '../../lib/devices/wifiCredentials';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -166,11 +167,13 @@ export default function DevicesScreen() {
         useCallback(() => {
             let alive = true;
             (async () => {
-                const ssid = await getCurrentWifiSsid();
+                // SSID atual do celular; sem ele (5G/sem permissão), sugere o
+                // último usado num ritual — o campo nunca fica vazio à toa.
+                const ssid = (await getCurrentWifiSsid()) ?? (await getLastWifiSsid());
                 if (!alive || !ssid) return;
-                setWifiSsid(ssid);
+                setWifiSsid((cur) => cur || ssid);
                 const pass = await deviceManager.wifiPasswordFor(ssid).catch(() => '');
-                if (alive) setWifiPass(pass || '');
+                if (alive) setWifiPass((cur) => cur || pass || '');
             })();
             return () => {
                 alive = false;
