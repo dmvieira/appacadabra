@@ -151,6 +151,24 @@ describe('transmuteApp — a forja real', () => {
         expect(result.bundle.data['tarefas']).toBe('[{"t":"x"}]');
     });
 
+    test('io.dataSchemas (preview) tem precedência sobre o gerador', async () => {
+        const code = `localStorage.getItem('tarefas') ?? []`;
+        const result = await transmuteApp(
+            { id: 13, name: 'T', code, requiredCapabilities: [] },
+            {
+                encId: 'enc_forja06',
+                dataSchemas: { tarefas: { type: 'array', item: { required: { texto: 'string' } } } },
+                generateEnchantment: async () => ({
+                    prompt: 'Prompt gerado com schema inventado pelo modelo',
+                    keywords: ['x'],
+                    dataSchemas: { tarefas: { type: 'array', item: { required: { titulo: 'string' } } } },
+                }),
+            },
+        );
+        expect(result.bundle.dataSchemas?.tarefas?.item?.required).toEqual({ texto: 'string' });
+        expect(result.bundle.dataSchemas?.tarefas?.item?.required).not.toHaveProperty('titulo');
+    });
+
     test('prompt IA curto demais cai no fallback', async () => {
         const result = await transmuteApp(
             { id: 10, name: 'X', requiredCapabilities: [] },

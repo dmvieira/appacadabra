@@ -199,6 +199,8 @@ export interface TransmuteIO {
         keywords: string[];
         dataSchemas?: DataSchemas;
     }>;
+    /** Contrato pronto (ex.: do preview da tela) — tem precedência sobre o gerador. */
+    dataSchemas?: DataSchemas;
     now?: () => number;
     encId?: string;
     /** Overrides (ex.: edição do usuário antes de encantar). */
@@ -342,7 +344,7 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
         name: app.name.slice(0, 64) || 'Encantamento',
         prompt,
         data,
-        ...(dataSchemas ? { dataSchemas } : {}),
+        ...(io.dataSchemas ?? dataSchemas ? { dataSchemas: io.dataSchemas ?? dataSchemas } : {}),
         capabilities: mapping.entries,
         keywords,
         version: io.version,

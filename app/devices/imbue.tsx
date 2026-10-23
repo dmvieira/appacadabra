@@ -273,7 +273,17 @@ export default function ImbueScreen() {
             await persistDraft();
             const r = await deviceManager.imbueSpell(
                 { id: app.id, name: app.name, code: app.code, description: app.shortDescription, requiredCapabilities: app.requiredCapabilities },
-                { promptOverride: promptDraft, keywordsOverride: keywords, ...(forceReplace ? { forceReplace: true } : {}) },
+                {
+                    promptOverride: promptDraft,
+                    keywordsOverride: keywords,
+                    ...(forceReplace ? { forceReplace: true } : {}),
+                    // Contrato: se o preview derivou, viaja direto (sem nova
+                    // IA); se não derivou (modelo ignorou), roda o gerador de
+                    // novo na confirmação — última chance do contrato existir.
+                    ...(result.bundle.dataSchemas
+                        ? { dataSchemas: result.bundle.dataSchemas }
+                        : { generateEnchantment: generateVoiceEnchantment }),
+                },
             );
             setPhase({ kind: 'done', encId: r.ack.id, version: r.ack.version });
         } catch (e) {

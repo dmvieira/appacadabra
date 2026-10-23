@@ -534,6 +534,8 @@ class DeviceManager {
             encId?: string;
             /** Substitui slot ocupado por OUTRA spell (confirmado na UI). */
             forceReplace?: boolean;
+            /** Contrato pronto (preview da tela) — viaja no bundle sem nova IA. */
+            dataSchemas?: import('./protocol').DataSchemas;
         } = {},
     ): Promise<TransmuteAppResult & { ack: { id: string; version: number; stored: boolean } }> {
         if (!this.session) throw new Error('devicesNoConnection');
@@ -557,6 +559,7 @@ class DeviceManager {
                 ...(opts.generatePrompt ? { generatePrompt: opts.generatePrompt } : {}),
                 ...(opts.promptOverride !== undefined ? { promptOverride: opts.promptOverride } : {}),
                 ...(opts.keywordsOverride !== undefined ? { keywordsOverride: opts.keywordsOverride } : {}),
+                ...(opts.dataSchemas !== undefined ? { dataSchemas: opts.dataSchemas } : {}),
                 ...(v !== undefined ? { version: v } : {}),
                 ...(id !== undefined ? { encId: id } : {}),
             });
