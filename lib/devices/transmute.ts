@@ -14,7 +14,7 @@
 
 import type { AppStorage } from '../database/types';
 import { getCurrentLanguage } from '../i18n';
-import { CapabilityEntry, DeviceRequirement, Bundle, DataSchemas, encIdForSpell, generateEncantamentoId, validEncantamentoId, validPowerName } from './protocol';
+import { CapabilityEntry, ContractFieldType, DeviceRequirement, Bundle, DataSchemas, encIdForSpell, generateEncantamentoId, validEncantamentoId, validPowerName } from './protocol';
 import { mapRequirements } from './capabilityMap';
 
 const DATA_KEY_RE = /^[a-zA-Z0-9_.-]{1,64}$/;
@@ -188,6 +188,172 @@ export interface MinimalSpellApp {
     requiredCapabilities?: string[] | null;
 }
 
+/**
+ * Contrato a partir de DADOS REAIS (app_storage/webview — ground truth):
+ * campos presentes em >=50% dos itens = required; tipo = maioria observada.
+ */
+export function deriveSchemasFromData(
+    data: Record<string, string>,
+    keys?: string[],
+): DataSchemas {
+    const out: DataSchemas = {};
+    const wanted = keys ?? Object.keys(data);
+    for (const key of wanted) {
+        const parsed = (() => {
+            try {
+                return JSON.parse(data[key] ?? '');
+            } catch {
+                return undefined;
+            }
+        })();
+        if (Array.isArray(parsed)) {
+            if (parsed.length === 0) continue;
+            const items = parsed.filter(
+                (it) => it && typeof it === 'object' && !Array.isArray(it),
+            ) as Array<Record<string, unknown>>;
+            if (!items.length) continue;
+            const fields = new Set(items.flatMap((it) => Object.keys(it)));
+            const required: Record<string, ContractFieldType> = {};
+            const optional: Record<string, ContractFieldType> = {};
+            for (const f of fields) {
+                const present = items.filter((it) => f in it).length;
+                const values = items.map((it) => (it as Record<string, unknown>)[f]).filter((v) => v !== undefined && v !== null);
+                const types = new Set(values.map((v) => typeof v).filter((t) => t === 'string' || t === 'number' || t === 'boolean'));
+                const t = (types.size === 1 ? [...types][0] : 'string') as ContractFieldType;
+                // presente em TODOS os itens = required; parcial = optional
+                (present === items.length ? required : optional)[f] = t;
+            }
+            if (Object.keys(required).length || Object.keys(optional).length) {
+                out[key] = { type: 'array', item: { required, optional } };
+            }
+        } else if (parsed && typeof parsed === 'object') {
+            const obj = parsed as Record<string, unknown>;
+            const required: Record<string, ContractFieldType> = {};
+            const optional: Record<string, ContractFieldType> = {};
+            for (const [f, v] of Object.entries(obj)) {
+                const t = (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+                    ? typeof v
+                    : 'string') as ContractFieldType;
+                (v === null || v === undefined ? optional : required)[f] = t;
+            }
+            if (Object.keys(required).length || Object.keys(optional).length) {
+                out[key] = { type: 'object', required, optional };
+            }
+        }
+    }
+    return out;
+}
+
+/**
+ * Contrato a partir do CÓDIGO da spell (estático, determinístico): localiza
+ * literais de objeto criados para as chaves (var X = {...} usado com
+ * setItem('<key>', JSON.stringify(...)) ou push na lista) e infere tipos dos
+ * literais. Campos iniciados com null/undefined viram optional.
+ */
+export function deriveSchemasFromCode(code: string | undefined, keys: string[]): DataSchemas {
+    const out: DataSchemas = {};
+    if (!code) return out;
+
+    const fieldRe = /^\s*['"]?([A-Za-z_]\w*)['"]?\s*:\s*(.{1,80})$/;
+
+    // extrai o literal de objeto balanceado a partir do '{' em code[at]
+    const takeObject = (at: number): string | null => {
+        if (code[at] !== '{') return null;
+        let depth = 0;
+        for (let i = at; i < code.length; i++) {
+            const ch = code[i];
+            if (ch === '{') depth++;
+            else if (ch === '}') {
+                depth--;
+                if (depth === 0) return code.slice(at, i + 1);
+            }
+        }
+        return null;
+    };
+
+    for (const key of keys) {
+        // setItem('<key>', JSON.stringify(<var>)) — variação de aspas
+        let listVar: string | null = null;
+        for (const q of ["'", '"']) {
+            const marker = `setItem(${q}${key}${q}, JSON.stringify(`;
+            let at = code.indexOf(marker);
+            while (at >= 0) {
+                const rest = code.slice(at + marker.length);
+                const m = /^\s*(\w+)\s*\)/.exec(rest);
+                if (m) {
+                    listVar = m[1];
+                    break;
+                }
+                at = code.indexOf(marker, at + 1);
+            }
+            if (listVar) break;
+        }
+        if (!listVar) continue;
+
+        // item anexado: <listVar>.push(<literal>) — literal balanceado
+        let fieldsSrc: string | null = null;
+        const pushMarker = `${listVar}.push(`;
+        let pat = code.indexOf(pushMarker);
+        while (pat >= 0 && !fieldsSrc) {
+            const lit = takeObject(pat + pushMarker.length - 1);
+            if (lit) {
+                fieldsSrc = lit;
+                break;
+            }
+            pat = code.indexOf(pushMarker, pat + 1);
+        }
+        // push de variável: acha o literal dela
+        if (!fieldsSrc) {
+            const pushVarRe = new RegExp(`${listVar}\\.push\\(\\s*(\\w+)\\s*\\)`);
+            const mv = pushVarRe.exec(code);
+            if (mv) {
+                const varRe = new RegExp(`(?:var|let|const)\\s+${mv[1]}\\s*=\\s*\\{`);
+                const braceAt = varRe.exec(code);
+                if (braceAt) fieldsSrc = takeObject(code.indexOf('{', braceAt.index));
+            }
+        }
+        if (!fieldsSrc) continue;
+
+        // separa campos no nível superior do literal (vírgulas balanceadas)
+        const body = fieldsSrc.slice(1, -1);
+        const parts: string[] = [];
+        let depth = 0;
+        let cur = '';
+        for (const ch of body) {
+            if (ch === '{' || ch === '(' || ch === '[') depth++;
+            else if (ch === '}' || ch === ')' || ch === ']') depth--;
+            if (ch === ',' && depth === 0) {
+                parts.push(cur);
+                cur = '';
+            } else {
+                cur += ch;
+            }
+        }
+        if (cur.trim()) parts.push(cur);
+
+        const required: Record<string, ContractFieldType> = {};
+        const optional: Record<string, ContractFieldType> = {};
+        for (const part of parts) {
+            const fm = fieldRe.exec(part.replace(/\n/g, ' '));
+            if (!fm) continue;
+            const name = fm[1];
+            const v = fm[2].trim();
+            let t: ContractFieldType = 'string';
+            if (/^(true|false)$/.test(v)) t = 'boolean';
+            else if (/^\d+(\.\d+)?$/.test(v) || /Date\.now\(\)/.test(v)) t = 'number';
+            else if (/^(null|undefined)$/.test(v)) {
+                optional[name] = 'string';
+                continue;
+            }
+            required[name] = t;
+        }
+        if (Object.keys(required).length || Object.keys(optional).length) {
+            out[key] = { type: 'array', item: { required, optional } };
+        }
+    }
+    return out;
+}
+
 export interface TransmuteIO {
     /** Storage da spell (app_storage). Default: no-op (vazio). */
     getStorage?: (appId: number) => Promise<AppStorage[]>;
@@ -314,7 +480,15 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
     const description = app.description?.trim() || extractTextFromHtml(app.code ?? '');
     let prompt = fallbackPrompt(app, Object.keys(data), description);
     let keywords = fallbackKeywords(app, Object.keys(data), description);
+    // Contrato por camadas: io (preview) > DADOS REAIS (ground truth) >
+    // CÓDIGO (determinístico) > gerador (refino, só chaves faltantes).
+    const derivedData = deriveSchemasFromData(data, Object.keys(data));
+    const derivedCode = deriveSchemasFromCode(app.code, Object.keys(data));
     let dataSchemas: DataSchemas | undefined;
+    {
+        const merged: DataSchemas = { ...derivedCode, ...derivedData };
+        dataSchemas = Object.keys(merged).length ? merged : undefined;
+    }
     let promptGeneratedByAI = false;
     if (io.generateEnchantment) {
         const gen = await io.generateEnchantment(app, Object.keys(data));
@@ -323,7 +497,13 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
             promptGeneratedByAI = true;
         }
         if (gen?.keywords?.length) keywords = normalizeKeywords(gen.keywords);
-        if (gen?.dataSchemas) dataSchemas = gen.dataSchemas;
+        if (gen?.dataSchemas) {
+            const merged: DataSchemas = { ...dataSchemas };
+            for (const [k, v] of Object.entries(gen.dataSchemas)) {
+                if (!merged[k]) merged[k] = v; // só chaves sem derivação determinística
+            }
+            dataSchemas = Object.keys(merged).length ? merged : dataSchemas;
+        }
     } else if (io.generatePrompt) {
         const generated = await io.generatePrompt(app, Object.keys(data));
         if (generated && generated.trim().length >= 40) {

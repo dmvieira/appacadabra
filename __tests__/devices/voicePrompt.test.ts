@@ -53,8 +53,12 @@ describe('voicePrompt — contexto, idioma e enquadramento de voz', () => {
         const sent = chatMock.mock.calls[0][0].messages[0].content as string;
         expect(sent).toContain('Lista de compras');
         expect(sent).toContain('Arroz e café');
-        expect(sent).not.toContain('<h1>');
-        expect(sent).not.toContain('var a=1');
+        // descrição é TEXTO extraído (sem tags)…
+        const descLine = sent.split('\n').find((l) => l.startsWith('Descrição/contexto')) ?? '';
+        expect(descLine).not.toContain('<h1>');
+        // …e o CÓDIGO agora via como contexto dos dataSchemas (com tags mesmo).
+        expect(sent).toContain('Código-fonte da spell');
+        expect(sent).toContain('var a=1');
     });
 });
 

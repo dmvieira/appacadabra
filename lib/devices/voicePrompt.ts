@@ -19,13 +19,50 @@ export interface GeneratedEnchantment {
     dataSchemas?: DataSchemas;
 }
 
+/**
+ * Código da spell para o contexto do gerador, truncado com PRIORIDADE às
+ * linhas que tocam localStorage/estado (onde mora o contrato de dados).
+ * Corta o meio quando passa do teto, preservando começo e fim.
+ */
+function codeForContext(code: string | undefined, max = 24000): string | null {
+    if (!code || !code.trim()) return null;
+    if (code.length <= max) return code;
+    const lines = code.split('\n');
+    const relevant: Array<[number, string]> = [];
+    lines.forEach((ln, i) => {
+        if (/localStorage|JSON\.(parse|stringify)|\btarefas\b|\bstate\b|\bitems\b|\.push\(|\.map\(/i.test(ln)) {
+            relevant.push([i, ln]);
+        }
+    });
+    if (!relevant.length) return code.slice(0, max);
+    const picked = new Set<number>();
+    for (const [i] of relevant) {
+        for (let j = Math.max(0, i - 2); j <= Math.min(lines.length - 1, i + 2); j++) picked.add(j);
+    }
+    const idx = [...picked].sort((a, b) => a - b);
+    let out = '';
+    let prev = -2;
+    for (const i of idx) {
+        if (i !== prev + 1) out += `\n/* ... */\n`;
+        out += lines[i] + '\n';
+        prev = i;
+        if (out.length > max) break;
+    }
+    return out;
+}
+
 function buildContext(app: MinimalSpellApp, dataKeys: string[], description: string): string {
     const caps = app.requiredCapabilities ?? [];
+    const code = codeForContext(app.code);
     return [
         `Nome da spell: ${app.name}`,
         description ? `Descrição/contexto da spell: ${description}` : null,
         dataKeys.length ? `Dados que ela guarda (localStorage): ${dataKeys.join(', ')}` : null,
         caps.length ? `Capacidades usadas: ${caps.join(', ')}` : null,
+        // O CÓDIGO é a fonte da verdade dos dataSchemas: derive os contratos
+        // dos objetos que a spell escreve nessas chaves.
+        code ? `Código-fonte da spell (JS, referência para os dataSchemas):\n\`\`\`js\n${code}\n\`\`\`` : null,
+        caps.length ? null : null,
     ]
         .filter(Boolean)
         .join('\n');
@@ -76,6 +113,7 @@ export async function generateVoiceEnchantment(
             },
         ],
         max_tokens: 2000,
+        response_format: { type: 'json_object' },
     });
     const text = (response.choices?.[0]?.message?.content ?? '').trim();
     const jsonStart = text.indexOf('{');
@@ -117,22 +155,83 @@ export function sanitizeDataSchemas(raw: unknown): DataSchemas | null {
         }
         return Object.keys(o).length ? o : undefined;
     };
+    // Dialeto JSON Schema: {type:'string'} / {type:'array',items:{...}} com
+    // properties+required[] — converte pro mini-formato.
+    const jsonSchemaFields = (
+        v: Record<string, unknown> | undefined,
+    ): Record<string, ContractFieldType> | undefined => {
+        const props = v?.properties;
+        if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
+        const reqList = Array.isArray(v?.required) ? (v?.required as unknown[]) : [];
+        const o: Record<string, ContractFieldType> = {};
+        for (const [k, fv] of Object.entries(props as Record<string, unknown>)) {
+            if (!fv || typeof fv !== 'object') continue;
+            const t = fieldType((fv as Record<string, unknown>).type);
+            if (!t || !k) continue;
+            o[k] = t;
+        }
+        const required: Record<string, ContractFieldType> = {};
+        const optional: Record<string, ContractFieldType> = {};
+        for (const [k, t] of Object.entries(o)) {
+            (reqList.includes(k) ? required : optional)[k] = t;
+        }
+        return Object.keys(required).length || Object.keys(optional).length
+            ? { ...required, ...optional, ...(Object.keys(required).length ? {} : optional) }
+            : undefined;
+    };
     for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
         if (!key || !val || typeof val !== 'object' || Array.isArray(val)) continue;
         const v = val as Record<string, unknown>;
         const type = v.type === 'array' ? 'array' : v.type === 'object' ? 'object' : null;
         if (!type) continue;
         if (type === 'array') {
+            // mini-formato
             const item = v.item as Record<string, unknown> | undefined;
-            const required = fields(item?.required);
-            const optional = fields(item?.optional);
-            if (!required && !optional) continue;
-            out[key] = { type, item: { ...(required ? { required } : {}), ...(optional ? { optional } : {}) } };
-        } else {
-            const required = fields(v.required);
-            const optional = fields(v.optional);
-            if (!required && !optional) continue;
+            const miniReq = fields(item?.required);
+            const miniOpt = fields(item?.optional);
+            if (miniReq || miniOpt) {
+                out[key] = {
+                    type,
+                    item: { ...(miniReq ? { required: miniReq } : {}), ...(miniOpt ? { optional: miniOpt } : {}) },
+                };
+                continue;
+            }
+            // dialeto JSON Schema: v.items.{properties,required}
+            const items = v.items as Record<string, unknown> | undefined;
+            const conv = jsonSchemaFields(items);
+            if (conv) {
+                const required: Record<string, ContractFieldType> = {};
+                const optional: Record<string, ContractFieldType> = {};
+                const reqList = Array.isArray(items?.required) ? (items?.required as unknown[]) : [];
+                const props = (items?.properties ?? {}) as Record<string, unknown>;
+                for (const [k, t] of Object.entries(conv)) {
+                    (reqList.includes(k) ? required : optional)[k] = t;
+                    void props;
+                }
+                if (Object.keys(required).length || Object.keys(optional).length) {
+                    out[key] = { type, item: { required, optional } };
+                }
+            }
+            continue;
+        }
+        const required = fields(v.required);
+        const optional = fields(v.optional);
+        if (required || optional) {
             out[key] = { type, ...(required ? { required } : {}), ...(optional ? { optional } : {}) };
+            continue;
+        }
+        // dialeto JSON Schema em objeto
+        const conv = jsonSchemaFields(v as Record<string, unknown>);
+        if (conv) {
+            const required: Record<string, ContractFieldType> = {};
+            const optional: Record<string, ContractFieldType> = {};
+            const reqList = Array.isArray(v.required) ? (v.required as unknown[]) : [];
+            for (const [k, t] of Object.entries(conv)) {
+                (reqList.includes(k) ? required : optional)[k] = t;
+            }
+            if (Object.keys(required).length || Object.keys(optional).length) {
+                out[key] = { type, required, optional };
+            }
         }
     }
     return Object.keys(out).length ? out : null;

@@ -114,3 +114,100 @@ describe('applyMutations com contrato', () => {
         expect(r.accepted).toEqual(['v3']);
     });
 });
+
+import { deriveSchemasFromCode, deriveSchemasFromData } from '../../lib/devices/transmute';
+import { sanitizeDataSchemas } from '../../lib/devices/voicePrompt';
+
+describe('derivação determinística de contrato', () => {
+    test('dados reais (ground truth): campos em todos os itens = required', () => {
+        const io = {
+            'tarefas': JSON.stringify([
+                { id: 'a', texto: 'x', concluida: false },
+                { id: 'b', texto: 'y', concluida: true, prazo: '2026-01-01' },
+            ]),
+        };
+        const s = deriveSchemasFromData(io, ['tarefas']);
+        const item = s.tarefas!.item!;
+        expect(item.required).toMatchObject({ id: 'string', texto: 'string' });
+        expect(item.optional!.prazo).toBe('string');
+    });
+
+    test('código da spell: literal push na lista com tipos inferidos', () => {
+        const code = `
+            function add(texto, dataHora) {
+                var novaTarefa = {
+                    id: generateId(),
+                    texto: texto,
+                    concluida: false,
+                    dataHora: dataHora,
+                    notificationId: null,
+                    criadaEm: new Date().toISOString()
+                };
+                tarefas.push(novaTarefa);
+                localStorage.setItem('tarefas', JSON.stringify(tarefas));
+            }
+        `;
+        const s = deriveSchemasFromCode(code, ['tarefas']);
+        const item = s.tarefas!.item!;
+        // literais/params = required-string por inferência; notificationId
+        // (null) = optional
+        expect(item.required).toMatchObject({
+            id: 'string',
+            texto: 'string',
+            concluida: 'boolean',
+            dataHora: 'string',
+            criadaEm: 'string',
+        });
+        expect(item.optional).toEqual({ notificationId: 'string' });
+        expect(item.required.texto).toBe('string');
+    });
+
+    test('merge de camadas: dados reais vencem o código', () => {
+        const dataDerived = deriveSchemasFromData(
+            { tarefas: '[{"id":"a","texto":"x","concluida":false}]' },
+            ['tarefas'],
+        );
+        const codeDerived = deriveSchemasFromCode(
+            `tarefas.push({titulo:"x"}); localStorage.setItem('tarefas', JSON.stringify(tarefas));`,
+            ['tarefas'],
+        );
+        const merged = { ...codeDerived, ...dataDerived };
+        expect(merged.tarefas!.item!.required).toHaveProperty('texto');
+        expect(merged.tarefas!.item!.required).not.toHaveProperty('titulo');
+    });
+});
+
+describe('sanitizeDataSchemas: dialeto JSON Schema', () => {
+    test('converte {items:{properties,required[]}} pro mini-formato', () => {
+        const s = sanitizeDataSchemas({
+            tarefas: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: { texto: { type: 'string' }, feito: { type: 'boolean' } },
+                    required: ['texto'],
+                },
+            },
+        });
+        expect(s!.tarefas!.item!.required).toEqual({ texto: 'string' });
+        expect(s!.tarefas!.item!.optional).toEqual({ feito: 'boolean' });
+    });
+
+    test('objeto com properties/required[]', () => {
+        const s = sanitizeDataSchemas({
+            prefs: {
+                type: 'object',
+                properties: { tema: { type: 'string' } },
+                required: ['tema'],
+            },
+        });
+        expect(s!.prefs!.required).toEqual({ tema: 'string' });
+    });
+
+    test('mini-formato continua funcionando', () => {
+        const s = sanitizeDataSchemas({
+            tarefas: { type: 'array', item: { required: { titulo: 'string' } } },
+        });
+        expect(s!.tarefas!.item!.required).toEqual({ titulo: 'string' });
+    });
+});
