@@ -533,6 +533,16 @@ class DeviceManager {
     async grantPower(power: string, token: string, meta?: Record<string, unknown>): Promise<void> {
         if (!this.session) throw new Error('devicesNoConnection');
         await this.session.client.grantPower(power, token, meta);
+        // Reflete no retrato local: o device nao reenvia HELLO apos GRANT,
+        // e a UI (botao Ativar IA) derivaria 'ja ativo' de uma lista velha.
+        const session = this.session as FamiliarSession & {
+            portrait: { device: { powers: string[] } };
+        };
+        const powers = session.portrait.device.powers;
+        if (!powers.includes(power)) {
+            powers.push(power);
+            this.emit();
+        }
     }
 
     /**
