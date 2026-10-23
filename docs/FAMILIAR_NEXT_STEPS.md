@@ -152,3 +152,20 @@ Pergunta: embutir ASR no ESP32-S3 (PocketSphinx+JSGF, Vosk, Sherpa, Whisper)?
 Requisito do produto: device independente do **celular** (WiFi+cofre ok).
 Roadmap de wake local: fixtures limpos → cadastro DTW validado; se insuficiente,
 embedder pequeno (openWakeWord ~1,4MB) ou microWakeWord por frase (futuro).
+
+## Sync de dados app → device (backlog)
+
+Hoje os dados fluem: **voz → device → WRITEBACK → app_storage** (one-way).
+O sentido **app → device** só no reencantar (bundle leva o snapshot atual do
+app_storage). Próximo passo: mensagem `DATA_UPDATE` (device recebe
+`{enc, key, value}` quando o runner grava no app_storage) para o snapshot do
+device nunca ficar velho — remove a necessidade de reencantar após editar a
+spell no app.
+
+## Estado da validação (2026-10-23)
+
+- Writeback E2E ✓ (voz → STT → wake → IA → list-append → WRITEBACK → ACK →
+  app_storage) — item aparece na spell.
+- Pendência conhecida: item "vazio" quando o encantamento foi feito SEM
+  contrato (pré-dataSchemas) — **reencantar deriva o contrato** e as mutações
+  passam a sair no shape exato (com reflection de 1 retry em desvios).
