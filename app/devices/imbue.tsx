@@ -150,7 +150,8 @@ export default function ImbueScreen() {
     useEffect(() => {
         let alive = true;
         (async () => {
-            const ssid = (await getCurrentWifiSsid()) ?? (await getLastWifiSsid());
+            const deviceSsid = deviceManager.getSession()?.portrait?.device?.net?.ssid ?? null;
+            const ssid = deviceSsid || (await getCurrentWifiSsid()) || (await getLastWifiSsid());
             if (!alive || !ssid) return;
             setWifiSsid((cur) => cur || ssid);
             const pass = await deviceManager.wifiPasswordFor(ssid).catch(() => '');

@@ -86,7 +86,8 @@ export default function DevicesScreen() {
     // Auto-reconexão silenciosa: o reload do app mata a sessão BLE; ao abrir
     // esta tela sem sessão, reconecta o último familiar sem exigir cliques.
     const autoReconnect = useCallback(async (list: KnownFamiliar[]) => {
-        if (!list.length || deviceManager.getSession()) return;
+        if (!list.length || !deviceManager.shouldAutoReconnect()) return;
+        if (deviceManager.getSession()) return;
         const last = [...list].sort((a, b) => b.lastSeen - a.lastSeen)[0];
         if (!last?.id) return;
         setAutoConnectingId(last.id);
@@ -167,9 +168,11 @@ export default function DevicesScreen() {
         useCallback(() => {
             let alive = true;
             (async () => {
-                // SSID atual do celular; sem ele (5G/sem permissão), sugere o
-                // último usado num ritual — o campo nunca fica vazio à toa.
-                const ssid = (await getCurrentWifiSsid()) ?? (await getLastWifiSsid());
+                // Prioridade: a rede que o FAMILIAR conhece (retrato) > rede
+                // atual do celular > última usada num ritual. O campo nunca
+                // fica vazio à toa.
+                const deviceSsid = deviceManager.getSession()?.portrait?.device?.net?.ssid ?? null;
+                const ssid = deviceSsid || (await getCurrentWifiSsid()) || (await getLastWifiSsid());
                 if (!alive || !ssid) return;
                 setWifiSsid((cur) => cur || ssid);
                 const pass = await deviceManager.wifiPasswordFor(ssid).catch(() => '');

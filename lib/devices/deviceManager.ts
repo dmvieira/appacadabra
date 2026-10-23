@@ -188,7 +188,16 @@ class DeviceManager {
         this.emit();
     }
 
+    /** Timestamp do último disconnect MANUAL (o auto-reconnect respeita). */
+    private manualDisconnectAt = 0;
+
+    /** False por 20s após um disconnect manual (intenção do usuário manda). */
+    shouldAutoReconnect(): boolean {
+        return Date.now() - this.manualDisconnectAt > 20000;
+    }
+
     disconnect(): void {
+        this.manualDisconnectAt = Date.now();
         if (this.session) {
             this.session.client.close();
             this.session = null;
