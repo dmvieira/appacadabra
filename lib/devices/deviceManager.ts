@@ -581,7 +581,10 @@ class DeviceManager {
         await this.registerEncantamento(result.bundle.manifest.id, app.id);
         // Contrato de dados: persiste na spell (validação dos writebacks).
         if (result.bundle.dataSchemas) {
+            console.log('[imbue] contrato derivado:', Object.keys(result.bundle.dataSchemas).join(', '));
             await saveDataSchemas(app.id, result.bundle.dataSchemas).catch(() => {});
+        } else {
+            console.warn('[imbue] SEM contrato (o gerador nao devolveu dataSchemas)');
         }
         // Vinculação reafirma o modelo do WebView e a hora do celular.
         await this.syncClockAndModel();
