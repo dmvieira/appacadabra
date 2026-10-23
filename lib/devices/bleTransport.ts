@@ -95,6 +95,7 @@ export function bleTransport(deviceId: string): Transport {
         throw new Error('devicesNoNativeBle');
     }
     const listeners: Array<(data: Uint8Array) => void> = [];
+    let alive = false;
     return {
         async connect() {
             await ensureBlePermissions();
@@ -108,13 +109,15 @@ export function bleTransport(deviceId: string): Transport {
             let disconnectCb: (() => void) | null = null;
             const subDisc = addBleListener('AppaBleDisconnect', () => {
                 sub.remove();
+                alive = false;
                 // Desconexão REAL do GATT (device rebootou/saiu): propaga pra
                 // cima — o deviceManager limpa a sessão e a UI reage.
                 disconnectCb?.();
             });
             await mod.connect(deviceId);
+            alive = true;
             return {
-                connected: () => true,
+                connected: () => alive,
                 write: async (data: Uint8Array) => {
                     // Aguarda o native: sem isso frames gigantes (ENCHANT ~25KB)
                     // sao enfileirados sem backpressure e o sink BLE pode
@@ -129,6 +132,7 @@ export function bleTransport(deviceId: string): Transport {
                     disconnectCb = cb;
                 },
                 close: () => {
+                    alive = false;
                     subDisc.remove();
                     sub.remove();
                     disconnectCb = null;

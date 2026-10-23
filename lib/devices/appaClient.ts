@@ -199,8 +199,8 @@ export class AppaClient {
         });
     }
 
-    async ping(): Promise<void> {
-        await this.request(MSG.PING, {}, MSG.PONG);
+    async ping(timeoutMs = 6000): Promise<void> {
+        await this.request(MSG.PING, {}, MSG.PONG, timeoutMs);
     }
 
     async pair(pin?: string): Promise<void> {

@@ -25,6 +25,7 @@ import { getWifiPassword, rememberWifiPassword } from './wifiCredentials';
 import { getSetting, setSetting, getStorageForApp, getDataSchemas, saveDataSchemas } from '../database/db';
 import { getPreferredModel } from '../api/modelPreferences';
 import { getOpenRouterKey } from '../api/keyStorage';
+import { reloadStorageForApp } from '../storageCache';
 import { chat } from '../api/openrouter';
 import { bleTransport } from './bleTransport';
 
@@ -113,10 +114,15 @@ class DeviceManager {
             connect: async () => {
                 const conn = await transport.connect();
                 conn.onDisconnect(() => {
+                    const wasManual = !this.shouldAutoReconnect();
                     if (this.session) {
                         this.session = null;
                         this.lastQuery = null;
                         this.emit();
+                    }
+                    // Queda NÃO manual: reconecta sozinho (qualquer tela).
+                    if (!wasManual && deviceId) {
+                        this.scheduleReconnect(deviceId);
                     }
                 });
                 return conn;
@@ -149,6 +155,8 @@ class DeviceManager {
             }
         }
         this.emit();
+        this.reconnectAttempts = 0;
+        this.startHealthLoop();
         return session.portrait;
     }
 
@@ -202,6 +210,11 @@ class DeviceManager {
 
     disconnect(): void {
         this.manualDisconnectAt = Date.now();
+        this.stopHealthLoop();
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = undefined;
+        }
         if (this.session) {
             this.session.client.close();
             this.session = null;
@@ -268,6 +281,11 @@ class DeviceManager {
             const r = await applyMutations(appId, finalList, {}, schemas ?? undefined);
             accepted.push(...r.accepted);
             rejected.push(...r.rejected);
+            if (r.accepted.length > 0) {
+                // O runner lê o storage do CACHE (preloaded no boot): sem
+                // invalidar, a mutação aplicada não renderiza na spell.
+                await reloadStorageForApp(appId).catch(() => {});
+            }
         }
         this.session.lastWritebackAt = Date.now();
         this.session.lastWritebackCount += accepted.length;
@@ -277,6 +295,56 @@ class DeviceManager {
 
     private deviceKey(): string {
         return this.session?.deviceId ?? '__default__';
+    }
+
+    /** Sessão morta é invisível: ping periódico mantém o estado honesto. */
+    private healthTimer?: ReturnType<typeof setInterval>;
+    private reconnectTimer?: ReturnType<typeof setTimeout>;
+    private reconnectAttempts = 0;
+
+    private startHealthLoop(): void {
+        this.stopHealthLoop();
+        this.healthTimer = setInterval(() => {
+            const s = this.session;
+            if (!s) {
+                this.stopHealthLoop();
+                return;
+            }
+            s.client.ping(6000).catch(() => {
+                // Link morto: encerra e agenda reconexão (não foi manual).
+                const deviceId = s.deviceId;
+                this.session = null;
+                this.lastQuery = null;
+                this.emit();
+                this.stopHealthLoop();
+                if (deviceId && this.shouldAutoReconnect()) {
+                    this.scheduleReconnect(deviceId);
+                }
+            });
+        }, 60000);
+    }
+
+    private stopHealthLoop(): void {
+        if (this.healthTimer) {
+            clearInterval(this.healthTimer);
+            this.healthTimer = undefined;
+        }
+    }
+
+    /** Reconexão global: 15s entre tentativas, até 10 (device pode estar off). */
+    private scheduleReconnect(deviceId: string): void {
+        if (this.reconnectTimer) return;
+        if (this.reconnectAttempts >= 10) return;
+        this.reconnectAttempts += 1;
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = undefined;
+            if (this.session) return;
+            this.recoverAfterLinkDrop().then(() => {
+                this.reconnectAttempts = 0;
+            }).catch(() => {
+                this.scheduleReconnect(deviceId);
+            });
+        }, 15000);
     }
 
     /**
