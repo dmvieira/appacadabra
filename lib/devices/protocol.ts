@@ -423,6 +423,29 @@ export interface ErrorPayload {
 
 export type MutationOp = 'merge' | 'set' | 'list-append' | 'list-update';
 
+/** Tipos de campo aceitos no contrato de dados (mini-schema pragmático). */
+export type ContractFieldType = 'string' | 'number' | 'boolean';
+
+/** required/optional: campo -> tipo. */
+export type ContractFields = Record<string, ContractFieldType>;
+
+/**
+ * Contrato de uma chave de dado. O contrato é função da SPELL (seu código),
+ * vale para todos os familiares em que ela estiver encantada e é versionado
+ * com ela (reencantar refresca).
+ */
+export interface DataSchema {
+    type: 'array' | 'object';
+    /** type=array: forma do item. */
+    item?: { required?: ContractFields; optional?: ContractFields };
+    /** type=object. */
+    required?: ContractFields;
+    optional?: ContractFields;
+}
+
+/** Contrato por chave de dado (ex.: {tarefas: {type:'array', item:{...}}}). */
+export type DataSchemas = Record<string, DataSchema>;
+
 export interface Mutation {
     id: string;
     enc: string;
@@ -438,6 +461,8 @@ export interface Mutation {
     value: string;
     /** Epoch SECONDS do device (hora do app via SET_CONFIG; 0 = sem hora). */
     ts: number;
+    /** Comando falado que gerou a mutação (contexto p/ reflection e auditoria). */
+    src?: string;
 }
 
 export interface BundleManifest {
@@ -471,6 +496,8 @@ export interface CapabilityEntry {
 
 export interface Bundle {
     manifest: BundleManifest;
+    /** Contrato de dados por chave (gerado na transmutação; v0.3, opcional). */
+    dataSchemas?: DataSchemas;
     prompt: string;
     /** key -> JSON-string values (like app_storage TEXT). */
     data: Record<string, string>;

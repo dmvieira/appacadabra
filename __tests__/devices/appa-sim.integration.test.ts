@@ -194,6 +194,8 @@ jest.mock('../../lib/database/db', () => ({
     setSetting: async (k: string, v: string) => {
         mockManagerSettings.set(k, v);
     },
+    getDataSchemas: async () => null,
+    saveDataSchemas: async () => {},
 }));
 
 describe('appa L2 — deviceManager (produção) x appa-sim (C++)', () => {

@@ -200,6 +200,14 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       await database.execAsync('ALTER TABLE app_storage ADD COLUMN updated_at INTEGER');
     }
 
+    // Contrato de dados da spell (dataSchemas — valida mutações de voz).
+    const appCols = await database.getAllAsync<{ name: string }>(
+      'PRAGMA table_info(generated_apps)'
+    );
+    if (!appCols.some((c) => c.name === 'data_schemas')) {
+      await database.execAsync('ALTER TABLE generated_apps ADD COLUMN data_schemas TEXT');
+    }
+
     // Defensive column add for users upgrading from a schema without storeAuthorUid.
     // SQLite ALTER TABLE throws "duplicate column name" if the column already exists; swallow it.
     try {
@@ -633,6 +641,32 @@ export async function setStorageItem(
      VALUES (?, ?, ?, ?)`,
         [appId, key, value, updatedAt]
     );
+}
+
+/** Contrato de dados da spell (dataSchemas) — null quando não derivado. */
+export async function getDataSchemas(appId: number): Promise<Record<string, unknown> | null> {
+    const database = await getDatabase();
+    const result = await database.getFirstAsync<{ data_schemas: string | null }>(
+        'SELECT data_schemas FROM generated_apps WHERE id = ?',
+        [appId]
+    );
+    if (!result?.data_schemas) return null;
+    try {
+        const parsed = JSON.parse(result.data_schemas) as unknown;
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function saveDataSchemas(appId: number, schemas: Record<string, unknown>): Promise<void> {
+    const database = await getDatabase();
+    await database.runAsync('UPDATE generated_apps SET data_schemas = ? WHERE id = ?', [
+        JSON.stringify(schemas),
+        appId,
+    ]);
 }
 
 export async function removeStorageItem(appId: number, key: string): Promise<void> {

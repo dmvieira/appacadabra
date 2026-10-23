@@ -14,7 +14,7 @@
 
 import type { AppStorage } from '../database/types';
 import { getCurrentLanguage } from '../i18n';
-import { CapabilityEntry, DeviceRequirement, Bundle, encIdForSpell, generateEncantamentoId, validEncantamentoId, validPowerName } from './protocol';
+import { CapabilityEntry, DeviceRequirement, Bundle, DataSchemas, encIdForSpell, generateEncantamentoId, validEncantamentoId, validPowerName } from './protocol';
 import { mapRequirements } from './capabilityMap';
 
 const DATA_KEY_RE = /^[a-zA-Z0-9_.-]{1,64}$/;
@@ -66,6 +66,8 @@ export interface TransmuteInput {
     prompt: string;
     /** Objects are serialized to JSON strings (app_storage TEXT semantics). */
     data?: Record<string, unknown>;
+    /** Contrato de dados (v0.3, opcional) — validação das mutações de voz. */
+    dataSchemas?: DataSchemas;
     version?: number;
     requiredPowers?: string[];
     createdAt?: number;
@@ -166,6 +168,7 @@ export function transmuteSpell(input: TransmuteInput): Bundle {
         },
         prompt: input.prompt,
         data,
+        ...(input.dataSchemas ? { dataSchemas: input.dataSchemas } : {}),
         config: { refreshPolicy: 'manual' },
     };
     const err = validateBundle(bundle);
@@ -191,7 +194,11 @@ export interface TransmuteIO {
     /** Gerador do prompt de voz (chat OpenRouter). Default: prompt estático. */
     generatePrompt?: (app: MinimalSpellApp, dataKeys: string[]) => Promise<string>;
     /** Gerador do encantamento completo (prompt + keywords). Preferido. */
-    generateEnchantment?: (app: MinimalSpellApp, dataKeys: string[]) => Promise<{ prompt: string; keywords: string[] }>;
+    generateEnchantment?: (app: MinimalSpellApp, dataKeys: string[]) => Promise<{
+        prompt: string;
+        keywords: string[];
+        dataSchemas?: DataSchemas;
+    }>;
     now?: () => number;
     encId?: string;
     /** Overrides (ex.: edição do usuário antes de encantar). */
@@ -305,6 +312,7 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
     const description = app.description?.trim() || extractTextFromHtml(app.code ?? '');
     let prompt = fallbackPrompt(app, Object.keys(data), description);
     let keywords = fallbackKeywords(app, Object.keys(data), description);
+    let dataSchemas: DataSchemas | undefined;
     let promptGeneratedByAI = false;
     if (io.generateEnchantment) {
         const gen = await io.generateEnchantment(app, Object.keys(data));
@@ -313,6 +321,7 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
             promptGeneratedByAI = true;
         }
         if (gen?.keywords?.length) keywords = normalizeKeywords(gen.keywords);
+        if (gen?.dataSchemas) dataSchemas = gen.dataSchemas;
     } else if (io.generatePrompt) {
         const generated = await io.generatePrompt(app, Object.keys(data));
         if (generated && generated.trim().length >= 40) {
@@ -333,6 +342,7 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
         name: app.name.slice(0, 64) || 'Encantamento',
         prompt,
         data,
+        ...(dataSchemas ? { dataSchemas } : {}),
         capabilities: mapping.entries,
         keywords,
         version: io.version,

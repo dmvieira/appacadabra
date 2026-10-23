@@ -17,12 +17,15 @@ import {
     EnrollAck,
     EnrollSampleResult, Bundle, HelloPortrait, Mutation, encIdForSpell, encIdToAppId } from './protocol';
 import { Transport } from './transport';
-import { applyMutations } from './writeback';
+import { applyMutations, validateAgainstContract } from './writeback';
+import { reflectMutation } from './mutationReflection';
 import { transmuteApp, validateBundle, type MinimalSpellApp, type TransmuteAppResult } from './transmute';
 import { POWER_WIFI } from './capabilityMap';
 import { getWifiPassword, rememberWifiPassword } from './wifiCredentials';
-import { getSetting, setSetting, getStorageForApp } from '../database/db';
+import { getSetting, setSetting, getStorageForApp, getDataSchemas, saveDataSchemas } from '../database/db';
 import { getPreferredModel } from '../api/modelPreferences';
+import { getOpenRouterKey } from '../api/keyStorage';
+import { chat } from '../api/openrouter';
 import { bleTransport } from './bleTransport';
 
 export interface FamiliarSession {
@@ -230,7 +233,39 @@ class DeviceManager {
         }
         const accepted: string[] = [];
         for (const [appId, list] of groups) {
-            const r = await applyMutations(appId, list);
+            // Contrato da spell (quando derivado na transmutação): mutação fora
+            // do schema ganha 1 retry com reflection ANTES de virar erro.
+            const schemas = (await getDataSchemas(appId).catch(() => null)) as
+                | import('./protocol').DataSchemas
+                | null;
+            const finalList: Mutation[] = [];
+            for (const mu of list) {
+                const errors = validateAgainstContract(mu, schemas ?? undefined);
+                if (errors.length === 0 || !schemas) {
+                    finalList.push(mu);
+                    continue;
+                }
+                try {
+                    const model = await getPreferredModel('WEBVIEW');
+                    const key = (await getOpenRouterKey()) ?? '';
+                    if (!key) {
+                        finalList.push(mu); // sem chave: porta final rejeita
+                        continue;
+                    }
+                    const fixed = await reflectMutation(model, key, {
+                        schemas,
+                        key: mu.key,
+                        op: mu.op,
+                        value: mu.value,
+                        utterance: mu.src,
+                        errors,
+                    });
+                    finalList.push(fixed ? { ...mu, value: fixed.value } : mu);
+                } catch {
+                    finalList.push(mu); // reflection falhou: porta final rejeita
+                }
+            }
+            const r = await applyMutations(appId, finalList, {}, schemas ?? undefined);
             accepted.push(...r.accepted);
             rejected.push(...r.rejected);
         }
@@ -473,6 +508,10 @@ class DeviceManager {
             if (!validateBundle(result.bundle)) ack = await this.enchantWithRetry(result.bundle);
         }
         await this.registerEncantamento(result.bundle.manifest.id, app.id);
+        // Contrato de dados: persiste na spell (validação dos writebacks).
+        if (result.bundle.dataSchemas) {
+            await saveDataSchemas(app.id, result.bundle.dataSchemas).catch(() => {});
+        }
         // Vinculação reafirma o modelo do WebView e a hora do celular.
         await this.syncClockAndModel();
         // Mantém o retrato em sync: o próximo update já manda a versão certa de

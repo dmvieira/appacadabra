@@ -94,7 +94,16 @@ export interface ChatRequest {
     messages: ChatMessage[];
     temperature?: number;
     max_tokens?: number;
-    response_format?: { type: 'json_object' | 'text' };
+    response_format?:
+        | { type: 'json_object' | 'text' }
+        | {
+              type: 'json_schema';
+              json_schema: {
+                  name: string;
+                  strict?: boolean;
+                  schema: Record<string, unknown>;
+              };
+          };
     reasoning?: { effort: 'low' | 'medium' | 'high' };
     tools?: unknown[];
     tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };

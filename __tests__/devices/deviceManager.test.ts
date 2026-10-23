@@ -27,6 +27,8 @@ jest.mock('../../lib/database/db', () => ({
     setSetting: async (k: string, v: string) => {
         mockSettings.set(k, v);
     },
+    getDataSchemas: async () => null,
+    saveDataSchemas: async () => {},
 }));
 
 describe('deviceManager', () => {
