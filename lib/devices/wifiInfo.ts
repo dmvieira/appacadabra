@@ -33,3 +33,20 @@ export async function getCurrentWifiSsid(): Promise<string | null> {
         return null;
     }
 }
+
+/**
+ * Ordem de sugestão de SSID para o ritual: rede que o FAMILIAR conhece >
+ * rede atual do celular > última usada. Sanitiza aspas e `<unknown ssid>`.
+ */
+export function resolveSuggestedSsid(
+    deviceSsid: string | null,
+    phoneSsid: string | null,
+    lastSsid: string | null,
+): string | null {
+    const clean = (raw: string | null): string | null => {
+        const v = (raw ?? '').replace(/^"|"$/g, '').trim();
+        if (!v || v === '<unknown ssid>') return null;
+        return v;
+    };
+    return clean(deviceSsid) ?? clean(phoneSsid) ?? clean(lastSsid);
+}

@@ -23,6 +23,7 @@ import { POWER_WIFI } from './capabilityMap';
 import { getWifiPassword, rememberWifiPassword } from './wifiCredentials';
 import { getSetting, setSetting, getStorageForApp } from '../database/db';
 import { getPreferredModel } from '../api/modelPreferences';
+import { bleTransport } from './bleTransport';
 
 export interface FamiliarSession {
     client: AppaClient;
@@ -543,8 +544,48 @@ class DeviceManager {
         if (!this.session) throw new Error('devicesNoConnection');
         const name = ssid.trim();
         if (!name) throw new Error('devicesWifiNeedsSsid');
-        await this.session.client.grantPower(POWER_WIFI, JSON.stringify({ ssid: name, pass: password }));
+        try {
+            await this.session.client.grantPower(POWER_WIFI, JSON.stringify({ ssid: name, pass: password }));
+        } catch (e) {
+            // Coexistência de rádio: o ciclo de WiFi no device pode derrubar o
+            // link BLE (o GRANT geralmente CHEGA — o device provisiona mesmo
+            // com o app caído). Reconecta e verifica o estado REAL antes de
+            // falhar; 'connection closed' deixa de ser erro mortal.
+            const msg = e instanceof Error ? e.message : String(e);
+            if (!/connection closed/i.test(msg)) throw e;
+            await this.recoverAfterLinkDrop();
+            const p = this.session?.portrait;
+            const net = p?.device?.net;
+            if (net?.status === 3 && (net?.ssid ?? '') === name) {
+                return; // provisionou mesmo com o link caindo
+            }
+            throw e;
+        }
         await this.rememberWifiSsid(name);
+    }
+
+    /**
+     * Reconecta ao último Familiar após queda de link (não-manual): espera o
+     * device terminar o ciclo de WiFi, tenta 2x e re-sincroniza o retrato.
+     */
+    private async recoverAfterLinkDrop(): Promise<void> {
+        const deviceId = this.session?.deviceId;
+        this.session = null;
+        this.emit();
+        if (!deviceId) throw new Error('connection closed');
+        await new Promise((r) => setTimeout(r, 2500)); // device termina WiFi.begin
+        let last: unknown = null;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                await this.connect(bleTransport(deviceId), deviceId);
+                await this.pullPortrait(8000).catch(() => {});
+                return;
+            } catch (e) {
+                last = e;
+                await new Promise((r) => setTimeout(r, 1200));
+            }
+        }
+        throw last ?? new Error('connection closed');
     }
 
     /** Guarda a senha de um SSID só depois de confirmada (ver grantWifi na UI). */

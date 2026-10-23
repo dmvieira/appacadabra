@@ -32,7 +32,7 @@ import { bleTransport } from '../../lib/devices/bleTransport';
 import { generateVoiceEnchantment } from '../../lib/devices/voicePrompt';
 import { normalizeKeywords, KEYWORDS_MAX, KEYWORD_MAX_LEN, type TransmuteAppResult } from '../../lib/devices/transmute';
 import { CAPABILITY_MAP, requiresNet } from '../../lib/devices/capabilityMap';
-import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
+import { getCurrentWifiSsid, resolveSuggestedSsid } from '../../lib/devices/wifiInfo';
 import { getLastWifiSsid } from '../../lib/devices/wifiCredentials';
 import { getSetting, setSetting } from '../../lib/database/db';
 
@@ -151,7 +151,11 @@ export default function ImbueScreen() {
         let alive = true;
         (async () => {
             const deviceSsid = deviceManager.getSession()?.portrait?.device?.net?.ssid ?? null;
-            const ssid = deviceSsid || (await getCurrentWifiSsid()) || (await getLastWifiSsid());
+            const ssid = resolveSuggestedSsid(
+                deviceSsid,
+                await getCurrentWifiSsid(),
+                await getLastWifiSsid(),
+            );
             if (!alive || !ssid) return;
             setWifiSsid((cur) => cur || ssid);
             const pass = await deviceManager.wifiPasswordFor(ssid).catch(() => '');

@@ -32,6 +32,7 @@ import { CAPABILITY_MAP } from '../../lib/devices/capabilityMap';
 import { encIdToAppId } from '../../lib/devices/protocol';
 import { getCurrentWifiSsid } from '../../lib/devices/wifiInfo';
 import { getLastWifiSsid } from '../../lib/devices/wifiCredentials';
+import { resolveSuggestedSsid } from '../../lib/devices/wifiInfo';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -127,6 +128,35 @@ export default function DevicesScreen() {
         if (n) setNameDraft(n);
     }, [session?.portrait?.name]);
 
+    // Prefill REATIVO: quando o familiar conecta trazendo a rede dele (ou a
+    // sessão chega depois do focus), o campo de WiFi preenche sozinho.
+    const portraitSsid = session?.portrait?.device?.net?.ssid ?? null;
+    useEffect(() => {
+        if (!portraitSsid) return;
+        setWifiSsid((cur) => cur || portraitSsid);
+        deviceManager
+            .wifiPasswordFor(portraitSsid)
+            .then((pass) => {
+                if (pass) setWifiPass((cur) => cur || pass);
+            })
+            .catch(() => {});
+    }, [portraitSsid]);
+
+    /** Re-roda a cascata de sugestão (botão "usar rede do celular"). */
+    const suggestSsid = useCallback(async () => {
+        const deviceSsid = deviceManager.getSession()?.portrait?.device?.net?.ssid ?? null;
+        const ssid = resolveSuggestedSsid(
+            deviceSsid,
+            await getCurrentWifiSsid(),
+            await getLastWifiSsid(),
+        );
+        if (!ssid) return false;
+        setWifiSsid((cur) => cur || ssid);
+        const pass = await deviceManager.wifiPasswordFor(ssid).catch(() => '');
+        if (pass) setWifiPass((cur) => cur || pass);
+        return true;
+    }, []);
+
     // Resolve encId -> appId (nome do feitiço de origem) para exibir na lista.
     useEffect(() => {
         if (!session) {
@@ -172,7 +202,11 @@ export default function DevicesScreen() {
                 // atual do celular > última usada num ritual. O campo nunca
                 // fica vazio à toa.
                 const deviceSsid = deviceManager.getSession()?.portrait?.device?.net?.ssid ?? null;
-                const ssid = deviceSsid || (await getCurrentWifiSsid()) || (await getLastWifiSsid());
+                const ssid = resolveSuggestedSsid(
+                    deviceSsid,
+                    await getCurrentWifiSsid(),
+                    await getLastWifiSsid(),
+                );
                 if (!alive || !ssid) return;
                 setWifiSsid((cur) => cur || ssid);
                 const pass = await deviceManager.wifiPasswordFor(ssid).catch(() => '');
@@ -630,15 +664,25 @@ export default function DevicesScreen() {
                             <View style={styles.card}>
                                 <Text style={styles.sectionTitle}>{t('devicesWifiTitle')}</Text>
                                 <Text style={styles.deviceMeta}>{t('devicesWifiHint')}</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={wifiSsid}
-                                    onChangeText={setWifiSsid}
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    placeholder={t('devicesWifiSsid')}
-                                    placeholderTextColor={colors.onSurfaceVariant}
-                                />
+                                <View style={styles.inlineRow}>
+                                    <TextInput
+                                        style={[styles.input, styles.inputFlex]}
+                                        value={wifiSsid}
+                                        onChangeText={setWifiSsid}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        placeholder={t('devicesWifiSsid')}
+                                        placeholderTextColor={colors.onSurfaceVariant}
+                                    />
+                                    {!wifiSsid.trim() && (
+                                        <TouchableOpacity
+                                            style={styles.inlineBtn}
+                                            onPress={() => { void suggestSsid(); }}
+                                        >
+                                            <Text style={styles.inlineBtnText}>{t('devicesUsePhoneNetwork')}</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                                 <View style={styles.inlineRow}>
                                     <TextInput
                                         style={[styles.input, styles.inputFlex]}

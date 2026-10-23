@@ -3,8 +3,14 @@ package ai.appacadabra.app
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.wifi.WifiManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.net.wifi.WifiInfo
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -43,15 +49,41 @@ class AppaNetModule(reactContext: ReactApplicationContext) :
                 return
             }
             val ctx = reactApplicationContext.applicationContext
-            val wm = ctx.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-            val raw = wm?.connectionInfo?.ssid
-            if (raw == null || raw == "<unknown ssid>" || raw.isEmpty()) {
+            val cm = ctx.getSystemService(ConnectivityManager::class.java)
+            if (cm == null) {
                 promise.resolve(null)
                 return
             }
-            promise.resolve(raw.trim('"'))
-        } catch (e: Throwable) {
-            promise.reject("E_WIFI", e.message ?: e.toString())
+            // API moderna: TransportInfo do NetworkCallback entrega o WifiInfo
+            // sem mascarar o SSID quando NEARBY_WIFI_DEVICES+neverForLocation.
+            var settled = false
+            val request = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                    if (settled) return
+                    settled = true
+                    var ssid: String? = null
+                    try {
+                        val info = caps.transportInfo as? WifiInfo
+                        ssid = info?.ssid?.removeSurrounding("\"")
+                        if (ssid == "<unknown ssid>" || ssid.isNullOrEmpty()) ssid = null
+                    } catch (e: Exception) {
+                        ssid = null
+                    }
+                    runCatching { cm.unregisterNetworkCallback(this) }
+                    promise.resolve(ssid)
+                }
+            }
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!settled) {
+                    settled = true
+                    runCatching { cm.unregisterNetworkCallback(callback) }
+                    promise.resolve(null)
+                }
+            }, 3000)
+            cm.requestNetwork(request, callback)
+        } catch (e: Exception) {
+            promise.reject("E_WIFI", e.message)
         }
     }
 }
