@@ -162,7 +162,25 @@ describe('derivação determinística de contrato', () => {
         expect(item.required.texto).toBe('string');
     });
 
-    test('merge de camadas: dados reais vencem o código', () => {
+    test('CÓDIGO vence dados históricos contaminados (anti-loop de envenenamento)', () => {
+        // cenário real: mutações antigas fora do contrato gravaram {titulo,...};
+        // o código da spell cria {texto,...} — o código tem que ganhar.
+        const dataDerived = deriveSchemasFromData(
+            { tarefas: '[{"id":1,"titulo":"antiga","concluida":false}]' },
+            ['tarefas'],
+        );
+        const codeDerived = deriveSchemasFromCode(
+            `var nova = { texto: texto, concluida: false };
+             tarefas.push(nova);
+             localStorage.setItem('tarefas', JSON.stringify(tarefas));`,
+            ['tarefas'],
+        );
+        const merged = { ...dataDerived, ...codeDerived };  // código vence
+        expect(merged.tarefas!.item!.required).toHaveProperty('texto');
+        expect(merged.tarefas!.item!.required).not.toHaveProperty('titulo');
+    });
+
+    test('merge de camadas: dados reais preenchem campos que o código não mostra', () => {
         const dataDerived = deriveSchemasFromData(
             { tarefas: '[{"id":"a","texto":"x","concluida":false}]' },
             ['tarefas'],

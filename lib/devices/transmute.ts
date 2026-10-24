@@ -480,13 +480,14 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
     const description = app.description?.trim() || extractTextFromHtml(app.code ?? '');
     let prompt = fallbackPrompt(app, Object.keys(data), description);
     let keywords = fallbackKeywords(app, Object.keys(data), description);
-    // Contrato por camadas: io (preview) > DADOS REAIS (ground truth) >
-    // CÓDIGO (determinístico) > gerador (refino, só chaves faltantes).
+    // Contrato por camadas: io (preview) > CÓDIGO (o que a spell cria e
+    // renderiza — vence) > DADOS REAIS (podem estar contaminados por mutações
+    // antigas fora do contrato) > gerador (refino, só chaves faltantes).
     const derivedData = deriveSchemasFromData(data, Object.keys(data));
     const derivedCode = deriveSchemasFromCode(app.code, Object.keys(data));
     let dataSchemas: DataSchemas | undefined;
     {
-        const merged: DataSchemas = { ...derivedCode, ...derivedData };
+        const merged: DataSchemas = { ...derivedData, ...derivedCode };
         dataSchemas = Object.keys(merged).length ? merged : undefined;
     }
     let promptGeneratedByAI = false;
