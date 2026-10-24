@@ -106,8 +106,10 @@ export async function generateVoiceEnchantment(
                     `código da spell: para cada chave de dado listada no contexto, o tipo ("array" de itens ou ` +
                     `"object") e os campos do item/objeto separados em "required" (a spell PRECISA deles para ` +
                     `renderizar) e "optional" (lidos com default), cada um com seu tipo ("string"|"number"|` +
-                    `"boolean"). Ex.: {"tarefas":{"type":"array","item":{"required":{"titulo":"string"},` +
-                    `"optional":{"feito":"boolean"}}}}. Só inclua chaves de dado; sem contrato, omita.\n\n` +
+                    `"boolean"). Os NOMES DE CAMPO vêm EXCLUSIVAMENTE dos objetos que o código escreve nessas ` +
+                    `chaves (ex.: se o código cria {texto: ...}, o campo é "texto" — jamais invente sinonimo). ` +
+                    `Formato: {"chave":{"type":"array","item":{"required":{"<campo>":"<tipo>"},` +
+                    `"optional":{"<campo>":"<tipo>"}}}}. Só inclua chaves de dado; sem contrato, omita.\n\n` +
                     context +
                     '\n\nSem markdown, sem texto fora do JSON.',
             },

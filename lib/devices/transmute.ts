@@ -485,6 +485,8 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
     // antigas fora do contrato) > gerador (refino, só chaves faltantes).
     const derivedData = deriveSchemasFromData(data, Object.keys(data));
     const derivedCode = deriveSchemasFromCode(app.code, Object.keys(data));
+    // chaves derivadas DETERMINISTICAMENTE: io/gerador não podem sobrescrever
+    const detKeys = new Set([...Object.keys(derivedData), ...Object.keys(derivedCode)]);
     let dataSchemas: DataSchemas | undefined;
     {
         const merged: DataSchemas = { ...derivedData, ...derivedCode };
@@ -499,9 +501,11 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
         }
         if (gen?.keywords?.length) keywords = normalizeKeywords(gen.keywords);
         if (gen?.dataSchemas) {
+            // O gerador refina SOMENTE chaves sem derivação determinística:
+            // o código da spell é a verdade do shape (o modelo chuta sinonimos).
             const merged: DataSchemas = { ...dataSchemas };
             for (const [k, v] of Object.entries(gen.dataSchemas)) {
-                if (!merged[k]) merged[k] = v; // só chaves sem derivação determinística
+                if (!merged[k]) merged[k] = v;
             }
             dataSchemas = Object.keys(merged).length ? merged : dataSchemas;
         }
@@ -519,13 +523,23 @@ export async function transmuteApp(app: MinimalSpellApp, io: TransmuteIO = {}): 
     }
     if (io.keywordsOverride) keywords = normalizeKeywords(io.keywordsOverride);
 
+    // io (preview) refina SOMENTE chaves não-determinísticas; o código manda.
+    let finalSchemas = dataSchemas;
+    if (io.dataSchemas) {
+        const m2: DataSchemas = { ...dataSchemas };
+        for (const [k, v] of Object.entries(io.dataSchemas)) {
+            if (!detKeys.has(k)) m2[k] = v;
+        }
+        finalSchemas = Object.keys(m2).length ? m2 : undefined;
+    }
+
     const bundle = transmuteSpell({
         encId: io.encId ?? encIdForSpell(app.id),
         spellId: `app_${app.id}`,
         name: app.name.slice(0, 64) || 'Encantamento',
         prompt,
         data,
-        ...(io.dataSchemas ?? dataSchemas ? { dataSchemas: io.dataSchemas ?? dataSchemas } : {}),
+        ...(finalSchemas ? { dataSchemas: finalSchemas } : {}),
         capabilities: mapping.entries,
         keywords,
         version: io.version,
