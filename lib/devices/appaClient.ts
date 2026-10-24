@@ -203,6 +203,11 @@ export class AppaClient {
         await this.request(MSG.PING, {}, MSG.PONG, timeoutMs);
     }
 
+    /** Transporte vivo? (sem isso sessão zumbi passa por conectada) */
+    isConnected(): boolean {
+        return !!this.conn?.connected();
+    }
+
     async pair(pin?: string): Promise<void> {
         await this.request(MSG.PAIR_REQUEST, pin ? { pin } : {}, MSG.PAIR_ACCEPT);
         // The device follows PAIR_ACCEPT with a fresh HELLO; wait for it so

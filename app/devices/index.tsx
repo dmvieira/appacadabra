@@ -87,8 +87,10 @@ export default function DevicesScreen() {
     // Auto-reconexão silenciosa: o reload do app mata a sessão BLE; ao abrir
     // esta tela sem sessão, reconecta o último familiar sem exigir cliques.
     const autoReconnect = useCallback(async (list: KnownFamiliar[]) => {
+        // Driver ÚNICO de reconexão é o deviceManager: se o global já está
+        // tentando, esta tela não abre um GATT concorrente (storm).
         if (!list.length || !deviceManager.shouldAutoReconnect()) return;
-        if (deviceManager.getSession()) return;
+        if (deviceManager.getSession() || deviceManager.isAutoReconnecting()) return;
         const last = [...list].sort((a, b) => b.lastSeen - a.lastSeen)[0];
         if (!last?.id) return;
         setAutoConnectingId(last.id);
@@ -121,6 +123,13 @@ export default function DevicesScreen() {
             alive = false;
         };
     }, [session, autoConnectingId, autoReconnect]);
+
+    // Sessão caiu (não-manual)? o global reconecta em 15s — apenas reflete.
+    useEffect(() => {
+        if (session) return;
+        const t = setInterval(() => setSession(deviceManager.getSession()), 3000);
+        return () => clearInterval(t);
+    }, [session]);
 
     // Mantém o campo de nome sincronizado com o retrato atual do Familiar.
     useEffect(() => {
@@ -245,6 +254,11 @@ export default function DevicesScreen() {
             }
         } catch (e) {
             const err = e as { code?: string; message?: string };
+            // Connect em andamento (single-flight): estado normal, sem alerta.
+            if (err?.message === 'devicesConnecting') {
+                setBleConnectingId(null);
+                return;
+            }
             console.warn('[devices] BLE falhou', err?.code, err?.message);
             const detail = `${err?.code ?? ''} ${err?.message ?? ''}`.trim() || 'devicesNoNativeBle';
             // chaves i18n conhecidas sao traduzidas; mensagens cruas vao como estao

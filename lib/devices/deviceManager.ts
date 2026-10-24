@@ -105,8 +105,43 @@ class DeviceManager {
      * Connects to a Familiar. The WRITEBACK stream is wired to the spells'
      * app_storage of origin (manifest.spellId = "app_<id>").
      */
+    private connecting = false;
+
+    /** Reconexão automática já em andamento? (drivers extra não devem tentar) */
+    isAutoReconnecting(): boolean {
+        return this.connecting || !!this.reconnectTimer;
+    }
+
     async connect(transport: Transport, deviceId?: string): Promise<HelloPortrait> {
-        this.disconnect();
+        // SINGLE-FLIGHT: dois connects simultâneos abriam DOIS GATTs e cada
+        // disconnect() derrubava o link do outro (storm de conexão).
+        if (this.connecting) throw new Error('devicesConnecting');
+        // IDEMPOTENTE: sessão viva do MESMO device e transporte sadio → não
+        // derruba nada, retorna o retrato atual.
+        if (this.session && this.session.deviceId === deviceId && this.session.client.isConnected()) {
+            return this.session.portrait;
+        }
+        this.connecting = true;
+        try {
+            return await this.connectInner(transport, deviceId);
+        } finally {
+            this.connecting = false;
+        }
+    }
+
+    private async connectInner(transport: Transport, deviceId?: string): Promise<HelloPortrait> {
+        // Teardown INTERNO (não é intenção do usuário: não liga o selo de
+        // disconnect manual que travaria a auto-reconexão por 20s).
+        this.stopHealthLoop();
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = undefined;
+        }
+        if (this.session) {
+            this.session.client.close();
+            this.session = null;
+            this.lastQuery = null;
+        }
         // Sessão zumbi: o device rebootando/desaparecendo NÃO disparava limpeza
         // (onDisconnect era no-op) — a UI seguia "conectado" e toda ação falhava
         // com 'not connected' do native. Encerra a sessão na desconexão real.
@@ -115,6 +150,7 @@ class DeviceManager {
                 const conn = await transport.connect();
                 conn.onDisconnect(() => {
                     const wasManual = !this.shouldAutoReconnect();
+                    console.log('[devices] link caiu (manual=' + wasManual + ')');
                     if (this.session) {
                         this.session = null;
                         this.lastQuery = null;
@@ -138,6 +174,7 @@ class DeviceManager {
             this.emit();
         };
         const portrait = await client.connect();
+        if (deviceId) this.lastDeviceId = deviceId;
         const session: FamiliarSession = {
             client,
             portrait,
@@ -154,6 +191,7 @@ class DeviceManager {
                 await this.rememberFamiliar({ id: deviceId, name: portrait.name }).catch(() => {});
             }
         }
+        console.log('[devices] conectado:', session.portrait.name, deviceId ?? '');
         this.emit();
         this.reconnectAttempts = 0;
         this.startHealthLoop();
@@ -301,6 +339,7 @@ class DeviceManager {
     private healthTimer?: ReturnType<typeof setInterval>;
     private reconnectTimer?: ReturnType<typeof setTimeout>;
     private reconnectAttempts = 0;
+    private lastDeviceId?: string;
 
     private startHealthLoop(): void {
         this.stopHealthLoop();
@@ -335,7 +374,9 @@ class DeviceManager {
     private scheduleReconnect(deviceId: string): void {
         if (this.reconnectTimer) return;
         if (this.reconnectAttempts >= 10) return;
+        if (deviceId) this.lastDeviceId = deviceId;
         this.reconnectAttempts += 1;
+        console.log('[devices] reconexão agendada em 15s (tentativa ' + this.reconnectAttempts + '/10)');
         this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = undefined;
             if (this.session) return;
@@ -692,7 +733,7 @@ class DeviceManager {
      * device terminar o ciclo de WiFi, tenta 2x e re-sincroniza o retrato.
      */
     private async recoverAfterLinkDrop(): Promise<void> {
-        const deviceId = this.session?.deviceId;
+        const deviceId = this.session?.deviceId ?? this.lastDeviceId;
         this.session = null;
         this.emit();
         if (!deviceId) throw new Error('connection closed');
