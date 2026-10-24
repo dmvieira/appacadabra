@@ -7,7 +7,7 @@
 import * as net from 'net';
 
 import { deviceManager, spellIdToAppId } from '../../lib/devices/deviceManager';
-import { frameEncode } from '../../lib/devices/protocol';
+import { createFrameSplitter, frameEncode } from '../../lib/devices/protocol';
 import type { TransmuteAppResult } from '../../lib/devices/transmute';
 
 const encoder = new TextEncoder();
@@ -51,9 +51,9 @@ describe('deviceManager', () => {
             const send = (obj: unknown) => socket.write(Buffer.from(frameEncode(encoder.encode(JSON.stringify(obj))) as Uint8Array));
             serverPush = send;
             send(hello);
-            socket.on('data', (buf) => {
-                sentFrames.push(buf.toString());
-                const text = buf.toString();
+            const splitter = createFrameSplitter((payload) => {
+                sentFrames.push(Buffer.from(payload).toString());
+                const text = Buffer.from(payload).toString();
                 if (text.includes('ENCHANT')) {
                     send({ v: 1, id: 'd2', type: 'ENCHANT_ACK', ackOf: JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).id, payload: { id: 'enc_mgr01', version: 1, stored: true } });
                 } else if (text.includes('UNENCHANT')) {
@@ -72,6 +72,7 @@ describe('deviceManager', () => {
                     send({ v: 1, id: 'd3', type: 'PONG', ackOf: JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)).id, payload: {} });
                 }
             });
+            socket.on('data', (buf) => splitter.feed(new Uint8Array(buf)));
         });
     });
 

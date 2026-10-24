@@ -22,6 +22,7 @@ import { isGoogleUser, onAuthStateChanged } from '../lib/firebase';
 import * as Notifications from 'expo-notifications';
 import { preloadAllStorage } from '../lib/storageCache';
 import { restoreScheduledAlarms } from '../lib/bridges/messageHandlers';
+import { deviceManager } from '../lib/devices/deviceManager';
 
 import * as SplashScreen from 'expo-splash-screen';
 import { Toast as ToastComponent } from '../components/Toast';
@@ -172,6 +173,13 @@ export default function RootLayout() {
             useAppStore.getState().initializeListeners();
         } catch (e) {
             console.error('RootLayout: AppStore listeners init failed:', e);
+        }
+
+        // DATA_UPDATE: runner grava no app_storage -> familiar refresca dados.
+        try {
+            deviceManager.attachStorageListener();
+        } catch (e) {
+            console.warn('RootLayout: deviceManager storage listener falhou:', e);
         }
 
         // Subscribe useUserStore to Firebase auth so isAnonymous/userEmail stay in sync.

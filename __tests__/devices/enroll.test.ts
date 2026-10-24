@@ -7,7 +7,7 @@
 import * as net from 'net';
 
 import { deviceManager } from '../../lib/devices/deviceManager';
-import { frameEncode } from '../../lib/devices/protocol';
+import { createFrameSplitter, frameEncode } from '../../lib/devices/protocol';
 
 const encoder = new TextEncoder();
 
@@ -38,8 +38,8 @@ function startFakeDevice(script: Script): Promise<{ port: number; sent: string[]
                 payload: { name: 'Appa', proto: 1, device: { model: 'fake', powers: [], capabilities: ['ai'] }, encantamentos: [], wake: { modes: ['enrolled', 'flex'], active: 'flex', phrase: 'Appa', threshold: 0.8, enrolled: false } },
             };
             socket.write(Buffer.from(frameEncode(encoder.encode(JSON.stringify(hello))) as Uint8Array));
-            socket.on('data', (buf) => {
-                const text = buf.toString();
+            const splitter = createFrameSplitter((payload) => {
+                const text = Buffer.from(payload).toString();
                 sent.push(text);
                 const json = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
                 const ackOf = json.id ?? '';
@@ -73,6 +73,7 @@ function startFakeDevice(script: Script): Promise<{ port: number; sent: string[]
                         send('OK', {}, ackOf);
                 }
             });
+            socket.on('data', (buf) => splitter.feed(new Uint8Array(buf)));
         });
         server.listen(0, '127.0.0.1', () => {
             const port = (server.address() as net.AddressInfo).port;

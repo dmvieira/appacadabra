@@ -284,6 +284,7 @@ class DeviceManager {
         }
         const accepted: string[] = [];
         for (const [appId, list] of groups) {
+            this.setWritebackApplying(true);
             // Contrato da spell (quando derivado na transmutação): mutação fora
             // do schema ganha 1 retry com reflection ANTES de virar erro.
             const schemas = (await getDataSchemas(appId).catch(() => null)) as
@@ -317,6 +318,7 @@ class DeviceManager {
                 }
             }
             const r = await applyMutations(appId, finalList, {}, schemas ?? undefined);
+            this.setWritebackApplying(false);
             accepted.push(...r.accepted);
             rejected.push(...r.rejected);
             if (r.accepted.length > 0) {
@@ -333,6 +335,36 @@ class DeviceManager {
 
     private deviceKey(): string {
         return this.session?.deviceId ?? '__default__';
+    }
+
+    private writebackApplying = false;
+
+    /**
+     * O runner gravou no app_storage (evento da bridge de webview): envia
+     * DATA_UPDATE ao familiar para o snapshot de dados nunca ficar velho.
+     * Mutações aplicadas via WRITEBACK não passam por aqui (sem eco).
+     */
+    private storageListenerAttached = false;
+    attachStorageListener(): void {
+        if (this.storageListenerAttached) return;
+        this.storageListenerAttached = true;
+        const { DeviceEventEmitter } = require('react-native');
+        DeviceEventEmitter.addListener('STORAGE_UPDATED', ({ appId, key, value }: { appId: number; key?: string; value?: string }) => {
+            if (!this.session || this.writebackApplying) return;
+            if (!key || key.startsWith('__')) return;
+            if (value === undefined) return;
+            const enc = encIdForSpell(appId);
+            if (!this.session.portrait.encantamentos.some((e) => e.id === enc)) return;
+            try {
+                this.session.client.sendDataUpdate(enc, key, value);
+            } catch {
+                // fire-and-forget: queda de link é tratada pelo health loop
+            }
+        });
+    }
+
+    setWritebackApplying(v: boolean): void {
+        this.writebackApplying = v;
     }
 
     /** Sessão morta é invisível: ping periódico mantém o estado honesto. */

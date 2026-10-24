@@ -231,6 +231,14 @@ export class AppaClient {
         return reply.payload as unknown as EnchantAck;
     }
 
+    /**
+     * DATA_UPDATE: o runner gravou no app_storage — o device refresca o
+     * snapshot de dados do encantamento (fire-and-forget, sem ACK).
+     */
+    sendDataUpdate(enc: string, key: string, value: string): void {
+        this.send(MSG.DATA_UPDATE, { enc, key, value });
+    }
+
     async unenchant(id: string): Promise<void> {
         await this.request(MSG.UNENCHANT, { id }, MSG.OK);
     }

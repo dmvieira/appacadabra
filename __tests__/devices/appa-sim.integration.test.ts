@@ -11,7 +11,7 @@
 import * as net from 'net';
 
 import { AppaClient, AppaProtocolError } from '../../lib/devices/appaClient';
-import { HelloPortrait, Mutation, frameEncode } from '../../lib/devices/protocol';
+import { HelloPortrait, Mutation, createFrameSplitter, frameEncode } from '../../lib/devices/protocol';
 import { TcpTransport } from '../../lib/devices/transport';
 import { transmuteSpell } from '../../lib/devices/transmute';
 import { applyMutations } from '../../lib/devices/writeback';
@@ -292,11 +292,8 @@ describe('appa client — fluxo WRITEBACK device→APP (fake device node)', () =
 
         const gotAck = new Promise<void>((resolve) => {
             server.on('connection', (socket) => {
-                const decoderFrames: Buffer[] = [];
-                socket.on('data', (buf: Buffer) => {
-                    // respostas do APP chegam enquadradas; decodifica ingenuamente
-                    decoderFrames.push(buf);
-                    const text = Buffer.concat(decoderFrames).toString();
+                const splitter = createFrameSplitter((payload) => {
+                    const text = Buffer.from(payload).toString();
                     if (text.includes('WRITEBACK_ACK')) {
                         const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
                         ackReceived.push(parsed.type, parsed.ackOf ?? '');
@@ -306,6 +303,7 @@ describe('appa client — fluxo WRITEBACK device→APP (fake device node)', () =
                         helloReceived.push('ping');
                     }
                 });
+                socket.on('data', (buf: Buffer) => splitter.feed(new Uint8Array(buf)));
                 const hello = { v: 1, id: 'd0000041', type: 'HELLO', payload: { name: 'fake', proto: 1, encantamentos: [] } };
                 const send = (obj: unknown) => socket.write(Buffer.from(frameEncode(encoder.encode(JSON.stringify(obj))) as Uint8Array));
                 send(hello);

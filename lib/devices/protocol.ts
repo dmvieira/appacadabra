@@ -39,6 +39,7 @@ export const MSG = {
     ENCHANT: 'ENCHANT',
     ENCHANT_ACK: 'ENCHANT_ACK',
     UNENCHANT: 'UNENCHANT',
+    DATA_UPDATE: 'DATA_UPDATE',
     WRITEBACK: 'WRITEBACK',
     WRITEBACK_ACK: 'WRITEBACK_ACK',
     QUERY_RESULT: 'QUERY_RESULT',
@@ -502,4 +503,16 @@ export interface Bundle {
     /** key -> JSON-string values (like app_storage TEXT). */
     data: Record<string, string>;
     config: { refreshPolicy: 'manual' | 'onconnect' };
+}
+
+/**
+ * Helper p/ harnesses de teste: acumula bytes crus e entrega cada frame
+ * completo decodificado (mata o flake de frames concatenados em um chunk).
+ */
+export function createFrameSplitter(onFrame: (payload: Uint8Array) => void): {
+    feed: (data: Uint8Array) => void;
+} {
+    const dec = new FrameDecoder();
+    dec.setHandler(onFrame);
+    return { feed: (data) => dec.feed(data) };
 }
